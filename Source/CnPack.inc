@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -2864,11 +2864,17 @@
 {$ENDIF}
 
 {$IFDEF DELPHI104_SYDNEY_UP}
-  {$DEFINE IDE_SUPPORT_LSP}         // Sydney 10.4 或以上支持 LSP 语言服务器
+  {$DEFINE IDE_SUPPORT_LSP}             // Sydney 10.4 或以上支持 LSP 语言服务器
+  {$DEFINE IDE_HAS_ERRORINSIGHT}        // Sydney 10.4.2 或以上支持编辑器侧栏的 ErrorInsight
 {$ENDIF}
 
 {$IFDEF DELPHI102_TOKYO_UP}
+  {$DEFINE SUPPORT_LINUX64}             // Tokyo 10.2 或以上支持 Linux 64 位 Server
   {$DEFINE IDE_SUPPORT_THEMING}         // Tokyo 10.2.2 或以上支持 IDE 主题切换
+{$ENDIF}
+
+{$IFDEF DELPHIXE5_UP}
+  {$DEFINE IDE_HAS_INSIGHT}             // XE5 has IDE Insight Bar
 {$ENDIF}
 
 {$IFDEF DELPHIXE4_UP}
@@ -2877,7 +2883,13 @@
   {$ENDIF}
 {$ENDIF}
 
+{$IFDEF DELPHIXE3_UP}
+  {$DEFINE SUPPORT_ATOMIC}              // XE3 has Atomic Routines
+{$ENDIF}
+
 {$IFDEF DELPHIXE2_UP}
+  {$DEFINE SUPPORT_WIN64}                      // XE2 Supports Win64
+  {$DEFINE SUPPORT_MACOS32}                    // XE2 Supports MacOS 32
   {$DEFINE SUPPORT_UNITNAME_DOT}
   {$DEFINE SUPPORT_ENHANCED_INDEXEDPROPERTY}   // XE2 New RTTI Supports IndexedProperty
   {$DEFINE SUPPORT_ZLIB_WINDOWBITS}            // XE2 ZLib Supports WindowBits
@@ -2888,11 +2900,11 @@
 {$ENDIF}
 
 {$IFDEF BDS2012_UP}               // 2012 = XE2
-  {$DEFINE SUPPORT_32_AND_64}
+  {$DEFINE SUPPORT_32_AND_64}              // XE2 Support Win32 and Win64
   {$IFNDEF DISABLE_FMX}
     {$DEFINE SUPPORT_FMX}
   {$ENDIF}
-  {$DEFINE SUPPORT_CROSS_PLATFORM}
+  {$DEFINE SUPPORT_CROSS_PLATFORM}         // XE2 支持跨平台
   {$DEFINE VERSIONINFO_PER_CONFIGURATION}  // Every Configuruation can have a Version Info.
   {$DEFINE OTA_ENVOPTIONS_PLATFORM_BUG}
     // A Bug Can't get Correct Env Option Values for Current Platform.
@@ -2914,8 +2926,10 @@
 
 {$IFDEF BDS2009_UP}
   {$DEFINE UNICODE_STRING}
-  {$DEFINE OBJECT_HAS_TOSTRING}  // TObject.ToString Function
-  {$DEFINE OBJECT_HAS_EQUAL}     // TObject.Equal Function
+  {$DEFINE SUPPORT_PUINT64}         // Has Pointer of UInt64
+  {$DEFINE OBJECT_HAS_TOSTRING}     // TObject.ToString Function
+  {$DEFINE OBJECT_HAS_EQUAL}        // TObject.Equal Function
+  {$DEFINE OBJECT_HAS_GETHASHCODE}  // TObject.GetHashCode Function
   {$DEFINE SUPPORT_OTA_PROJECT_CONFIGURATION}
   {$DEFINE SUPPORT_GENERIC}      // 支持泛型
   {$DEFINE IDE_MAINFORM_EAT_MOUSEWHEEL}

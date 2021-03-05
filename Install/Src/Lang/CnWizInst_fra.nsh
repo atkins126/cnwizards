@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                   A Free, Open Source Project from China
-;                     (C)Copyright 2001-2012 CnPack Team
+;                     (C)Copyright 2001-2021 CnPack Team
 ;******************************************************************************
 ; Fichier en anglais pour le script d'installation de CnWizards
 ; Veuillez utiliser le format ANSI pour enregistrer le fichier de langue.
@@ -26,6 +26,7 @@ LangString SHELP          1036 "Aide CnWizards"
 LangString SHELPCHM       1036 "CnWizards_Fra.chm"
 LangString SENABLE        1036 "Activer CnWizards"
 LangString SDISABLE       1036 "Désactiver CnWizards"
+LangString SFIXSTART      1036 "CnWizards Outil de correction de d¨¦marrage"
 LangString SCONFIGIO      1036 "Importer/Exporter la configuration de CnWizards"
 LangString SCLEANIDEHIS   1036 "Effacer l'Historique de l'IDE"
 LangString SASCIICHART    1036 "Caractère ASCII"

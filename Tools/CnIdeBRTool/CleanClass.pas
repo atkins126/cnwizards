@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -90,15 +90,6 @@ procedure FreeIDEHistories;
 
 implementation
 
-const
-  SCnIDENames: array[TCnCompiler] of string =
-    ('Delphi 5', 'Delphi 6', 'Delphi 7', 'Delphi 8', 'BDS 2005', 'BDS 2006',
-     'RAD Studio 2007', 'RAD Studio 2009', 'RAD Studio 2010', 'RAD Studio XE',
-     'RAD Studio XE2', 'RAD Studio XE3', 'RAD Studio XE4', 'RAD Studio XE5',
-     'RAD Studio XE6', 'RAD Studio XE7', 'RAD Studio XE8', 'RAD Studio 10 Seattle',
-     'RAD Studio 10.1 Berlin', 'RAD Studio 10.2 Tokyo', 'RAD Studio 10.3 Rio',
-     'RAD Studio 10.4 Sydney', 'C++Builder 5', 'C++Builder 6');
-
 procedure CreateIDEHistories;
 var
   IDE: TCnCompiler;
@@ -106,7 +97,7 @@ begin
   for IDE := Low(TCnCompiler) to High(TCnCompiler) do
   begin
     IDEHistories[IDE] := TCnIDEHistory.Create;
-    IDEHistories[IDE].IDEName := SCnIDENames[IDE];
+    IDEHistories[IDE].IDEName := SCnCompilerNames[IDE];
   end;
 end;
 

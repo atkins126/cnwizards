@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -28,7 +28,9 @@ unit CnEditControlWrapper;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2018.03.20 V1.6
+* 修改记录：2021.02.28 V1.7
+*               适应 10.4.2 下 ErroInsight 导致行距与字符高度改变以及通知
+*           2018.03.20 V1.6
 *               增加主题改变时的通知与字体重算
 *           2016.07.16 V1.5
 *               增加 Tab 键属性的封装
@@ -51,7 +53,8 @@ interface
 
 uses
   Windows, Messages, Classes, Controls, SysUtils, Graphics, ToolsAPI, ExtCtrls,
-  ComCtrls, TypInfo, Forms, Tabs, Registry, Contnrs, {$IFDEF COMPILER6_UP}Variants, {$ENDIF}
+  ComCtrls, TypInfo, Forms, Tabs, Registry, Contnrs,
+  {$IFDEF COMPILER6_UP} Variants, {$ENDIF}
   {$IFDEF SUPPORT_ENHANCED_RTTI} Rtti, {$ENDIF}
   CnCommon, CnWizMethodHook, CnWizUtils, CnWizCompilerConst, CnWizNotifier,
   CnWizIdeUtils, CnWizOptions;
@@ -160,6 +163,7 @@ type
   end;
 
   THighlightItem = class
+  {* 不同编辑器元素的高亮显示特性，不包括基本字体}
   private
     FBold: Boolean;
     FColorBk: TColor;
@@ -176,30 +180,37 @@ type
 
   TEditorPaintLineNotifier = procedure (Editor: TEditorObject;
     LineNum, LogicLineNum: Integer) of object;
-  {* EditControl 控件单行绘制通知事件，用户可以此进行自定义绘制 }
+  {* EditControl 控件单行绘制通知事件，用户可以此进行自定义绘制}
+
   TEditorPaintNotifier = procedure (EditControl: TControl; EditView: IOTAEditView)
     of object;
-  {* EditControl 控件完整绘制通知事件，用户可以此进行自定义绘制 }
+  {* EditControl 控件完整绘制通知事件，用户可以此进行自定义绘制}
+
   TEditorNotifier = procedure (EditControl: TControl; EditWindow: TCustomForm;
     Operation: TOperation) of object;
-  {* 编辑器创建、删除通知 }
+  {* 编辑器创建、删除通知}
+
   TEditorChangeNotifier = procedure (Editor: TEditorObject; ChangeType:
     TEditorChangeTypes) of object;
-  {* 编辑器变更通知 }
+  {* 编辑器变更通知}
+
   TKeyMessageNotifier = procedure (Key, ScanCode: Word; Shift: TShiftState;
     var Handled: Boolean) of object;
-  {* 按键事件 }
+  {* 按键事件}
 
   // 鼠标事件类似于 TControl 内的定义，但 Sender 是 TEditorObject，并且加了是否是非客户区的标志
   TEditorMouseUpNotifier = procedure(Editor: TEditorObject; Button: TMouseButton;
     Shift: TShiftState; X, Y: Integer; IsNC: Boolean) of object;
   {* 编辑器内鼠标抬起通知}
+
   TEditorMouseDownNotifier =  procedure(Editor: TEditorObject; Button: TMouseButton;
     Shift: TShiftState; X, Y: Integer; IsNC: Boolean) of object;
   {* 编辑器内鼠标按下通知}
+
   TEditorMouseMoveNotifier = procedure(Editor: TEditorObject; Shift: TShiftState;
     X, Y: Integer; IsNC: Boolean) of object;
   {* 编辑器内鼠标移动通知}
+
   TEditorMouseLeaveNotifier = procedure(Editor: TEditorObject; IsNC: Boolean) of object;
   {* 编辑器内鼠标离开通知}
 
@@ -252,6 +263,10 @@ type
     FOptionDlgVisible: Boolean;
     FSaveFontName: string;
     FSaveFontSize: Integer;
+{$IFDEF IDE_HAS_ERRORINSIGHT}
+    FSaveErrorInsightIsSmoothWave: Boolean;
+{$ENDIF}
+    FFontArray: array[0..9] of TFont;
 
     FBpClickQueue: TQueue;
     FEditorBaseFont: TFont;
@@ -259,6 +274,7 @@ type
 
     procedure AddNotifier(List: TList; Notifier: TMethod);
     function CalcCharSize: Boolean;
+    // 计算字符串尺寸，核心思想是从注册表里拿各种高亮设置计算，取其大者
     procedure GetHighlightFromReg;
     procedure ClearAndFreeList(var List: TList);
     function IndexOf(List: TList; Notifier: TMethod): Integer;
@@ -287,6 +303,10 @@ type
     function GetHighlightCount: Integer;
     function GetHighlightName(Index: Integer): string;
     procedure ClearHighlights;
+    procedure LoadFontFromRegistry;
+    procedure ResetFontsFromBasic(ABasicFont: TFont);
+    function GetFonts(Index: Integer): TFont;
+    procedure SetFonts(const Index: Integer; const Value: TFont);
   protected
     procedure DoAfterPaintLine(Editor: TEditorObject; LineNum, LogicLineNum: Integer);
     procedure DoBeforePaintLine(Editor: TEditorObject; LineNum, LogicLineNum: Integer);
@@ -320,6 +340,7 @@ type
     property Editors[Index: Integer]: TEditorObject read GetEditors;
     property EditorCount: Integer read GetEditorCount;
 
+    // 以下几项是封装的编辑器高亮显示的不同元素的属性，但不包括字体本身，需要结合 EditorBaseFont 属性使用
     function IndexOfHighlight(const Name: string): Integer;
     property HighlightCount: Integer read GetHighlightCount;
     property HighlightNames[Index: Integer]: string read GetHighlightName;
@@ -460,9 +481,22 @@ type
     {* 返回编辑器的鼠标事件通知服务是否可用 }
     property EditorBaseFont: TFont read FEditorBaseFont;
     {* 一个 TFont 对象，持有编辑器的基础字体供外界使用}
+
+    // 以下是维护的注册表中的编辑器各类元素的字体，和 Highlights 有一定重叠，但无背景色属性
+    property FontBasic: TFont index 0 read GetFonts write SetFonts; // 基本字体无前景色
+    property FontAssembler: TFont index 1 read GetFonts write SetFonts;
+    property FontComment: TFont index 2 read GetFonts write SetFonts;
+    property FontDirective: TFont index 3 read GetFonts write SetFonts;
+    property FontIdentifier: TFont index 4 read GetFonts write SetFonts;
+    property FontKeyWord: TFont index 5 read GetFonts write SetFonts;
+    property FontNumber: TFont index 6 read GetFonts write SetFonts;
+    property FontSpace: TFont index 7 read GetFonts write SetFonts;
+    property FontString: TFont index 8 read GetFonts write SetFonts;
+    property FontSymbol: TFont index 9 read GetFonts write SetFonts;
   end;
 
 function EditControlWrapper: TCnEditControlWrapper;
+{* 获取全局编辑器封装对象}
 
 implementation
 
@@ -799,6 +833,8 @@ begin
 end;
 
 constructor TCnEditControlWrapper.Create(AOwner: TComponent);
+var
+  I: Integer;
 begin
   inherited;
   FOptionChanged := True;
@@ -824,6 +860,9 @@ begin
   FBpClickQueue := TQueue.Create;
   FEditorBaseFont := TFont.Create;
 
+  for I := Low(Self.FFontArray) to High(FFontArray) do
+    FFontArray[I] := TFont.Create;
+
   CnWizNotifierServices.AddSourceEditorNotifier(OnSourceEditorNotify);
   CnWizNotifierServices.AddActiveFormNotifier(OnActiveFormChange);
   CnWizNotifierServices.AddAfterThemeChangeNotifier(AfterThemeChange);
@@ -838,10 +877,16 @@ begin
 
   UpdateEditControlList;
   GetHighlightFromReg;
+  LoadFontFromRegistry;
 end;
 
 destructor TCnEditControlWrapper.Destroy;
+var
+  I: Integer;
 begin
+  for I := Low(Self.FFontArray) to High(FFontArray) do
+    FFontArray[I].Free;
+
   CnWizNotifierServices.RemoveSourceEditorNotifier(OnSourceEditorNotify);
   CnWizNotifierServices.RemoveActiveFormNotifier(OnActiveFormChange);
   CnWizNotifierServices.RemoveCallWndProcRetNotifier(OnCallWndProcRet);
@@ -1229,17 +1274,24 @@ end;
 
 procedure TCnEditControlWrapper.OnIdle(Sender: TObject);
 var
-  i: Integer;
+  I: Integer;
   OptionType: TEditorChangeTypes;
   ChangeType: TEditorChangeTypes;
   Option: IOTAEditOptions;
+{$IFDEF IDE_HAS_ERRORINSIGHT}
+  IsSmoothWave: Boolean;
+{$ENDIF}
 begin
   OptionType := [];
   
   Option := CnOtaGetEditOptions;
   if Option <> nil then
   begin
-    if not SameText(Option.FontName, FSaveFontName) or (Option.FontSize <> FSaveFontSize) then
+{$IFDEF IDE_HAS_ERRORINSIGHT}
+    IsSmoothWave := GetErrorInsightRenderStyle = csErrorInsightRenderStyleSmoothWave;
+{$ENDIF}
+    if not SameText(Option.FontName, FSaveFontName) or (Option.FontSize <> FSaveFontSize)
+      {$IFDEF IDE_HAS_ERRORINSIGHT} or IsSmoothWave <> FSaveErrorInsightIsSmoothWave {$ENDIF} then
     begin
       FOptionChanged := True;
     end;
@@ -1248,17 +1300,19 @@ begin
   if FOptionChanged then
   begin
     Include(OptionType, ctOptionChanged);
-    if UpdateCharSize then
+    if UpdateCharSize then             // 重新读取高亮颜色，会更新 FSave 系列变量供下次对比
       Include(OptionType, ctFont);
+
+    LoadFontFromRegistry;              // 重新读取高亮字体
     FOptionChanged := False;
   end;
 
-  for i := 0 to EditorCount - 1 do
+  for I := 0 to EditorCount - 1 do
   begin
-    ChangeType := CheckEditorChanges(Editors[i]) + OptionType;
+    ChangeType := CheckEditorChanges(Editors[I]) + OptionType;
     if ChangeType <> [] then
     begin
-      DoEditorChange(Editors[i], ChangeType);
+      DoEditorChange(Editors[I], ChangeType);
     end;
   end;
 end;
@@ -1309,11 +1363,13 @@ var
     else
       Result := clNone;
   end;
+
 begin
   ClearHighlights;
   Reg := nil;
   Names := nil;
   Values := nil;
+
   try
     Names := TStringList.Create;
     Values := TStringList.Create;
@@ -1431,6 +1487,7 @@ var
       Size.cx, Length(csAlphaText), Size.cy]);
   {$ENDIF}
   end;
+
 begin
   Result := False;
   FCharSize.cx := 0;
@@ -1453,6 +1510,9 @@ begin
 
     FSaveFontName := Option.FontName;
     FSaveFontSize := Option.FontSize;
+  {$IFDEF IDE_HAS_ERRORINSIGHT}
+    FSaveErrorInsightIsSmoothWave := GetErrorInsightRenderStyle = csErrorInsightRenderStyleSmoothWave;
+  {$ENDIF}
 
     FontName := Option.FontName;
     FontHeight := -MulDiv(Option.FontSize, Screen.PixelsPerInch, 72);
@@ -1508,7 +1568,17 @@ begin
         AFont.lfItalic := 1;
         CalcFont('Italic', AFont);
       end;
-      
+
+      // 判断 ErrorInsight 是否导致 y 尺寸改变
+      if GetErrorInsightRenderStyle = csErrorInsightRenderStyleSmoothWave then
+      begin
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('GetEditControlCharHeight: Smooth Wave Found.',
+          [csErrorInsightCharHeightOffset]);
+{$ENDIF}
+        Inc(FCharSize.cy, csErrorInsightCharHeightOffset);
+      end;
+
       Result := (FCharSize.cx > 0) and (FCharSize.cy > 0);
     finally
       SaveFont := SelectObject(DC, SaveFont);
@@ -2769,6 +2839,91 @@ begin
   end
   else
     Result := False;
+end;
+
+function TCnEditControlWrapper.GetFonts(Index: Integer): TFont;
+begin
+  Result := FFontArray[Index];
+end;
+
+procedure TCnEditControlWrapper.LoadFontFromRegistry;
+const
+  arrRegItems: array [0..9] of string = ('', 'Assembler', 'Comment', 'Preprocessor',
+    'Identifier', 'Reserved word', 'Number', 'Whitespace', 'String', 'Symbol');
+var
+  I: Integer;
+  AFont: TFont;
+begin
+  // 从注册表中载入 IDE 的字体供外界使用
+  AFont := TFont.Create;
+  try
+    AFont.Name := 'Courier New';  {Do NOT Localize}
+    AFont.Size := 10;
+
+    if GetIDERegistryFont(arrRegItems[0], AFont) then
+      ResetFontsFromBasic(AFont);
+
+    for I := Low(FFontArray) + 1 to High(FFontArray) do
+    begin
+      try
+        if GetIDERegistryFont(arrRegItems[I], AFont) then
+          FFontArray[I].Assign(AFont);
+      except
+        Continue;
+      end;
+    end;
+  finally
+    AFont.Free;
+  end;
+end;
+
+procedure TCnEditControlWrapper.ResetFontsFromBasic(ABasicFont: TFont);
+var
+  TempFont: TFont;
+begin
+  TempFont := TFont.Create;
+  try
+    TempFont.Assign(ABasicFont);
+    FontBasic := TempFont;
+
+    TempFont.Color := clRed;
+    FontAssembler := TempFont;
+
+    TempFont.Color := clNavy;
+    TempFont.Style := [fsItalic];
+    FontComment := TempFont;
+
+    TempFont.Style := [];
+    TempFont.Color := clBlack;
+    FontIdentifier := TempFont;
+
+    TempFont.Color := clGreen;
+    FontDirective := TempFont;
+
+    TempFont.Color := clBlack;
+    TempFont.Style := [fsBold];
+    FontKeyWord := TempFont;
+
+    TempFont.Style := [];
+    FontNumber := TempFont;
+
+    FontSpace := TempFont;
+
+    TempFont.Color := clBlue;
+    FontString := TempFont;
+
+    TempFont.Color := clBlack;
+    FontSymbol := TempFont;
+  finally
+    TempFont.Free;
+  end;
+end;
+
+procedure TCnEditControlWrapper.SetFonts(const Index: Integer;
+  const Value: TFont);
+begin
+  if Value <> nil then
+    FFontArray[Index].Assign(Value);
 end;
 
 initialization

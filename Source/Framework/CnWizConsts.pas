@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -58,7 +58,7 @@ const
   SCnWizardDesc = 'CnPack IDE Wizards for Delphi/C++Builder/BDS/Rad Studio' + #13#10 +
                   '' + #13#10 +
                   'Version: ' + SCnWizardFullVersion + #13#10 +
-                  'Copyright: 2001-2020 CnPack Team' + #13#10 +
+                  'Copyright: 2001-2021 CnPack Team' + #13#10 +
                   '' + #13#10 +
                   'This is a freeware, you can use it freely without any fee. ' +
                   'You can copy or distribute it in any form, without any fee. ' +
@@ -343,6 +343,7 @@ resourcestring
   SCnScriptFormCommand = 'CnScriptForm';
   SCnScriptBrowseDemoCommand = 'CnScriptBrowseDemo';
   SCnScriptTemplateFileName = 'CnScript.pas';
+  SCnScriptInternalFileName = 'InternalScripts.xml';
   SCnScriptFileName = 'Scripts.xml';
   SCnScriptItem = 'CnScriptItem';
   SCnScriptDeclDir = 'PSDecl';
@@ -364,6 +365,8 @@ resourcestring
   EVENT_CNWIZARDS_SETTING_CHANGED = 'CnWizardsSettingChanged';
   // Input Helper ShortCut Changed Event used to Avoid Conflict Popup
   EVENT_INPUTHELPER_POPUP_SHORTCUT_CHANGED = 'InputHeperPopupShortcutChanged';
+  // Script Library Settings Changed
+  EVENT_SCRIPT_SETTING_CHANGED = 'CnScriptSettingChanged';
 
 //==============================================================================
 // Need to Localize
@@ -743,6 +746,11 @@ var
   SCnEditorJumpNextIdentMenuCaption: string = 'Jump to Next Identifier';
   SCnEditorJumpNextIdentMenuHint: string = 'Jump to Next Identifier under Cursor';
   SCnEditorJumpNextIdentName: string = 'Jump to Next Identifier Tool';
+
+  // CnEditorJumpIDEInsight
+  SCnEditorJumpIDEInsightMenuCaption: string = 'Search in IDE Insight';
+  SCnEditorJumpIDEInsightMenuHint: string = 'Search Text under Cursor in IDE Insight';
+  SCnEditorJumpIDEInsightName: string = 'Search in IDE Insight Tool';
 
   // CnEditorFontInc
   SCnEditorFontIncMenuCaption: string = 'Zoom &Larger Font';
@@ -1176,6 +1184,8 @@ var
   SCnSelectRootHint: string = 'Select Current Form in Current Designer';
   SCnCopyCompNameCaption: string = 'Copy Component''s Name';
   SCnCopyCompNameHint: string = 'Copy Selected Component''s Name to Clipboard';
+  SCnCopyCompClassCaption: string = 'Copy Component''s ClassName';
+  SCnCopyCompClassHint: string = 'Copy Selected Component''s ClassName to Clipboard';
   SCnNonArrangeCaption: string = 'Arrange Non-visual...';
   SCnNonArrangeHint: string = 'Arrange the Non-visual Components';
   SCnListCompCaption: string = 'Locate Components...';
@@ -1555,6 +1565,17 @@ var
   SCnScriptExecConfirm: string = 'Sure to Execute Script "%s"?';
   SCnScriptMenuDemoCaption: string = '&Demos';
   SCnScriptMenuDemoHint: string = 'Script Demos';
+
+  SCnScriptModeManual: string = 'Manually Run';
+  SCnScriptModeIDELoaded: string = 'Trigger after IDE Loaded';
+  SCnScriptModeFileNotify: string = 'Trigger by File Notification';
+  SCnScriptModeBeforeCompile: string = 'Trigger before Compile';
+  SCnScriptModeAfterCompile: string = 'Trigger after Compile';
+  SCnScriptModeSourceEditorNotify: string = 'Trigger by Source Editor Notification';
+  SCnScriptModeFormEditorNotify: string = 'Trigger by Designer Notification';
+  SCnScriptModeApplicationEvent: string = 'Trigger by Application Event';
+  SCnScriptModeActiveFormChanged: string = 'Trigger after Active Form Changed';
+  SCnScriptModeEditorFlatButton: string = 'Attach to Editor Flat Button Menu';
 
   // CnFeedReaderWizard
   SCnFeedReaderWizardName: string = 'FeedReader Wizard';

@@ -65,3 +65,8 @@ CnPack becomes Embarcadero Technology Partner in 2009.
  * CnPack Website: http://www.cnpack.org
  * CnPack BBS:     http://bbs.cnpack.org
  * Email:          master@cnpack.org
+
+# 5. Related Links
+
+ * https://www.embarcadero.com/
+ * https://learndelphi.org/

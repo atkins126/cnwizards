@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                      中国人自己的开放源码第三方开发包
-;                    (C)Copyright 2001-2020 CnPack 开发组
+;                    (C)Copyright 2001-2021 CnPack 开发组
 ;******************************************************************************
 
 ; CnWizards 安装脚本简体中文语言文件
@@ -27,6 +27,7 @@ LangString SHELP          2052 "专家包帮助"
 LangString SHELPCHM       2052 "CnWizards_CHS.chm"
 LangString SENABLE        2052 "启用专家包"
 LangString SDISABLE       2052 "禁用专家包"
+LangString SFIXSTART      2052 "专家包启动修复工具"
 LangString SCONFIGIO      2052 "专家包设置导入导出工具"
 LangString SCLEANIDEHIS   2052 "清除 IDE 打开文件历史"
 LangString SASCIICHART    2052 "ASCII 字符表"

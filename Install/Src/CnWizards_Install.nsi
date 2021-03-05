@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                      中国人自己的开放源码第三方开发包
-;                    (C)Copyright 2001-2020 CnPack 开发组
+;                    (C)Copyright 2001-2021 CnPack 开发组
 ;******************************************************************************
 
 ; 以下脚本用以生成 CnPack IDE 专家包安装程序
@@ -34,7 +34,8 @@
 ;    IDE_VERSION_D104S
 ;    IDE_VERSION_CB5
 ;    IDE_VERSION_CB6
-;    NO_HELP
+;    NO_HELP  -- 定义时不打任何帮助文件
+;    MINI_HELP -- 未定义NO_HELP时，如定义了MINI_HELP，则只打入英文帮助文件
 ;******************************************************************************
 
 !include "Sections.nsh"
@@ -571,6 +572,10 @@ FileLoop:
   FileOpen $0 "$INSTDIR\CnWizards_D104S.dll" a
   IfErrors FileInUse
   FileClose $0
+  IfFileExists "$INSTDIR\CnWizards_D104S1.dll" 0 +4
+  FileOpen $0 "$INSTDIR\CnWizards_D104S1.dll" a
+  IfErrors FileInUse
+  FileClose $0
 !endif
 
 !endif
@@ -602,6 +607,7 @@ InitOk:
   ; 设置输出路径，每次使用都会改变
   SetOutPath $INSTDIR
   File "..\..\Bin\Setup.exe"
+  File "..\..\Bin\CnFixStart.exe"
   File "..\..\Bin\CnWizLoader.dll"
   File "..\..\Bin\CnWizRes.dll"
   File "..\..\Bin\CnPngLib.dll"
@@ -694,6 +700,7 @@ InitOk:
   CreateDirectory "$SMPROGRAMS\${APPNAMEDIR}"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SENABLE).lnk" "$INSTDIR\Setup.exe" "-i" "$INSTDIR\Setup.exe" 1
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SDISABLE).lnk" "$INSTDIR\Setup.exe" "-u" "$INSTDIR\Setup.exe" 2
+  CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SFIXSTART).lnk" "$INSTDIR\CnFixStart.exe"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SUNINSTALL) $(APPNAME).lnk" "$INSTDIR\uninst.exe"
 
   ; 写入生成卸载程序
@@ -927,6 +934,7 @@ SectionEnd
 Section "RAD Studio 10.4 Sydney" SecD104S
   SectionIn 1 2
   SetOutPath $INSTDIR
+  File "..\..\Bin\CnWizards_D104S1.dll"
   File "..\..\Bin\CnWizards_D104S.dll"
   ; 写入专家注册键值
   DeleteRegValue HKCU "Software\Embarcadero\BDS\21.0\Experts" "CnWizards_D104S"
@@ -969,8 +977,13 @@ SectionEnd
 Section "$(HELPFILE)" SecHelp
   SectionIn 1
   SetOutPath $INSTDIR\Help
+  !ifndef MINI_HELP
   File "..\..\Bin\Help\CnWizards_*.chm"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SHELP).lnk" "$INSTDIR\Help\$(SHELPCHM)"
+  !else
+  File "..\..\Bin\Help\CnWizards_CHS.chm"
+  File "..\..\Bin\Help\CnWizards_ENU.chm"
+  !endif
 SectionEnd
 !endif
 

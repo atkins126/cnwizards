@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -374,7 +374,7 @@ end;
 function IsDelphi104SIdeVersionLatest: Boolean;
 const
   CoreIdeLatest: TVersionNumber =
-    (Major: 27; Minor: 0; Release: 37889; Build: 9797); // 10.4.0
+    (Major: 27; Minor: 0; Release: 40680; Build: 4203); // 10.4.2
 var
   ReadFileVersion: TVersionNumber;
 begin

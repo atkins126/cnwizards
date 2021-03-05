@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -3868,7 +3868,7 @@ begin
           if IndexOfBlockLine(EditControl) >= 0 then
           begin
             LineInfo := TBlockLineInfo(FBlockLineList[IndexOfBlockLine(EditControl)]);
-            if (LineInfo.CurrentPair <> nil) and ((LineInfo.CurrentPair.Top = LogicLineNum)
+            if (LineInfo <> nil) and (LineInfo.CurrentPair <> nil) and ((LineInfo.CurrentPair.Top = LogicLineNum)
               or (LineInfo.CurrentPair.Bottom = LogicLineNum)
               or (LineInfo.CurrentPair.IsInMiddle(LogicLineNum))) then
             begin
@@ -3884,7 +3884,7 @@ begin
           if IndexOfCompDirectiveLine(EditControl) >= 0 then
           begin
             CompDirectiveInfo := TCompDirectiveInfo(FCompDirectiveList[IndexOfCompDirectiveLine(EditControl)]);
-            if (CompDirectiveInfo.CurrentPair <> nil) and ((CompDirectiveInfo.CurrentPair.Top = LogicLineNum)
+            if (CompDirectiveInfo <> nil) and (CompDirectiveInfo.CurrentPair <> nil) and ((CompDirectiveInfo.CurrentPair.Top = LogicLineNum)
               or (CompDirectiveInfo.CurrentPair.Bottom = LogicLineNum)
               or (CompDirectiveInfo.CurrentPair.IsInMiddle(LogicLineNum))) then
             begin

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -97,6 +97,7 @@ function GetWizardDll: string;
 const
   RIO_13_2_RELEASE = 34749;
   XE2_UPDATE4_HOTFIX1_RELEASE = 4504;
+  SYDNEY_14_1_RELEASE = 38860;
 var
   FullPath: array[0..MAX_PATH - 1] of AnsiChar;
   Dir, Exe: string;
@@ -154,7 +155,13 @@ begin
         else
           Result := Dir + 'CnWizards_D103R.DLL';
       end;
-    27: Result := Dir + 'CnWizards_D104S.DLL';
+    27:
+      begin
+        if V.Release < SYDNEY_14_1_RELEASE then  // 10.4.0 采用另一个 DLL
+          Result := Dir + 'CnWizards_D104S1.DLL'
+        else
+          Result := Dir + 'CnWizards_D104S.DLL';
+      end;
   end;
 end;
 

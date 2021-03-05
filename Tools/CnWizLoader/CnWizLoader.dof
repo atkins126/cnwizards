@@ -93,7 +93,6 @@ ExeDescription=
 OutputDir=..\..\Bin
 UnitOutputDir=..\..\Dcu
 PackageDLLOutputDir=
-PackageDCPOutputDir=
 SearchPath=$(DELPHI)\Source\Toolsapi
 Packages=
 Conditionals=

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -49,6 +49,12 @@ type
   TCnFilterUpdates = set of TCnFilterUpdate;
 
   TCnMemoContent = (mcNone, mcMsg, mcTime);
+
+{$IFDEF WIN64}
+  TCnVTString = string;
+{$ELSE}
+  TCnVTString = WideString;
+{$ENDIF}
 
   TCnMsgChild = class(TForm)
     lvTime: TListView;
@@ -118,7 +124,7 @@ type
     FIsResizing: Boolean;
 
     procedure TreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode;
-      Column: TColumnIndex; TextType: TVSTTextType; var CellText: WideString);
+      Column: TColumnIndex; TextType: TVSTTextType; var CellText: TCnVTString);
     procedure TreeColumnResize(Sender: TVTHeader; Column: TColumnIndex);
     // procedure TreeClick(Sender: TObject);
     procedure TreeChange(Sender: TBaseVirtualTree; Node: PVirtualNode);
@@ -176,7 +182,7 @@ type
     procedure RequireRefreshTime;
     procedure InitFont;
     function DescriptionOfMsg(Index: Integer; AMsgItem: TCnMsgItem): string;
-    function DescriptionOfTime(Index: Integer ): string;
+    function DescriptionOfTime(Index: Integer): string;
 
     property Store: TCnMsgStore read FStore write SetStore;
     property Filter: TCnDisplayFilter read FFilter;
@@ -306,7 +312,7 @@ end;
 
 procedure TCnMsgChild.TreeGetText(Sender: TBaseVirtualTree;
   Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType;
-  var CellText: WideString);
+  var CellText: TCnVTString);
 var
   Index: Integer;
 begin

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -52,7 +52,7 @@ type
   private
     FCode: TStrings;                // 存储输出内容，内容中可能有注释引入的回车换行
     FActualLines: TStrings;         // 存储规范了的输出内容，也就是不包含回车换行
-    FActualWriteHelper: TStrings;    
+    FActualWriteHelper: TStrings;
     FLock: Word;
     FColumnPos: Integer;            // 当前列值，注意它和实际情况不一定一致，因为 FCode 中的字符串可能带回车换行
     FActualColumn: Integer;         // 当前实际列值，等于 FCode 最后一行最后一个 #13#10 后的内容
@@ -124,6 +124,8 @@ type
     {* 如果最后一行是全空格，则清除此行的所有空格，用于保留换行的场合}
     function IsLastLineEmpty: Boolean;
     {* 最后一行是否就一个回车}
+    function IsLast2LineEmpty: Boolean;
+    {* 最后两行是否就两个回车，如果行数不够也返回 False}
 
     procedure LockOutput;
     procedure UnLockOutput;
@@ -204,6 +206,13 @@ begin
     if (Len > 0) and (S[Len] = ' ') then
       FCode[FCode.Count - 1] := TrimRight(S);
   end;
+  if FActualLines.Count > 0 then
+  begin
+    S := FActualLines[FActualLines.Count - 1];
+    Len := Length(S);
+    if (Len > 0) and (S[Len] = ' ') then
+      FActualLines[FActualLines.Count - 1] := TrimRight(S);
+  end;
 end;
 
 procedure TCnCodeGenerator.TrimLastEmptyLine;
@@ -225,6 +234,20 @@ begin
 {$IFDEF DEBUG}
       CnDebugger.LogFmt('GodeGen: TrimLastEmptyLine %d Spaces.', [Len]);
 {$ENDIF}
+
+      S := FActualLines[FActualLines.Count - 1];
+      Len := Length(S);
+      if Len > 0 then
+      begin
+        for I := 1 to Len do
+          if S[I] <> ' ' then
+            Exit;
+
+        FActualLines[FActualLines.Count - 1] := '';
+  {$IFDEF DEBUG}
+        CnDebugger.LogFmt('GodeGen: FActualLines TrimLastEmptyLine %d Spaces.', [Len]);
+  {$ENDIF}
+      end;
     end;
   end;
 end;
@@ -964,6 +987,13 @@ begin
   Old := FJustWrittenCommentEndLn;
   Write(' ');
   FJustWrittenCommentEndLn := Old;
+end;
+
+function TCnCodeGenerator.IsLast2LineEmpty: Boolean;
+begin
+  Result := False;
+  if FCode.Count > 1 then
+    Result := (FCode[FCode.Count - 1] = '') and (FCode[FCode.Count - 2] = '');
 end;
 
 end.

@@ -178,8 +178,8 @@
     <USERDEFINES value="${define.add}"/>
     <SYSDEFINES value="NO_STRICT;USEPACKAGES"/>
     <MAINSOURCE value="CnWizards_CB6.bpf"/>
-    <INCLUDEPATH value="CodeFormatter;ScriptWizard;SrcTemplate;ReopenWizard;SimpleWizards;Config;MultiLang;Misc;SrcEditorEnhance;ExplorerWizard;RepositoryWiz;ProjectExtWizard;CorProperty;IdeEnhancements;PrefixWizard;SourceStat;DesignEditors;SourceDiff;CodingToolset;Utils;Framework;$(BCB)\include;$(BCB)\include\vcl;$(BCB)\source\toolsapi;thirdparty;thirdparty\tpabbrevia;thirdparty\ddetours;thirdparty\jcl;thirdparty\fastcode;thirdparty\pascalscript;..\dcu;..\..\cnvcl\source\common;..\..\cnvcl\source\nonvisual;..\..\cnvcl\source\graphics;..\..\cnvcl\source\netcomm;..\..\cnvcl\source\multilang;..\..\cnvcl\source\objrep"/>
-    <LIBPATH value="CodeFormatter;ScriptWizard;SrcTemplate;SrcEditorEnhance;ReopenWizard;SimpleWizards;Config;MultiLang;Misc;ExplorerWizard;RepositoryWiz;ProjectExtWizard;CorProperty;IdeEnhancements;PrefixWizard;SourceStat;DesignEditors;SourceDiff;CodingToolset;Utils;Framework;$(BCB)\lib;$(BCB)\lib\obj;$(BCB)\source\toolsapi;thirdparty;thirdparty\tpabbrevia;thirdparty\ddetours;thirdparty\fastcode;thirdparty\pascalscript;thirdparty\jcl;..\dcu;..\..\cnvcl\source\common;..\..\cnvcl\source\nonvisual;..\..\cnvcl\source\graphics;..\..\cnvcl\source\netcomm;..\..\cnvcl\source\multilang;..\..\cnvcl\source\objrep"/>
+    <INCLUDEPATH value="CodeFormatter;ScriptWizard;SrcTemplate;ReopenWizard;SimpleWizards;Config;MultiLang;Misc;SrcEditorEnhance;ExplorerWizard;RepositoryWiz;ProjectExtWizard;CorProperty;IdeEnhancements;PrefixWizard;SourceStat;DesignEditors;SourceDiff;CodingToolset;Utils;Framework;$(BCB)\include;$(BCB)\include\vcl;$(BCB)\source\toolsapi;thirdparty;thirdparty\tpabbrevia;thirdparty\ddetours;thirdparty\jcl;thirdparty\fastcode;thirdparty\pascalscript;..\dcu;..\..\cnvcl\source\common;..\..\cnvcl\source\crypto;..\..\cnvcl\source\nonvisual;..\..\cnvcl\source\graphics;..\..\cnvcl\source\netcomm;..\..\cnvcl\source\multilang;..\..\cnvcl\source\objrep"/>
+    <LIBPATH value="CodeFormatter;ScriptWizard;SrcTemplate;SrcEditorEnhance;ReopenWizard;SimpleWizards;Config;MultiLang;Misc;ExplorerWizard;RepositoryWiz;ProjectExtWizard;CorProperty;IdeEnhancements;PrefixWizard;SourceStat;DesignEditors;SourceDiff;CodingToolset;Utils;Framework;$(BCB)\lib;$(BCB)\lib\obj;$(BCB)\source\toolsapi;thirdparty;thirdparty\tpabbrevia;thirdparty\ddetours;thirdparty\fastcode;thirdparty\pascalscript;thirdparty\jcl;..\dcu;..\..\cnvcl\source\common;..\..\cnvcl\source\crypto;..\..\cnvcl\source\nonvisual;..\..\cnvcl\source\graphics;..\..\cnvcl\source\netcomm;..\..\cnvcl\source\multilang;..\..\cnvcl\source\objrep"/>
     <WARNINGS value="-w-par"/>
     <OTHERFILES value=""/>
   </MACROS>
@@ -191,7 +191,7 @@
       -ICodingToolset -IUtils -IFramework -I$(BCB)\include -I$(BCB)\include\vcl 
       -I$(BCB)\source\toolsapi -Ithirdparty -Ithirdparty\tpabbrevia 
       -Ithirdparty\ddetours -Ithirdparty\jcl -Ithirdparty\fastcode 
-      -Ithirdparty\pascalscript -I..\dcu -I..\..\cnvcl\source\common 
+      -Ithirdparty\pascalscript -I..\dcu -I..\..\cnvcl\source\common -I..\..\cnvcl\source\crypto 
       -I..\..\cnvcl\source\nonvisual -I..\..\cnvcl\source\graphics 
       -I..\..\cnvcl\source\netcomm -I..\..\cnvcl\source\multilang 
       -I..\..\cnvcl\source\objrep -src_suffix cpp -boa"/>
@@ -419,7 +419,7 @@ CompanyName=CnPack Team
 FileDescription=CnWizards For C++Builder 6
 FileVersion=1.0.0.0
 InternalName=CnWizards_CB6
-LegalCopyright=(C)Copyright 2001-2020 CnPack Team
+LegalCopyright=(C)Copyright 2001-2021 CnPack Team
 LegalTrademarks=CnPack
 OriginalFilename=CnWizards_CB6.DLL
 ProductName=CnWizards

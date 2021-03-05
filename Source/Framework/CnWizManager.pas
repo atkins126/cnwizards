@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -796,12 +796,12 @@ end;
 // 根据专家名称返回专家实例，如果找不到专家，返回为 nil
 function TCnWizardMgr.WizardByName(const WizardName: string): TCnBaseWizard;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to WizardCount - 1 do
-    if SameText(Wizards[i].WizardName, WizardName) then
+  for I := 0 to WizardCount - 1 do
+    if SameText(Wizards[I].WizardName, WizardName) then
     begin
-      Result := Wizards[i];
+      Result := Wizards[I];
       Exit;
     end;
   Result := nil;

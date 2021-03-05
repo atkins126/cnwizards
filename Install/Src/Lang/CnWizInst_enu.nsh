@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                   A Free, Open Source Project from China
-;                     (C)Copyright 2001-2020 CnPack Team
+;                     (C)Copyright 2001-2021 CnPack Team
 ;******************************************************************************
 
 ; English Language File for CnWizards Install Script
@@ -27,6 +27,7 @@ LangString SHELP          1033 "CnWizards Help"
 LangString SHELPCHM       1033 "CnWizards_ENU.chm"
 LangString SENABLE        1033 "Enable CnWizards"
 LangString SDISABLE       1033 "Disable CnWizards"
+LangString SFIXSTART      1033 "CnWizards Starting-Up Fix Tool"
 LangString SCONFIGIO      1033 "CnWizards Config Import & Export"
 LangString SCLEANIDEHIS   1033 "IDE History Cleaner"
 LangString SASCIICHART    1033 "ASCII Chart"

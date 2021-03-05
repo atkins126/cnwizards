@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -40,7 +40,8 @@ uses
   ExtCtrls, Menus, ComCtrls, ActnList, ImgList, ToolWin, Clipbrd, Registry, 
   Tabs, VirtualTrees, CnMdiView, CnLangMgr, CnWizLangID, CnTabSet,
   CnLangStorage, CnHashLangStorage, CnClasses, CnMsgClasses, CnTrayIcon,
-  CnWizCfgUtils, CnUDP, CnDebugIntf, CnCRC32;
+  CnWizCfgUtils, CnUDP, CnDebugIntf, CnCRC32
+  {$IFDEF WIN64}, System.ImageList, System.Actions {$ENDIF};
 
 const
   WM_TAB_MAKE_VISIBLE = WM_USER + $108;
@@ -397,6 +398,9 @@ var
   Res: TCnCoreInitResults;
   S: string;
 begin
+{$IFDEF WIN64}
+  Caption := Caption + '64';
+{$ENDIF}
   if not IsLocalMode then
     Caption := Caption + '- (Global)' // 显示为全局模式
   else
@@ -878,8 +882,14 @@ end;
 
 procedure TCnMainViewer.actAboutExecute(Sender: TObject);
 begin
+{$IFDEF WIN64}
+  MessageBox(Application.Handle, PChar(StringReplace(SCnDebugViewerAbout,
+    'CnDebugViewer', 'CnDebugViewer 64-Bit', [rfReplaceAll])),
+    PChar(SCnDebugViewerAboutCaption), MB_OK or MB_ICONINFORMATION);
+{$ELSE}
   MessageBox(Application.Handle, PChar(SCnDebugViewerAbout),
     PChar(SCnDebugViewerAboutCaption), MB_OK or MB_ICONINFORMATION);
+{$ENDIF}
 end;
 
 procedure TCnMainViewer.actGotoPrevLineExecute(Sender: TObject);
@@ -1059,22 +1069,29 @@ begin
 end;
 
 procedure TCnMainViewer.actExportExecute(Sender: TObject);
+const
+  CRLF = #13#10;
 var
   S: TFileName;
-  FileStrs: TStringList;
+  FS: TFileStream;
+
+  procedure WriteStrToFileStream(const FSMsg: string);
+  begin
+    if FSMsg <> '' then
+      FS.Write(FSMsg[1], Length(FSMsg) * SizeOf(Char));
+    FS.Write(CRLF, 2);
+  end;
 
   procedure ExportToTextFile(AStore: TCnMsgStore; AFileName: string);
   var
     I: Integer;
   begin
-    FileStrs.Clear;
     for I := 0 to AStore.MsgCount - 1 do
     begin
-      FileStrs.Add('--------------------------------------------------------------------------------');
-      FileStrs.Add(CurrentChild.DescriptionOfMsg(I, AStore.Msgs[I]));
-      FileStrs.Add('');
+      WriteStrToFileStream('--------------------------------------------------------------------------------');
+      WriteStrToFileStream(CurrentChild.DescriptionOfMsg(I, AStore.Msgs[I]));
+      WriteStrToFileStream('');
     end;
-    FileStrs.SaveToFile(AFileName);
   end;
 
   procedure ExportToCSVFile(AStore: TCnMsgStore; AFileName: string);
@@ -1083,8 +1100,7 @@ var
     Msg: string;
     AMsgItem: TCnMsgItem;
   begin
-    FileStrs.Clear;
-    FileStrs.Add(SCnCSVFormatHeader);
+    WriteStrToFileStream(SCnCSVFormatHeader);
     for I := 0 to AStore.MsgCount - 1 do
     begin
       AMsgItem := AStore.Msgs[I];
@@ -1092,11 +1108,10 @@ var
       Msg := StringReplace(AMsgItem.Msg, #13#10, ' ', [rfIgnoreCase, rfReplaceAll]);
       Msg := StringReplace(Msg, ',', ' ', [rfIgnoreCase, rfReplaceAll]);
 
-      FileStrs.Add(Format('%d,%d,%s,$%x,$%x,%s,%s,%s', [I + 1, AMsgItem.Level,
+      WriteStrToFileStream(Format('%d,%d,%s,$%x,$%x,%s,%s,%s', [I + 1, AMsgItem.Level,
         SCnMsgTypeDescArray[AMsgItem.MsgType]^, AMsgItem.ThreadId, AMsgItem.ProcessId,
         AMsgItem.Tag, GetLongTimeDesc(AMsgItem), Msg]));
     end;
-    FileStrs.SaveToFile(AFileName);
   end;
 
   procedure ExportToHTMFile(AStore: TCnMsgStore; AFileName: string);
@@ -1105,9 +1120,8 @@ var
     Msg: string;
     AMsgItem: TCnMsgItem;
   begin
-    FileStrs.Clear;
-    FileStrs.Add(Format(SCnHTMFormatHeader, [SCnHTMFormatStyle, AFileName, SCnHTMFormatCharset]));
-    FileStrs.Add(SCnHTMFormatTableHead);
+    WriteStrToFileStream(Format(SCnHTMFormatHeader, [SCnHTMFormatStyle, AFileName, SCnHTMFormatCharset]));
+    WriteStrToFileStream(SCnHTMFormatTableHead);
     for I := 0 to AStore.MsgCount - 1 do
     begin
       AMsgItem := AStore.Msgs[I];
@@ -1117,12 +1131,11 @@ var
       Msg := StringReplace(AMsgItem.Msg, '>', '&gt;', [rfIgnoreCase, rfReplaceAll]);
       Msg := StringReplace(AMsgItem.Msg, #13#10, '<BR>', [rfIgnoreCase, rfReplaceAll]);
 
-      FileStrs.Add(Format(SCnHTMFormatLine, [I + 1, AMsgItem.Level,
+      WriteStrToFileStream(Format(SCnHTMFormatLine, [I + 1, AMsgItem.Level,
         SCnMsgTypeDescArray[AMsgItem.MsgType]^, AMsgItem.ThreadId, AMsgItem.ProcessId, AMsgItem.Tag,
         GetLongTimeDesc(AMsgItem), Msg]));
     end;
-    FileStrs.Add(SCnHTMFormatEnd);
-    FileStrs.SaveToFile(AFileName);
+    WriteStrToFileStream(SCnHTMFormatEnd);
   end;
 begin
   if CurrentChild = nil then Exit;
@@ -1132,7 +1145,7 @@ begin
     S := dlgSaveExport.FileName;
 
     try
-      FileStrs := TStringList.Create;
+      FS := TFileStream.Create(S, fmCreate or fmOpenWrite);
       case dlgSaveExport.FilterIndex of
         1: // TXT
           begin
@@ -1156,7 +1169,7 @@ begin
           end;
       end;
     finally
-      FileStrs.Free;
+      FS.Free;
     end;
   end;
 end;
@@ -1336,6 +1349,9 @@ end;
 
 procedure TCnMainViewer.OnSetCaptionGlobalLocal(var Message: TMessage);
 begin
+{$IFDEF WIN64}
+  Caption := Caption + '64';
+{$ENDIF}
   if not IsLocalMode then
     Caption := Caption + '- (Global)' // 显示为全局模式
   else
@@ -1459,10 +1475,18 @@ end;
 procedure TCnMainViewer.TerminateThread;
 begin
   if FThread <> nil then
+  begin
     FThread.Terminate;
+    FThread.WaitFor;
+    FThread := nil;
+  end;
 
   if FDbgThread <> nil then
+  begin
     FDbgThread.Terminate;
+    FDbgThread.WaitFor;
+    FDbgThread := nil;
+  end;
 end;
 
 procedure TCnMainViewer.ShowAndHideOtherChildren(ExceptChild: TForm);
@@ -1471,6 +1495,9 @@ var
 begin
   ExceptChild.Show;
   ExceptChild.BringToFront;
+{$IFDEF WIN64}
+  ExceptChild.Realign;
+{$ENDIF}
 
   for I := 0 to pnlChildContainer.ControlCount - 1 do
   begin

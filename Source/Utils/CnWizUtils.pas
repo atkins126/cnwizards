@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -1058,6 +1058,12 @@ procedure CnOtaGetCurrFormSelectionsName(List: TStrings);
 
 procedure CnOtaCopyCurrFormSelectionsName;
 {* 复制当前选择的控件的名称列表到剪贴板}
+
+procedure CnOtaGetCurrFormSelectionsClassName(List: TStrings);
+{* 取得当前选择的控件的类名列表}
+
+procedure CnOtaCopyCurrFormSelectionsClassName;
+{* 复制当前选择的控件的类名列表到剪贴板}
 
 function CnOtaIDESupportsTheming: Boolean;
 {* 获得 IDE 是否支持主题切换}
@@ -5868,10 +5874,10 @@ end;
 function ConvertTextToEditorText(const Text: AnsiString): AnsiString;
 begin
 {$IFDEF IDE_WIDECONTROL}
-  // 只适合于非 Unicode 环境的 BDS。Unicode 环境下，直接用其 string 即可
+  // 只适合于非 Unicode 环境的 BDS。
   Result := CnAnsiToUtf8(Text);
 {$ELSE}
-  Result := Text;
+  Result := Text;  // D567 环境下直接使用即可，但 Unicode 环境下，直接用其 string 似乎不行？存疑
 {$ENDIF}
 end;
 
@@ -7422,15 +7428,15 @@ procedure CnOtaGetCurrFormSelectionsName(List: TStrings);
 var
   AForm: TCustomForm;
   AList: TList;
-  i: Integer;
+  I: Integer;
 begin
   List.Clear;
   AList := TList.Create;
   try
     if not CnOtaGetCurrDesignedForm(AForm, AList) then Exit;
-    
-    for i := 0 to AList.Count - 1 do
-      List.Add(TComponent(AList[i]).Name);
+
+    for I := 0 to AList.Count - 1 do
+      List.Add(TComponent(AList[I]).Name);
   finally
     AList.Free;
   end;
@@ -7444,6 +7450,42 @@ begin
   List := TStringList.Create;
   try
     CnOtaGetCurrFormSelectionsName(List);
+    if List.Count = 1 then
+      Clipboard.AsText := List[0]  // 只有一行时去掉换行符
+    else
+      Clipboard.AsText := List.Text;
+  finally
+    List.Free;
+  end;
+end;
+
+// 取得当前选择的控件的名称列表
+procedure CnOtaGetCurrFormSelectionsClassName(List: TStrings);
+var
+  AForm: TCustomForm;
+  AList: TList;
+  I: Integer;
+begin
+  List.Clear;
+  AList := TList.Create;
+  try
+    if not CnOtaGetCurrDesignedForm(AForm, AList) then Exit;
+
+    for I := 0 to AList.Count - 1 do
+      List.Add(TComponent(AList[I]).ClassName);
+  finally
+    AList.Free;
+  end;
+end;
+
+// 复制当前选择的控件的类名列表到剪贴板
+procedure CnOtaCopyCurrFormSelectionsClassName;
+var
+  List: TStrings;
+begin
+  List := TStringList.Create;
+  try
+    CnOtaGetCurrFormSelectionsClassName(List);
     if List.Count = 1 then
       Clipboard.AsText := List[0]  // 只有一行时去掉换行符
     else

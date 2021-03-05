@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -1369,6 +1369,16 @@ var
       for I := StartToken.ItemIndex + 1 to CloseToken.ItemIndex do
       begin
         Token := Tokens[I];
+        if I = StartToken.ItemIndex + 1 then
+        begin
+          // 判断 procedure/function 后第一个是否是 ( var begin asm ;之类的，如果是，说明是匿名函数
+          if Token.TokenID in [tkVar, tkBegin, tkAsm, tkRoundOpen, tkSemiColon] then
+          begin
+            Result := '<anonymous>';
+            Exit;
+          end;
+        end;
+
         if (Token.Token^ = '(') or (Token.Token^ = ':') or (Token.Token^ = ';') then
           Break;
         Result := Result + WideTrim(Token.Token);

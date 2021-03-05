@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -107,7 +107,7 @@ type
     // 上层与当前是否包含指定的几个 ElementType 之一
 
     procedure ResetElementType;
-    function CalcNeedPadding: Boolean;
+    function CalcNeedPadding: Boolean; // 判断是否因为碰到行注释导致额外换行时需要和上一行对齐
     function CalcNeedPaddingAndUnIndent: Boolean;
     procedure WriteOneSpace;
   protected
@@ -150,6 +150,8 @@ type
     {* 不在忽略区里的话，根据格式结果上一行是否为空的内容，保证换且只换一行}
     procedure CheckKeepLineBreakWriteln;
     {* 根据是否保留换行的选项决定是硬换一行还是保证换且只换一行}
+    procedure EnsureWriteLine;
+    {* 不在忽略区里的话，根据格式结果上一行是否为空的内容，保证只生成一空行}
     procedure WriteLine;
     {* 格式结果加一空行，也就是连续两个换行}
     procedure EnsureOneEmptyLine;
@@ -280,7 +282,7 @@ type
     procedure FormatLabel(PreSpaceCount: Byte = 0);
     procedure FormatSimpleStatement(PreSpaceCount: Byte = 0);
     procedure FormatStructStmt(PreSpaceCount: Byte = 0);
-    procedure FormatIfStmt(PreSpaceCount: Byte = 0; IgnorePreSpace: Boolean = False);
+    procedure FormatIfStmt(PreSpaceCount: Byte = 0; AfterElseIgnorePreSpace: Boolean = False);
     {* IgnorePreSpace 是为了控制 else if 的情形}
     procedure FormatCaseLabel(PreSpaceCount: Byte = 0);
     procedure FormatCaseSelector(PreSpaceCount: Byte = 0);
@@ -321,7 +323,7 @@ type
     function FormatFieldList(PreSpaceCount: Byte = 0; IgnoreFirst: Boolean = False): Boolean; // 返回结构的内部是否包含 case 变体
     procedure FormatTypeSection(PreSpaceCount: Byte = 0);
     procedure FormatTypeDecl(PreSpaceCount: Byte = 0);
-    procedure FormatTypedConstant(PreSpaceCount: Byte = 0);
+    procedure FormatTypedConstant(PreSpaceCount: Byte = 0; IndentForAnonymous: Byte = 0);
 
     procedure FormatArrayConstant(PreSpaceCount: Byte = 0);
     procedure FormatRecordConstant(PreSpaceCount: Byte = 0);
@@ -467,10 +469,12 @@ begin
   FKeywordsValidArray[tokComplexName] := [pfetDirective];
   FKeywordsValidArray[tokKeywordAlign] := [pfetRecordEnd];
 
-  // Requires/Contains 只在 dpk 里算关键字
+  // requires/contains 只在 dpk 里算关键字
   FKeywordsValidArray[tokKeywordRequires] := [pfetPackageBlock];
   FKeywordsValidArray[tokKeywordContains] := [pfetPackageBlock];
 
+  // at 只在 raise 后面才算关键字
+  FKeywordsValidArray[tokKeywordAt] := [pfetRaiseAt];
   // 未列出的关键字，表示在哪都是关键字
 end;
 
@@ -1875,15 +1879,22 @@ begin
 end;
 
 { IfStmt -> IF Expression THEN Statement [ELSE Statement] }
-procedure TCnBasePascalFormatter.FormatIfStmt(PreSpaceCount: Byte; IgnorePreSpace: Boolean);
+procedure TCnBasePascalFormatter.FormatIfStmt(PreSpaceCount: Byte; AfterElseIgnorePreSpace: Boolean);
 var
   OldKeepOneBlankLine, ElseAfterThen: Boolean;
 begin
-  if IgnorePreSpace then
-    Match(tokKeywordIF)
+  if AfterElseIgnorePreSpace then // 是 else if，这个 if 紧跟 else，无需额外缩进
+  begin
+    SpecifyElementType(pfetIfAfterElse); // 但要考虑行注释后造成额外换行时的缩进
+    try
+      Match(tokKeywordIf);
+    finally
+      RestoreElementType;
+    end;
+  end
   else
   begin
-    Match(tokKeywordIF, PreSpaceCount);
+    Match(tokKeywordIf, PreSpaceCount);
     FCurrentTab := PreSpaceCount;
   end;
 
@@ -2120,7 +2131,7 @@ begin
             FormatDesignatorAndOthers(PreSpaceCount);
           end;
         end;
-      tokKeywordVar:
+      tokKeywordVar: // 新语法，inline var
         begin
           Match(Scaner.Token, PreSpaceCount);
           FormatInlineVarDecl(0, PreSpaceCount); // var 语句后面无需缩进，但 var 里头的匿名函数需要缩进
@@ -2942,7 +2953,7 @@ begin
     if Scaner.Token = tokSemicolon then
       Match(tokSemicolon);
   until Scaner.Token in ClassMethodTokens + ClassVisibilityTokens + [tokKeywordEnd,
-    tokEOF, tokKeywordCase, tokKeywordConst];
+    tokEOF, tokKeywordCase, tokKeywordConst, tokKeywordProperty];
     // 出现这些，认为 class var 区结束，包括 record 可能出现的 case
 end;
 
@@ -3855,6 +3866,7 @@ end;
 procedure TCnBasePascalFormatter.FormatPropertyList(PreSpaceCount: Byte);
 begin
   Match(tokKeywordProperty, PreSpaceCount);
+  FormatPossibleAmpersand(CnPascalCodeForRule.SpaceBeforeOperator);
   FormatIdent;
 
   if Scaner.Token in [tokSLB, tokColon] then
@@ -4328,7 +4340,8 @@ begin
 end;
 
 { TypedConstant -> (ConstExpr | SetConstructor | ArrayConstant | RecordConstant) }
-procedure TCnBasePascalFormatter.FormatTypedConstant(PreSpaceCount: Byte);
+procedure TCnBasePascalFormatter.FormatTypedConstant(PreSpaceCount: Byte;
+  IndentForAnonymous: Byte);
 type
   TCnTypedConstantType = (tcConst, tcArray, tcRecord);
 var
@@ -4461,7 +4474,7 @@ begin
       end;
   else // 不是括号开头，说明是简单的常量，直接处理
     if Scaner.Token in ConstTokens + [tokAtSign, tokPlus, tokMinus, tokHat] then // 有可能初始化的值以这些开头
-      FormatConstExpr(PreSpaceCount)
+      FormatConstExpr(PreSpaceCount, IndentForAnonymous)
     else if Scaner.Token <> tokRB then
       Error(CN_ERRCODE_PASCAL_NO_TYPEDCONSTANT);
   end;
@@ -5209,7 +5222,7 @@ begin
     Match(Scaner.Token, 1, 1);
     // var F := not A 这种，走不了 TypedConstant，得走 ConstExpr
     if Scaner.Token in ConstTokens + [tokAtSign, tokPlus, tokMinus, tokHat, tokSLB, tokLB] then
-      FormatTypedConstant
+      FormatTypedConstant(0, IndentForAnonymous)
     else
       FormatConstExpr(0, IndentForAnonymous);
   end
@@ -5226,7 +5239,7 @@ end;
 { VarSection -> VAR | THREADVAR (VarDecl ';')... }
 procedure TCnBasePascalFormatter.FormatVarSection(PreSpaceCount: Byte);
 const
-  IsVarStartTokens = [tokSymbol, tokSLB] + ComplexTokens + DirectiveTokens
+  IsVarStartTokens = [tokSymbol, tokSLB, tokAmpersand] + ComplexTokens + DirectiveTokens
     + KeywordTokens - NOTExpressionTokens;
 begin
   if Scaner.Token in [tokKeywordVar, tokKeywordThreadvar] then
@@ -5389,11 +5402,16 @@ begin
     Exit;
   end
   else
+  begin
     FormatStmtList(Tab);
+  end;
 
   if Scaner.Token = tokKeywordFinalization then
   begin
-    WriteBlankLineByPrevCondition;
+    // 语句结尾可能没有分号，保留换行时会多写行尾回车，因此这里要保证不多写回车
+    CheckKeepLineBreakWriteln;
+    Writeln;
+
     Match(Scaner.Token);
 
     if Scaner.Token <> tokKeywordEnd then // Do not New a Line when Empty finalization
@@ -5551,7 +5569,9 @@ begin
   if Scaner.Token in [tokKeywordInitialization, tokKeywordBegin] then // begin 也行
   begin
     FormatInitSection(PreSpaceCount);
-    WriteBlankLineByPrevCondition;
+    // 语句结尾可能没有分号，保留换行时会多写行尾回车，因此这里要保证不多写回车
+    CheckKeepLineBreakWriteln;
+    EnsureWriteLine;
   end;
 
   Match(tokKeywordEnd, PreSpaceCount);
@@ -5699,6 +5719,7 @@ end;
 procedure TCnBasePascalFormatter.FormatClassProperty(PreSpaceCount: Byte);
 begin
   Match(tokKeywordProperty, PreSpaceCount);
+  FormatPossibleAmpersand(CnPascalCodeForRule.SpaceBeforeOperator);
   FormatIdent;
 
   if Scaner.Token in [tokSLB, tokColon] then
@@ -6111,11 +6132,11 @@ begin
   Result := (FElementType in [pfetExpression, pfetEnumList,pfetArrayConstant,
     pfetSetConstructor, pfetFormalParameters, pfetUsesList, pfetFieldDecl, pfetClassField,
     pfetThen, pfetDo, pfetExprListRightBracket, pfetFormalParametersRightBracket,
-    pfetRecVarFieldListRightBracket])
+    pfetRecVarFieldListRightBracket, pfetIfAfterElse])
     or ((FElementType in [pfetConstExpr]) and not UpperContainElementType([pfetCaseLabel])) // Case Label 的无需跟随上面一行注释缩进
     or UpperContainElementType([pfetFormalParameters, pfetArrayConstant, pfetCaseLabelList]);
   // 暂且表达式内部与枚举定义内部等一系列元素内部，或者在参数列表、uses 中
-  // 碰到注释导致的换行时，才要求自动和上一行对齐
+  // 碰到注释导致的换行时，才要求自动和上一行对齐，并进一步缩进
   // 还要求在本来不换行的组合语句里，比如 if then ，while do 里，for do 里
   // 严格来讲 then/do 这种还不同，不需要进一步缩进，不过暂时当作进一步缩进处理。
 end;
@@ -6244,6 +6265,20 @@ begin
       FCodeGen.KeepLineBreakIndentWritten := True;
     end;
   end;
+end;
+
+procedure TCnAbstractCodeFormatter.EnsureWriteLine;
+begin
+  if FScaner.InIgnoreArea then
+    Exit;
+
+  // 如果已经连续俩空行了就不写
+  if FCodeGen.IsLast2LineEmpty then
+    // 啥都不做
+  else if FCodeGen.IsLastLineEmpty then // 有一个空行了就写一个
+    Writeln
+  else // 啥都没有就写俩
+    WriteLine;
 end;
 
 initialization

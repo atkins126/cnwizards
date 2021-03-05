@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                      中國人自己的開放源碼第三方開發包
-;                    (C)Copyright 2001-2020 CnPack 開發組
+;                    (C)Copyright 2001-2021 CnPack 開發組
 ;******************************************************************************
 
 ; CnWizards 安裝腳本繁體中文語言檔
@@ -27,6 +27,7 @@ LangString SHELP          1028 "專家包幫助"
 LangString SHELPCHM       1028 "CnWizards_CHT.chm"
 LangString SENABLE        1028 "啟用專家包"
 LangString SDISABLE       1028 "禁用專家包"
+LangString SFIXSTART      1028 "專家包啟動修復工具"
 LangString SCONFIGIO      1028 "專家包設置導入導出工具"
 LangString SCLEANIDEHIS   1028 "清除 IDE 打開文件歷史"
 LangString SASCIICHART    1028 "ASCII 字元表"

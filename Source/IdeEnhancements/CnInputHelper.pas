@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -83,7 +83,7 @@ type
 
   TBtnClickEvent = procedure (Sender: TObject; Button: TCnInputButton) of object;
 
-  TCnInputListBox = class(TCustomListBox)
+  TCnInputListBox = class(TCnFloatListBox)
   private
     FLastItem: Integer;
     FOnItemHint: TCnItemHintEvent;
@@ -96,13 +96,9 @@ type
 {$IFDEF IDE_MAINFORM_EAT_MOUSEWHEEL}
     FMethodHook: TCnMethodHook;
 {$ENDIF}
-    procedure CNDrawItem(var Message: TWMDrawItem); message CN_DRAWITEM;
-    procedure CNMeasureItem(var Message: TWMMeasureItem); message CN_MEASUREITEM;
-    procedure CNCancelMode(var Message: TMessage); message CM_CANCELMODE;
     procedure CMHintShow(var Message: TMessage); message CM_HINTSHOW;
     procedure WMSize(var Message: TMessage); message WM_SIZE;
     procedure WMMove(var Message: TMessage); message WM_MOVE;
-    function AdjustHeight(AHeight: Integer): Integer;
     procedure CreateExtraForm;
     procedure UpdateExtraForm;
     procedure UpdateExtraFormLang;
@@ -110,17 +106,14 @@ type
     procedure OnHintPaint(Sender: TObject);
     procedure OnHintTimer(Sender: TObject);
   protected
-    procedure CreateParams(var Params: TCreateParams); override;
-    procedure CreateWnd; override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    function CanResize(var NewWidth, NewHeight: Integer): Boolean; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure SetCount(const Value: Integer);
-    procedure SetPos(X, Y: Integer);
-    procedure CloseUp;
-    procedure Popup;
+    procedure SetPos(X, Y: Integer); override;
+    procedure CloseUp; override;
+    procedure Popup; override;
+
 {$IFDEF IDE_MAINFORM_EAT_MOUSEWHEEL}
     procedure MouseWheelHandler(var Message: TMessage); override;
 {$ENDIF}
@@ -241,6 +234,7 @@ type
     FDispKindSet: TSymbolKindSet;
     FRemoveSame: Boolean;
     FKeywordStyle: TCnKeywordStyle;
+    FUseEditorColor: Boolean;
 {$IFNDEF SUPPORT_IDESymbolList}
     // 如果不支持 IDE 符号列表，需要挂掉 Cppcodcmplt::TCppKibitzManager::CCError
     FCCErrorHook: TCnMethodHook;
@@ -308,6 +302,7 @@ type
     function GetPopupKey: TShortCut;
     procedure SetPopupKey(const Value: TShortCut);
     procedure SetListFont(const Value: TFont);
+    procedure SetUseEditorColor(const Value: Boolean);
   protected
     procedure SetActive(Value: Boolean); override;
     function GetHasConfig: Boolean; override;
@@ -398,6 +393,8 @@ type
     {* 只使用回车键来选择不是从头开始匹配的文本}
     property CheckImmRun: Boolean read FCheckImmRun write FCheckImmRun default False;
     {* 如果系统输入法开启时，自动禁用专家}
+    property UseEditorColor: Boolean read FUseEditorColor write SetUseEditorColor;
+    {* 是否自动使用编辑器配色}
   end;
 
 const
@@ -429,9 +426,9 @@ const
 
   csMaxProcessLines = 1000;
 
-  csMatchColor = clRed;
-  csKeywordColor = clBlue;
   csTypeColor = clNavy;
+  csDarkKeywordColor = $0000C0FF; // 浅橙
+  csDarkTypeColor = clAqua;       // 浅蓝
 
   csDataFile = 'SymbolHitCount.dat';
   csMaxHitCount = 8;
@@ -476,6 +473,7 @@ const
   csAutoAdjustScope = 'AutoAdjustScope';
   csRemoveSame = 'RemoveSame';
   csListActive = 'ListActive';
+  csUseEditorColor = 'UseEditorColor';
 
 {$IFDEF COMPILER6_UP}
   csKibitzWindowClass = 'TCodeCompleteListView';
@@ -567,7 +565,6 @@ const
 
 {$IFNDEF SUPPORT_IDESymbolList}
 
-type
   TSCppKibitzManagerCCError = procedure (Rec: PResStringRec); // TResStringRec
 
 procedure MyCCError(Rec: PResStringRec);
@@ -593,24 +590,9 @@ end;
 
 { TCnInputListBox }
 
-function TCnInputListBox.AdjustHeight(AHeight: Integer): Integer;
-var
-  BorderSize: Integer;
-begin
-  BorderSize := Height - ClientHeight;
-  Result := Max((AHeight - BorderSize) div ItemHeight, 4) * ItemHeight + BorderSize;
-end;
-
-function TCnInputListBox.CanResize(var NewWidth,
-  NewHeight: Integer): Boolean;
-begin
-  NewHeight := AdjustHeight(NewHeight);
-  Result := True;
-end;
-
 procedure TCnInputListBox.CloseUp;
 begin
-  Visible := False;
+  inherited;
   UpdateExtraForm;
 end;
 
@@ -637,59 +619,16 @@ begin
   end;
 end;
 
-procedure TCnInputListBox.CNCancelMode(var Message: TMessage);
-begin
-  CloseUp;
-end;
-
-procedure TCnInputListBox.CNDrawItem(var Message: TWMDrawItem);
-var
-  State: TOwnerDrawState;
-begin
-  with Message.DrawItemStruct^ do
-  begin
-    State := TOwnerDrawState(LongRec(itemState).Lo);
-    Canvas.Handle := hDC;
-    Canvas.Font := Font;
-    Canvas.Brush := Brush;
-    if (Integer(itemID) >= 0) and (odSelected in State) then
-    begin
-      Canvas.Brush.Color := clHighlight;
-      Canvas.Font.Color := clHighlightText
-    end;
-    if Integer(itemID) >= 0 then
-    begin
-      if Assigned(OnDrawItem) then
-        OnDrawItem(Self, itemID, rcItem, State);
-    end
-    else
-      Canvas.FillRect(rcItem);
-    Canvas.Handle := 0;
-  end;
-end;
-
-procedure TCnInputListBox.CNMeasureItem(var Message: TWMMeasureItem);
-begin
-  with Message.MeasureItemStruct^ do
-  begin
-    itemHeight := Self.ItemHeight;
-  end;
-end;
-
 constructor TCnInputListBox.Create(AOwner: TComponent);
 begin
   inherited;
-  Visible := False;
-  Style := lbOwnerDrawFixed;
-  DoubleBuffered := True;
+  FLastItem := -1;
+
   Constraints.MinHeight := WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, ItemHeight * csMinDispItems + 4);
   Constraints.MinWidth := WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, csMinDispWidth);
   Height := WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, ItemHeight * csDefDispItems + 8);
   Width := WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, csDefDispWidth);
-  ShowHint := True;
-  Font.Name := 'Tahoma';
-  Font.Size := 8;
-  FLastItem := -1;
+
   CreateExtraForm;
 {$IFDEF IDE_MAINFORM_EAT_MOUSEWHEEL}
   FMethodHook := TCnMethodHook.Create(GetBplMethodAddress(@GetParentForm), @MyGetParentForm);
@@ -732,32 +671,16 @@ begin
   FHintTimer.OnTimer := OnHintTimer;
 end;
 
-procedure TCnInputListBox.CreateParams(var Params: TCreateParams);
-begin
-  inherited;
-  Params.Style := (Params.Style or WS_CHILDWINDOW or WS_SIZEBOX or WS_MAXIMIZEBOX
-    or LBS_NODATA or LBS_OWNERDRAWFIXED) and not (LBS_SORT or LBS_HASSTRINGS);
-  Params.ExStyle := WS_EX_TOOLWINDOW or WS_EX_WINDOWEDGE;
-  if CheckWinXP then
-    Params.WindowClass.style := CS_DBLCLKS or CS_DROPSHADOW
-  else
-    Params.WindowClass.style := CS_DBLCLKS;
-end;
-
-procedure TCnInputListBox.CreateWnd;
-begin
-  inherited;
-  Windows.SetParent(Handle, 0);
-  CallWindowProc(DefWndProc, Handle, WM_SETFOCUS, 0, 0);
-  Height := AdjustHeight(Height);
-end;
-
 destructor TCnInputListBox.Destroy;
 begin
+  try
 {$IFDEF IDE_MAINFORM_EAT_MOUSEWHEEL}
-  FMethodHook.Free;
+    FMethodHook.Free;
 {$ENDIF}
-  inherited;
+    inherited;
+  except
+    ;  // 试图抓住 No Parent Window 的 Exception，不弹框
+  end;
 end;
 
 procedure TCnInputListBox.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -822,32 +745,14 @@ end;
 
 procedure TCnInputListBox.Popup;
 begin
-  Visible := True;
+  inherited;
   UpdateExtraFormLang;
   UpdateExtraForm;
 end;
 
-procedure TCnInputListBox.SetCount(const Value: Integer);
-var
-  Error: Integer;
-begin
-{$IFDEF DEBUG}
-  if Value <> 0 then
-    CnDebugger.LogInteger(Value, 'TCnInputListBox.SetCount');
-{$ENDIF}
-  // Limited to 32767 on Win95/98 as per Win32 SDK
-  Error := SendMessage(Handle, LB_SETCOUNT, Min(Value, 32767), 0);
-  if (Error = LB_ERR) or (Error = LB_ERRSPACE) then
-  begin
-  {$IFDEF DEBUG}
-    CnDebugger.LogMsgWithType('TCnInputListBox.SetCount Error: ' + IntToStr(Error), cmtError);
-  {$ENDIF}
-  end;
-end;
-
 procedure TCnInputListBox.SetPos(X, Y: Integer);
 begin
-  SetWindowPos(Handle, HWND_TOPMOST, X, Y, 0, 0, SWP_NOACTIVATE or SWP_NOSIZE);
+  inherited;
   UpdateExtraForm;
 end;
 
@@ -872,17 +777,18 @@ begin
   end
   else
     HintForm.Visible := False;
+
   FHintTimer.Enabled := HintForm.Visible;
 end;
 
 procedure TCnInputListBox.UpdateExtraFormLang;
 var
-  i: Integer;
+  I: Integer;
 begin
   if DispButtons then
-    for i := 0 to BtnForm.ComponentCount - 1 do
-      if BtnForm.Components[i] is TSpeedButton then
-        with TSpeedButton(BtnForm.Components[i]) do
+    for I := 0 to BtnForm.ComponentCount - 1 do
+      if BtnForm.Components[I] is TSpeedButton then
+        with TSpeedButton(BtnForm.Components[I]) do
           Hint := StripHotkey(SCnInputButtonHints[TCnInputButton(Tag)]^);
 end;
 
@@ -904,12 +810,12 @@ end;
 
 procedure TCnSymbolHitCountMgr.Clear;
 var
-  i: Integer;
+  I: Integer;
   P: PSymbolHitCountItem;
 begin
-  for i := 0 to FList.Count - 1 do
+  for I := 0 to FList.Count - 1 do
   begin
-    P := PSymbolHitCountItem(FList[i]);
+    P := PSymbolHitCountItem(FList[I]);
     Dispose(P);
   end;
   FList.Clear;
@@ -924,12 +830,12 @@ end;
 
 procedure TCnSymbolHitCountMgr.DecAllHitCount(TimeStamp: TDateTime);
 var
-  i: Integer;
+  I: Integer;
   P: PSymbolHitCountItem;
 begin
-  for i := FList.Count - 1 downto 0 do
+  for I := FList.Count - 1 downto 0 do
   begin
-    P := PSymbolHitCountItem(FList[i]);
+    P := PSymbolHitCountItem(FList[I]);
     if P.TimeStamp < TimeStamp then
     begin
       if P.HitCount > 1 then
@@ -940,7 +846,7 @@ begin
       else
       begin
         Dispose(P);
-        FList.Delete(i);
+        FList.Delete(I);
       end;
     end;
   end;
@@ -1032,7 +938,7 @@ var
   Stream: TMemoryStream;
   Flag, Version: Cardinal;
   Item: PSymbolHitCountItem;
-  i: Integer;
+  I: Integer;
 begin
   if FileName = '' then
     FileName := FFileName;
@@ -1055,7 +961,7 @@ begin
         if Version <> csVersion then
           Exit;
 
-        for i := 0 to (Stream.Size - Stream.Position) div
+        for I := 0 to (Stream.Size - Stream.Position) div
           SizeOf(TSymbolHitCountItem) - 1 do
         begin
           New(Item);
@@ -1065,10 +971,10 @@ begin
 
         // 重新整理早期版本错误处理的列表
         FList.Sort(DoHashCodeSort);
-        for i := FList.Count - 1 downto 1 do
-          if PSymbolHitCountItem(FList[i]).HashCode =
-            PSymbolHitCountItem(FList[i - 1]).HashCode then
-            FList.Delete(i);
+        for I := FList.Count - 1 downto 1 do
+          if PSymbolHitCountItem(FList[I]).HashCode =
+            PSymbolHitCountItem(FList[I - 1]).HashCode then
+            FList.Delete(I);
       finally
         Stream.Free;
       end;
@@ -1083,7 +989,7 @@ procedure TCnSymbolHitCountMgr.SaveToFile(FileName: string = '');
 var
   Stream: TMemoryStream;
   Flag, Version: Cardinal;
-  i: Integer;
+  I: Integer;
 begin
   if FileName = '' then
     FileName := FFileName;
@@ -1098,9 +1004,9 @@ begin
       if Stream.Write(Version, SizeOf(Version)) <> SizeOf(Version) then
         Exit;
 
-      for i := 0 to FList.Count - 1 do
+      for I := 0 to FList.Count - 1 do
       begin
-        if Stream.Write(Items[i]^, SizeOf(TSymbolHitCountItem)) <>
+        if Stream.Write(Items[I]^, SizeOf(TSymbolHitCountItem)) <>
           SizeOf(TSymbolHitCountItem) then
           Exit;
       end;
@@ -1123,14 +1029,14 @@ end;
 
 function TCnSymbolHashList.CheckExist(AItem: TSymbolItem): Boolean;
 var
-  i, Idx: Integer;
+  I, Idx: Integer;
   Hash: Cardinal;
 begin
   Result := False;
   Hash := AItem.HashCode;
-  for i := 0 to FCount - 1 do
+  for I := 0 to FCount - 1 do
   begin
-    Idx := (Integer(Hash) + i) mod FCount;
+    Idx := (Integer(Hash) + I) mod FCount;
     if Idx < 0 then
       Idx := Idx + FCount;
     if FList[Idx] = nil then
@@ -1178,13 +1084,18 @@ var
 {$ENDIF}
 begin
   inherited;
+  FUseEditorColor := True;
+
   FListFont := TFont.Create;
   List := TCnInputListBox.Create(nil);
+  List.Name := 'CnInputListBox';
   List.Parent := Application.MainForm;
   List.OnDrawItem := ListDrawItem;
   List.OnDblClick := ListDblClick;
   List.OnItemHint := ListItemHint;
   List.OnButtonClick := OnBtnClick;
+  List.UseEditorColor := FUseEditorColor;
+
   Menu := TPopupMenu.Create(nil);
   Menu.OnPopup := OnPopupMenu;
   CreateMenuItem;
@@ -2878,33 +2789,51 @@ var
   SymbolItem: TSymbolItem;
   TextWith: Integer;
   Kind: Integer;
+  ColorFont, ColorBrush: TColor;
 
   function GetHighlightColor(Kind: TSymbolKind): TColor;
   begin
-    case Kind of
-      skKeyword: Result := csKeywordColor;
-      skType: Result := csTypeColor;
-    else
-      Result := clWindowText;
+    Result := List.FontColor;
+    if Kind = skKeyword then
+      Result := List.KeywordColor
+    else if Kind = skType then // Type 额外整色
+    begin
+{$IFDEF IDE_SUPPORT_THEMING}
+      // 使用编辑器配色时无专门的 Type 色，按以下逻辑处理：
+      // Light 默认模式时，无论是否使用编辑器色，都额外整浅蓝的 Type 色
+      // 不使用编辑器配色时，也用额外浅蓝的配色
+      // 使用编辑器配色且是黑色模式时，用暗黑 Type 配色
+      if CnThemeWrapper.IsUnderLightTheme or not FUseEditorColor then
+        Result := csTypeColor;
+      if FUseEditorColor and CnThemeWrapper.IsUnderDarkTheme then
+        Result := csDarkTypeColor;
+      // 否则沿用 List.FontColor
+{$ELSE}
+      Result := csTypeColor; // 不支持主题的 IDE，用固定的配色
+{$ENDIF}
     end;
   end;
 
 begin
-  // 自画ListBox中的SymbolList
+  // 自画 ListBox 中的 SymbolList
   with List do
   begin
     SymbolItem := TSymbolItem(FItems.Objects[Index]);
     Canvas.Font := Font;
-    if odSelected in State then
+
+    if odSelected in State then  // 根据主题，指定选中/非选中状态下的文字色
     begin
-      Canvas.Font.Color := clHighlightText;
-      Canvas.Brush.Color := clHighlight;
+      ColorBrush := SelectBackColor;
+      ColorFont := SelectFontColor;
     end
     else
     begin
-      Canvas.Brush.Color := clWindow;
-      Canvas.Font.Color := GetHighlightColor(SymbolItem.Kind);
+      ColorBrush := BackColor;
+      ColorFont := GetHighlightColor(SymbolItem.Kind);
     end;
+
+    Canvas.Brush.Color := ColorBrush;
+    Canvas.Font.Color := ColorFont;
 
     if Ord(SymbolItem.Kind) < dmCnSharedImages.SymbolImages.Count then
       Kind := Ord(SymbolItem.Kind)
@@ -2918,18 +2847,23 @@ begin
 
     AText := SymbolItem.GetKeywordText(KeywordStyle);
     if FMatchMode in [mmStart, mmAnywhere] then
-      DrawMatchText(Canvas, FMatchStr, AText, Rect.Left + LEFT_ICON, Rect.Top, csMatchColor)
+      DrawMatchText(Canvas, FMatchStr, AText, Rect.Left + LEFT_ICON, Rect.Top, MatchColor)
     else
       DrawMatchText(Canvas, FMatchStr, AText, Rect.Left + LEFT_ICON, Rect.Top,
-        csMatchColor, SymbolItem.FuzzyMatchIndexes);
+        MatchColor, SymbolItem.FuzzyMatchIndexes);
 
     TextWith := Canvas.TextWidth(AText);
     Canvas.Font.Style := Canvas.Font.Style - [fsBold];
-    if odSelected in State then
+
+    Canvas.Brush.Color := ColorBrush;
+    if not (odSelected in State) then // 普通绘制描述文字，注意未选中时和 ColorFont 有不同不能直接套用
     begin
-      Canvas.Font.Color := clHighlightText;
-      Canvas.Brush.Color := clHighlight;
+      if CnThemeWrapper.IsUnderDarkTheme then
+        Canvas.Font.Color := csDarkFontColor
+      else
+        Canvas.Font.Color := List.FontColor;
     end;
+
     Canvas.TextOut(Rect.Left + DESC_INTERVAL + TextWith, Rect.Top, SymbolItem.Description);
   end;
 end;
@@ -3016,13 +2950,13 @@ end;
 
 procedure TCnInputHelper.OnPopupMenu(Sender: TObject);
 var
-  i: Integer;
+  I: Integer;
 begin
   AutoMenuItem.Checked := FAutoPopup;
   DispBtnMenuItem.Checked := List.DispButtons;
   SortMenuItem.Items[Ord(FSortKind)].Checked := True;
-  for i := 0 to IconMenuItem.Count - 1 do
-    IconMenuItem.Items[i].Checked := TSymbolKind(IconMenuItem.Items[i].Tag) in FDispKindSet;
+  for I := 0 to IconMenuItem.Count - 1 do
+    IconMenuItem.Items[I].Checked := TSymbolKind(IconMenuItem.Items[I].Tag) in FDispKindSet;
 end;
 
 procedure TCnInputHelper.OnDispBtnMenu(Sender: TObject);
@@ -3194,6 +3128,7 @@ begin
     // 读取设置后 SetListFont 中会根据需要放大字号显示
 
     List.DispButtons := ReadBool('', csDispButtons, True);
+    UseEditorColor := ReadBool('', csUseEditorColor, FUseEditorColor);
 
     AutoPopup := ReadBool('', csAutoPopup, True);
     FListOnlyAtLeastLetter := ReadInteger('', csListOnlyAtLeastLetter, 1);
@@ -3251,6 +3186,7 @@ begin
     WriteInteger('', csHeight, List.Height);
     WriteFont('', csFont, FListFont);
     WriteBool('', csDispButtons, List.DispButtons);
+    WriteBool('', csUseEditorColor, FUseEditorColor);
 
     WriteBool('', csAutoPopup, FAutoPopup);
     WriteInteger('', csListOnlyAtLeastLetter, FListOnlyAtLeastLetter);
@@ -3330,7 +3266,7 @@ begin
   if IsPascal then
     Result := Orig
   else
-    Result := Orig + ['#']; // C/C++的标识符需要把#也算上
+    Result := Orig + ['#']; // C/C++ 的标识符需要把 # 也算上
 end;
 
 function TCnInputHelper.IsValidCppPopupKey(VKey: Word; Code: Word): Boolean;
@@ -3349,7 +3285,7 @@ begin
 {$ENDIF}
     if C = '>' then
     begin
-      // 是>，if 光标下的前一个标识符的最后一位是-
+      // 是 >，if 光标下的前一个标识符的最后一位是 -
       CnOtaGetCurrPosToken(AToken, CurrPos, True, CalcFirstSet(FirstSet, FPosInfo.IsPascal), CharSet);
 {$IFDEF DEBUG}
       CnDebugger.LogMsg('Is Valid Cpp Popup Key: Token: ' + AToken);
@@ -3484,6 +3420,12 @@ begin
 {$ENDIF}
   end;
   AdjustListItemHeight;
+end;
+
+procedure TCnInputHelper.SetUseEditorColor(const Value: Boolean);
+begin
+  FUseEditorColor := Value;
+  List.UseEditorColor := Value;
 end;
 
 initialization

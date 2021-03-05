@@ -42,7 +42,6 @@ ExeDescription=
 OutputDir=
 UnitOutputDir=
 PackageDLLOutputDir=
-PackageDCPOutputDir=
 SearchPath=
 Packages=
 Conditionals=

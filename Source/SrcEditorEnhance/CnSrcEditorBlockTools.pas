@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -58,7 +58,7 @@ uses
   CnCommon, CnWizUtils, CnWizIdeUtils, CnWizConsts, CnEditControlWrapper,
   CnWizFlatButton, CnConsts, CnWizNotifier, CnWizShortCut, CnPopupMenu,
   CnSrcEditorCodeWrap, CnSrcEditorGroupReplace, CnSrcEditorWebSearch,
-  CnWizManager, CnWizMenuAction, CnWizShareImages;
+  CnEventBus, CnWizManager, CnWizMenuAction, CnWizShareImages;
 
 type
   TBlockToolKind = (
@@ -68,10 +68,11 @@ type
     btIndent, btIndentEx, btUnindent, btUnindentEx,
     btCommentCode, btUnCommentCode, btToggleComment, btCommentCropper,
     btFormatCode, btCodeSwap, btCodeToString, btInsertColor, btInsertDateTime,
-    btSortLines, btBlockMoveUp, btBlockMoveDown, btBlockDelLines, btDisableHighlight,
+    btSortLines, {$IFDEF IDE_HAS_INSIGHT} btSearchInsight, {$ENDIF}
+    btBlockMoveUp, btBlockMoveDown, btBlockDelLines, btDisableHighlight,
     btShortCutConfig);
 
-  TCnSrcEditorBlockTools = class(TObject)
+  TCnSrcEditorBlockTools = class
   private
     FIcon: TIcon;
     FCodeWrap: TCnSrcEditorCodeWrapTool;
@@ -96,6 +97,12 @@ type
     FReplaceMenu: TMenuItem;
     FWebSearchMenu: TMenuItem;
     FMiscMenu: TMenuItem;
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+    FScriptMenu: TMenuItem;
+    FScriptSettingChangedReceiver: ICnEventBusReceiver;
+{$ENDIF}
+{$ENDIF}
     FHideStructMenu: TMenuItem;
     FTabIndent: Boolean;
     FShowColor: Boolean;
@@ -110,6 +117,11 @@ type
     procedure OnEditBlockMoveUp(Sender: TObject);
     procedure OnEditBlockMoveDown(Sender: TObject);
     procedure OnEditBlockDelLines(Sender: TObject);
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+    procedure OnScriptExecute(Sender: TObject);
+{$ENDIF}
+{$ENDIF}
     procedure DoBlockExecute(Kind: TBlockToolKind);
     procedure DoBlockEdit(Kind: TBlockToolKind);
     procedure DoBlockCase(Kind: TBlockToolKind);
@@ -150,6 +162,20 @@ type
     property OnEnhConfig: TNotifyEvent read FOnEnhConfig write FOnEnhConfig;
   end;
 
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+  TCnScriptSettingChangedReceiver = class(TInterfacedObject, ICnEventBusReceiver)
+  private
+    FBlock: TCnSrcEditorBlockTools;
+  public
+    constructor Create(ABlock: TCnSrcEditorBlockTools);
+    destructor Destroy; override;
+
+    procedure OnEvent(Event: TCnEvent);
+  end;
+{$ENDIF}
+{$ENDIF}
+
 {$ENDIF CNWIZARDS_CNSRCEDITORENHANCE}
 
 implementation
@@ -157,7 +183,8 @@ implementation
 {$IFDEF CNWIZARDS_CNSRCEDITORENHANCE}
 
 uses
-  CnWizSubActionShortCutFrm {$IFDEF DEBUG}, CnDebug{$ENDIF};
+  CnWizSubActionShortCutFrm, CnScriptWizard, CnScriptFrm
+  {$IFDEF DEBUG}, CnDebug{$ENDIF};
 
 const
   csLeftKeep = 2;
@@ -226,10 +253,24 @@ begin
 
   EditControlWrapper.AddKeyDownNotifier(EditControlKeyDown);
   EditControlWrapper.AddEditorChangeNotifier(EditorChanged);
+
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+  FScriptSettingChangedReceiver := TCnScriptSettingChangedReceiver.Create(Self);
+  EventBus.RegisterReceiver(FScriptSettingChangedReceiver, EVENT_SCRIPT_SETTING_CHANGED);
+{$ENDIF}
+{$ENDIF}
 end;
 
 destructor TCnSrcEditorBlockTools.Destroy;
 begin
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+  EventBus.UnRegisterReceiver(FScriptSettingChangedReceiver);
+  FScriptSettingChangedReceiver := nil;
+{$ENDIF}
+{$ENDIF}
+
   EditControlWrapper.RemoveKeyDownNotifier(EditControlKeyDown);
   EditControlWrapper.RemoveEditorChangeNotifier(EditorChanged);
 
@@ -553,6 +594,29 @@ begin
   end;
 end;
 
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+
+procedure TCnSrcEditorBlockTools.OnScriptExecute(Sender: TObject);
+var
+  SW: TCnScriptWizard;
+  AEvent: TCnScriptEvent;
+begin
+  SW := CnWizardMgr.WizardByClassName('TCnScriptWizard') as TCnScriptWizard;
+  if (SW <> nil) and (Sender is TComponent) then
+  begin
+    AEvent := TCnScriptEditorFlatButton.Create;
+    try
+      SW.ExecuteScriptByIndex((Sender as TComponent).Tag, AEvent);
+    finally
+      AEvent.Free;
+    end;
+  end;
+end;
+
+{$ENDIF}
+{$ENDIF}
+
 procedure TCnSrcEditorBlockTools.DoBlockExecute(Kind: TBlockToolKind);
 begin
   case Kind of
@@ -569,12 +633,12 @@ end;
 function TCnSrcEditorBlockTools.ExecuteMenu(MenuItem: TMenuItem; Kind:
   TBlockToolKind): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to MenuItem.Count - 1 do
-    if (MenuItem.Items[i].Tag = Ord(Kind)) and Assigned(MenuItem.Items[i].Action) then
+  for I := 0 to MenuItem.Count - 1 do
+    if (MenuItem.Items[I].Tag = Ord(Kind)) and Assigned(MenuItem.Items[I].Action) then
     begin
-      Result := MenuItem.Items[i].Action.Execute;
+      Result := MenuItem.Items[I].Action.Execute;
       Exit;
     end;
   Result := False;
@@ -726,6 +790,12 @@ end;
 procedure TCnSrcEditorBlockTools.UpdateMenu(Items: TMenuItem; NeedImage: Boolean);
 var
   Item: TMenuItem;
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+  I: Integer;
+  SW: TCnScriptWizard;
+{$ENDIF}
+{$ENDIF}
 
   function DoAddMenuItem(AItem: TMenuItem; const ACaption: string;
     Kind: TBlockToolKind; const ShortCut: TShortCut = 0;
@@ -825,6 +895,30 @@ begin
   FWebSearchMenu := AddMenuItem(Items, SCnSrcBlockSearch, nil);
   FWebSearch.InitMenuItems(FWebSearchMenu);
 
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+  // 脚本菜单
+  SW := CnWizardMgr.WizardByClassName('TCnScriptWizard') as TCnScriptWizard;
+  if SW <> nil then
+  begin
+    FScriptMenu := AddMenuItem(Items, SCnScriptWizardMenuCaption, nil);
+    for I := 0 to SW.Scripts.Count - 1 do
+    begin
+      if smEditorFlatButton in SW.Scripts[I].Mode then
+      begin
+        Item := AddMenuItem(FScriptMenu, SW.Scripts[I].Name, OnScriptExecute);
+        Item.Enabled := SW.Scripts[I].Enabled;
+        Item.tag := I;
+      end;
+    end;
+    FScriptMenu.Visible := FScriptMenu.Count > 0;
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('SrcEditor Block Tools Script Items: %d', [FScriptMenu.Count]);
+{$ENDIF}
+  end;
+{$ENDIF}
+{$ENDIF}
+
   // 其它菜单
   FMiscMenu := AddMenuItem(Items, SCnSrcBlockMisc, nil);
   AddMenuItemWithAction(FMiscMenu, 'actCnCodeFormatterWizardFormatCurrent', btFormatCode);
@@ -833,7 +927,10 @@ begin
   AddMenuItemWithAction(FMiscMenu, 'actCnEditorInsertColor', btInsertColor);
   AddMenuItemWithAction(FMiscMenu, 'actCnEditorInsertTime', btInsertDateTime);
   AddMenuItemWithAction(FMiscMenu, 'actCnEditorSortLines', btSortLines);
-  
+{$IFDEF IDE_HAS_INSIGHT}
+  AddMenuItemWithAction(FMiscMenu, 'actCnEditorJumpIDEInsight', btSearchInsight);
+{$ENDIF}
+
 {$IFDEF BDS} // Only for BDS because of bug. ;-(
   DoAddMenuItem(FMiscMenu, SCnSrcBlockMoveUp, btBlockMoveUp, GetShortCut(FBlockMoveUpShortCut));
   DoAddMenuItem(FMiscMenu, SCnSrcBlockMoveDown, btBlockMoveDown, GetShortCut(FBlockMoveDownShortCut));
@@ -1196,6 +1293,33 @@ begin
   EditControlWrapper.RepaintEditControls;
 {$ENDIF}
 end;
+
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+
+{ TCnScriptSettingChangedReceiver }
+
+constructor TCnScriptSettingChangedReceiver.Create(
+  ABlock: TCnSrcEditorBlockTools);
+begin
+  inherited Create;
+  FBlock := ABlock;
+end;
+
+destructor TCnScriptSettingChangedReceiver.Destroy;
+begin
+  inherited;
+
+end;
+
+procedure TCnScriptSettingChangedReceiver.OnEvent(Event: TCnEvent);
+begin
+  if FBlock <> nil then
+    FBlock.UpdateMenu(FBlock.FPopupMenu.Items);
+end;
+
+{$ENDIF}
+{$ENDIF}
 
 {$ENDIF CNWIZARDS_CNSRCEDITORENHANCE}
 end.

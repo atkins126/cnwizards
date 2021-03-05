@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -63,7 +63,7 @@ uses
   Menus, Buttons, ComCtrls, StdCtrls, ExtCtrls, TypInfo, ToolsAPI, ImgList,
   {$IFDEF OTA_PALETTE_API} PaletteAPI, {$ENDIF}
   {$IFDEF COMPILER6_UP}
-  DesignIntf, DesignEditors, ComponentDesigner,
+  DesignIntf, DesignEditors, ComponentDesigner, Variants,
   {$ELSE}
   DsgnIntf, LibIntf,
   {$ENDIF}
@@ -152,6 +152,12 @@ const
   SCnTreeMessageViewClassName = 'TTreeMessageView';
 {$ENDIF}
 
+  // XE5 或以上版本有 IDE Insight 搜索框 
+{$IFDEF IDE_HAS_INSIGHT}
+  SCnIDEInsightBarClassName = 'TButtonedEdit';
+  SCnIDEInsightBarName = 'beIDEInsight';
+{$ENDIF}
+
   // 引用单元功能的 Action 名称
 {$IFDEF DELPHI}
   SCnUseUnitActionName = 'FileUseUnitCommand';
@@ -164,8 +170,21 @@ const
     clNavy, clPurple, clTeal, clLtGray, clDkGray, clRed, clLime,
     clYellow, clBlue, clFuchsia, clAqua, clWhite);
 
-  csDarkBackgroundColor = $2E2F33;  // Dark 模式下的背景色
-  csDarkFontColor = $FFFFFF;        // Dark 模式下的文字颜色
+  csDarkBackgroundColor = $2E2F33;  // Dark 模式下的未选中的背景色
+  csDarkFontColor = $FFFFFF;        // Dark 模式下的未选中的文字颜色
+  csDarkHighlightBkColor = $8E6535; // Dark 模式下的选中状态下的高亮背景色
+  csDarkHighlightFontColor = $FFFFFF; // Dark 模式下的选中状态下的高亮文字颜色
+
+  // 10.4.2 后的 Error Insight 绘制类型，会影响行高
+  SCnErrorInsightRenderStyleKeyName = 'ErrorInsightMarks';
+  csErrorInsightRenderStyleNotSupport = -1;
+  csErrorInsightRenderStyleClassic = 0;
+  csErrorInsightRenderStyleSmoothWave = 1;
+  csErrorInsightRenderStyleSolid = 2;
+  csErrorInsightRenderStyleDot = 3;
+
+  // Smooth Wave时行高有 3 像素的固定偏差
+  csErrorInsightCharHeightOffset = 3;
 
 type
 {$IFDEF BDS}
@@ -284,6 +303,9 @@ function GetComponentPalettePopupMenu: TPopupMenu;
 
 function GetComponentPaletteControlBar: TControlBar;
 {* 返回组件面板所在的 ControlBar，可能为空}
+
+function GetIdeInsightBar: TWinControl;
+{* 返回 IDE Insight 搜索框控件对象}
 
 function GetMainMenuItemHeight: Integer;
 {* 返回主菜单项高度 }
@@ -421,6 +443,10 @@ function ConvertIDETreeNodesToTreeNodes(Nodes: TObject): TTreeNodes;
 
 procedure ApplyThemeOnToolBar(ToolBar: TToolBar; Recursive: Boolean = True);
 {* 为工具栏应用主题，只在支持主题的 Delphi 版本中有效}
+
+function GetErrorInsightRenderStyle: Integer;
+{* 返回 ErrorInsight 的当前类型，返回值为 csErrorInsightRenderStyle* 系列常数
+   -1 为不支持，1 时会影响编辑器行高，影响程度和显示 Leve 以及是否侧边栏显示均无关}
 
 //==============================================================================
 // 扩展控件
@@ -591,22 +617,30 @@ type
   private
     FActiveThemeName: string;
     FCurrentIsDark: Boolean;
+    FCurrentIsLight: Boolean;
     FSupportTheme: Boolean;
     procedure ThemeChanged(Sender: TObject);
   public
     constructor Create; virtual;
     destructor Destroy; override;
 
+    function IsUnderDarkTheme: Boolean;
+    function IsUnderLightTheme: Boolean;
+
     property SupportTheme: Boolean read FSupportTheme;
     property ActiveThemeName: string read FActiveThemeName;
     property CurrentIsDark: Boolean read FCurrentIsDark;
+    property CurrentIsLight: Boolean read FCurrentIsLight;
   end;
 
 function CnPaletteWrapper: TCnPaletteWrapper;
+{* 控件板封装处理}
 
 function CnMessageViewWrapper: TCnMessageViewWrapper;
+{* 消息栏封装处理}
 
 function CnThemeWrapper: TCnThemeWrapper;
+{* 主题封装处理}
 
 implementation
 
@@ -805,7 +839,7 @@ const
   SCnOtaBatchSize = $7FFF;
 var
   View: IOTAEditView;
-  Text: AnsiString;
+  Text: string;
   BlockStartLine, BlockEndLine: Integer;
   StartPos, EndPos: Integer;
   Writer: IOTAEditWriter;
@@ -819,15 +853,15 @@ begin
       BlockStartLine, BlockEndLine) then
       Exit;
 
-  {$IFDEF UNICODE}
-    Text := AnsiString(StringReplace(Lines.Text, #0, ' ', [rfReplaceAll]));
-  {$ELSE}
     Text := StringReplace(Lines.Text, #0, ' ', [rfReplaceAll]);
-  {$ENDIF}
     Writer := View.Buffer.CreateUndoableWriter;
     try
       Writer.CopyTo(StartPos);
+  {$IFDEF UNICODE}
+      Writer.Insert(PAnsiChar(ConvertTextToEditorTextW(Text)));
+  {$ELSE}
       Writer.Insert(PAnsiChar(ConvertTextToEditorText(Text)));
+  {$ENDIF}
       Writer.DeleteTo(EndPos);
     finally
       Writer := nil;
@@ -1109,10 +1143,14 @@ var
 {$ENDIF}
 begin
 {$IFDEF BDS}
+  {$IFDEF DELPHI104_SYDNEY_UP} // 10.4.1 以上，无嵌入式设计器选项，默认都嵌入了
+  Result := True;
+  {$ELSE}
   S := CnOtaGetEnvironmentOptions.Values['EmbeddedDesigner'];
   Result := S = 'True';
+  {$ENDIF}
 {$ELSE}
-  Result := False;
+  Result := False;  // D7 或以下不支持嵌入
 {$ENDIF}
 end;
 
@@ -1270,6 +1308,25 @@ begin
 {$IFDEF DEBUG}
   if Result = nil then
     CnDebugger.LogMsgError('Unable to Find ControlBar!');
+{$ENDIF}
+end;
+
+function GetIdeInsightBar: TWinControl;
+{$IFDEF IDE_HAS_INSIGHT}
+var
+  MainForm: TCustomForm;
+  AComp: TComponent;
+{$ENDIF}
+begin
+  Result := nil;
+{$IFDEF IDE_HAS_INSIGHT}
+  MainForm := GetIdeMainForm;
+  if MainForm <> nil then
+  begin
+    AComp := MainForm.FindComponent(SCnIDEInsightBarName);
+    if (AComp is TWinControl) and (AComp.ClassNameIs(SCnIDEInsightBarClassName)) then
+      Result := TWinControl(AComp);
+  end;
 {$ENDIF}
 end;
 
@@ -1738,8 +1795,10 @@ const
   SCnIDEBold = 'Bold';
   {$IFDEF COMPILER7_UP}
   SCnIDEForeColor = 'Foreground Color New';
+  SCnIDEBackColor = 'Background Color New'; // 暂未读取
   {$ELSE}
   SCnIDEForeColor = 'Foreground Color';
+  SCnIDEBackColor = 'Background Color';
   {$ENDIF}
   SCnIDEItalic = 'Italic';
   SCnIDEUnderline = 'Underline';
@@ -1768,6 +1827,7 @@ var
       end;
     end;
   end;
+
 begin
   // 从某项注册表中载入某项字体并赋值给 AFont
   Result := False; 
@@ -1779,7 +1839,7 @@ begin
       Reg := TRegistry.Create;
       Reg.RootKey := HKEY_CURRENT_USER;
       try
-        if RegItem = '' then // 是基本字体
+        if RegItem = '' then // 是基本字体，没有读颜色设置
         begin
           if Reg.OpenKeyReadOnly(WizOptions.CompilerRegPath + '\Editor\Options') then
           begin
@@ -1797,7 +1857,7 @@ begin
           end;
           Result := True; // 不存在则用默认字体
         end
-        else  // 是高亮字体
+        else  // 是高亮字体，有前景色读取，但没读背景色，因为 TFont 没有背景色
         begin
           AFont.Style := [];
           if Reg.OpenKeyReadOnly(Format(WizOptions.CompilerRegPath
@@ -2227,6 +2287,23 @@ begin
     for I := 0 to ToolBar.ControlCount - 1 do
       if ToolBar.Controls[I] is TToolBar then
         ApplyThemeOnToolbar(ToolBar.Controls[I] as TToolBar);
+{$ENDIF}
+end;
+
+function GetErrorInsightRenderStyle: Integer;
+{$IFDEF IDE_HAS_ERRORINSIGHT}
+var
+  V: Variant;
+{$ENDIF}
+begin
+  // Env Options 里的 ErrorInsightMarks 值
+  Result := csErrorInsightRenderStyleNotSupport;
+{$IFDEF IDE_HAS_ERRORINSIGHT}
+  V := CnOtaGetEnvironmentOptionValue(SCnErrorInsightRenderStyleKeyName);
+  if VarToStr(V) = '' then
+    Result := csErrorInsightRenderStyleNotSupport
+  else
+    Result := V;
 {$ENDIF}
 end;
 
@@ -3195,10 +3272,21 @@ begin
   inherited;
 end;
 
+function TCnThemeWrapper.IsUnderDarkTheme: Boolean;
+begin
+  Result := FSupportTheme and FCurrentIsDark;
+end;
+
+function TCnThemeWrapper.IsUnderLightTheme: Boolean;
+begin
+  Result := FSupportTheme and FCurrentIsLight;
+end;
+
 procedure TCnThemeWrapper.ThemeChanged(Sender: TObject);
 begin
   FActiveThemeName := CnOtaGetActiveThemeName;
   FCurrentIsDark := FActiveThemeName = 'Dark';
+  FCurrentIsLight := FActiveThemeName = 'Light';
 end;
 
 initialization

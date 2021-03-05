@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -134,6 +134,7 @@ begin
   CL.AddDelphiFunction('Function GetObjectInspectorForm : TCustomForm');
   CL.AddDelphiFunction('Function GetComponentPalettePopupMenu : TPopupMenu');
   CL.AddDelphiFunction('Function GetComponentPaletteControlBar : TControlBar');
+  CL.AddDelphiFunction('Function GetIdeInsightBar : TWinControl');
   CL.AddDelphiFunction('Function GetMainMenuItemHeight : Integer');
   CL.AddDelphiFunction('Function IsIdeEditorForm( AForm : TCustomForm) : Boolean');
   CL.AddDelphiFunction('Function IsIdeDesignForm( AForm : TCustomForm) : Boolean');
@@ -386,6 +387,7 @@ begin
   S.RegisterDelphiFunction(@GetObjectInspectorForm, 'GetObjectInspectorForm', cdRegister);
   S.RegisterDelphiFunction(@GetComponentPalettePopupMenu, 'GetComponentPalettePopupMenu', cdRegister);
   S.RegisterDelphiFunction(@GetComponentPaletteControlBar, 'GetComponentPaletteControlBar', cdRegister);
+  S.RegisterDelphiFunction(@GetIdeInsightBar, 'GetIdeInsightBar', cdRegister);
   S.RegisterDelphiFunction(@GetMainMenuItemHeight, 'GetMainMenuItemHeight', cdRegister);
   S.RegisterDelphiFunction(@IsIdeEditorForm, 'IsIdeEditorForm', cdRegister);
   S.RegisterDelphiFunction(@IsIdeDesignForm, 'IsIdeDesignForm', cdRegister);

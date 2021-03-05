@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -90,7 +90,7 @@ type
     asMakeMinHeight, asMakeMaxHeight, asMakeSameHeight, asMakeSameSize,
     asParentHCenter, asParentVCenter, asBringToFront, asSendToBack,
     asSnapToGrid, {$IFDEF IDE_HAS_GUIDE_LINE} asUseGuidelines, {$ENDIF} asAlignToGrid,
-    asSizeToGrid, asLockControls, asSelectRoot, asCopyCompName,
+    asSizeToGrid, asLockControls, asSelectRoot, asCopyCompName, asCopyCompClass,
     asHideComponent,
     asNonArrange, asListComp, asCompToCode, asCompRename, asShowFlatForm);
 
@@ -268,7 +268,7 @@ const
   // Action 生效需要选择的最小控件数
   csAlignNeedControls: array[TAlignSizeStyle] of Integer = (2, 2, 2, 2, 2, 2,
     3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 0,
-    {$IFDEF IDE_HAS_GUIDE_LINE} 0, {$ENDIF} 1, 1, -1, -1, -1,
+    {$IFDEF IDE_HAS_GUIDE_LINE} 0, {$ENDIF} 1, 1, -1, -1, -1, -1,
     0, 0, 0, 0, 1, -1);
 
   csAlignNeedSepMenu: set of TAlignSizeStyle =
@@ -285,7 +285,7 @@ const
     'CnParentVCenter', 'CnBringToFront', 'CnSendToBack', 'CnSnapToGrid',
     {$IFDEF IDE_HAS_GUIDE_LINE} 'CnUseGuidelines', {$ENDIF}
     'CnAlignToGrid', 'CnSizeToGrid', 'CnLockControls', 'CnSelectRoot',
-    'CnCopyCompName', 'CnHideComponent',
+    'CnCopyCompName', 'CnCopyCompClass', 'CnHideComponent',
     'CnNonArrange', 'CnListComp', 'CnCompToCode', 'CnCompRename', 'CnShowFlatForm');
 
   csAlignSizeCaptions: array[TAlignSizeStyle] of PString = (
@@ -300,7 +300,7 @@ const
     @SCnBringToFrontCaption, @SCnSendToBackCaption, @SCnSnapToGridCaption,
     {$IFDEF IDE_HAS_GUIDE_LINE} @SCnUseGuidelinesCaption, {$ENDIF}
     @SCnAlignToGridCaption, @SCnSizeToGridCaption, @SCnLockControlsCaption,
-    @SCnSelectRootCaption, @SCnCopyCompNameCaption,
+    @SCnSelectRootCaption, @SCnCopyCompNameCaption, @SCnCopyCompClassCaption,
     @SCnHideComponentCaption,
     @SCnNonArrangeCaption, @SCnListCompCaption, @SCnCompToCodeCaption,
     @SCnFloatPropBarRenameCaption, @SCnShowFlatFormCaption);
@@ -317,7 +317,7 @@ const
     @SCnBringToFrontHint, @SCnSendToBackHint, @SCnSnapToGridHint,
     {$IFDEF IDE_HAS_GUIDE_LINE} @SCnUseGuidelinesHint, {$ENDIF}
     @SCnAlignToGridHint, @SCnSizeToGridHint, @SCnLockControlsHint,
-    @SCnSelectRootHint, @SCnCopyCompNameHint,
+    @SCnSelectRootHint, @SCnCopyCompNameHint, @SCnCopyCompClassHint,
     @SCnHideComponentHint,
     @SCnNonArrangeHint, @SCnListCompHint, @SCnCompToCodeHint,
     @SCnFloatPropBarRenameCaption, @SCnShowFlatFormHint);
@@ -721,10 +721,13 @@ begin
           CnOtaSetCurrFormSelectRoot;
           IsModified := False;
         end;
-      asCopyCompName:
+      asCopyCompName, asCopyCompClass:
         begin
-          CnOtaCopyCurrFormSelectionsName;
-          
+          if AlignSizeStyle = asCopyCompName then
+            CnOtaCopyCurrFormSelectionsName
+          else
+            CnOtaCopyCurrFormSelectionsClassName;
+
           GetKeyboardState(KeyState);
           if (KeyState[VK_SHIFT] and $80) = 0 then // 按 Shift 不跳
           begin
@@ -916,6 +919,8 @@ end;
 function SortByClassNameProc(Item1, Item2: Pointer): Integer;
 begin
   Result := CompareText(TComponent(Item1).ClassName, TComponent(Item2).ClassName);
+  if Result = 0 then // 类名相同时用控件名比较
+    Result := CompareText(TComponent(Item1).Name, TComponent(Item2).Name);
 end;
 
 procedure TCnAlignSizeWizard.ArrangeNonVisualComponents;
@@ -1415,7 +1420,7 @@ begin
     else
       Actn.Checked := FHideNonVisual;
   end
-  else if Index = Indexes[asCopyCompName] then
+  else if (Index = Indexes[asCopyCompName]) or (Index = Indexes[asCopyCompClass]) then
   begin
     Actn.Enabled := not CnOtaIsCurrFormSelectionsEmpty;
   end

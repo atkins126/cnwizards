@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2020 CnPack 开发组                       }
+{                   (C)Copyright 2001-2021 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -40,7 +40,7 @@ interface
 {$I CnWizards.inc}
 
 uses
-  Windows, SysUtils, Classes, ToolsAPI, CnWizUtils, CnWizCompilerConst,
+  Windows, SysUtils, Classes, ToolsAPI, CnWizUtils, CnWizCompilerConst, CnWizSearch,
   uPSComponent, uPSRuntime, uPSCompiler;
 
 type
@@ -528,6 +528,8 @@ begin
   CL.AddDelphiFunction('Procedure CnOtaSetCurrFormSelectRoot');
   CL.AddDelphiFunction('Procedure CnOtaGetCurrFormSelectionsName( List : TStrings)');
   CL.AddDelphiFunction('Procedure CnOtaCopyCurrFormSelectionsName');
+  CL.AddDelphiFunction('Procedure CnOtaGetCurrFormSelectionsClassName( List : TStrings)');
+  CL.AddDelphiFunction('Procedure CnOtaCopyCurrFormSelectionsClassName');
   CL.AddDelphiFunction('Function CnOtaIDESupportsTheming : Boolean');
   CL.AddDelphiFunction('Function CnOtaGetIDEThemingEnabled : Boolean');
   CL.AddDelphiFunction('Function CnOtaGetActiveThemeName : string');
@@ -537,6 +539,9 @@ begin
   CL.AddDelphiFunction('Function SameCharPos( Pos1, Pos2 : TOTACharPos) : Boolean');
   CL.AddDelphiFunction('Function HWndIsNonvisualComponent( hWnd : HWND) : Boolean');
   CL.AddDelphiFunction('Procedure TranslateFormFromLangFile( AForm: TCustomForm; const ALangDir, ALangFile: string; LangID: Cardinal)');
+  // CnWizSearch
+  CL.AddDelphiFunction('Function CheckFileCRLF(const FileName: string; out CRLFCount, LFCount: Integer) : Boolean');
+  CL.AddDelphiFunction('Function CorrectFileCRLF(const FileName: string; out CorrectCount: Integer) : Boolean');
 end;
 
 (* === run-time registration functions === *)
@@ -786,6 +791,8 @@ begin
   S.RegisterDelphiFunction(@CnOtaSetCurrFormSelectRoot, 'CnOtaSetCurrFormSelectRoot', cdRegister);
   S.RegisterDelphiFunction(@CnOtaGetCurrFormSelectionsName, 'CnOtaGetCurrFormSelectionsName', cdRegister);
   S.RegisterDelphiFunction(@CnOtaCopyCurrFormSelectionsName, 'CnOtaCopyCurrFormSelectionsName', cdRegister);
+  S.RegisterDelphiFunction(@CnOtaGetCurrFormSelectionsClassName, 'CnOtaGetCurrFormSelectionsClassName', cdRegister);
+  S.RegisterDelphiFunction(@CnOtaCopyCurrFormSelectionsClassName, 'CnOtaCopyCurrFormSelectionsClassName', cdRegister);
   S.RegisterDelphiFunction(@CnOtaIDESupportsTheming, 'CnOtaIDESupportsTheming', cdRegister);
   S.RegisterDelphiFunction(@CnOtaGetIDEThemingEnabled, 'CnOtaGetIDEThemingEnabled', cdRegister);
   S.RegisterDelphiFunction(@CnOtaGetActiveThemeName, 'CnOtaGetActiveThemeName', cdRegister);
@@ -795,6 +802,9 @@ begin
   S.RegisterDelphiFunction(@SameCharPos, 'SameCharPos', cdRegister);
   S.RegisterDelphiFunction(@HWndIsNonvisualComponent, 'HWndIsNonvisualComponent', cdRegister);
   S.RegisterDelphiFunction(@TranslateFormFromLangFile, 'TranslateFormFromLangFile', cdRegister);
+  // CnWizSearch
+  S.RegisterDelphiFunction(@CheckFileCRLF, 'CheckFileCRLF', cdRegister);
+  S.RegisterDelphiFunction(@CorrectFileCRLF, 'CorrectFileCRLF', cdRegister);
 end;
 
 { TPSImport_CnWizUtils }
