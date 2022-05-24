@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -316,7 +316,7 @@ begin
       CnOtaMakeSourceVisible(AFileName);
       EditPos.Col := 1;
       EditPos.Line := ALine;
-      CnOtaGotoEditPos(EditPos, nil, True);
+      CnOtaGotoEditPos(EditPos, nil, False);
       FFileName := AFileName;
       FLine := ALine;
     finally
@@ -539,12 +539,19 @@ begin
         if Assigned(BackButton) and (BackButton.Action <> FBackAction) then
         begin
           FOldImageList := TToolBar(BackButton.Parent).Images;
+{$IFDEF IDE_SUPPORT_HDPI}
+          TToolBar(BackButton.Parent).Images := IdeGetVirtualImageListFromOrigin(dmCnSharedImages.ilBackForwardBDS, nil, True);
+{$ELSE}
           TToolBar(BackButton.Parent).Images := dmCnSharedImages.ilBackForwardBDS;
+{$ENDIF}
 
           FOldBackAction := BackButton.Action;
           FOldBackMenu := BackButton.DropdownMenu;
           BackButton.Action := FBackAction;
           BackButton.DropdownMenu := FBackMenu;
+{$IFDEF IDE_SUPPORT_HDPI}
+          BackButton.ImageIndex := FBackAction.ImageIndex;
+{$ENDIF}
         end;
 
         if Assigned(ForwardButton) and (ForwardButton.Action <> FForwardAction) then
@@ -553,6 +560,9 @@ begin
           FOldForwardMenu := ForwardButton.DropdownMenu;
           ForwardButton.Action := FForwardAction;
           ForwardButton.DropdownMenu := FForwardMenu;
+{$IFDEF IDE_SUPPORT_HDPI}
+          ForwardButton.ImageIndex := FForwardAction.ImageIndex;
+{$ENDIF}
         end;
 {$IFDEF DEBUG}
         CnDebugger.LogMsg('TCnSrcEditorNav.Install. Buttons Hooked.');

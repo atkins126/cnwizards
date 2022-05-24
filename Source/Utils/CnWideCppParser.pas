@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -307,7 +307,7 @@ var
       Result := 1;
   end;
 
-  // 碰到()时往回越过
+  // 碰到 () 时往回越过
   procedure SkipProcedureParameters;
   var
     RoundCount: Integer;
@@ -419,7 +419,7 @@ begin
               else if Layer = 2 then
                 Brace2Stack.Push(Token);
             end
-            else // 一旦在光标后了，就可以判断Start了
+            else // 一旦在光标后了，就可以判断 Start 了
             begin
               if (FInnerBlockStartToken = nil) and (BraceStack.Count > 0) then
                 FInnerBlockStartToken := TCnWideCppToken(BraceStack.Pop);
@@ -476,7 +476,7 @@ begin
             NewToken;
           end;
         ctkdirif, ctkdirifdef, // Need these for conditional compile directive
-        ctkdirifndef, ctkdirelif, ctkdirelse, ctkdirendif:
+        ctkdirifndef, ctkdirelif, ctkdirelse, ctkdirendif, ctkdirpragma:
           begin
             NewToken;
           end;

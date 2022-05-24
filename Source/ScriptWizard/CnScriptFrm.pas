@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -51,7 +51,7 @@ uses
 type
   TCnScriptMode = (smManual, smIDELoaded, smFileNotify, smBeforeCompile,
     smAfterCompile, smSourceEditorNotify, smFormEditorNotify, smApplicationEvent,
-    smActiveFormChanged, smEditorFlatButton);
+    smActiveFormChanged, smEditorFlatButton, smDesignerContextMenu);
   TCnScriptModeSet = set of TCnScriptMode;
 
 {$M+} // Generate RTTI
@@ -160,6 +160,11 @@ type
     constructor Create;
   end;
 
+  TCnScriptDesignerContextMenu = class(TCnScriptEvent)
+  public
+    constructor Create;
+  end;
+
   TCnScriptCreator = class(TCnTemplateModuleCreator)
   protected
     function GetTemplateFile(FileType: TCnSourceType): string; override;
@@ -214,7 +219,6 @@ type
     procedure btnClearClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
   private
-    { Private declarations }
     FDemoFiles: TStrings;
     FEngineList: TObjectList;
     procedure DemoFindCallBack(const FileName: string; const Info: TSearchRec;
@@ -235,7 +239,6 @@ type
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     procedure OnReadln(const Prompt: string; var Text: string);
     procedure OnWriteln(const Text: string);
     function CreateEngine: TCnScriptExec;
@@ -386,6 +389,13 @@ begin
   inherited Create(smEditorFlatButton);
 end;
 
+{ TCnScriptDesignerContextMenu }
+
+constructor TCnScriptDesignerContextMenu.Create;
+begin
+  inherited Create(smDesignerContextMenu);
+end;
+
 { TCnScriptCreator }
 
 procedure TCnScriptCreator.DoReplaceTagsSource(const TagString: string;
@@ -439,6 +449,7 @@ end;
 procedure TCnScriptForm.FormCreate(Sender: TObject);
 begin
   inherited;
+  WizOptions.ResetToolbarWithLargeIcons(tlb1);
   FEngineList := TObjectList.Create(True);
 end;
 
@@ -596,7 +607,7 @@ procedure TCnScriptForm.pmOpenPopup(Sender: TObject);
 var
   Wizard: TCnScriptWizard;
   Menu: TMenuItem;
-  i: Integer;
+  I: Integer;
 
   procedure LoadDemoNamesToMenu(Menu: TMenuItem);
   var
@@ -642,12 +653,16 @@ begin
     Menu := TMenuItem.Create(pmOpen.Items);
     Menu.Caption := '-';
     pmOpen.Items.Add(Menu);
-    for i := 0 to Wizard.Scripts.Count - 1 do
+
+    for I := 0 to Wizard.Scripts.Count - 1 do
     begin
+      if Wizard.Scripts[I].IsInternal then // 不显示内部条目
+        Continue;
+
       Menu := TMenuItem.Create(pmOpen.Items);
-      Menu.Caption := Wizard.Scripts[i].Name;
-      Menu.Hint := Wizard.Scripts[i].Comment;
-      Menu.Tag := i;
+      Menu.Caption := Wizard.Scripts[I].Name;
+      Menu.Hint := Wizard.Scripts[I].Comment;
+      Menu.Tag := I;
       Menu.OnClick := OnOpenFile;
       pmOpen.Items.Add(Menu);
     end;
@@ -697,7 +712,7 @@ var
   Engine: TCnScriptExec;
   ScriptText: string;
   NeedCompile: Boolean;
-  i: Integer;
+  I: Integer;
 
   procedure AddLog(const Msg: string; ManualOnly: Boolean = True);
   begin
@@ -706,26 +721,30 @@ var
   end;
 begin
 {$IFDEF DEBUG}
-  CnDebugger.LogFmt('Exec Script: %s', [AFileName]);
-  CnDebugger.LogObject(AScriptEvent);
+  CnDebugger.LogFmt('Exec Script: %s with Event: %s', [AFileName, AScriptEvent.ClassName]);
 {$ENDIF}
   if AScriptEvent.Mode = smManual then
     mmoOut.Lines.Clear;
 
   Engine := nil;
-  for i := 0 to FEngineList.Count - 1 do
+  for I := 0 to FEngineList.Count - 1 do
   begin
-    if SameFileName(TCnScriptExec(FEngineList[i]).ScripFile, AFileName) then
+    if SameFileName(TCnScriptExec(FEngineList[I]).ScripFile, AFileName) then
     begin
-      Engine := TCnScriptExec(FEngineList[i]);
+      Engine := TCnScriptExec(FEngineList[I]);
       Break;
     end;
   end;
 
   if Engine = nil then
   begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('No Script Engine for this File. Create it.');
+{$ENDIF}
+
     Engine := CreateEngine;
     Engine.Engine.Script.Text := string(IdeGetSourceByFileName(AFileName));
+
     Engine.ScripFile := AFileName;
     FEngineList.Add(Engine);
     NeedCompile := True;
@@ -741,7 +760,7 @@ begin
     finally
       Free;
     end;
-    
+
     if (Engine.Engine.Script.Text = '') or
       not AnsiSameStr(ScriptText, Engine.Engine.Script.Text) then
     begin
@@ -754,6 +773,10 @@ begin
 
   if NeedCompile then
   begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('Exec Script Need Compile.');
+{$ENDIF}
+
     AddLog(SCnScriptCompiling);
     try
       CompileSucc := Engine.Engine.Compile;
@@ -767,16 +790,22 @@ begin
 
     if CompileSucc then
     begin
+{$IFDEF DEBUG}
+      CnDebugger.LogMsg('Exec Script Compile Success.');
+{$ENDIF}
       if AScriptEvent.Mode = smManual then
         OutputMessages(Engine, AFileName);
       AddLog(SCnScriptCompiledSucc);
     end
     else
     begin
+{$IFDEF DEBUG}
+      CnDebugger.LogMsg('Exec Script Compile Fail.');
+{$ENDIF}
       Engine.Engine.Script.Clear;
       IdeDockManager.ShowForm(CnScriptForm);
-      if AScriptEvent.Mode = smManual then
-        OutputMessages(Engine, AFileName);
+      // if AScriptEvent.Mode = smManual then
+      OutputMessages(Engine, AFileName); // 其他模式也输出错误信息
       AddLog(SCnScriptCompilingFailed);
       Exit;
     end;
@@ -871,7 +900,7 @@ end;
 
 procedure TCnScriptForm.OnReadln(const Prompt: string; var Text: string);
 begin
-  Text := CnInputBox('Script', Prompt, '');
+  Text := CnWizInputBox('Script', Prompt, '');
 end;
 
 procedure TCnScriptForm.OnWriteln(const Text: string);
@@ -964,4 +993,5 @@ end;
 {$ENDIF}
 
 {$ENDIF CNWIZARDS_CNSCRIPTWIZARD}
+
 end.

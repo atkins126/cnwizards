@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -101,7 +101,7 @@ implementation
 {$IFDEF CNWIZARDS_CNPREFIXWIZARD}
 
 uses
-  CnPrefixNewFrm, CnPrefixWizard, CnWizNotifier;
+  CnPrefixNewFrm, CnPrefixWizard, CnWizNotifier {$IFDEF DEBUG}, CnDebug {$ENDIF};
 
 {$R *.DFM}
 
@@ -114,6 +114,7 @@ function GetNewComponentName(const FormName, ComponentClass, ComponentText,
   const RootName: string; AWizard: TObject): Boolean;
 var
   Wizard: TCnPrefixWizard;
+  OldWidth, OldHeight: Integer;
 begin
   Result := False;
   if not (AWizard is TCnPrefixWizard) then
@@ -146,6 +147,8 @@ begin
       chkDisablePrefix.Visible := False;
     end;
 
+    OldWidth := Width;
+    OldHeight := Height;
     Result := ShowModal = mrOk;
 
     Prefix := FPrefix;
@@ -154,9 +157,16 @@ begin
     AutoPopSuggestDlg := not cbNeverDisp.Checked;
     WizardActive := not chkDisablePrefix.Checked;
 
-    // 保存未缩放后的尺寸
-    Wizard.EditDialogWidth := CalcIntUnEnlargedValue(Width);
-    Wizard.EditDialogHeight := CalcIntUnEnlargedValue(Height);
+    // 如果尺寸改变了，保存未缩放后的尺寸
+    if (Width <> OldWidth) or (Height <> OldHeight) then
+    begin
+      Wizard.EditDialogWidth := CalcIntUnEnlargedValue(Width);
+      Wizard.EditDialogHeight := CalcIntUnEnlargedValue(Height);
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('GetNewComponentName from Prefix Dialog. Save Width %d, Height %d,',
+        [Wizard.EditDialogWidth, Wizard.EditDialogHeight]);
+{$ENDIF}
+    end;
 
     if not WizardActive then
       Result := False;

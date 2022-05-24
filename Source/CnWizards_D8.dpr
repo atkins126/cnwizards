@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -59,10 +59,10 @@ uses
   CnMultiLineEdtUserFmtFrm in 'DesignEditors\CnMultiLineEdtUserFmtFrm.pas' {CnMultiLineEditorUserFmtForm},
   CnMultiLineEdtToolOptFrm in 'DesignEditors\CnMultiLineEdtToolOptFrm.pas' {CnMultiLineEditorToolsOptionForm},
   CnAlignPropEditor in 'DesignEditors\CnAlignPropEditor.pas',
-  CnAlignSizeWizard in 'SimpleWizards\CnAlignSizeWizard.pas' {CnNonArrangeForm},
-  CnEditorWizard in 'CodingToolset\CnEditorWizard.pas' {CnEditorToolsForm},
-  CnListCompFrm in 'SimpleWizards\CnListCompFrm.pas' {CnListCompForm},
-  CnCompToCodeFrm in 'SimpleWizards\CnCompToCodeFrm.pas' {CnCompToCodeForm},
+  CnAlignSizeWizard in 'DesignWizard\CnAlignSizeWizard.pas' {CnNonArrangeForm},
+  CnEditorToolsetWizard in 'CodingToolset\CnEditorToolsetWizard.pas' {CnEditorToolsForm},
+  CnListCompFrm in 'DesignWizard\CnListCompFrm.pas' {CnListCompForm},
+  CnCompToCodeFrm in 'DesignWizard\CnCompToCodeFrm.pas' {CnCompToCodeForm},
   CnMessageBoxWizard in 'SimpleWizards\CnMessageBoxWizard.pas' {CnMessageBoxForm},
   CnComponentSelector in 'SimpleWizards\CnComponentSelector.pas' {CnComponentSelectorForm},
   CnTabOrderWizard in 'SimpleWizards\CnTabOrderWizard.pas' {CnTabOrderForm},
@@ -92,6 +92,7 @@ uses
   CnEditorToggleVar in 'CodingToolset\CnEditorToggleVar.pas',
   CnEditorJumpMessage in 'CodingToolset\CnEditorJumpMessage.pas',
   CnEditorFontZoom in 'CodingToolset\CnEditorFontZoom.pas',
+  CnEditorDuplicateUnit in 'CodingToolset\CnEditorDuplicateUnit.pas',
   CnMsdnWizard in 'SimpleWizards\CnMsdnWizard.pas' {CnMsdnConfigForm},
   CnPas2HtmlWizard in 'SimpleWizards\CnPas2HtmlWizard.pas' {CnPas2HtmlForm},
   CnPasConvertTypeFrm in 'SimpleWizards\CnPasConvertTypeFrm.pas' {CnPasConvertTypeForm},
@@ -123,7 +124,7 @@ uses
   CnCorPropWizard in 'CorProperty\CnCorPropWizard.pas',
   CnCorPropFrm in 'CorProperty\CnCorPropFrm.pas' {CnCorPropForm},
   CnCorPropCfgFrm in 'CorProperty\CnCorPropCfgFrm.pas' {CnCorPropCfgForm},
-  CnCorPropRulesFrm in 'CorProperty\CnCorPropRulesFrm.pas' {CorPropRuleForm},
+  CnCorPropRulesFrm in 'CorProperty\CnCorPropRulesFrm.pas' {CnCorPropRuleForm},
   CnProjectExtWizard in 'ProjectExtWizard\CnProjectExtWizard.pas',
   CnProjectViewBaseFrm in 'ProjectExtWizard\CnProjectViewBaseFrm.pas' {CnProjectViewBaseForm},
   CnProjectViewUnitsFrm in 'ProjectExtWizard\CnProjectViewUnitsFrm.pas' {CnProjectViewUnitsForm},
@@ -132,7 +133,7 @@ uses
   CnProjectFramesFrm in 'ProjectExtWizard\CnProjectFramesFrm.pas' {CnProjectFramesForm},
   CnProjectListUsedFrm in 'ProjectExtWizard\CnProjectListUsedFrm.pas' {CnProjectListUsedForm},
   CnWizDfmParser in 'Utils\CnWizDfmParser.pas',
-  CnCommentCropper in 'SimpleWizards\CnCommentCropper.pas' {CommentCropForm},
+  CnCommentCropper in 'SimpleWizards\CnCommentCropper.pas' {CnCommentCropForm},
   CnSourceCropper in 'Utils\CnSourceCropper.pas',
   CnCpuWinEnhancements in 'IdeEnhancements\CnCpuWinEnhancements.pas',
   CnCpuWinEnhanceFrm in 'IdeEnhancements\CnCpuWinEnhanceFrm.pas' {CnCpuWinEnhanceForm},
@@ -151,7 +152,6 @@ uses
   CnExploreFilterEditor in 'ExplorerWizard\CnExploreFilterEditor.pas' {CnExploreFilterEditorForm},
   CnProjectDelTempFrm in 'ProjectExtWizard\CnProjectDelTempFrm.pas' {CnProjectDelTempForm},
   CnRoClasses in 'ReopenWizard\CnRoClasses.pas',
-  CnRoConst in 'ReopenWizard\CnRoConst.pas',
   CnRoFrmFileList in 'ReopenWizard\CnRoFrmFileList.pas' {RecentFilesFrame: TFrame},
   CnRoInterfaces in 'ReopenWizard\CnRoInterfaces.pas',
   CnRoWizard in 'ReopenWizard\CnRoWizard.pas',

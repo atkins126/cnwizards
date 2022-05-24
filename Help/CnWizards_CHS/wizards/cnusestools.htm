@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>引用单元工具</title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<link rel="stylesheet" href="../css/style.css" type="text/css">
+</head>
+
+<body>
+<table width="100%" border="0" cellpadding="4">
+  <tr>
+    <td class="head" height="16">引用单元工具</td>
+  </tr>
+  <tr>
+    <td bgcolor="#FF9900" height="6"></td>
+  </tr>
+  <tr>
+    <td height=6></td>
+  </tr>
+</table>
+<p class="title">引用单元清理</p>
+<p class="text" align="left">该功能用于清理单元中不需要的 uses 引用单元，目前只支持 Delphi。</p>
+<p class="text" align="left">当窗体上加入控件时，单元中的 uses 部分会自动加入此控件所在的单元名，但控件如果被删除，其被引用的单元名却不会自动删除。本功能能按一定规则搜索当前单元或当前工程、工程组中可能不需要的单元引用，并列出以供清理。</p>
+<p class="text" align="left">本功能执行后界面如图：</p>
+<p class="text" align="center">
+  <img src="usescleaner.png"> </p>
+<p class="text" align="left">引用单元清理的设置如下：</p>
+<ul>
+  <li>
+<p class="text" align="left"><b>当前编辑的单元</b>：搜索范围为当前单元。</p>
+  </li>
+	<li>
+<p class="text" align="left"><b>当前工程组中打开的单元</b>：搜索范围为当前工程组中所有打开的单元。</p>
+  </li>
+	<li>
+<p class="text" align="left"><b>当前工程中的所有单元</b>：搜索范围为当前工程中的所有单元。</p>
+  </li>
+	<li>
+<p class="text" align="left"><b>当前工程组中的所有单元</b>：搜索范围为当前工程组中的所有单元。</p>
+  </li>
+  <li>
+<p class="text" align="left"><b>处理间接引用到的单元</b>：勾选此选项时，被间接引用到的源文件单元也会一并处理到，不局限于工程或工程组中的文件。</p>
+  </li>
+	<li>
+<p class="text" align="left"><b>忽略包含初始化节的引用单元</b>：是否忽略包含 initialization 部分的引用单元，此类单元包含初始化操作，删除其引用可能会导致问题。</p>
+  </li>
+  <li>
+<p class="text" align="left"><b>忽略包含 Register 过程的引用单元</b>：是否忽略包含 Register 过程的引用单元，该类单元常包含组件注册内容。</p>
+  </li>
+	<li>
+<p class="text" align="left"><b>忽略窗体组件间接引用的单元</b>：是否忽略由组件间接引用到的单元。有些单元定义了组件的父类，如果删除 
+IDE 仍会自动添加上去。另外还可能包含工程中其它的窗体单元，这些窗体上的部分组件被当前窗体的组件在属性中引用。</p>
+  </li>
+  <li>
+<p class="text" align="left"><b>忽略无源码的引用单元</b>：是否忽略无源码的被引用单元。</p>
+  </li>
+  <li>
+<p class="text" align="left"><b>自动保存并关闭未打开文件</b>：本功能在处理单元中的引用内容时，默认是将文件在 IDE 中打开并修改，不自动保存关闭，这种模式在工程非常巨大时容易导致资源耗尽而无法处理。勾选此选项后，文件修改后将自动保存并关闭，不可撤消，适合于大工程。</p>
+  </li>
+  <li>
+<p class="text" align="left"><b>强行清理以下单元</b>：强行将以下单元置于结果中可被清理的位置。</p>
+  </li>
+  <li>
+<p class="text" align="left"><b>强行忽略以下引用单元</b>：搜索时忽略以下单元的引用，常用于一些系统单元。</p>
+  </li>
+  <li>
+<p class="text"><b>处理</b>：按照设置的规则进行编译并搜索，完毕后弹出搜索结果窗体供清理。</p></li>
+  <li>
+<p class="text"><b>取消</b>：关闭此窗口，不进行任何清理。</p></li>
+  <li>
+<p class="text"><b>帮助</b>：显示此帮助信息。</p></li>
+</ul>
+<p class="text" align="left"></p>
+<p class="title">　</p>
+<p class="title">清理分析结果</p>
+<p class="text" align="left">点击“处理”按钮后会自动编译并分析需要处理的内容，并将搜索所得的结果列出如下图。其中，勾上的单元表示搜索分析后认为可删除引用的单元，用户可以进一步确定其是否可被删除。未勾上的单元表示此单元引用有效，或已按某种规则忽略。</p>
+<p class="text" align="center">　<img src="usescleanerres.png"></p>
+<p class="text" align="left">
+<ul>
+  <li>
+<p class="text"><b>清理</b>：删除列表中勾上的单元引用。</p></li>
+	<li>
+<p class="text"><b>取消</b>：关闭此窗口，不进行任何清理。</p></li>
+  <li>
+<p class="text"><b>帮助</b>：显示此帮助信息。</p></li>
+</ul>
+<p class="text" align="left"></p>
+<p class="title">　</p>
+<p class="title">分析初始化顺序</p>
+<p class="text" align="left">本功能能够分析当前工程中所有 Unit 的初始化顺序，并将其列为树状显示，同时可区分单元类型与引用类型等。</p>
+<p class="text" align="left">本功能执行后界面如下图。左边是初始化树显示区域，右边是显示过滤设置，以及文件详细信息。</p>
+<p class="text" align="center">　<img src="usesinittree.png"></p>
+<p class="text" align="left">
+<ul>
+  <li>
+<p class="text"><b>关闭</b>：关闭此窗口。</p></li>
+  <li>
+<p class="text"><b>工程</b>：下拉框列表，可在此选择需要处理的工程，默认为当前工程。</p></li>
+	<li>
+<p class="text"><b>分析工程</b>：点击此按钮将编译当前工程，如果编译成功，则分析编译后的 dcu 文件以生成初始化树。</p></li>
+  <li>
+<p class="text"><b>导出</b>：将初始化树的内容导出成文本文件。</p></li>
+	<li>
+<p class="text"><b>打开</b>：在 IDE 中打开所选中的源文件。</p></li>
+  <li>
+<p class="text"><b>在资源管理器中打开</b>：打开资源管理器并定位选中的源文件。</p></li>
+  <li>
+<p class="text"><b>查找</b>：弹出查找对话框，供在初始化树中根据文本查找单元节点。</p></li>
+  <li>
+<p class="text"><b>查找下一个</b>：重复上一次查找。</p></li>
+	<li>
+<p class="text"><b>帮助</b>：显示此帮助信息。</p></li>
+	<li>
+<p class="text"><b>显示工程搜索路径中的单元</b>：是否在初始化树中显示处于工程搜索路径中的单元。</p></li>
+	<li>
+<p class="text"><b>显示系统搜索路径中的单元</b>：是否在初始化树中显示处于系统搜索路径中的单元。</p></li>
+</ul>
+<p class="title">　</p>
+<p class="title">根据标识符查找引用单元</p>
+<p class="text" align="left">本功能能够分析系统中所有的 dcu 库文件、获取其内部符号表，并允许根据输入的标识符进行搜索与引用。引用单元时允许选择添加至 interface 部分还是 implementation 部分。</p>
+<p class="text" align="left">本功能执行后界面如下图。</p>
+<p class="text" align="center"><img src="usesfromident.png"></p>
+<p class="text" align="left">
+<ul>
+  <li>
+<p class="text"><b>引用所选单元</b>：当前单元引用所选择的单元。</p></li>
+  <li>
+<p class="text"><b>复制单元名</b>：复制所选择的单元名称到剪贴板。</p></li>
+  <li>
+<p class="text"><b>按标识符开头匹配</b>：查找的时候，输入的字符从标识符的头部开始匹配，标识符头部含有输入字符的才能显示。</p></li>
+  <li>
+<p class="text"><b>按标识符的所有位置匹配</b>：查找的时候，输入的字符匹配标识符的任何部分，标识符含有输入字符的才能显示。</p></li>
+  <li>
+<p class="text"><b>标识符模糊匹配</b>：查找的时候，标识符模糊匹配输入的字符即能显示。</p></li>
+  <li>
+<p class="text"><b>字体</b>：更改列表框字体。</p></li>
+  <li>
+<p class="text"><b>帮助</b>：显示此帮助。</p></li>
+  <li>
+<p class="text"><b>关闭</b>：关闭此窗口。</p></li>
+</ul>
+<p class="title" align="left">　<p class="title" align="left">相关主题<p class="text" align="left">
+<a href="wizards.htm">IDE 专家基本操作</a><p class="text" align="left">
+<a href="../options/wizconfig.htm">IDE 专家设置</a><p class="text" align="left">
+<a href="../cnpack/index.htm">关于 IDE 专家包</a><p class="text" align="left">　<hr>
+<p class="text" align="center"><a href="http://www.cnpack.org">(C)版权所有 2001-2022 CnPack 开发组</a></p>
+</body>
+</html>

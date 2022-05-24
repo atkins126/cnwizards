@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -37,20 +37,23 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNUSESCLEANER}
+{$IFDEF CNWIZARDS_CNUSESTOOLS}
 
 uses
-  Windows, Classes, SysUtils, DCURecs, DCU32, DCU_Out, ToolsAPI, Contnrs,
-  CnWizUtils, CnPasCodeParser, CnWizConsts;
+  Windows, Classes, SysUtils, Contnrs, DCURecs, DCU32, DCU_Out
+  {$IFNDEF STAND_ALONE}, ToolsAPI, CnWizUtils, CnPasCodeParser
+  {$IFDEF UNICODE}, CnWidePasParser {$ENDIF}, CnCommon,
+  CnWizConsts {$ENDIF};
 
 type
 
 { TCnUnitUsesInfo }
 
   TCnUnitUsesInfo = class(TUnit)
+  {* 描述从 DCU 中解析出来的 Uses 内容}
   private
-    FIntfUses: TStringList;
-    FImplUses: TStringList;
+    FIntfUses: TStringList;  // 存储 interface 部分的 uses 单元，以及每个单元对应的导入类名
+    FImplUses: TStringList;  // 存储 implementation 部分的 uses 单元，以及每个单元对应的导入类名
     function GetImplUse(Index: Integer): string;
     function GetImplUsesCount: Integer;
     function GetImplUsesImport(Index: Integer): TStrings;
@@ -60,26 +63,35 @@ type
     procedure GetUsesList(AList: TStringList; AFlag: TUnitImpFlags);
     procedure ClearUsesList(AList: TStringList);
   public
-    constructor Create(const DcuName: string);
+    constructor Create(const DcuName: string; UseOnly: Boolean = True);
     destructor Destroy; override;
     procedure Sort;
     
     property IntfUsesCount: Integer read GetIntfUsesCount;
+    {* interface 部分有多少个 uses}
     property IntfUses[Index: Integer]: string read GetIntfUse;
+    {* interface 部分的每一个 uses}
     property IntfUsesImport[Index: Integer]: TStrings read GetIntfUsesImport;
-
+    {* interface 部分每一个 uses 单元导入的类名列表}
     property ImplUsesCount: Integer read GetImplUsesCount;
+    {* implementation 部分有多少个 uses}
     property ImplUses[Index: Integer]: string read GetImplUse;
+    {* implementation 部分的每一个 uses}
     property ImplUsesImport[Index: Integer]: TStrings read GetImplUsesImport;
-  end;
+    {* implementation 部分每一个 uses 单元导入的类名列表}
 
-{ TCnUsesItem }
+    property ExportedNames: TStringList read FExportNames;
+    {* 导出的名字们}
+  end;
 
   TCnUsesKind = (ukHasInitSection, ukHasRegProc, ukInCleanList, ukInIgnoreList,
     ukNoSource, tkCompRef);
   TCnUsesKinds = set of TCnUsesKind;
 
+{ TCnUsesItem }
+
   TCnUsesItem = class
+  {* 描述一项 uses 项}
   private
     FChecked: Boolean;
     FKinds: TCnUsesKinds;
@@ -93,9 +105,12 @@ type
 { TCnEmptyUsesInfo }
 
   TCnEmptyUsesInfo = class
+  {* 描述一所需处理的文件处理类}
   private
     FSourceFileName: string;
+{$IFNDEF STAND_ALONE}
     FProject: IOTAProject;
+{$ENDIF}
     FDcuName: string;
     FIntfItems: TObjectList;
     FImplItems: TObjectList;
@@ -105,29 +120,33 @@ type
     function GetIntfCount: Integer;
     function GetIntfItem(Index: Integer): TCnUsesItem;
   public
-    constructor Create(const ADcuName, ASourceFileName: string;
-      AProject: IOTAProject);
+    constructor Create(const ADcuName, ASourceFileName: string {$IFNDEF STAND_ALONE};
+      AProject: IOTAProject {$ENDIF});
     destructor Destroy; override;
-
+{$IFNDEF STAND_ALONE}
     function Process: Boolean;
-
+{$ENDIF}
     property DcuName: string read FDcuName;
     property SourceFileName: string read FSourceFileName;
+{$IFNDEF STAND_ALONE}
     property Project: IOTAProject read FProject;
+{$ENDIF}
     property IntfCount: Integer read GetIntfCount;
     property IntfItems[Index: Integer]: TCnUsesItem read GetIntfItem;
     property ImplCount: Integer read GetImplCount;
     property ImplItems[Index: Integer]: TCnUsesItem read GetImplItem;
   end;
 
-{$ENDIF CNWIZARDS_CNUSESCLEANER}
+{$ENDIF CNWIZARDS_CNUSESTOOLS}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNUSESCLEANER}
+{$IFDEF CNWIZARDS_CNUSESTOOLS}
 
+{$IFNDEF STAND_ALONE}
 uses
   CnWizEditFiler;
+{$ENDIF}
 
 { TCnUnitUsesInfo }
 
@@ -143,14 +162,14 @@ begin
     end;
 end;
 
-constructor TCnUnitUsesInfo.Create(const DcuName: string);
+constructor TCnUnitUsesInfo.Create(const DcuName: string; UseOnly: Boolean);
 begin
-  InitOut;
+  //InitOut('');
   FIntfUses := TStringList.Create;
   FImplUses := TStringList.Create;
   inherited Create;
   try
-    Load(DcuName, 0, False, nil, True);
+    Load(DcuName, 0, False, dcuplWin32, nil);
   except
     {$IFNDEF DELPHI2009_UP}
     raise;
@@ -216,15 +235,15 @@ begin
     if AFlag <> PRec.Flags then
       Continue;
     Lines := TStringList.Create;
-    AList.AddObject({$IFDEF UNICODE}string{$ENDIF}(PRec^.Name^), Lines);
+    AList.AddObject({$IFDEF UNICODE}string{$ENDIF}(PRec^.Name^.GetStr), Lines);
 
     Decl := PRec^.Decls;
     while Decl <> nil do
     begin
       if Decl is TImpDef then
-        Lines.Add(TImpDef(Decl).ik + ':' + {$IFDEF UNICODE}string{$ENDIF}(Decl.Name^))
+        Lines.Add(TImpDef(Decl).ik + ':' + {$IFDEF UNICODE}string{$ENDIF}(Decl.Name^.GetStr))
       else
-        Lines.Add({$IFDEF UNICODE}string{$ENDIF}(Decl.Name^));
+        Lines.Add({$IFDEF UNICODE}string{$ENDIF}(Decl.Name^.GetStr));
       Decl := Decl.Next as TBaseDef;
     end;
   end;
@@ -238,15 +257,17 @@ end;
 
 { TCnEmptyUsesInfo }
 
-constructor TCnEmptyUsesInfo.Create(const ADcuName, ASourceFileName: string;
-  AProject: IOTAProject);
+constructor TCnEmptyUsesInfo.Create(const ADcuName, ASourceFileName: string
+  {$IFNDEF STAND_ALONE}; AProject: IOTAProject {$ENDIF});
 begin
   inherited Create;
   FIntfItems := TObjectList.Create;
   FImplItems := TObjectList.Create;
   FDcuName := ADcuName;
   FSourceFileName := ASourceFileName;
+{$IFNDEF STAND_ALONE}
   FProject := AProject;
+{$ENDIF}
 end;
 
 destructor TCnEmptyUsesInfo.Destroy;
@@ -256,13 +277,38 @@ begin
   inherited;
 end;
 
+{$IFNDEF STAND_ALONE}
+
 function TCnEmptyUsesInfo.Process: Boolean;
 var
-  Info: TCnUnitUsesInfo;
-  UsesList: TStringList;
+  Info: TCnUnitUsesInfo; // 存储 DCU 文件中解析出来的 uses 内容列表
+  UsesList: TStringList; // 存储源码中解析出来的 uses 内容列表
   Stream: TMemoryStream;
   Item: TCnUsesItem;
-  i: Integer;
+  I: Integer;
+
+  function UnitUsesListContainsUnitName({$IFNDEF SUPPORT_UNITNAME_DOT} const
+    {$ENDIF} DcuName: string): Boolean;
+{$IFDEF SUPPORT_UNITNAME_DOT}
+  var
+    K: Integer;
+{$ENDIF}
+  begin
+    Result := UsesList.IndexOf(DcuName) >= 0;
+{$IFDEF SUPPORT_UNITNAME_DOT}
+    // 如果没找到，则判断点号，使用 DcuName 最后一个点的后面部分搜索
+    if not Result then
+    begin
+      K := LastCharPos(DcuName, '.');
+      if K > 0 then
+      begin
+        Delete(DcuName, 1, K);
+        Result := UsesList.IndexOf(DcuName) >= 0;
+      end;
+    end;
+{$ENDIF}
+  end;
+
 begin
   Result := False;
   try
@@ -273,31 +319,39 @@ begin
       try
         Stream := TMemoryStream.Create;
         try
-          EditFilerSaveFileToStream(FSourceFileName, Stream);
-          // CnOtaSaveEditorToStream(Buffer, Stream);
+          EditFilerSaveFileToStream(FSourceFileName, Stream, True);
+{$IFDEF UNICODE}
+          ParseUnitUsesW(PChar(Stream.Memory), UsesList);
+{$ELSE}
           ParseUnitUses(PAnsiChar(Stream.Memory), UsesList);
+{$ENDIF}
         finally
           Stream.Free;
         end;
 
-        for i := 0 to Info.IntfUsesCount - 1 do
-          if (Info.IntfUsesImport[i].Count = 0) and
-            (UsesList.IndexOf(Info.IntfUses[i]) >= 0) then
+        // 注意从源码里 UsesList 解析出来的单元名可能是不带点的，
+        // 而 Dcu 里解析出来的 Info 里的则是带点的，简单匹配不够
+        for I := 0 to Info.IntfUsesCount - 1 do
+        begin
+          if (Info.IntfUsesImport[I].Count = 0) and
+            UnitUsesListContainsUnitName(Info.IntfUses[I]) then
           begin
             Item := TCnUsesItem.Create;
-            Item.Name := Info.IntfUses[i];
+            Item.Name := Info.IntfUses[I];
             FIntfItems.Add(Item);
           end;
+        end;
 
-        for i := 0 to Info.ImplUsesCount - 1 do
-          if (Info.ImplUsesImport[i].Count = 0) and
-            (UsesList.IndexOf(Info.ImplUses[i]) >= 0) then
+        for I := 0 to Info.ImplUsesCount - 1 do
+        begin
+          if (Info.ImplUsesImport[I].Count = 0) and
+            UnitUsesListContainsUnitName(Info.ImplUses[I]) then
           begin
             Item := TCnUsesItem.Create;
-            Item.Name := Info.ImplUses[i];
+            Item.Name := Info.ImplUses[I];
             FImplItems.Add(Item);
           end;
-
+        end;
         Result := True;
       finally
         UsesList.Free;
@@ -310,6 +364,8 @@ begin
       DoHandleException(E.Message);
   end;
 end;
+
+{$ENDIF}
 
 function TCnEmptyUsesInfo.GetImplCount: Integer;
 begin
@@ -331,5 +387,6 @@ begin
   Result := TCnUsesItem(FIntfItems[Index]);
 end;
 
-{$ENDIF CNWIZARDS_CNUSESCLEANER}
+{$ENDIF CNWIZARDS_CNUSESTOOLS}
 end.
+

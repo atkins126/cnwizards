@@ -6,8 +6,12 @@ USEFORMNS("MultiLang\CnWizMultiLang.pas", Cnwizmultilang, CnTranslateForm);
 USEFORMNS("Config\CnWizConfigFrm.pas", Cnwizconfigfrm, CnWizConfigForm);
 USEFORMNS("Config\CnWizSubActionShortCutFrm.pas", Cnwizsubactionshortcutfrm, CnWizSubActionShortCutForm);
 USEFORMNS("Config\CnWizMenuSortFrm.pas", Cnwizmenusortfrm, CnMenuSortFrm);
-USEFORMNS("SimpleWizards\CnAlignSizeWizard.pas", Cnalignsizewizard, CnNonArrangeForm);
-USEFORMNS("CodingToolset\CnEditorWizard.pas", Cneditorwizard, CnEditorToolsForm);
+USEFORMNS("DesignWizard\CnAlignSizeWizard.pas", Cnalignsizewizard, CnNonArrangeForm);
+USEFORMNS("CodingToolset\CnEditorToolsetWizard.pas", Cneditortoolsetwizard, CnEditorToolsForm);
+USEFORMNS("DesignWizard\CnListCompFrm.pas", Cnlistcompfrm, CnListCompForm);
+USEFORMNS("DesignWizard\CnPropertyCompareFrm.pas", Cnpropertycomparefrm, CnPropertyCompareForm);
+USEFORMNS("DesignWizard\CnPropertyCompConfigFrm.pas", Cnpropertycompconfigfrm, CnPropertyCompConfigForm);
+USEFORMNS("DesignWizard\CnCompToCodeFrm.pas", Cncomptocodefrm, CnCompToCodeForm);
 USEFORMNS("SimpleWizards\CnMessageBoxWizard.pas", Cnmessageboxwizard, CnMessageBoxForm);
 USEFORMNS("SimpleWizards\CnComponentSelector.pas", Cncomponentselector, CnComponentSelectorForm);
 USEFORMNS("SimpleWizards\CnTabOrderWizard.pas", Cntaborderwizard, CnTabOrderForm);
@@ -43,13 +47,13 @@ USEFORMNS("IdeEnhancements\CnPaletteEnhanceFrm.pas", Cnpaletteenhancefrm, CnPalE
 USEFORMNS("IdeEnhancements\CnCompFilterFrm.pas", Cncompfilterfrm, CnCompFilterForm);
 USEFORMNS("CorProperty\CnCorPropCfgFrm.pas", Cncorpropcfgfrm, CnCorPropCfgForm);
 USEFORMNS("CorProperty\CnCorPropFrm.pas", Cncorpropfrm, CnCorPropForm);
-USEFORMNS("CorProperty\CnCorPropRulesFrm.pas", Cncorproprulesfrm, CorPropRuleForm);
+USEFORMNS("CorProperty\CnCorPropRulesFrm.pas", Cncorproprulesfrm, CnCorPropRuleForm);
 USEFORMNS("ProjectExtWizard\CnProjectViewFormsFrm.pas", Cnprojectviewformsfrm, CnProjectViewFormsForm);
 USEFORMNS("ProjectExtWizard\CnProjectViewUnitsFrm.pas", Cnprojectviewunitsfrm, CnProjectViewUnitsForm);
 USEFORMNS("ProjectExtWizard\CnProjectUseUnitsFrm.pas", Cnprojectuseunitsfrm, CnProjectUseUnitsForm);
 USEFORMNS("ProjectExtWizard\CnProjectFramesFrm.pas", Cnprojectframesfrm, CnProjectFramesForm);
 USEFORMNS("ProjectExtWizard\CnProjectListUsedFrm.pas", Cnprojectlistusedfrm, CnProjectListUsedForm);
-USEFORMNS("SimpleWizards\CnCommentCropper.pas", Cncommentcropper, CommentCropFrm);
+USEFORMNS("SimpleWizards\CnCommentCropper.pas", Cncommentcropper, CnCommentCropFrm);
 USEFORMNS("DesignEditors\CnMultiLineEdtToolOptFrm.pas", Cnmultilineedttooloptfrm, CnMultiLineEditorToolsOptionFrm);
 USEFORMNS("DesignEditors\CnMultiLineEdtUserFmtFrm.pas", Cnmultilineedtuserfmtfrm, CnMultiLineEditorUserFmtFrm);
 USEFORMNS("RepositoryWiz\CnDUnitSetFrm.pas", Cndunitsetfrm, CnDUnitSetForm);
@@ -87,6 +91,7 @@ USEFORMNS("DesignEditors\CnPropEditorCustomizeFrm.pas", Cnpropeditorcustomizefrm
 USEFORMNS("ScriptWizard\CnScriptFrm.pas", Cnscriptfrm, CnScriptForm);
 USEFORMNS("ScriptWizard\CnScriptWizard.pas", Cnscriptwizard, CnScriptWizardForm);
 USEFORMNS("DesignEditors\CnImageListEditorFrm.pas", Cnimagelisteditorfrm, CnImageListEditorForm);
+USEFORMNS("CodeFormatter\CnCodeFormatterWizard.pas", Cncodeformatterwizard, CnCodeFormatterForm);
 //---------------------------------------------------------------------------
 This file is used by the project manager only and should be treated like the project file
 

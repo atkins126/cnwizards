@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -71,6 +71,7 @@ type
     constructor Create(AText: string);
     destructor Destroy; override;
     function OutputText(var CursorPos: Integer): string;
+    {* 内部执行完后，CrusorPos 应该返回光标应该被设置的位置，相对于整个文本。无处理则为 0}
     property Macros: TStringList read FMacros;
     property Text: string read FText write SetText;
   end;
@@ -146,7 +147,9 @@ begin
   inherited;
 end;
 
-// APos 返回宏在当前行中的位置，AllPos 返回宏在整个宏文本中的位置。
+// APos 返回该宏在文本中的当前行中的位置，AllPos 返回宏在整个宏文本中的位置。
+// Stream 用来输出宏替换后的内容，可以为空。P 输入时需要指向待搜索的文本开头
+// 搜索一次完成后，AMacro 是宏名字，P 指向下一个开头
 function TCnWizMacroText.FindNextMacro(var P: PChar; Stream: TMemoryStream;
   var AMacro: string; var APos, AllPos: Integer): Boolean;
 var
@@ -185,7 +188,7 @@ begin
       else
       begin                             // 找到一个宏
         SetLength(AMacro, Len);
-        AMacro := Copy(PStart, 1, Len);
+        AMacro := Copy(PStart, 1, Len);  // 复制出宏名
         Inc(P);
         if Assigned(Stream) then
         begin
@@ -267,11 +270,11 @@ var
 
   function InMacros(Str: string; Strings: TStrings): Boolean;
   var
-    i: Integer;
+    I: Integer;
   begin
     Result := False;
-    for i := 0 to Strings.Count - 1 do
-      if SameText(Strings[i], Str) then
+    for I := 0 to Strings.Count - 1 do
+      if SameText(Strings[I], Str) then
       begin
         Result := True;
         Break;
@@ -517,7 +520,7 @@ begin
     begin
     {$IFDEF DEBUG}
       CnDebugger.LogFmt('FindNextMacro Macro (%s). APos %d, AllPos %d.',
-        [Macro, Value, APos, AllPos]);
+        [Macro, APos, AllPos]);
     {$ENDIF}
       Value := GetMacroValue(Macro, APos, AllPos, CursorPos);
     {$IFDEF DEBUG}

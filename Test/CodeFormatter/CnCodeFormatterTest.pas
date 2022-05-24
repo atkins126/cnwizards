@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }    
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }    
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -182,7 +182,7 @@ begin
       CnPascalCodeForRule.CompDirectiveMode);
     FCodeFor.SpecifyIdentifiers(@Names[0]);
 
-    Marks[0] := SrcMemo.CaretPos.y;
+    Marks[0] := SrcMemo.CaretPos.y + 1; // Memo Caret 行号 0 开始，格式化的行号 1 开始
     Marks[1] := 0;
     FCodeFor.SpecifyLineMarks(@Marks[0]);
 
@@ -196,10 +196,11 @@ begin
         OutMarks := nil;
         FCodeFor.SaveOutputLineMarks(OutMarks);
 
-        if OutMarks <> nil then
+        if (OutMarks <> nil) and (OutMarks^ <> 0) then // 恢复成 0 开始
         begin
-          DesMemo.SelStart := DesMemo.Perform(EM_LINEINDEX, OutMarks^, 0);
+          DesMemo.SelStart := DesMemo.Perform(EM_LINEINDEX, OutMarks^ - 1, 0);
           DesMemo.SetFocus;
+          ShowMessage(IntToStr(OutMarks^) + ' (1 Based)');
         end;
         FreeMemory(OutMarks);
       end;
@@ -254,7 +255,7 @@ end;
 
 procedure TMainForm.ToolButton7Click(Sender: TObject);
 var
-  Scaner: TScaner;
+  Scanner: TScanner;
   Bookmark: TScannerBookmark;
   MemStr: TMemoryStream;
   I: Integer;
@@ -262,7 +263,7 @@ begin
   MemStr := TMemoryStream.Create;
   SrcMemo.Lines.SaveToStream(MemStr);
 
-  Scaner := TScaner.Create(MemStr);
+  Scanner := TScanner.Create(MemStr);
 
   try
     Memo2.Lines.Add('Normal Scan 20 Token');
@@ -270,39 +271,39 @@ begin
 
     for I := 1 to 100 do
     begin
-      Memo2.Lines.Add(Scaner.TokenString);
-      Scaner.NextToken;
-      if Scaner.Token = tokEOF then
+      Memo2.Lines.Add(Scanner.TokenString);
+      Scanner.NextToken;
+      if Scanner.Token = tokEOF then
         Break;
     end;
 
-    Scaner.SaveBookmark(Bookmark);
+    Scanner.SaveBookmark(Bookmark);
     Memo2.Lines.Add('');
     Memo2.Lines.Add('Save Bookmark Scan 10 Token');
     Memo2.Lines.Add('----------------------------------------');
 
     for I := 1 to 10 do
     begin
-      Memo2.Lines.Add(Scaner.TokenString);
-      Scaner.NextToken;
-      if Scaner.Token = tokEOF then
+      Memo2.Lines.Add(Scanner.TokenString);
+      Scanner.NextToken;
+      if Scanner.Token = tokEOF then
         Break;
     end;
 
-    Scaner.LoadBookmark(Bookmark);
+    Scanner.LoadBookmark(Bookmark);
     Memo2.Lines.Add('');
     Memo2.Lines.Add('Restore Bookmark Scan 10 Token');
     Memo2.Lines.Add('----------------------------------------');
 
     for I := 1 to 10 do
     begin
-      Memo2.Lines.Add(Scaner.TokenString);
-      Scaner.NextToken;
-      if Scaner.Token = tokEOF then
+      Memo2.Lines.Add(Scanner.TokenString);
+      Scanner.NextToken;
+      if Scanner.Token = tokEOF then
         Break;
     end;
   finally
-    Scaner.Free;
+    Scanner.Free;
     MemStr.Free;
   end;
 end;

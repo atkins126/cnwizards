@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -58,6 +58,7 @@ type
     procedure Config; override;
     function GetState: TWizardState; override;
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     function GetCaption: string; override;
     function GetHint: string; override;
     function GetDefShortCut: TShortCut; override;
@@ -72,9 +73,9 @@ type
   end;
 
   TCompareOper = (coLarge, coLess, coLargeEqual, coLessEqual, coEqual, coNotEqual);
-  //可能还需要实现 Include Exclude 等比较
+  // 可能还需要实现 Include Exclude 等比较
   TPropAction = (paWarn, paCorrect);
-  //属性定义对象
+  // 属性定义对象
 
   TCnPropDef = class(TComponent)
   private
@@ -86,13 +87,13 @@ type
     FCompare: TCompareOper;
     FAction: TPropAction;
   published
-    property Action   : TPropAction   read FAction   write FAction;     //行为
-    property Active   : Boolean       read FActive   write FActive;     //是否有效
-    property Compare  : TCompareOper  read FCompare  write FCompare;    //比较操作符号
-    property CompName : string        read FCompName write FCompName;   //控件名称
-    property PropName : string        read FPropName write FPropName;   //属性名称
-    property ToValue  : string        read FToValue  write FToValue;    //变更后的值
-    property Value    : string        read FValue    write FValue;      //变更前的值
+    property Action   : TPropAction   read FAction   write FAction;     // 行为
+    property Active   : Boolean       read FActive   write FActive;     // 是否有效
+    property Compare  : TCompareOper  read FCompare  write FCompare;    // 比较操作符号
+    property CompName : string        read FCompName write FCompName;   // 控件名称
+    property PropName : string        read FPropName write FPropName;   // 属性名称
+    property ToValue  : string        read FToValue  write FToValue;    // 变更后的值
+    property Value    : string        read FValue    write FValue;      // 变更前的值
     procedure Assign(Source: TPersistent); override;
   end;
 
@@ -143,7 +144,7 @@ begin
     Result := coEqual;
   end;
 end;
-//('Warn','AutoCorrect');
+// ('Warn','AutoCorrect');
 
 function StrToAction(Str: string): TPropAction;
 begin
@@ -274,7 +275,7 @@ end;
 
 procedure TCnCorPropWizard.LoadPropertyRules(const FileName: string);
 var
-  i: Integer;
+  I: Integer;
   APropDef: TCnPropDef;
   DefCount: Integer;
 begin
@@ -282,7 +283,7 @@ begin
   begin
     try
       DefCount := ReadInteger(sSection, sCount, 0);
-      for i := 0 to DefCount - 1 do
+      for I := 0 to DefCount - 1 do
       begin
         APropDef := TCnPropDef.Create(nil);
         with APropDef do
@@ -305,7 +306,7 @@ end;
 
 procedure TCnCorPropWizard.SavePropertyRules(const FileName: string);
 var
-  i: Integer;
+  I: Integer;
   APropDef: TCnPropDef;
 begin
   with TMemIniFile.Create(FileName) do
@@ -313,7 +314,7 @@ begin
     try
       EraseSection(sSection);
       WriteInteger(sSection, sCount, FPropDefList.Count);
-      for i := 0 to FPropDefList.Count - 1 do
+      for I := 0 to FPropDefList.Count - 1 do
       begin
         APropDef := TCnPropDef(FPropDefList.Items[I]);
         with APropDef do
@@ -338,6 +339,11 @@ procedure TCnCorPropWizard.LanguageChanged(Sender: TObject);
 begin
   ActionStr[paWarn] := SCnCorrectPropertyActionWarn;
   ActionStr[paCorrect] := SCnCorrectPropertyActionAutoCorrect;
+end;
+
+function TCnCorPropWizard.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '批量,batch,modify';
 end;
 
 { TCnPropDef }

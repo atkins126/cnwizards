@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -24,20 +24,20 @@ unit CnPasCodeParser;
 * 软件名称：CnPack IDE 专家包
 * 单元名称：Pas 源代码分析器
 * 单元作者：周劲羽 zjy@cnpack.org
-* 备    注：
+* 备    注：解析器解析过程中会从 Token 池里拿 PasToken 对象，释放时将它们返回到池中
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：
 * 本 地 化：该单元中的字符串均符合本地化处理方式
 * 修改记录：2019.03.16 V1.2
 *               优化对换行后的点号的支持以及点号后输入的内容恰好是关键字时的支持
 *           2012.02.07
-*               UTF8的位置转换去除后仍有问题，恢复之
+*               UTF8 的位置转换去除后仍有问题，恢复之
 *           2011.11.29
-*               XE/XE2 的位置解析无需UTF8的位置转换
+*               XE/XE2 的位置解析无需 UTF8 的位置转换
 *           2011.11.03
 *               优化对带点的引用单元名的支持
 *           2011.05.29
-*               修正BDS下对汉字UTF8未处理而导致解析出错的问题
+*               修正 BDS 下对汉字 UTF8 未处理而导致解析出错的问题
 *           2004.11.07
 *               创建单元
 ================================================================================
@@ -55,9 +55,11 @@ const
   CN_TOKEN_MAX_SIZE = 63;
 
 type
-  TCnCompDirectiveType = (ctNone, ctIf, ctIfDef, ctIfNDef, ctElse, ctEndIf, ctIfEnd);
+  TCnCompDirectiveType = (ctNone, ctIf, ctIfDef, ctIfNDef, ctElse, ctEndIf,
+    ctIfEnd, ctRegion, ctEndRegion);
 
   TCnUseToken = class(TObject)
+  {* 描述一 uses 结构信息}
   private
     FIsImpl: Boolean;
     FTokenPos: Integer;
@@ -76,6 +78,7 @@ type
     FTag: Integer;
     FBracketLayer: Integer;
     function GetToken: PAnsiChar;
+    function GetEditEndCol: Integer;
   protected
     FCppTokenKind: TCTokenKind;
     FCompDirectiveType: TCnCompDirectiveType;
@@ -106,9 +109,11 @@ type
     {* 从本行开始数的字符位置，从零开始，由 ParseSource 计算而来 }
 
     property EditCol: Integer read FEditCol write FEditCol;
-    {* 所在列，从一开始，由外界转换而来，一般对应 EditPos }
+    {* Token 起始位置所在列，从一开始，由外界转换而来，一般对应 EditPos }
     property EditLine: Integer read FEditLine write FEditLine;
     {* 所在行，从一开始，由外界转换而来，一般对应 EditPos }
+    property EditEndCol: Integer read GetEditEndCol;
+    {* Token 结束位置所在列，EditCol 转换成功后才有意义}
 
     property ItemIndex: Integer read FItemIndex;
     {* 在整个 Parser 中的序号 }
@@ -139,7 +144,7 @@ type
        是否位于上一层 function/procedure 的 begin 后的实现部分。
        无上一层，或在上一层的 begin 之前时为 False，表示是定义，
        而不是语句部分中的匿名函数。所以此属性为 True 可以代表是匿名函数。}
-    property CompDirectivtType: TCnCompDirectiveType read FCompDirectiveType write FCompDirectiveType;
+    property CompDirectiveType: TCnCompDirectiveType read FCompDirectiveType write FCompDirectiveType;
     {* 当其类型是 Pascal 编译指令时，此域代表其详细类型，但不解析，由外部按需解析}
     property Tag: Integer read FTag write FTag;
     {* Tag 标记，供外界特殊场合使用}
@@ -307,7 +312,7 @@ function ParsePasCodePosInfo(const Source: AnsiString; CurrPos: Integer;
   另外注意 D567/BCB56 下 SourceIsUtf8 参数不起作用}
 
 procedure ParseUnitUses(const Source: AnsiString; UsesList: TStrings);
-{* 分析源代码中引用的单元}
+{* 分析源代码中引用的单元，Source 是文件内容}
 
 implementation
 
@@ -444,7 +449,7 @@ begin
     TObject(TokenPool[I]).Free;
 end;
 
-// NextNoJunk仅仅只跳过注释，而没跳过编译指令的情况。加此函数可过编译指令
+// NextNoJunk 仅仅只跳过注释，而没跳过编译指令的情况。加此函数可过编译指令
 procedure LexNextNoJunkWithoutCompDirect(Lex: TmwPasLex);
 begin
   repeat
@@ -624,7 +629,7 @@ begin
     Lex := TmwPasLex.Create(FSupportUnicodeIdent);
     Lex.Origin := PAnsiChar(ASource);
 
-    DeclareWithEndLevel := 0; // 嵌套的需要end的定义层数
+    DeclareWithEndLevel := 0; // 嵌套的需要 end 的定义层数
     Token := nil;
     CurrMethod := nil;        // 当前 Token 所在的方法 procedure/function，包括匿名函数的情形 
     CurrBlock := nil;         // 当前 Token 所在的块。
@@ -637,8 +642,8 @@ begin
 
     while Lex.TokenID <> tkNull do
     begin
-      // 根据上一轮的结束条件判断是否能结束整个 if 语句
-      if ExpectElse and (Lex.TokenID <> tkElse) and not FIfStack.IsEmpty then
+      // 根据上一轮的结束条件判断是否能结束整个 if 语句，注意编译指令不能算
+      if ExpectElse and not (Lex.TokenID in [tkElse, tkCompDirect]) and not FIfStack.IsEmpty then
         FIfStack.Pop.Free;
       ExpectElse := False;
 
@@ -1187,43 +1192,58 @@ begin
 
         if (Lex.TokenID = tkSemicolon) and not FIfStack.IsEmpty then
         begin
-          AIfObj := TCnIfStatement(FIfStack.Peek);
-          // 碰到分号，查查它结束了谁，注意不能用 Token，因为没针对分号创建 Token
-          // 分号的 ItemLayer 目前没有靠谱值，因此不能依赖 ItemLayer 和 if 的 Level 比较。
-          // 分号如果在额外的圆括号里头，说明不能作为结束用，因此加入了 CurrBracketLevel 的判断
-          // FList.Count 为分号假想的 ItemIndex
-          // 情况一，如果 CurrBlock 存在，且没有后于 if 的 else 且 else 无 begin，说明分号紧接 else 同级
-          // 情况二，如果 CurrBlock 存在，且没有后于最后一个 else if 的 if，且无 begin，说明分号紧接最后一个 else if 同级
-          // 情况三，如果 CurrBlock 存在，且没有后于 if，且 if 没 begin，说明分号紧接 if 同级
-          if CurrBlock <> nil then
-          begin
-            if AIfObj.HasElse and (AIfObj.ElseBegin = nil) and
-              (CurrBlock.ItemIndex <= AIfObj.ElseToken.ItemIndex) and
-              (CurrBracketLevel = AIfObj.ElseToken.BracketLayer) then  // 分号结束不带 begin 的 else
-            begin
-              AIfObj.EndElseBlock;
-              AIfObj.EndIfAll;
-            end
-            else if (AIfObj.ElseIfCount > 0) and (AIfObj.LastElseIfBegin = nil)
-              and (AIfObj.LastElseIfIf <> nil) and
-              (CurrBlock.ItemIndex <= AIfObj.LastElseIfIf.ItemIndex) and
-              (CurrBracketLevel = AIfObj.LastElseIfIf.BracketLayer) then
-            begin
-              AIfObj.EndLastElseIfBlock;       // 分号结束不带 begin 的最后一个 else if
-              AIfObj.EndIfAll;
-            end
-            else if (AIfObj.IfBegin = nil) and
-              (CurrBlock.ItemIndex <= AIfObj.IfStart.ItemIndex) and
-              (CurrBracketLevel = AIfObj.IfStart.BracketLayer) then  // 分号结束不带 begin 的 if 本身
-            begin
-              AIfObj.EndIfBlock;
-              AIfObj.EndIfAll;
-            end;
+          repeat
+            if FIfStack.Count <= 0 then
+               Break;
+            AIfObj := TCnIfStatement(FIfStack.Peek);
+            if AIfObj = nil then
+              Break;
 
-            // 分号结束了整个 if 语句，可以从堆栈中弹出了
-            if AIfObj.IfAllEnded then
-              FIfStack.Pop.Free;
-          end;
+            // 碰到分号，查查它结束了谁，注意不能用 Token，因为没针对分号创建 Token
+            // 分号的 ItemLayer 目前没有靠谱值，因此不能依赖 ItemLayer 和 if 的 Level 比较。
+            // 分号如果在额外的圆括号里头，说明不能作为结束用，因此加入了 CurrBracketLevel 的判断
+            // FList.Count 为分号假想的 ItemIndex
+            // 情况一，如果 CurrBlock 存在，且没有后于 if 的 else 且 else 无 begin，说明分号紧接 else 同级
+            // 情况二，如果 CurrBlock 存在，且没有后于最后一个 else if 的 if，且无 begin，说明分号紧接最后一个 else if 同级
+            // 情况三，如果 CurrBlock 存在，且没有后于 if，且 if 没 begin，说明分号紧接 if 同级
+            if CurrBlock <> nil then
+            begin
+              if AIfObj.HasElse and (AIfObj.ElseBegin = nil) and
+                (CurrBlock.ItemIndex <= AIfObj.ElseToken.ItemIndex) and
+                (CurrBracketLevel = AIfObj.ElseToken.BracketLayer) then  // 分号结束不带 begin 的 else
+              begin
+                AIfObj.EndElseBlock;
+                AIfObj.EndIfAll;
+              end
+              else if (AIfObj.ElseIfCount > 0) and (AIfObj.LastElseIfBegin = nil)
+                and (AIfObj.LastElseIfIf <> nil) and
+                (CurrBlock.ItemIndex <= AIfObj.LastElseIfIf.ItemIndex) and
+                (CurrBracketLevel = AIfObj.LastElseIfIf.BracketLayer) then
+              begin
+                AIfObj.EndLastElseIfBlock;       // 分号结束不带 begin 的最后一个 else if
+                AIfObj.EndIfAll;
+              end
+              else if (AIfObj.IfBegin = nil) and
+                (CurrBlock.ItemIndex <= AIfObj.IfStart.ItemIndex) and
+                (CurrBracketLevel = AIfObj.IfStart.BracketLayer) then  // 分号结束不带 begin 的 if 本身
+              begin
+                AIfObj.EndIfBlock;
+                AIfObj.EndIfAll;
+              end;
+
+              // 分号结束了整个 if 语句，可以从堆栈中弹出了
+              if AIfObj.IfAllEnded then
+                FIfStack.Pop.Free
+              else // 分号未能结束当前 if 语句，说明不是结束的，跳出循环
+                Break;
+
+              // 注意，分号结束的整个 if 语句如果又是上一个 if 语句的尾巴，则也结束了上一个 if 语句
+              // 典型的例子就是 if True then if True then Test; 最后的分号实际上结束了两个 if
+              // 暂时用这种循环的方式处理，不确定副作用多大
+            end
+            else
+              Break;
+          until False;
         end;
 
         if (CurrMethod <> nil) and // forward, external 无实现部分，前面必须是分号
@@ -1257,9 +1277,12 @@ begin
       else if Lex.TokenID = tkRoundClose then
         Dec(CurrBracketLevel);
 
-      PrevTokenID := Lex.TokenID;
-      PrevTokenStr := Lex.Token;
-      //LexNextNoJunkWithoutCompDirect(Lex);
+      if Lex.TokenID <> tkCompDirect then // 会遍历到编译指令，不应该由编译指令影响这里的解析结果
+      begin
+        PrevTokenID := Lex.TokenID;
+        PrevTokenStr := Lex.Token;
+      end;
+
       Lex.NextNoJunk;
     end;
   finally
@@ -1850,7 +1873,7 @@ begin
   end;
 end;
 
-// 分析源代码中引用的单元
+// 分析源代码中引用的单元，Source 是文件内容
 procedure ParseUnitUses(const Source: AnsiString; UsesList: TStrings);
 var
   Lex: TmwPasLex;
@@ -1866,7 +1889,7 @@ begin
     Lex.Origin := PAnsiChar(Source);
     while Lex.TokenID <> tkNull do
     begin
-      if Lex.TokenID = tkUses then
+      if Lex.TokenID in [tkUses, tkContains] then
       begin
         while not (Lex.TokenID in [tkNull, tkSemiColon]) do
         begin
@@ -1903,6 +1926,7 @@ end;
 procedure TCnPasToken.Clear;
 begin
   FCppTokenKind := TCTokenKind(0);
+  FCompDirectiveType := TCnCompDirectiveType(0);
   FCharIndex := 0;
   FEditCol := 0;
   FEditLine := 0;
@@ -1918,6 +1942,11 @@ begin
   FIsBlockStart := False;
   FIsBlockClose := False;
   FTag := 0;
+end;
+
+function TCnPasToken.GetEditEndCol: Integer;
+begin
+  Result := EditCol + Integer(StrLen(Token)); // Ansi 基本符合 EditPos 所需
 end;
 
 function TCnPasToken.GetToken: PAnsiChar;

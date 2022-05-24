@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                      中国人自己的开放源码第三方开发包
-;                    (C)Copyright 2001-2021 CnPack 开发组
+;                    (C)Copyright 2001-2022 CnPack 开发组
 ;******************************************************************************
 
 ; 以下脚本用以生成 CnPack IDE 专家包安装程序
@@ -32,6 +32,7 @@
 ;    IDE_VERSION_D102T
 ;    IDE_VERSION_D103R
 ;    IDE_VERSION_D104S
+;    IDE_VERSION_D110A
 ;    IDE_VERSION_CB5
 ;    IDE_VERSION_CB6
 ;    NO_HELP  -- 定义时不打任何帮助文件
@@ -110,6 +111,7 @@ RequestExecutionLevel admin
 !ifndef IDE_VERSION_D102T
 !ifndef IDE_VERSION_D103R
 !ifndef IDE_VERSION_D104S
+!ifndef IDE_VERSION_D110A
 !ifndef IDE_VERSION_CB5
 !ifndef IDE_VERSION_CB6
 
@@ -148,10 +150,12 @@ RequestExecutionLevel admin
   !define IDE_VERSION_D102T "1"
   !define IDE_VERSION_D103R "1"
   !define IDE_VERSION_D104S "1"
+  !define IDE_VERSION_D110A "1"
   !define IDE_VERSION_CB5 "1"
   !define IDE_VERSION_CB6 "1"
 !endif
 
+!endif
 !endif
 !endif
 !endif
@@ -263,6 +267,10 @@ RequestExecutionLevel admin
   !ifdef IDE_VERSION_D104S
     !define IDE_SHORT_NAME "D104S"
     !define IDE_LONG_NAME "RAD Studio 10.4 Sydney"
+  !endif
+  !ifdef IDE_VERSION_D110A
+    !define IDE_SHORT_NAME "D110A"
+    !define IDE_LONG_NAME "RAD Studio 11 Alexandria"
   !endif
   !ifdef IDE_VERSION_CB5
     !define IDE_SHORT_NAME "CB5"
@@ -578,6 +586,13 @@ FileLoop:
   FileClose $0
 !endif
 
+!ifdef IDE_VERSION_D110A
+  IfFileExists "$INSTDIR\CnWizards_D110A.dll" 0 +4
+  FileOpen $0 "$INSTDIR\CnWizards_D110A.dll" a
+  IfErrors FileInUse
+  FileClose $0
+!endif
+
 !endif
 
 !ifdef IDE_VERSION_CB5
@@ -613,6 +628,7 @@ InitOk:
   File "..\..\Bin\CnPngLib.dll"
   File "..\..\Bin\CnFormatLib.dll"
   File "..\..\Bin\CnFormatLibW.dll"
+  File "..\..\Bin\CnVclToFmx.dll"
 !ifndef LITE_VERSION
   File "..\..\Bin\CnWizHelper.dll"
   File "..\..\Bin\CnZipUtils.dll"
@@ -942,6 +958,17 @@ Section "RAD Studio 10.4 Sydney" SecD104S
 SectionEnd
 !endif
 
+!ifdef IDE_VERSION_D110A
+Section "RAD Studio 11 Alexandria" SecD110A
+  SectionIn 1 2
+  SetOutPath $INSTDIR
+  File "..\..\Bin\CnWizards_D110A.dll"
+  ; 写入专家注册键值
+  DeleteRegValue HKCU "Software\Embarcadero\BDS\22.0\Experts" "CnWizards_D110A"
+  WriteRegStr HKCU "Software\Embarcadero\BDS\22.0\Experts" "CnWizards_Loader" "$INSTDIR\CnWizLoader.dll"
+SectionEnd
+!endif
+
 !endif
 
 !ifdef IDE_VERSION_CB5
@@ -1020,6 +1047,7 @@ Section "$(OTHERTOOLS)" SecTools
   File "..\..\..\cnvcl\Source\Common\CnDebug.pas"
   File "..\..\..\cnvcl\Source\Common\CnPropSheetFrm.pas"
   File "..\..\..\cnvcl\Source\Common\CnPropSheetFrm.dfm"
+  File "..\..\..\cnvcl\Source\Common\CnPropSheet.res"
   File "..\..\..\cnvcl\Source\Common\CnTree.pas"
   File "..\..\..\cnvcl\Source\Common\CnMemProf.pas"
 SectionEnd
@@ -1133,6 +1161,10 @@ Function .onMouseOverSection
     ${WordReplace} "$(DESDLL)" "#DLL#" "RAD Studio 10.4 Sydney" "+" $R0
     !insertmacro MUI_DESCRIPTION_TEXT ${SecD104S} $R0
   !endif
+  !ifdef IDE_VERSION_D110A
+    ${WordReplace} "$(DESDLL)" "#DLL#" "RAD Studio 11 Alexandria" "+" $R0
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecD110A} $R0
+  !endif
 !endif
   !ifdef IDE_VERSION_CB5
     ${WordReplace} "$(DESDLL)" "#DLL#" "C++Builder 5" "+" $R0
@@ -1238,6 +1270,9 @@ Function SetCheckBoxes
 !endif
 !ifdef IDE_VERSION_D104S
   !insertmacro SET_COMPILER_CHECKBOX HKCU "Software\Embarcadero\BDS\21.0" "RootDir" ${SecD104S}
+!endif
+!ifdef IDE_VERSION_D104S
+  !insertmacro SET_COMPILER_CHECKBOX HKCU "Software\Embarcadero\BDS\22.0" "RootDir" ${SecD110A}
 !endif
 !endif
 !ifdef IDE_VERSION_CB5
@@ -1354,6 +1389,10 @@ Section "Uninstall"
 !ifdef IDE_VERSION_D104S
   DeleteRegValue HKCU "Software\Embarcadero\BDS\21.0\Experts" "CnWizards_D104S"
   DeleteRegValue HKCU "Software\Embarcadero\BDS\21.0\Experts" "CnWizards_Loader"
+!endif
+!ifdef IDE_VERSION_D110A
+  DeleteRegValue HKCU "Software\Embarcadero\BDS\22.0\Experts" "CnWizards_D110A"
+  DeleteRegValue HKCU "Software\Embarcadero\BDS\22.0\Experts" "CnWizards_Loader"
 !endif
 !ifdef IDE_VERSION_CB5
   DeleteRegValue HKCU "Software\Borland\C++Builder\5.0\Experts" "CnWizards_CB5"

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -55,7 +55,8 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
   StdCtrls, ExtCtrls, ComCtrls, ActnList, Buttons, IniFiles,
   {$IFDEF DelphiXE3_UP}Actions,{$ENDIF}
-  CnSpin, CnWizUtils, CnCommon, CnWizConsts, CnWizOptions, CnWizMultiLang;
+  CnSpin, CnWizUtils, CnCommon, CnWizConsts, CnWizOptions, CnWizMultiLang,
+  CnWizIdeUtils;
 
 const
   csOptions = 'Options';
@@ -160,6 +161,7 @@ implementation
 
 const
   csSeparatorCaption = '-';
+  csListItemIconWidth = 22;
 
 resourcestring
   SNoButtonCategory = '(None)';
@@ -470,9 +472,9 @@ begin
   if not lbAvailable.Enabled then
     LbCanvas.Font.Color := clGrayText;
   if ListBox.Items[Index] = csSeparatorCaption then
-    LbCanvas.TextOut(Rect.Left + 22, Rect.Top + FTextOffSet, SSeparator)
+    LbCanvas.TextOut(Rect.Left + IdeGetScaledPixelsFromOrigin(csListItemIconWidth, ListBox), Rect.Top + FTextOffSet, SSeparator)
   else
-    LbCanvas.TextOut(Rect.Left + 22, Rect.Top + FTextOffSet, Listbox.Items[Index]);
+    LbCanvas.TextOut(Rect.Left + IdeGetScaledPixelsFromOrigin(csListItemIconWidth, ListBox), Rect.Top + FTextOffSet, Listbox.Items[Index]);
 end;
 
 procedure TCnFlatToolbarConfigForm.lbAvailableDragOver(Sender, Source: TObject; X,

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -114,7 +114,6 @@ type
     procedure btnHelpClick(Sender: TObject);
     procedure btnShortCutClick(Sender: TObject);
   private
-    { Private declarations }
     FWizard: TCnTabOrderWizard;
     function GetBoolean(const Index: Integer): Boolean;
     function GetTabOrderStyle: TTabOrderStyle;
@@ -129,7 +128,6 @@ type
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     property TabOrderStyle: TTabOrderStyle read GetTabOrderStyle write SetTabOrderStyle;
     property DispPos: TDispPos read GetDispPos write SetDispPos;
     property DispFont: TFont read GetDispFont write SetDispFont;
@@ -250,6 +248,10 @@ uses
 
 const
   csTimerDelay = 100;
+
+var
+  HoriTolerance: Integer = 0;
+  VertTolerance: Integer = 0;
 
 //==============================================================================
 // Tab Order 设置工具配置窗体
@@ -627,14 +629,14 @@ begin
   end;
 
   if ATabOrderStyle = tsHorz then
-  begin                                // 先水平方向，考虑BidiMode的情况
-    if X1 > X2 then
+  begin                                // 先水平方向，考虑 BidiMode 的情况
+    if X1 > X2 + HoriTolerance then
     begin
       Result := 1;
       if InvertBidiMode then
         Result := -Result;
     end
-    else if X1 < X2 then
+    else if X1 < X2 - HoriTolerance then
     begin
       Result := -1;
       if InvertBidiMode then
@@ -642,9 +644,9 @@ begin
     end
     else
     begin                              // 再按垂直方向
-      if Y1 > Y2 then
+      if Y1 > Y2 + VertTolerance then
         Result := 1
-      else if Y1 < Y2 then
+      else if Y1 < Y2 - VertTolerance then
         Result := -1
       else
         Result := 0;
@@ -652,19 +654,19 @@ begin
   end
   else
   begin
-    if Y1 > Y2 then                    // 先垂直方向
+    if Y1 > Y2 + VertTolerance then                    // 先垂直方向
       Result := 1
-    else if Y1 < Y2 then
+    else if Y1 < Y2 - VertTolerance then
       Result := -1
     else
-    begin                              // 再按水平方向，考虑BidiMode的情况
-      if X1 > X2 then
+    begin                              // 再按水平方向，考虑 BidiMode 的情况
+      if X1 > X2 + HoriTolerance then
       begin
         Result := 1;
         if InvertBidiMode then
           Result := -Result;
       end
-      else if X1 < X2 then
+      else if X1 < X2 - HoriTolerance then
       begin
         Result := -1;
         if InvertBidiMode then
@@ -711,6 +713,7 @@ var
     ARect.Rect := Rect(AL, AT, AR, AB);
     AList.Add(ARect);
   end;
+
 begin
   if not Active then Exit;
   if not Assigned(WinControl) or (WinControl.ControlCount = 0) then Exit;
@@ -758,6 +761,7 @@ begin
             Match := False;
             // 将控件分组，左右相同或上下相同的控件归为一组
             for j := 0 to Rects.Count - 1 do
+            begin
               with PCnRectRec(Rects[j])^.Rect do
               begin
                 if FTabOrderStyle = tsHorz then
@@ -807,6 +811,7 @@ begin
                   end;
                 end;
               end;
+            end;
 
             if not Match then
             begin
@@ -1179,29 +1184,31 @@ end;
 // 全部重绘 Tab Order
 procedure TCnTabOrderWizard.UpdateDraw;
 var
-  i, j: Integer;
+  I, J: Integer;
   FormEditor: IOTAFormEditor;
   ModuleServices: IOTAModuleServices;
   Root: TComponent;
 begin
-  if not Active then Exit;
+  if not Active then
+    Exit;
 
   QuerySvcs(BorlandIDEServices, IOTAModuleServices, ModuleServices);
-  for i := 0 to ModuleServices.GetModuleCount - 1 do
+  for I := 0 to ModuleServices.GetModuleCount - 1 do
   begin
-    FormEditor := CnOtaGetFormEditorFromModule(ModuleServices.GetModule(i));
+    FormEditor := CnOtaGetFormEditorFromModule(ModuleServices.GetModule(I));
     if Assigned(FormEditor) then
     begin
       Root := CnOtaGetRootComponentFromEditor(FormEditor);
-      if (Root <> nil) and (Root is TWinControl) then
+      if Root <> nil then
       begin
-        for j := 0 to Root.ComponentCount - 1 do
-          if Root.Components[j] is TWinControl then
-            TWinControl(Root.Components[j]).Invalidate;
-      end;
+        if Root is TWinControl then
+          for J := 0 to Root.ComponentCount - 1 do
+            if Root.Components[J] is TWinControl then
+              TWinControl(Root.Components[J]).Invalidate;
 {$IFDEF TABORDER_FMX}
-      UpdateFMXDraw(Root);
+        UpdateFMXDraw(Root);  // Thanks Vitaliy Grabchuk for this correction
 {$ENDIF}
+      end;
     end;
   end;
 end;
@@ -1209,12 +1216,12 @@ end;
 // 重绘指定窗口控件 Tab Order
 procedure TCnTabOrderWizard.UpdateDrawDesignForm(DesignForm: TWinControl);
 var
-  i: Integer;
+  I: Integer;
 begin
   if Assigned(DesignForm) then
-    for i := 0 to DesignForm.ComponentCount - 1 do
-      if DesignForm.Components[i] is TWinControl then
-        DrawControlTabOrder(TWinControl(DesignForm.Components[i]));
+    for I := 0 to DesignForm.ComponentCount - 1 do
+      if DesignForm.Components[I] is TWinControl then
+        DrawControlTabOrder(TWinControl(DesignForm.Components[I]));
 end;
 
 // 绘制控件 Tab Order
@@ -1231,17 +1238,17 @@ var
   // 根据控件嵌套级数计算背景颜色值
   function GetBkColor(Control: TWinControl): TColor;
   var
-    i: Integer;
+    I: Integer;
     H, S, L: Double;
   begin
-    i := 0;
+    I := 0;
     while (Control <> nil) and not (Control.Parent is TCustomForm) do
     begin
-      Inc(i);
+      Inc(I);
       Control := Control.Parent;
     end;
     RGBToHSL(FBkColor, H, S, L);
-    Result := HSLToRGB(H + i / csMaxLevel, 0.7, 0.7);
+    Result := HSLToRGB(H + I / csMaxLevel, 0.7, 0.7);
   end;
 begin
   if Active and FDispTabOrder and WinControl.HandleAllocated and

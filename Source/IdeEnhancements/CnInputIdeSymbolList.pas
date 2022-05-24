@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,7 +29,9 @@ unit CnInputIdeSymbolList;
 * 开发平台：PWinXP SP2 + Delphi 5.01
 * 兼容测试：
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2005.06.03
+* 修改记录：2022.04.02
+*               基本支持 LSP 的异步符号获取
+*           2005.06.03
 *               从 CnInputHelper 中分离出来
 ================================================================================
 |</PRE>}
@@ -42,14 +44,14 @@ interface
 
 uses
   Windows, SysUtils, Classes, Controls, ToolsApi, Math, Dialogs, Contnrs, TypInfo,
-  Forms, CnCommon, CnWizConsts, CnWizCompilerConst, CnWizUtils, CnWizMethodHook,
+  Forms, CnHashMap, CnCommon, CnWizConsts, CnWizCompilerConst, CnWizUtils, CnWizMethodHook,
   CnPasCodeParser, CnInputSymbolList, CnEditControlWrapper, CnWizNotifier;
 
 {$IFDEF DELPHI}
-  {$DEFINE SUPPORT_IDESymbolList}
+  {$DEFINE SUPPORT_IDESYMBOLLIST}
 {$ENDIF}
 
-{$IFDEF SUPPORT_IDESymbolList}
+{$IFDEF SUPPORT_IDESYMBOLLIST}
 {$IFDEF COMPILER7_UP}
   {$DEFINE SUPPORT_IOTACodeInsightManager}  // D7 及以上支持 IOTACodeInsightManager
 {$ENDIF}
@@ -64,7 +66,7 @@ uses
   {$ENDIF}
 {$ENDIF}
 
-{$ENDIF SUPPORT_IDESymbolList}
+{$ENDIF SUPPORT_IDESYMBOLLIST}
 
 {$IFDEF IDE_WIDECONTROL}
   {$IFNDEF UNICODE_STRING}
@@ -86,10 +88,6 @@ uses
   {$UNDEF SYMBOL_LOCKHOOK}
 {$ENDIF}
 
-{$IFDEF BDS}
-  {$DEFINE IDE_SYMBOL_HAS_SYSTEM} // 2005 或以上，符号列表中有 System 单元
-{$ENDIF}
-
 type
 
 //==============================================================================
@@ -101,9 +99,11 @@ type
   TIDESymbolList = class(TSymbolList)
   private
   {$IFDEF IDE_SUPPORT_LSP}
+     FKeepUnique: Boolean; // Name 是否可重复
+     FHashList: TCnStrToStrHashMap;
      FAsyncResultGot: Boolean;
      FAsyncManagerObj: TObject;
-     FSymbolList: IOTACodeInsightSymbolList;
+     FAsyncIsPascal: Boolean;
      procedure AsyncCodeCompletionCallBack(Sender: TObject; AId: Integer;
        AError: Boolean; const AMessage: string);
   {$ENDIF}
@@ -120,9 +120,17 @@ type
   public
     constructor Create; override;
     destructor Destroy; override;
+
     class function GetListName: string; override;
     function Reload(Editor: IOTAEditBuffer; const InputText: string; PosInfo:
       TCodePosInfo): Boolean; override;
+
+    // 以下俩函数在 LSP 模式下会做防重处理，注意 Add(Item: TSymbolItem) 未做
+    function Add(const AName: string; AKind: TSymbolKind; AScope: Integer; const
+      ADescription: string = ''; const AText: string = ''; AAutoIndent: Boolean = 
+      True; AMatchFirstOnly: Boolean = False; AAlwaysDisp: Boolean = False;
+      ADescIsUtf8: Boolean = False): Integer; overload; override;
+    procedure Clear; override;
   end;
 
 const
@@ -159,9 +167,9 @@ implementation
 {$IFDEF CNWIZARDS_CNINPUTHELPER}
 
 uses
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebug,
-{$ENDIF Debug}
+{$ENDIF}
   CnWizEditFiler, mPasLex;
 
 const
@@ -169,14 +177,57 @@ const
 
 {$IFDEF IDE_SUPPORT_LSP}
 const
-  SLspGetSymbolList = '@Lspcodcmplt@TLSPKibitzManager@GetSymbolList$qqrr61System@%DelphiInterface$34Toolsapi@IOTACodeInsightSymbolList%';
+  HashSize = 4096;
+  SDelphiLspGetCount = '@Lspcodcmplt@TLSPKibitzManager@GetCount$qqrv';
+  SDelphiLspGetCodeCompEntry = '@Lspcodcmplt@TLSPKibitzManager@GetCodeCompEntry$qqri';
+
+  SBcbLspGetCount = '@Cppcodcmplt2@TCppKibitzManager2@GetCount$qqrv';
+  SBcbLspGetCodeCompEntry = '@Cppcodcmplt2@TCppKibitzManager2@GetCodeCompEntry$qqri';
 
 type
-  TLSPKibitzManagerGetSymbolList = procedure (ASelf: TObject; var SymbolList: IOTACodeInsightSymbolList);
+  TDelphiLSPKibitzManagerGetCount = function (ASelf: TObject): Integer;
+  TBcbLSPKibitzManagerGetCount = function (ASelf: TObject): Integer;
+
+  TDelphiLSPKibitzManagerGetCodeCompEntry = function (ASelf: TObject; Index: Integer): Pointer;
+  TBcbLSPKibitzManagerGetCodeCompEntry = function (ASelf: TObject; Index: Integer): Pointer;
+
+  TCnDelphiLspCodeCompEntry = packed record
+  {* 反编译而来，LSPKibitzManager 每一项是一个结构，一个结构共 12 个四字节内容}
+    SymbolName: PChar;            // 名称
+    SymbolFlag: LongWord;
+    SymbolType: PChar;            // 类型字符串，如 method 等
+    SymbolTypeFlag: LongWord;
+    SymbolParam: PChar;           // 参数字符串！以前是拿不着的
+    SymbolDummy6: LongWord;
+    SymbolDummy7: LongWord;
+    SymbolDummy8: LongWord;
+    SymbolDummy9: LongWord;
+    SymbolDummy10: LongWord;
+    SymbolDummy11: LongWord;
+    SymbolDummy12: PChar;
+  end;
+  PCnDelphiLspCodeCompEntry = ^TCnDelphiLspCodeCompEntry;
+
+  TCnBcbLspCodeCompEntry = packed record
+  {* 反编译而来，CppKibitzManager2 每一项是一个结构，一个结构共 7 个四字节内容}
+    SymbolName: PAnsiChar;        // 名称
+    SymbolLength: LongWord;       // 名称长度
+    SymbolTypeFlag: LongWord;
+    SymbolParam: PAnsiChar;       // 详情字符串
+    SymbolParamLength: LongWord;  // 详情字符串长度
+    SymbolDummy6: PAnsiChar;
+  end;
+  PCnBcbLspCodeCompEntry = ^TCnBcbLspCodeCompEntry;
 
 var
-  FLspHandle: THandle = 0;
-  LspGetSymbolList: TLSPKibitzManagerGetSymbolList = nil;
+  FDelphiLspHandle: THandle = 0;
+  FBcbLspHandle: THandle = 0;
+
+  DelphiLspGetCount: TDelphiLSPKibitzManagerGetCount = nil;
+  DelphiLspGetCodeCompEntry: TDelphiLSPKibitzManagerGetCodeCompEntry = nil;
+
+  BcbLspGetCount: TBcbLSPKibitzManagerGetCount = nil;
+  BcbLspGetCodeCompEntry: TBcbLSPKibitzManagerGetCodeCompEntry = nil;
 {$ENDIF}
 
 //==============================================================================
@@ -223,18 +274,184 @@ end;
 
 {$IFDEF IDE_SUPPORT_LSP}
 
+function SymbolClassTextToKind(const ClassText: string): TSymbolKind;
+begin
+  Result := skUnknown;
+  if Length(ClassText) >= 3 then
+  begin
+    case Ord(ClassText[1]) of
+      107: // k eyword
+        Result := skKeyword;
+      114, 115: // r eference / s truct
+        Result := skType;
+      118: // v ariable
+        Result := skVariable;
+      102: // f unction / fi le / fi eld
+        begin
+          if ClassText[2] = 'u' then
+            Result := skFunction
+          else if ClassText[3] = 'l' then
+            Result := skUnit
+          else
+            Result := skVariable; // Field
+        end;
+      109: // m ethod
+        Result := skFunction;
+      112: // p roperty
+        Result := skProperty;
+      105: // i nterface
+        Result := skInterface;
+      99:  // c lass / const ant / const ructor
+        begin
+          if ClassText[2] = 'l' then
+            Result := skClass
+          else if Length(ClassText) >= 6 then
+          begin
+            if ClassText[6] = 'a' then
+              Result := skConstant
+            else
+              Result := skConstructor;
+          end;
+        end;
+      101: // e vent / e num / e numM
+        begin
+          if ClassText[2] = 'v' then
+            Result := skEvent
+          else
+            Result := skConstant;
+        end;
+    end;
+  end;
+end;
+
 procedure TIDESymbolList.AsyncCodeCompletionCallBack(Sender: TObject; AId: Integer;
   AError: Boolean; const AMessage: string);
-begin
-  FAsyncResultGot := True;
-  if Assigned(FAsyncManagerObj) and Assigned(LspGetSymbolList) then
+var
+  I, C, Idx: Integer;
+  SName, SDesc, S3: string;
+  PasEntry: PCnDelphiLspCodeCompEntry;
+  CppEntry: PCnBcbLspCodeCompEntry;
+
+  function ExtractStr(CppPtr: PAnsiChar; Len: Integer): string;
+  const
+    MAX_LEN = 128;
+  var
+    S: AnsiString;
   begin
-    FSymbolList := nil;
-    LspGetSymbolList(FAsyncManagerObj, FSymbolList);
-    // Get some Count in Async call back
+    // 从 CppStr 扫描 " 号，把前面的拿出来返回为 string
+    Result := '';
+    if (CppPtr = nil) or (Len <= 0) then
+      Exit;
+
+    if Len > MAX_LEN then
+      Len := MAX_LEN;
+
+    SetLength(S, Len);
+    Move(CppPtr^, S[1], Len);
+    Result := string(S);
+  end;
+
+  function CppTypeToKind(V: Integer; const SName: string): TSymbolKind;
+  begin
+    case V of
+      1: Result := skKeyword;
+      2,3: Result := skFunction; // method & global function
+      4:
+        begin
+          if SName[1] = '~' then
+            Result := skDestructor
+          else
+            Result := skConstructor
+        end;
+      5: Result := skVariable;
+      6: Result := skConstant;
+      7: Result := skType;
+      8: Result := skConstant;
+      9: Result := skUnit;
+      10: Result := skProperty;
+      13,20: Result := skConstant; // enum
+      22: Result := skType;
+    else
+      Result := skUnknown;
+    end;
+  end;
+
+begin
+  try
+    if not Assigned(FAsyncManagerObj) then
+      Exit;
+
+    if FAsyncIsPascal then
+    begin
+      if Assigned(DelphiLspGetCount) and Assigned(DelphiLspGetCodeCompEntry) then
+      begin
+        // Delphi 下 FAsyncManagerObj 似乎是个 TLSPKibitzManager 实例，有俩方法获得个数与元素
+        C := DelphiLspGetCount(FAsyncManagerObj);
 {$IFDEF DEBUG}
-    CnDebugger.LogMsg('Callback LspGetSymbolList Returns Count ' + IntToStr(FSymbolList.Count));
+        CnDebugger.LogFmt('Callback DelphiLspGetCount %s Returns Count %d',
+          [FAsyncManagerObj.ClassName, C]);
 {$ENDIF}
+
+        if C <= 0 then
+          Exit;
+
+        for I := 0 to C - 1 do
+        begin
+          PasEntry := DelphiLspGetCodeCompEntry(FAsyncManagerObj, I);
+          if (PasEntry <> nil) and (PasEntry^.SymbolName <> nil) then
+          begin
+            Idx := Add(PasEntry^.SymbolName, SymbolClassTextToKind(PasEntry^.SymbolType),
+              Round(MaxInt / C * I), PasEntry^.SymbolParam, '', True, False, False, False);
+
+            // 根据源文件的类型设置符号项的适用范围
+            if Idx >= 0 then
+            begin
+              Items[Idx].ForPascal := True;
+              Items[Idx].ForCpp := False;
+            end;
+          end;
+        end;
+      end;
+    end
+    else
+    begin
+      // BCB 下，FAsyncManagerObj 是一个 TCppKibitzManager2 实例，处理方式完全不同
+      if Assigned(BcbLspGetCount) and Assigned(BcbLspGetCodeCompEntry) then
+      begin
+        C := BcbLspGetCount(FAsyncManagerObj);
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('Callback BcbLspGetCount %s Returns Count %d',
+          [FAsyncManagerObj.ClassName, C]);
+{$ENDIF}
+
+        if C <= 0 then
+          Exit;
+
+        for I := 0 to C - 1 do
+        begin
+          CppEntry := BcbLspGetCodeCompEntry(FAsyncManagerObj, I);
+          if (CppEntry <> nil) and (CppEntry^.SymbolName <> nil) then
+          begin;
+            SName := ExtractStr(CppEntry^.SymbolName, CppEntry^.SymbolLength);
+            if SName = '' then
+              Continue;
+
+            SDesc := ExtractStr(CppEntry^.SymbolParam, CppEntry^.SymbolParamLength);
+            Idx := Add(SName, CppTypeToKind(CppEntry^.SymbolTypeFlag, SName),
+              Round(MaxInt / C * I), SDesc, '', True, False, False, False);
+
+            // 根据源文件的类型设置符号项的适用范围
+            if Idx >= 0 then
+            begin
+              Items[Idx].ForPascal := False;
+              Items[Idx].ForCpp := True;
+            end;
+          end;
+        end;
+      end;
+    end;
+  finally
+    FAsyncResultGot := True; // 最后才放，比较保险
   end;
 end;
 
@@ -250,7 +467,7 @@ var
   Element, LineFlag: Integer;
   Index: Integer;
 
-  function SymbolFlagsToKind(Flags: TOTAViewerSymbolFlags; Description: string):
+  function SymbolFlagsToKind(Flags: TOTAViewerSymbolFlags; const Description: string):
     TSymbolKind;
   begin
     Result := TSymbolKind(Flags);
@@ -269,9 +486,9 @@ var
     Filter: string;
   begin
     try
-    {$IFDEF Debug}
+    {$IFDEF DEBUG}
       CnDebugger.LogMsg('Before InvokeCodeCompletion');
-    {$ENDIF Debug}
+    {$ENDIF}
       // IDE 在无法进行 CodeInsight 时会弹出一个错误框（不是异常）
       // 此处临时替换掉显示错误框的函数 MessageDlgPosHelp，使之不显示出来
       // 待调用完成后再恢复。
@@ -283,9 +500,9 @@ var
       finally
         Hook.Free;
       end;
-    {$IFDEF Debug}
+    {$IFDEF DEBUG}
       CnDebugger.LogBoolean(Result, 'After InvokeCodeCompletion');
-    {$ENDIF Debug}
+    {$ENDIF}
     except
       Result := False;
     end;
@@ -329,59 +546,28 @@ var
         ValidChars := Manager.EditorTokenValidChars(False);
         Filter := '';
         FAsyncResultGot := False;
-        FSymbolList := nil;
         FAsyncManagerObj := AsyncManager as TObject;
-        AsyncManager.AsyncInvokeCodeCompletion(itManual, Filter, EditView.CursorPos.Line,
-          EditView.CursorPos.Col, AsyncCodeCompletionCallBack);
+        FAsyncIsPascal := PosInfo.IsPascal;
+    {$IFDEF DEBUG}
+        CnDebugger.LogFmt('To Async Invoke %s.', [FAsyncManagerObj.ClassName]);
+    {$ENDIF}
+        FKeepUnique := True;
+        AsyncManager.AsyncInvokeCodeCompletion(itAuto, Filter, EditView.CursorPos.Line,
+          EditView.CursorPos.Col - 1, AsyncCodeCompletionCallBack);
 
         Tick := GetTickCount;
-        while not FAsyncResultGot and (GetTickCount - Tick < 1000) do //
+        while not FAsyncResultGot and (GetTickCount - Tick < 1000) do // 得异步等待
           Application.ProcessMessages;
 
 {$IFDEF DEBUG}
         if not FAsyncResultGot then
-          CnDebugger.LogMsg('Async Result Time out. Fail to get Symbol List.');
-        if FSymbolList = nil then
-          CnDebugger.LogMsg('Async Result Error. Symbol List not Got.');
+          CnDebugger.LogMsg('Async Result Time out. Fail to Get Symbol List.');
 {$ENDIF}
-
-        if FAsyncResultGot and (FSymbolList <> nil) then
-        begin
-          try
-            for I := 0 to FSymbolList.Count - 1 do
-            begin
-              // follow code maybe raise exception, but disabled.
-            {$IFDEF UTF8_SYMBOL}
-              Name := string(FastUtf8ToAnsi(AnsiString(FSymbolList.SymbolText[I])));
-            {$ELSE}
-              Name := FSymbolList.SymbolText[I];
-            {$ENDIF}
-              Desc := FSymbolList.SymbolTypeText[I];
-              Kind := SymbolFlagsToKind(FSymbolList.SymbolFlags[I], Desc);
-              // Description is Utf-8 format under BDS.
-              Idx := Add(Name, Kind, Round(MaxInt / FSymbolList.Count * I), Desc, '', True,
-                False, False, {$IFDEF UTF8_SYMBOL}True{$ELSE}False{$ENDIF});
-
-              // 根据源文件的类型设置符号项的适用范围
-              Items[Idx].ForPascal := PosInfo.IsPascal;
-              Items[Idx].ForCpp := not PosInfo.IsPascal;
-            end;
-          except
-          {$IFDEF Debug}
-            on E: Exception do
-            begin
-              CnDebugger.LogMsg('Exception: ' + E.ClassName + ' ' + E.Message);
-            end;
-          {$ENDIF Debug}
-          end;
-          FSymbolList := nil;
-        end;
-
       finally
         CodeInsightServices.SetQueryContext(nil, nil);
-      {$IFDEF Debug}
+      {$IFDEF DEBUG}
         CnDebugger.LogMsg('End Async AddToSymbolList');
-      {$ENDIF Debug}
+      {$ENDIF}
       end;
       Exit;
     end;
@@ -412,6 +598,10 @@ var
       if not Allow then
         Exit;
 
+{$IFDEF IDE_SUPPORT_LSP}
+      FKeepUnique := False; // 无需去重
+{$ENDIF}
+
       // Not used, but the IDE calls it in this order, and the calling order might be important.
       ValidChars := Manager.EditorTokenValidChars(False);
 
@@ -420,15 +610,15 @@ var
 
       try
         SymbolList := nil;
-      {$IFDEF Debug}
+      {$IFDEF DEBUG}
         CnDebugger.LogMsg('Before Manager.GetSymbolList');
-      {$ENDIF Debug}
+      {$ENDIF}
         Manager.GetSymbolList(SymbolList);
         if Assigned(SymbolList) then
         begin
-        {$IFDEF Debug}
+        {$IFDEF DEBUG}
           CnDebugger.LogInteger(SymbolList.Count, 'IDE SymbolList.Count');
-        {$ENDIF Debug}
+        {$ENDIF}
 
           try
             for I := 0 to SymbolList.Count - 1 do
@@ -450,12 +640,12 @@ var
               Items[Idx].ForCpp := not PosInfo.IsPascal;
             end;
           except
-          {$IFDEF Debug}
+          {$IFDEF DEBUG}
             on E: Exception do
             begin
               CnDebugger.LogMsg('Exception: ' + E.ClassName + ' ' + E.Message);
             end;
-          {$ENDIF Debug}
+          {$ENDIF}
           end;
         end;
       finally
@@ -470,9 +660,9 @@ var
     {$ENDIF SYMBOL_LOCKHOOK}
 
       CodeInsightServices.SetQueryContext(nil, nil);
-    {$IFDEF Debug}
+    {$IFDEF DEBUG}
       CnDebugger.LogMsg('End AddToSymbolList');
-    {$ENDIF Debug}
+    {$ENDIF}
     end;
   end;
 
@@ -639,22 +829,22 @@ begin
   Result := False;
   try
     DphIdeModule := LoadLibrary(DphIdeLibName);
-    Assert(DphIdeModule <> 0, 'Failed to load DphIdeModule');
+    CnWizAssert(DphIdeModule <> 0, 'Load DphIdeModule');
 
     DoKibitzCompile := GetProcAddress(DphIdeModule, DoKibitzCompileName);
-    Assert(Assigned(DoKibitzCompile), 'Failed to load DoKibitzCompile from DphIdeModule');
+    CnWizAssert(Assigned(DoKibitzCompile), 'Load DoKibitzCompile from DphIdeModule');
 
     dccModule := LoadLibrary(dccLibName);
-    Assert(dccModule <> 0, 'Failed to load dccModule');
+    CnWizAssert(dccModule <> 0, 'Load dccModule');
 
     KibitzGetValidSymbols := GetProcAddress(dccModule, KibitzGetValidSymbolsName);
-    Assert(Assigned(KibitzGetValidSymbols), 'Failed to load KibitzGetValidSymbols from dccModule');
+    CnWizAssert(Assigned(KibitzGetValidSymbols), 'Load KibitzGetValidSymbols from dccModule');
 
     CorIdeModule := LoadLibrary(CorIdeLibName);
-    Assert(CorIdeModule <> 0, 'Failed to load CorIdeModule');
+    CnWizAssert(CorIdeModule <> 0, 'Load CorIdeModule');
 
     CompGetSymbolText := GetProcAddress(CorIdeModule, CompGetSymbolTextName);
-    Assert(Assigned(CompGetSymbolText), 'Failed to load CompGetSymbolText');
+    CnWizAssert(Assigned(CompGetSymbolText), 'Load CompGetSymbolText');
 
     Result := True;
   {$IFDEF Debug}
@@ -754,36 +944,35 @@ end;
 function ParseProjectBegin(var FileName: AnsiString; var X, Y: Integer): Boolean;
 var
   Stream: TMemoryStream;
-  Source: AnsiString;
-  Lex: TmwPasLex;
+  Lex: TCnGeneralPasLex; // Ansi/Ansi/Utf16
 begin
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogMsg('ParseProjectBegin');
 {$ENDIF}
 
   Result := False;
   FileName := CnOtaGetCurrentProjectFileName;
-  Stream := TMemoryStream.Create;
-  try
-    EditFilerSaveFileToStream(FileName, Stream, False);
-    Source := PAnsiChar(Stream.Memory);
-  finally
-    Stream.Free;
-  end;
+  Stream := nil;
+  Lex := nil;
 
-{$IFDEF Debug}
-  CnDebugger.LogMsg(FileName + #13#10 + Source);
-{$ENDIF}
-  Lex := TmwPasLex.Create;
   try
-    Lex.Origin := PAnsiChar(Source);
+    Stream := TMemoryStream.Create;
+    EditFilerSaveFileToStream(FileName, Stream, True); // Ansi/Ansi/Utf16，符合 Lex
+
+    Lex := TCnGeneralPasLex.Create;
+    Lex.Origin := PChar(Stream.Memory);
+
     while Lex.TokenID <> tkNull do
     begin
       if Lex.TokenID = tkBegin then
       begin
         Lex.Next;
         X := 0;
+{$IFDEF UNICODE}
+        Y := Lex.LineNumber; // Wide 的 Lex 的行号本来就从 1 开始
+{$ELSE}
         Y := Lex.LineNumber + 1;
+{$ENDIF}
         Result := True;
         Break;
       end;
@@ -791,6 +980,7 @@ begin
     end;
   finally
     Lex.Free;
+    Stream.Free;
   end;
 end;
 
@@ -800,7 +990,7 @@ var
   FileName: AnsiString;
   X, Y: Integer;
 begin
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogMsg('CreateKibitzThread');
 {$ENDIF}
   if not SupportKibitzCompileThread or not UseKibitzCompileThread or KibitzCompileThreadRunning then
@@ -808,10 +998,10 @@ begin
 
   if ParseProjectBegin(FileName, X, Y) then
   begin
-  {$IFDEF Debug}
+  {$IFDEF DEBUG}
     CnDebugger.LogFmt('FileName: %s X: %d Y: %d', [FileName, X, Y]);
   {$ENDIF}
-  
+
     Save := Screen.Cursor;
     KibitzFinished := False;
     KibitzThread := TKibitzThread.Create(FileName, X, Y);
@@ -855,7 +1045,7 @@ procedure TIDESymbolList.OnFileNotify(NotifyCode: TOTAFileNotification;
 begin
   if not SupportKibitzCompileThread or not UseKibitzCompileThread then
     Exit;
-    
+
   if (NotifyCode = ofnFileOpened) and IsDpr(FileName) then
   begin
   {$IFDEF Debug}
@@ -876,7 +1066,7 @@ var
   Symbols: PSymbols;
   CharPos: TOTACharPos;
   Text: string;
-  i, Offset: Integer;
+  I, Offset: Integer;
 
   procedure AddItem(const AText: string; Index: Integer);
   var
@@ -916,7 +1106,7 @@ var
           AKind := skKeyword;        // '??? '
       else
         begin
-        {$IFDEF Debug}
+        {$IFDEF DEBUG}
           CnDebugger.LogMsg('Unknown decl: ' + AText);
         {$ENDIF}
           AKind := skUnknown;
@@ -947,6 +1137,7 @@ var
       Add(AName, AKind, Round(MaxInt / SymbolCount * Index), ADesc);
     end;
   end;
+
 begin
   Result := False;
   if not KibitzEnabled or (PosInfo.PosKind in csNonCodePosKinds)
@@ -983,20 +1174,16 @@ begin
 
       // 增加符号项
       List.Capacity := SymbolCount;
-      for i := 0 to SymbolCount - 1 do
+      for I := 0 to SymbolCount - 1 do
       begin
-        CompGetSymbolText(Symbols^[i], Text, 1);
-        AddItem(Text, i);
+        CompGetSymbolText(Symbols^[I], Text, 1);
+        AddItem(Text, I);
       end;
 
-{$IFNDEF IDE_SYMBOL_HAS_SYSTEM}
-      Add('System', skUnit, 0, '');
-{$ENDIF}
-
       Result := Count > 0;
-    {$IFDEF Debug}
+{$IFDEF DEBUG}
       CnDebugger.LogMsg(Format('TIDESymbolList.Reload, Count: %d', [Count]));
-    {$ENDIF}
+{$ENDIF}
     finally
       if Unknowns <> nil then
         FreeMem(Unknowns);
@@ -1023,6 +1210,10 @@ end;
 constructor TIDESymbolList.Create;
 begin
   inherited;
+{$IFDEF IDE_SUPPORT_LSP}
+  FHashList := TCnStrToStrHashMap.Create(HashSize);
+{$ENDIF}
+
 {$IFDEF SUPPORT_KibitzCompile}
   KibitzEnabled := KibitzInitialize;
   InitializeCriticalSection(HookCS);
@@ -1037,6 +1228,10 @@ begin
   CnWizNotifierServices.RemoveFileNotifier(OnFileNotify);
   KibitzFinalize;
 {$ENDIF SUPPORT_KibitzCompile}
+
+{$IFDEF IDE_SUPPORT_LSP}
+  FHashList.Free;
+{$ENDIF}
   inherited;
 end;
 
@@ -1048,7 +1243,7 @@ end;
 function TIDESymbolList.Reload(Editor: IOTAEditBuffer;
   const InputText: string; PosInfo: TCodePosInfo): Boolean;
 begin
-{$IFDEF SUPPORT_IDESymbolList}
+{$IFDEF SUPPORT_IDESYMBOLLIST}
 
 {$IFDEF SUPPORT_MULTI_IDESymbolList}
   if UseCodeInsightMgr then
@@ -1069,19 +1264,63 @@ begin
 
 {$ELSE}
   Result := False;
-{$ENDIF SUPPORT_IDESymbolList}
+{$ENDIF SUPPORT_IDESYMBOLLIST}
+end;
+
+function TIDESymbolList.Add(const AName: string; AKind: TSymbolKind;
+  AScope: Integer; const ADescription, AText: string; AAutoIndent,
+  AMatchFirstOnly, AAlwaysDisp, ADescIsUtf8: Boolean): Integer;
+{$IFDEF IDE_SUPPORT_LSP}
+var
+  Res: string;
+{$ENDIF}
+begin
+{$IFDEF IDE_SUPPORT_LSP}
+  Result := -1;
+  if FKeepUnique and FHashList.Find(AName + ADescription, Res) then
+  begin
+{$IFDEF DEBUG}
+//    CnDebugger.LogFmt('IDE SymbolList Found Duplicated: %s. Do NOT Add.',
+//      [AName]);
+{$ENDIF}
+    Exit;
+  end;
+  FHashList.Add(AName + ADescription, AName);
+{$ENDIF}
+
+  Result := inherited Add(AName, AKind, AScope, ADescription, AText, AAutoIndent,
+    AMatchFirstOnly, AAlwaysDisp, ADescIsUtf8);
+end;
+
+procedure TIDESymbolList.Clear;
+begin
+{$IFDEF IDE_SUPPORT_LSP}
+  FHashList.Free;
+  FHashList := TCnStrToStrHashMap.Create(HashSize);
+{$ENDIF}
+  inherited;
 end;
 
 initialization
-{$IFDEF SUPPORT_IDESymbolList}
-{$IFNDEF BCB5}  // 支持BCB5/6的IDE符号列表差异较大，放另外一个单元。
+{$IFDEF SUPPORT_IDESYMBOLLIST}
+{$IFNDEF BCB5}  // 支持 BCB5/6 的 IDE 符号列表差异较大，放另外一个单元。
 {$IFNDEF BCB6}
   RegisterSymbolList(TIDESymbolList);
 
   {$IFDEF IDE_SUPPORT_LSP}
-  FLspHandle := GetModuleHandle(IdeLspLibName);
-  if FLspHandle <> 0 then
-    LspGetSymbolList := TLSPKibitzManagerGetSymbolList(GetProcAddress(FLspHandle, SLspGetSymbolList));
+  FDelphiLspHandle := GetModuleHandle(IdeLspLibName);
+  if FDelphiLspHandle <> 0 then
+  begin
+    DelphiLspGetCount := TDelphiLSPKibitzManagerGetCount(GetProcAddress(FDelphiLspHandle, SDelphiLspGetCount));
+    DelphiLspGetCodeCompEntry := TDelphiLSPKibitzManagerGetCodeCompEntry(GetProcAddress(FDelphiLspHandle, SDelphiLspGetCodeCompEntry));
+  end;
+
+  FBcbLspHandle := GetModuleHandle(IdeBcbLspLibName);
+  if FBcbLspHandle <> 0 then
+  begin
+    BcbLspGetCount := TBcbLSPKibitzManagerGetCount(GetProcAddress(FBcbLspHandle, SBcbLspGetCount));
+    BcbLspGetCodeCompEntry := TBcbLSPKibitzManagerGetCodeCompEntry(GetProcAddress(FBcbLspHandle, SBcbLspGetCodeCompEntry));
+  end;
   {$ENDIF}
 {$ENDIF}
 {$ENDIF}

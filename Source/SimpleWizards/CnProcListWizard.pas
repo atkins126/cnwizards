@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -146,13 +146,13 @@ type
 {$ENDIF}
 
   TCnProcListForm = class(TCnProjectViewBaseForm)
-    mmoContent: TMemo;
-    Splitter: TSplitter;
     btnShowPreview: TToolButton;
     btnSep9: TToolButton;
     cbbMatchSearch: TComboBox;
     lblFiles: TLabel;
     cbbFiles: TComboBox;
+    Splitter: TSplitter;
+    mmoContent: TMemo;
     procedure FormDestroy(Sender: TObject);
     procedure lvListData(Sender: TObject; Item: TListItem);
     procedure btnShowPreviewClick(Sender: TObject);
@@ -170,7 +170,6 @@ type
     procedure lvListKeyPress(Sender: TObject; var Key: Char);
     procedure SplitterMoved(Sender: TObject);
   private
-    { Private declarations }
     FFileName: string;
 {$IFNDEF STAND_ALONE}
     FFiler: TCnEditFiler;
@@ -179,7 +178,9 @@ type
     FCurrentFile: string;
     FSelIsCurFile: Boolean;
     FWizard: TCnProcListWizard;
+    FPreviewIsRight: Boolean;
     FPreviewHeight: Integer;
+    FPreviewWidth: Integer;
     FObjName: string;
     FIsObjAll: Boolean;
     FIsObjNone: Boolean;
@@ -190,7 +191,6 @@ type
     procedure InitFileComboBox;
     procedure LoadFileComboBox;
 {$ENDIF}
-    function SelectImageIndex(ProcInfo: TCnElementInfo): Integer;
     function GetMethodName(const ProcName: string): string;
   protected
     procedure DoLanguageChanged(Sender: TObject); override;
@@ -205,16 +205,18 @@ type
     procedure UpdateItemPosition;
     procedure FontChanged(AFont: TFont); override;
 
+    function DisableLargeIcons: Boolean; override;
+    procedure RestorePreviewWidth;
+    procedure RestorePreviewHeight;
     procedure PrepareSearchRange; override;
     function CanMatchDataByIndex(const AMatchStr: string; AMatchMode: TCnMatchMode;
       DataListIndex: Integer; var StartOffset: Integer; MatchedIndexes: TList): Boolean; override;
     function SortItemCompare(ASortIndex: Integer; const AMatchStr: string;
       const S1, S2: string; Obj1, Obj2: TObject; SortDown: Boolean): Integer; override;
   public
-    { Public declarations }
     procedure LoadSettings(Ini: TCustomIniFile; aSection: string); override;
     procedure SaveSettings(Ini: TCustomIniFile; aSection: string); override;
-    procedure UpdateMemoHeight(Sender: TObject);
+    procedure UpdateMemoSize(Sender: TObject);
     property FileName: string read FFileName write SetFileName;
     //property Language: TCnSourceLanguageType read FLanguage write FLanguage;
     //property IsCurrentFile: Boolean read FIsCurrentFile write SetIsCurrentFile;
@@ -225,7 +227,9 @@ type
     {* 选中的条目的文件名 }
 
     property PreviewHeight: Integer read FPreviewHeight;
-    {* 预览窗口的高度}
+    {* 预览窗口在下方时的高度}
+    property PreviewWidth: Integer read FPreviewWidth;
+    {* 预览窗口在右方时的宽度}
     property ObjectList: TStringList read FObjectList;
     {* 存储类名的字符串列表，供外界使用}
     property Wizard: TCnProcListWizard read FWizard write FWizard;
@@ -426,6 +430,7 @@ type
     procedure SaveSettings(Ini: TCustomIniFile); override;
     function GetState: TWizardState; override;
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     function GetCaption: string; override;
     function GetHint: string; override;
     function GetDefShortCut: TShortCut; override;
@@ -436,6 +441,7 @@ type
 
     procedure LoadElements(ElementList, ObjectList: TStringList; aFileName: string;
       ToClear: Boolean = True);
+    procedure UpdateDataListImageIndex(ADataList: TStringList);
     procedure AddProcedure(ElementList, ObjectList: TStringList;
       ElementInfo: TCnElementInfo; IsIntf: Boolean);
     procedure AddElement(ElementList: TStringList;
@@ -494,6 +500,10 @@ const
   csClassComboName = 'ClassCombo';
 
   CN_SPLITTER_WIDTH = 3;
+  CN_INIT_CLASSCOMBO_WIDTH = 250;
+  CN_INIT_PROCCOMBO_WIDTH = 350;
+  CN_ICON_WIDTH = 22;
+
   csDefHistoryCount = 8;
   csDefPreviewLineCount = 4;
   csDefProcDropDownBoxFontSize = 8;
@@ -513,6 +523,8 @@ type
 const
   csShowPreview = 'ShowPreview';
   csPreviewHeight = 'PreviewHeight';
+  csPreviewWidth = 'PreviewWidth';
+  csPreviewIsRight = 'PreviewIsRight';
   csDropDown = 'DropDown';
   csClassComboWidth = 'ClassComboWidth';
   csProcComboWidth = 'ProcComboWidth';
@@ -571,6 +583,53 @@ begin
 
   if GListSortReverse then
     Result := -Result;
+end;
+
+function CalcSelectImageIndex(ProcInfo: TCnElementInfo; Lang: TCnSourceLanguageType): Integer;
+var
+  ProcName: string;
+begin
+  // 返回图标编号
+  Result := 20;
+  if ProcInfo = nil then
+    Exit;
+
+  case Lang of
+  ltPas:
+    begin
+      ProcName := UpperCase(ProcInfo.Name);
+      if Pos('.', ProcName) <> 0 then
+        Result := 41    // 方法
+      else
+        Result := 20;   // 独立
+      if Pos('CONSTRUCTOR', ProcName) <> 0 then // Do not localize.
+        Result := 12;   // 构造
+      if Pos('DESTRUCTOR', ProcName) <> 0 then // Do not localize.
+        Result := 31;   // 析构
+
+      case ProcInfo.ElementType of
+        etClass:     Result := 90;
+        etRecord:    Result := 36;
+        etInterface: Result := 91;
+        etProperty : Result := 92;
+      else
+        // nochange;
+      end;
+    end;
+  ltCpp:
+    begin
+      case ProcInfo.ElementType of
+        etClassFunc:      Result := 41;   // 方法
+        etSingleFunction: Result := 20;   // 独立
+        etConstructor:    Result := 12;   // 构造
+        etDestructor:     Result := 31;   // 析构
+        etClass:          Result := 90;
+        etInterface:      Result := 91;
+        etProperty :      Result := 92;
+        etRecord:         Result := 36;
+      end;
+    end;
+  end;
 end;
 
 { TCnProcListWizard }
@@ -652,6 +711,7 @@ begin
   begin
     ClearList;
     LoadElements(FElementList, FObjStrings, CnOtaGetCurrentSourceFileName);
+    UpdateDataListImageIndex(FElementList);
 
     FElementList.Sort;
     RemoveForward; // 去除重复的前向声明
@@ -924,7 +984,7 @@ begin
     if FToolbarClassComboWidth > 50 then
       Width := FToolbarClassComboWidth
     else
-      Width := 200;
+      Width := IdeGetScaledPixelsFromOrigin(CN_INIT_CLASSCOMBO_WIDTH, Obj.ClassCombo);
     Height := 21;
     FDisableChange := True;
     Name := csClassComboName;
@@ -953,7 +1013,7 @@ begin
     if FToolbarProcComboWidth > 50 then
       Width := FToolbarProcComboWidth
     else
-      Width := 300;
+      Width := IdeGetScaledPixelsFromOrigin(CN_INIT_CLASSCOMBO_WIDTH, Obj.ProcCombo);
     Height := 21;
     FDisableChange := True;
     Name := csProcComboName;
@@ -987,8 +1047,13 @@ begin
     DockSite := False;
     ShowHint := True;
     Transparent := False;
+{$IFDEF IDE_SUPPORT_HDPI}
+    Images := TImageList(dmCnSharedImages.ProcToolbarVirtualImages);
+    InitSizeIfLargeIcon(Obj.InternalToolBar2, TImageList(dmCnSharedImages.LargeProcToolbarVirtualImages));
+{$ELSE}
     Images := dmCnSharedImages.ilProcToolBar;
     InitSizeIfLargeIcon(Obj.InternalToolBar2, dmCnSharedImages.ilProcToolbarLarge);
+{$ENDIF}
     PopupMenu := Obj.PopupMenu;
   end;
 
@@ -1029,7 +1094,11 @@ begin
     ShowHint := True;
     Transparent := False;
     Images := GetIDEImageList;
-    InitSizeIfLargeIcon(Obj.InternalToolBar1, GetIDEBigImageList);
+{$IFDEF IDE_SUPPORT_HDPI}
+    InitSizeIfLargeIcon(Obj.InternalToolBar1, TImageList(dmCnSharedImages.IDELargeVirtualImages));
+{$ELSE}
+    InitSizeIfLargeIcon(Obj.InternalToolBar1, dmCnSharedImages.IDELargeImages);
+{$ENDIF}
     PopupMenu := Obj.PopupMenu;
   end;
 
@@ -1073,16 +1142,32 @@ begin
   // Owner 为 nil 的 PopupMenu 无法被找到的问题。
 {$IFDEF DELPHI103_RIO_UP}
   Obj.MatchFrame := TCnMatchButtonFrame.Create(GetIdeMainForm);
+  Obj.MatchFrame.Name := Obj.MatchFrame.Name + FormatDateTime('yyyyMMddhhmmss', Now);
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('Create ProcToolbar: MatchFrame Name: ' + Obj.MatchFrame.Name);
+{$ENDIF}
 {$ELSE}
   Obj.MatchFrame := TCnMatchButtonFrame.Create(ToolBar);
 {$ENDIF}
+
+{$IFNDEF IDE_SUPPORT_HDPI}
+  if WizOptions.UseLargeIcon then
+  begin
+    Obj.MatchFrame.Width := Obj.MatchFrame.Width + csLargeToolbarHeightDelta;
+    Obj.MatchFrame.tlb1.Width := Obj.MatchFrame.tlb1.Width + csLargeToolbarHeightDelta;
+  end;
+{$ENDIF}
+
   with Obj.MatchFrame do
   begin
-    Parent := ToolBar;
+    Parent := ToolBar;  // HDPI 下，这里会放大
     Top := 0;
     Left := Obj.ProcCombo.Left + Obj.ProcCombo.Width + Obj.FSplitter1.Width + 2;
     OnModeChange := Obj.MatchChange;
   end;
+
+  // 注意必须设置完 Parent 后再调用此函数
+  WizOptions.ResetToolbarWithLargeIcons(Obj.MatchFrame.tlb1);
 
   FProcToolBarObjects.Add(Obj);
 {$IFDEF DEBUG}
@@ -1166,6 +1251,8 @@ begin
       LoadSettings(Ini, '');
 {$ENDIF}
       LoadElements(DataList, ObjectList, FFileName);
+      UpdateDataListImageIndex(DataList);
+
       UpdateListView;
       LoadObjectComboBox(ObjectList);
 
@@ -1270,6 +1357,11 @@ begin
   Comment := SCnProcListWizardComment;
 end;
 
+function TCnProcListWizard.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '属性,元素,property,function,element,';
+end;
+
 procedure TCnProcListWizard.InitProcToolBar(ToolBarType: string;
   EditControl: TControl; ToolBar: TToolBar);
 var
@@ -1285,18 +1377,29 @@ begin
   CnDebugger.LogFmt('ProcList: Obj found from EditControl %8.8x', [Integer(Obj)]);
 {$ENDIF}
 
+{$IFDEF IDE_SUPPORT_HDPI}
+  InitSizeIfLargeIcon(ToolBar, TImageList(dmCnSharedImages.LargeProcToolbarVirtualImages));
+{$ELSE}
   InitSizeIfLargeIcon(ToolBar, dmCnSharedImages.ilProcToolbarLarge);
-  if WizOptions.UseLargeIcon then
-  begin
-    Obj.ClassCombo.Font.Size := csLargeComboFontSize;
-    Obj.ProcCombo.Font.Size := csLargeComboFontSize;
-  end;
+{$ENDIF}
+
+{$IFDEF DEBUG}
+  CnDebugger.LogFmt('ProcList: ClassCombo Font Size %d', [Obj.ClassCombo.Font.Size]);
+{$ENDIF}
+
+  IdeScaleToolbarComboFontSize(Obj.ClassCombo);
+  IdeScaleToolbarComboFontSize(Obj.ProcCombo);
 
   Obj.ToolBtnProcList.Action := FindIDEAction('act' + Copy(ClassName, 2, MaxInt)); // 去 T
   Obj.ToolBtnProcList.Visible := Action <> nil;
 
   Obj.ToolBtnListUsed.Action := FindIDEAction('act' + SCnProjExtListUsed);
   Obj.ToolBtnListUsed.Visible := Action <> nil;
+
+  if Obj.ToolBtnProcList.ImageIndex < 0 then
+    Obj.ToolBtnProcList.ImageIndex := dmCnSharedImages.IdxUnknownInIDE; // 确保有个图标
+  if Obj.ToolBtnListUsed.ImageIndex < 0 then
+    Obj.ToolBtnListUsed.ImageIndex := dmCnSharedImages.IdxUnknownInIDE;
 
   Obj.ToolBtnSep1.Visible := (Obj.ToolBtnProcList.Visible or Obj.ToolBtnListUsed.Visible);
   Obj.InternalToolBar1.Visible := Obj.ToolBtnSep1.Visible;
@@ -1606,16 +1709,34 @@ begin
   end;
 {$ENDIF}
 
-  {$IFDEF COMPILER6_UP}
+{$IFDEF COMPILER6_UP}
   cbbMatchSearch.AutoComplete := False;
-  {$ENDIF}
+{$ENDIF}
+
+{$IFDEF DELPHI110_ALEXANDRIA_UP}
+  actQuery.Visible := True;
+  actQuery.Enabled := False;
+  btnQuery.Visible := True;
+  btnQuery.Enabled := False;
+{$ENDIF}
 end;
 
 procedure TCnProcListForm.FormShow(Sender: TObject);
 begin
   inherited;
   UpdateItemPosition;
-  UpdateMemoHeight(nil);
+
+  if FPreviewIsRight then
+  begin
+    mmoContent.Align := alRight;
+    Splitter.Align := alRight;
+  end;
+
+  UpdateMemoSize(nil);
+{$IFDEF DELPHI110_ALEXANDRIA_UP}
+  btnClose.Down := False;
+  btnQuery.Visible := False;
+{$ENDIF}
 end;
 
 procedure TCnProcListForm.CreateList;
@@ -1993,9 +2114,11 @@ var
     InImplementation: Boolean;
     FoundNonEmptyType: Boolean;
     IdentifierNeeded: Boolean;
+    IsExternal: Boolean;
+    ProcEndSemicolon: Boolean;
     ElementInfo: TCnElementInfo;
     BeginProcHeaderPosition: Longint;
-    j, k: Integer;
+    J, K: Integer;
     LineNo: Integer;
     ProcName, ProcReturnType, IntfName: string;
     ElementTypeStr, OwnerClass, ProcArgs: string;
@@ -2166,7 +2289,103 @@ var
                   ElementInfo.AllName := aFileName;
                   AddProcedure(ElementList, ObjectList, ElementInfo, InIntfDeclaration);
                 end;
-              end;
+              end
+              else if not InImplementation and not InTypeDeclaration and not InIntfDeclaration
+                and (PasParser.TokenID in [tkFunction, tkProcedure]) then
+              begin
+                // interface 部分的 function 与 procedure 要考虑 extnernal 的情况
+                // 但这处判断 class 里的 procedure/function 也会进去，可能多出很多无谓判断
+                IdentifierNeeded := True;
+                // interface 部分不会有匿名函数
+                IsExternal := False;
+                ProcEndSemicolon := False;
+
+                ProcType := PasParser.TokenID;
+                Line := GetPasParserLineNumber;
+                ProcLine := '';
+
+                // 此循环获得整个 Proc 的声明
+                while not (PasParser.TokenId in [tkNull]) do
+                begin
+                  case PasParser.TokenID of
+                    tkIdentifier, tkRegister:
+                      IdentifierNeeded := False;
+
+                    tkRoundOpen:
+                      begin
+                        // Did we run into an identifier already?
+                        // This prevents
+                        //    AProcedure = procedure() of object
+                        // from being recognised as a procedure
+                        if IdentifierNeeded then
+                          Break;
+                        InParenthesis := True;
+                      end;
+
+                    tkRoundClose:
+                      InParenthesis := False;
+
+                  else
+                    // nothing
+                  end; // case
+
+                  // 这里可能碰到 implementation，必须记录行号
+                  if (PasParser.TokenID = tkImplementation) and (FImplLine = 0) then
+                    FImplLine := GetPasParserLineNumber;
+
+                  if (not InParenthesis) and (PasParser.TokenID in [tkEnd, tkImplementation,
+                    tkVar, tkBegin, tkType, tkConst, tkUses]) then // 不能只判断分号，暂且以这些关键字来判断
+                    Break;
+
+                  if not (PasParser.TokenID in [tkCRLF, tkCRLFCo]) and not ProcEndSemicolon then
+                    ProcLine := ProcLine + string(PasParser.Token);
+
+                  if (not InParenthesis) and (PasParser.TokenID = tkSemicolon) then
+                    ProcEndSemicolon := True;
+
+                  PasParser.Next;
+
+                  if PasParser.TokenID = tkExternal then
+                  begin
+                    IsExternal := True;
+                    Break;
+                  end;
+                end; // while
+
+                // 得到整个 Proc 的声明，ProcLine
+                if PasParser.TokenID = tkSemicolon then
+                  ProcLine := ProcLine + ';';
+                if ClassLast then
+                  ProcLine := 'class ' + ProcLine; // Do not localize.
+
+                if IsExternal then
+                begin
+                  ElementInfo := TCnElementInfo.Create;
+                  ElementInfo.Name := ProcLine;
+                  if InIntfDeclaration then
+                  begin
+                    if ProcType = tkProcedure then
+                      ElementInfo.ElementTypeStr := 'interface procedure'
+                    else if ProcType = tkFunction then
+                      ElementInfo.ElementTypeStr := 'interface function'
+                    else
+                      ElementInfo.ElementTypeStr := 'interface member';
+
+                    ElementInfo.ElementType := etIntfMember;
+                    ElementInfo.OwnerClass := IntfName;
+                  end
+                  else
+                  begin
+                    ElementInfo.ElementTypeStr := GetProperProcName(ProcType, ClassLast);
+                    ElementInfo.ElementType := GetProperElementType(ProcType, ClassLast);
+                  end;
+
+                  ElementInfo.LineNo := Line;
+                  ElementInfo.FileName := ExtractFileName('Unknown Filename');
+                  ElementInfo.AllName := 'Unknown Filename';
+                  AddProcedure(ElementList, ObjectList, ElementInfo, InIntfDeclaration);
+                end;
+              end;  // 针对 External 判断完成
 
               if not InIntfDeclaration and (PasParser.TokenID = tkIdentifier) then
                 IntfName := string(PasParser.Token);
@@ -2342,12 +2561,12 @@ var
 
             try
               // 记录最后的位置，避免从头查找时超过末尾
-              j := CppParser.TokenPositionsList[CppParser.TokenPositionsList.Count - 1];
+              J := CppParser.TokenPositionsList[CppParser.TokenPositionsList.Count - 1];
               FindBeginningProcedureBrace(NewName, ElementType);
               // 上面的函数会找到一个类声明或函数声明的开头，如果是类声明等，
               // 类名称会被塞入 NewName 这个变量
 
-              while (CppParser.RunPosition <= j - 1) or (CppParser.RunID <> ctknull) do
+              while (CppParser.RunPosition <= J - 1) or (CppParser.RunID <> ctknull) do
               begin
                 // NewName = '' 表示是个函数，做函数的处理
                 if NewName = '' then
@@ -2551,11 +2770,11 @@ var
                     // This code sticks enclosure names in front of
                     // methods (namespaces & classes with in-line definitions)
                     ProcClassAdd := '';
-                    for k := 0 to BraceCount - BraceCountDelta do
+                    for K := 0 to BraceCount - BraceCountDelta do
                     begin
-                      if k < NameList.Count then
+                      if K < NameList.Count then
                       begin
-                        TmpName := NameList.Values[IntToStr(k)];
+                        TmpName := NameList.Values[IntToStr(K)];
                         if TmpName <> '' then
                         begin
                           if ProcClassAdd <> '' then
@@ -2729,6 +2948,19 @@ begin
   end;
 end;
 
+procedure TCnProcListWizard.UpdateDataListImageIndex(ADataList: TStringList);
+var
+  I: Integer;
+  Ele: TCnElementInfo;
+begin
+  for I := 0 to ADataList.Count - 1 do
+  begin
+    Ele := TCnElementInfo(ADataList.Objects[I]);
+    if Ele <> nil then
+      Ele.ImageIndex := CalcSelectImageIndex(Ele, FLanguage);
+  end;
+end;
+
 procedure TCnProcListForm.LoadSettings(Ini: TCustomIniFile;
   aSection: string);
 var
@@ -2748,8 +2980,9 @@ begin
 {$ENDIF}
 
   btnShowPreview.Down := Ini.ReadBool(aSection, csShowPreview, True);
+  FPreviewIsRight := Ini.ReadBool(aSection, csPreviewIsRight, False);
   FPreviewHeight := Ini.ReadInteger(aSection, csPreviewHeight, 0);
-
+  FPreviewWidth := Ini.ReadInteger(aSection, csPreviewWidth, 0);
   mmoContent.Visible := btnShowPreview.Down;
   Splitter.Visible := btnShowPreview.Down;
 end;
@@ -2844,8 +3077,11 @@ begin
   S := StringReplace(cbbMatchSearch.Items.Text, csCRLF, csSep, [rfReplaceAll, rfIgnoreCase]);
   Ini.WriteString(aSection, csDropDown, S);
   Ini.WriteBool(aSection, csShowPreview, btnShowPreview.Down);
+  Ini.WriteBool(aSection, csPreviewIsRight, FPreviewIsRight);
   if FPreviewHeight > 0 then
     Ini.WriteInteger(aSection, csPreviewHeight, FPreviewHeight);
+  if FPreviewWidth > 0 then
+    Ini.WriteInteger(aSection, csPreviewWidth, FPreviewWidth);
 end;
 
 procedure TCnProcListForm.UpdateComboBox;
@@ -2875,38 +3111,6 @@ var
   EditView: IOTAEditView;
   Buffer: IOTAEditBuffer;
 {$ENDIF}
-
-  procedure SetMemoSelection;
-  var
-    L, I: Integer;
-{$IFDEF DELPHI2007}
-    J, Len: Integer;
-{$ENDIF}
-  begin
-    if mmoContent.Lines.Count > CnBeforeLine then // 有待显示内容
-    begin
-      L := 0;
-      for I := 0 to CnBeforeLine - 1 do
-      begin
-{$IFDEF DELPHI2007}
-        Len := Length(mmoContent.Lines[I]);
-        for J := 0 to Length(mmoContent.Lines[I]) - 1 do
-        begin
-          if Ord(mmoContent.Lines[I][J]) < 128 then
-            Inc(Len);
-        end;
-        Len := Len div 2;
-        L := L + Len + 2;
-{$ELSE}
-        L := L + Length(mmoContent.Lines[I]) + 2;
-{$ENDIF}
-      end;
-
-      mmoContent.SelStart := L;
-      mmoContent.SelLength := Length(mmoContent.Lines[CnBeforeLine]);
-    end;
-  end;
-
 begin
   ProcInfo := nil;
   if lvList.Selected <> nil then
@@ -2950,7 +3154,7 @@ begin
                 // 此方法不适于未打开的工程源文件
                 mmoContent.Lines.Text := CnOtaGetLineText(ProcInfo.LineNo - CnBeforeLine,
                   Buffer, CnBeforeLine + AfterLine);
-                SetMemoSelection;
+                SelectMemoOneLine(mmoContent, CnBeforeLine);
                 Exit;
               end;
             end;
@@ -2964,7 +3168,7 @@ begin
     begin
       mmoContent.Lines.Text := CnOtaGetLineText(ProcInfo.LineNo - CnBeforeLine,
         nil, CnBeforeLine + AfterLine);
-      SetMemoSelection;
+      SelectMemoOneLine(mmoContent, CnBeforeLine);
     end;
 {$ELSE}
     mmoContent.Lines.Clear;
@@ -2979,7 +3183,7 @@ begin
         mmoContent.Lines.Add(Wizard.FLines[K]);
       mmoContent.Lines.EndUpdate;
 
-      SetMemoSelection;
+      SelectMemoOneLine(mmoContent, CnBeforeLine);
     end;
 {$ENDIF}
   end
@@ -3129,52 +3333,6 @@ begin
   end; //case Language
 end;
 
-function TCnProcListForm.SelectImageIndex(ProcInfo: TCnElementInfo): Integer;
-var
-  ProcName: string;
-begin
-  // 返回图标编号
-  Result := 20;
-  if ProcInfo = nil then Exit;
-
-  case FLanguage of
-  ltPas:
-    begin
-      ProcName := UpperCase(ProcInfo.Name);
-      if Pos('.', ProcName) <> 0 then
-        Result := 41    // 方法
-      else
-        Result := 20;   // 独立
-      if Pos('CONSTRUCTOR', ProcName) <> 0 then // Do not localize.
-        Result := 12;   // 构造
-      if Pos('DESTRUCTOR', ProcName) <> 0 then // Do not localize.
-        Result := 31;   // 析构
-
-      case ProcInfo.ElementType of
-        etClass:     Result := 90;
-        etRecord:    Result := 36;
-        etInterface: Result := 91;
-        etProperty : Result := 92;
-      else
-        // nochange;
-      end;
-    end;
-  ltCpp:
-    begin
-      case ProcInfo.ElementType of
-        etClassFunc:      Result := 41;   // 方法
-        etSingleFunction: Result := 20;   // 独立
-        etConstructor:    Result := 12;   // 构造
-        etDestructor:     Result := 31;   // 析构
-        etClass:          Result := 90;
-        etInterface:      Result := 91;
-        etProperty :      Result := 92;
-        etRecord:         Result := 36;
-      end;
-    end;
-  end;
-end;
-
 function TCnProcListForm.GetMethodName(const ProcName: string): string;
 var
   CharPos, LTPos: Integer;
@@ -3219,7 +3377,7 @@ begin
     if ElementInfo <> nil then
     begin
       Item.Caption := ElementInfo.Text;
-      Item.ImageIndex := SelectImageIndex(ElementInfo);
+      Item.ImageIndex := ElementInfo.ImageIndex;
       Item.SubItems.Add(ElementInfo.ElementTypeStr);
       Item.SubItems.Add(IntToStr(ElementInfo.LineNo));
       Item.SubItems.Add(ElementInfo.FileName);
@@ -3233,8 +3391,33 @@ end;
 
 procedure TCnProcListForm.btnShowPreviewClick(Sender: TObject);
 begin
-  mmoContent.Visible := btnShowPreview.Down;
-  Splitter.Visible := btnShowPreview.Down;
+  if btnShowPreview.Down then
+  begin
+    if FPreviewIsRight then
+    begin
+      mmoContent.Align := alRight;
+      Splitter.Align := alRight;
+    end
+    else
+    begin
+      mmoContent.Align := alBottom;
+      Splitter.Align := alBottom;
+    end;
+
+    mmoContent.Visible := True;
+    Splitter.Visible := True;
+  end
+  else
+  begin
+    mmoContent.Visible := False;
+    Splitter.Visible := False;
+
+    if FPreviewIsRight then
+      FPreviewWidth := mmoContent.Width
+    else
+      FPreviewHeight := mmoContent.Height;
+  end;
+
   UpdateStatusBar;
 end;
 
@@ -3433,6 +3616,7 @@ begin
     FIsCurrentFile := TCnFileInfo(cbbFiles.Items.Objects[cbbFiles.ItemIndex]).AllName = CurrentFile;
     aFile := TCnFileInfo(cbbFiles.Items.Objects[cbbFiles.ItemIndex]).AllName;
     Wizard.LoadElements(DataList, FObjectList, aFile);
+    Wizard.UpdateDataListImageIndex(DataList);
   end
   else
   begin
@@ -3441,6 +3625,7 @@ begin
       begin
         FIsCurrentFile := True;
         Wizard.LoadElements(DataList, FObjectList, CnOtaGetCurrentSourceFileName);
+        Wizard.UpdateDataListImageIndex(DataList);
       end;
     1: // 当前工程
       begin
@@ -3458,6 +3643,7 @@ begin
                 or IsTypeLibrary(aFile) or IsInc(aFile) then
               begin
                 Wizard.LoadElements(DataList, FObjectList, aFile, FirstFile);
+                Wizard.UpdateDataListImageIndex(DataList);
                 FirstFile := False;
               end;
             end;
@@ -3485,6 +3671,7 @@ begin
                     or IsTypeLibrary(aFile) or IsInc(aFile) then
                   begin
                     Wizard.LoadElements(DataList, FObjectList, aFile, FirstFile);
+                    Wizard.UpdateDataListImageIndex(DataList);
                     FirstFile := False;
                   end;
                 end;
@@ -3504,6 +3691,7 @@ begin
             or IsTypeLibrary(aFile) or IsInc(aFile) then
           begin
             Wizard.LoadElements(DataList, FObjectList, aFile, FirstFile);
+            Wizard.UpdateDataListImageIndex(DataList);
             FirstFile := False;
           end;
         end;
@@ -3691,27 +3879,37 @@ end;
 
 procedure TCnProcListForm.SplitterMoved(Sender: TObject);
 begin
-  FPreviewHeight := mmoContent.Height;
+  if FPreviewIsRight then
+    FPreviewWidth := mmoContent.Width
+  else
+    FPreviewHeight := mmoContent.Height;
   UpdateStatusBar;
 end;
 
-procedure TCnProcListForm.UpdateMemoHeight(Sender: TObject);
+procedure TCnProcListForm.UpdateMemoSize(Sender: TObject);
 const
   csStep = 5;
 var
   I, Steps, Distance: Integer;
 begin
-  if FPreviewHeight > 0 then
+  if FPreviewIsRight then
   begin
-    Distance := mmoContent.Height - FPreviewHeight;
-    Steps := Abs(Distance div csStep);
-    if Distance > 0 then
-      for I := 1 to Steps do
-        mmoContent.Height := mmoContent.Height - csStep
-    else
-      for I := 1 to Steps do
-        mmoContent.Height := mmoContent.Height + csStep;
-   end;
+    RestorePreviewWidth;
+  end
+  else
+  begin
+    if FPreviewHeight > 0 then
+    begin
+      Distance := mmoContent.Height - FPreviewHeight;
+      Steps := Abs(Distance div csStep);
+      if Distance > 0 then
+        for I := 1 to Steps do
+          mmoContent.Height := mmoContent.Height - csStep
+      else
+        for I := 1 to Steps do
+          mmoContent.Height := mmoContent.Height + csStep;
+    end;
+  end;
 end;
 
 { TCnProcListWizard }
@@ -3912,6 +4110,7 @@ var
   Info: TCnElementInfo;
   MatchedIndexesRef: TList;
   ColorFont, ColorBrush: TColor;
+  M: Integer;
 
   function GetListImageIndex(Info: TCnElementInfo): Integer;
   begin
@@ -3953,8 +4152,12 @@ begin
 
     Info := TCnElementInfo(FDisplayItems.Objects[Index]);
     Canvas.FillRect(Rect);
-    dmCnSharedImages.Images.Draw(Canvas, Rect.Left + 2, Rect.Top,
-      GetListImageIndex(Info));
+    M := (Rect.Bottom - Rect.Top - dmCnSharedImages.Images.Height) div 2;
+    if M < 0 then
+      M := 0;
+
+    dmCnSharedImages.Images.Draw(Canvas, Rect.Left + M + 2,
+      Rect.Top + M, GetListImageIndex(Info));
     Canvas.Brush.Style := bsClear;
     Canvas.Font.Style := [fsBold];
 
@@ -3967,7 +4170,8 @@ begin
         MatchedIndexesRef := Info.MatchIndexes;
     end;
 
-    DrawMatchText(Canvas, MatchStr, FDisplayItems[Index], Rect.Left + 22, Rect.Top,
+    DrawMatchText(Canvas, MatchStr, FDisplayItems[Index], Rect.Left +
+      IdeGetScaledPixelsFromOrigin(CN_ICON_WIDTH, Control), Rect.Top,
       MatchColor, MatchedIndexesRef);
   end;
 end;
@@ -4507,6 +4711,23 @@ begin
     FProcCombo.Text := '';
   if FClassCombo <> nil then
     FClassCombo.Text := '';
+end;
+
+procedure TCnProcListForm.RestorePreviewHeight;
+begin
+  if FPreviewHeight > 0 then
+    mmoContent.Height := FPreviewHeight;
+end;
+
+procedure TCnProcListForm.RestorePreviewWidth;
+begin
+  if FPreviewWidth > 0 then
+    mmoContent.Width := FPreviewWidth;
+end;
+
+function TCnProcListForm.DisableLargeIcons: Boolean;
+begin
+  Result := True; // 大图标会引发工具栏按钮混乱
 end;
 
 initialization

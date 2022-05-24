@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -61,6 +61,7 @@ type
   public
     function GetState: TWizardState; override;
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     function GetCaption: string; override;
     function GetHint: string; override;
     function GetDefShortCut: TShortCut; override;
@@ -146,6 +147,11 @@ end;
 function TCnDfm6To5Wizard.GetHint: string;
 begin
   Result := SCnDfm6To5WizardMenuHint;
+end;
+
+function TCnDfm6To5Wizard.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + 'dfm,';
 end;
 
 function TCnDfm6To5Wizard.GetState: TWizardState;

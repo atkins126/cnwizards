@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -28,7 +28,9 @@ unit CnWizFlatButton;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2018.07.30 V1.1
+* 修改记录：2021.07.26 V1.2
+*               增加半透明的支持，但不太有效
+*           2018.07.30 V1.1
 *               增加显示色块的功能
 *           2005.01.06 V1.0
 *               创建单元，实现功能
@@ -41,22 +43,24 @@ interface
 
 uses
   Windows, Messages, SysUtils, Graphics, Classes, Controls, ExtCtrls, Forms,
-  Menus, CnPopupMenu;
+  Menus, CnPopupMenu, CnGraphics, CnWizIdeUtils;
 
 type
   TFlatButtonState = (bsHide, bsNormal, bsEnter, bsDropdown);
+                   // 不显示、显示、鼠标移入、点击下拉
 
   TCnWizFlatButton = class(TCustomControl)
   private
     FDropdownMenu: TPopupMenu;
-    FImage: TGraphic;
+    FIcon: TIcon;
     FIsMouseEnter: Boolean;
     FIsDropdown: Boolean;
     FTimer: TTimer;
     FAutoDropdown: Boolean;
     FShowColor: Boolean;
     FDisplayColor: TColor;
-    procedure SetImage(Value: TGraphic);
+    FAlpha: Boolean;
+    procedure SetIcon(Value: TIcon);
     procedure ImageChange(Sender: TObject);
     procedure OnTimer(Sender: TObject);
     procedure SetIsDropdown(const Value: Boolean);
@@ -84,14 +88,16 @@ type
 
     property DropdownMenu: TPopupMenu read FDropdownMenu write FDropdownMenu;
     {* 下拉菜单，需要由用户自己创建及设置 }
-    property Image: TGraphic read FImage write SetImage;
-    {* 按钮图标，需要由用户自己创建及设置 }
+    property Icon: TIcon read FIcon write SetIcon;
+    {* 按钮图标，需要由用户自己创建及设置，此处只是引用 }
     property AutoDropdown: Boolean read FAutoDropdown write FAutoDropdown;
     {* 是否鼠标移入后自动下拉}
     property ShowColor: Boolean read FShowColor write SetShowColor;
     {* 是否显示颜色区域}
     property DisplayColor: TColor read FDisplayColor write SetDisplayColor;
     {* 颜色区域的显示颜色}
+    property Alpha: Boolean read FAlpha write FAlpha;
+    {* 是否半透明绘制}
 
     property IsDropdown: Boolean read FIsDropdown write SetIsDropdown;
     property IsMouseEnter: Boolean read FIsMouseEnter write SetIsMouseEnter;
@@ -110,6 +116,9 @@ const
     ($006A240A, $006A240A, $006A240A, $666666);
   csArrowColor = clBlack;
   csColorWidth = 10;
+  csColorUpdownMargin = 5;
+  csColorRightMargin = 4;
+  csColorLeftMargin = 2;
 
 { TCnWizFlatButton }
 
@@ -128,6 +137,7 @@ end;
 
 destructor TCnWizFlatButton.Destroy;
 begin
+
   inherited;
 end;
 
@@ -177,45 +187,121 @@ begin
 end;
 
 procedure TCnWizFlatButton.Paint;
+const
+  csAlphaValue = 160;
+type
+  PRGBTripleArray = ^TRGBTripleArray;
+  TRGBTripleArray = array [Byte] of TRGBTriple;
 var
-  R: TRect;
+  Rc: TRect;
   OldColor: TColor;
   X, Y: Integer;
   State: TFlatButtonState;
+  Bmp: TBitmap;
+  R, B, G: Byte;
+  AAlpha: DWORD;
+  PRGB: PRGBTripleArray;
 begin
   State := GetState;
   with Canvas do
   begin
-    Brush.Color := csBkColors[State];
-    FillRect(ClientRect);
-    Brush.Color := csBorderColors[State];
-    FrameRect(ClientRect);
-    if (FImage <> nil) and not FImage.Empty then
-      Draw(csBorderWidths[State], csBorderWidths[State], FImage);
+    if FAlpha then
+    begin
+      // 画半透明的复制来的背景并与前景色混合
+      Bmp := TBitmap.Create;
+      try
+        Bmp.PixelFormat := pf24bit;
+        Bmp.Width := Width;
+        Bmp.Height := Height;
 
+        CopyControlParentImageToCanvas(Self, Bmp.Canvas);
+
+        // 半透明混合色
+        R := GetRValue(csBkColors[State]);                // 色彩分量
+        G := GetGValue(csBkColors[State]);
+        B := GetBValue(csBkColors[State]);
+        AAlpha := csAlphaValue;       // 规定一个前景透明度运算系数（0 到 256 范围）
+
+        for Y := 0 to Bmp.Height - 1 do
+        begin
+          PRGB := Bmp.ScanLine[Y];
+          for X := 0 to Bmp.Width - 1 do
+          begin
+            // 混合
+            Inc(PRGB^[X].rgbtBlue, AAlpha * (B - PRGB^[X].rgbtBlue) shr 8);
+            Inc(PRGB^[X].rgbtGreen, AAlpha * (G - PRGB^[X].rgbtGreen) shr 8);
+            Inc(PRGB^[X].rgbtRed, AAlpha * (R - PRGB^[X].rgbtRed) shr 8);
+          end;
+        end;
+
+        // Bmp 上画边框与图标
+        Bmp.Canvas.Brush.Color := csBorderColors[State];
+        Bmp.Canvas.FrameRect(ClientRect);
+        Bmp.Canvas.Brush.Style := bsClear;
+        if (FIcon <> nil) and not FIcon.Empty then
+        begin
+{$IFDEF IDE_SUPPORT_HDPI}
+          DrawIconEx(Bmp.Canvas.Handle, csBorderWidths[State], csBorderWidths[State],
+            FIcon.Handle, IdeGetScaledPixelsFromOrigin(FIcon.Width, Self),
+            IdeGetScaledPixelsFromOrigin(FIcon.Height, Self), 0, 0, DI_NORMAL);
+{$ELSE}
+          Bmp.Canvas.Draw(csBorderWidths[State], csBorderWidths[State], FIcon);
+{$ENDIF}
+        end;
+        BitBlt(Handle, 0, 0, Width, Height, Bmp.Canvas.Handle, 0, 0, SRCCOPY);
+      finally
+        Bmp.Free;
+      end;
+    end
+    else
+    begin
+      // 先自己画个不透明背景
+      Brush.Color := csBkColors[State];
+      FillRect(ClientRect);
+
+      // 自己画边框与图标
+      Brush.Color := csBorderColors[State];
+      FrameRect(ClientRect);
+      if (FIcon <> nil) and not FIcon.Empty then
+      begin
+{$IFDEF IDE_SUPPORT_HDPI}
+        DrawIconEx(Handle, csBorderWidths[State], csBorderWidths[State],
+          FIcon.Handle, IdeGetScaledPixelsFromOrigin(FIcon.Width, Self),
+          IdeGetScaledPixelsFromOrigin(FIcon.Height, Self), 0, 0, DI_NORMAL);
+{$ELSE}
+        Draw(csBorderWidths[State], csBorderWidths[State], FIcon);
+{$ENDIF}
+      end;
+    end;
+
+    // 画小色块
     if FShowColor and (State in [bsHide, bsNormal]) then
     begin
-      R.Left := Width - csBorderWidths[State] - (csArrowWidths[State] div 2) - csColorWidth + 2;
-      R.Top := 5;
-      R.Bottom := ClientRect.Bottom - 5;
-      R.Right := R.Left + csColorWidth - 4;
+      Rc.Left := Width - csBorderWidths[State] - (csArrowWidths[State] div 2) -
+        IdeGetScaledPixelsFromOrigin(csColorWidth, Self) +
+        IdeGetScaledPixelsFromOrigin(csColorLeftMargin, Self);
+      Rc.Top := IdeGetScaledPixelsFromOrigin(csColorUpdownMargin, Self);
+      Rc.Bottom := ClientRect.Bottom - IdeGetScaledPixelsFromOrigin(csColorUpdownMargin, Self);
+      Rc.Right := Rc.Left + IdeGetScaledPixelsFromOrigin(csColorWidth, Self) -
+        IdeGetScaledPixelsFromOrigin(csColorRightMargin, Self);
 
       OldColor := Brush.Color;
       Brush.Color := FDisplayColor;
-      FillRect(R);
+      FillRect(Rc);
       Brush.Color := OldColor;
     end;
 
-    if csArrowWidths[State] > 0 then  // 画箭头
+    // 画下拉箭头
+    if csArrowWidths[State] > 0 then
     begin
       Pen.Color := csArrowColor;
-      X := Width - csBorderWidths[State] - csArrowWidths[State] div 2;
+      X := Width - IdeGetScaledPixelsFromOrigin(csBorderWidths[State] + csArrowWidths[State] div 2, Self);
       Y := Height div 2;
-      MoveTo(X - 2, Y - 1);
-      LineTo(X + 3, Y - 1);
-      MoveTo(X - 1, Y);
-      LineTo(X + 2, Y);
-      Pixels[X, Y + 1] := csArrowColor;
+      MoveTo(X - IdeGetScaledPixelsFromOrigin(2, Self), Y - IdeGetScaledPixelsFromOrigin(1, Self));
+      LineTo(X + IdeGetScaledPixelsFromOrigin(3, Self), Y - IdeGetScaledPixelsFromOrigin(1, Self));
+      MoveTo(X - IdeGetScaledPixelsFromOrigin(1, Self), Y);
+      LineTo(X + IdeGetScaledPixelsFromOrigin(2, Self), Y);
+      Pixels[X, Y + IdeGetScaledPixelsFromOrigin(1, Self)] := csArrowColor;
     end;
   end;
 end;
@@ -246,10 +332,13 @@ var
   State: TFlatButtonState;
 begin
   State := GetState;
-  Width := csBorderWidths[State] * 2 + csArrowWidths[State] + csImageWidth;
+  Width := IdeGetScaledPixelsFromOrigin(csBorderWidths[State] * 2 + csArrowWidths[State], Self)
+    + IdeGetScaledPixelsFromOrigin(csImageWidth, Self);
   if FShowColor and (State in [bsHide, bsNormal]) then
-    Width := Width + csColorWidth;
-  Height := csBorderWidths[State] * 2 + csImageHeight;
+    Width := Width + IdeGetScaledPixelsFromOrigin(csColorWidth, Self);
+  Height := IdeGetScaledPixelsFromOrigin(csBorderWidths[State] * 2, Self)
+    + IdeGetScaledPixelsFromOrigin(csImageHeight, Self);
+
   if Visible then
     Repaint;
 end;
@@ -278,13 +367,13 @@ end;
 // 属性读写
 //------------------------------------------------------------------------------
 
-procedure TCnWizFlatButton.SetImage(Value: TGraphic);
+procedure TCnWizFlatButton.SetIcon(Value: TIcon);
 begin
-  if FImage <> Value then
+  if FIcon <> Value then
   begin
-    FImage := Value;
-    if FImage <> nil then
-      FImage.OnChange := ImageChange;
+    FIcon := Value;
+    if FIcon <> nil then
+      FIcon.OnChange := ImageChange;
     UpdateSize;
   end;
 end;

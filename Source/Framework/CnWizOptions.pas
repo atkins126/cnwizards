@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -41,13 +41,18 @@ interface
 
 uses
   Windows, Messages, Classes, Graphics, Controls, SysUtils, IniFiles,
-  FileCtrl, Forms, Registry
+  FileCtrl, Forms, Registry, ComCtrls
   {$IFNDEF STAND_ALONE}, ToolsAPI {$ENDIF}
   {$IFDEF COMPILER6_UP}, SHFolder {$ENDIF};
 
 const
+  csLargeImageListHeight = 24;
+  csLargeImageListWidth = 24;
+  csButtonWidth = 20;
+  csButtonHeight = 20;
   csLargeButtonWidth = 32;
   csLargeButtonHeight = 32;
+  csLargeToolbarHeightDelta = 8;
   csLargeComboFontSize = 14;
   csLargeToolbarHeight = 33;
   csLargeToolbarButtonWidth = 31;
@@ -115,6 +120,8 @@ type
     FUseOneCPUCore: Boolean;
     FUseLargeIcon: Boolean;
     FSizeEnlarge: TCnWizSizeEnlarge;
+    FDisableIcons: Boolean;
+    FTempForceDisableIco: Boolean;
     procedure SetCurrentLangID(const Value: Cardinal);
     function GetUpgradeCheckDate: TDateTime;
     procedure SetUpgradeCheckDate(const Value: TDateTime);
@@ -131,7 +138,12 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure LoadSettings;
-    procedure SaveSettings;
+    procedure SaveSettings(Manual: Boolean = False);
+    // Manual 为 True 时表示从界面保存而不是结束时自动保存
+
+    procedure ResetToolbarWithLargeIcons(AToolBar: TToolBar);
+    {* 封装的根据是否使用大图标来调整普通窗体上部的工具栏的方法，也可用于编辑器工具栏
+      前提是 AToolbar 已经设好了 Parent 并且 Scale 过}
 
     // 参数读写方法
     function CreateRegIniFile: TCustomIniFile; overload;
@@ -178,9 +190,12 @@ type
     procedure DoFixThreadLocale;
 
     class function CalcIntEnlargedValue(AEnlarge: TCnWizSizeEnlarge; Value: Integer): Integer;
-    {* 根据原始尺寸与放大倍数计算放大后的尺寸，给子类用的}
+    {* 根据原始尺寸与放大倍数计算放大后的尺寸，给子类用的，得保证和下面对应}
     class function CalcIntUnEnlargedValue(AEnlarge: TCnWizSizeEnlarge;Value: Integer): Integer;
-    {* 根据放大后的尺寸与放大倍数计算原始尺寸，给子类用的}
+    {* 根据放大后的尺寸与放大倍数计算原始尺寸，给子类用的，得保证和上面对应}
+
+    procedure DumpToStrings(Infos: TStrings);
+    {* 打印内部信息}
 
     // 专家 DLL 属性
     property DllName: string read FDllName;
@@ -259,11 +274,13 @@ type
     property FixThreadLocale: Boolean read FFixThreadLocale write SetFixThreadLocale;
     {* 使用 SetThreadLocale 修正 Vista / Win7 下中文乱码问题}
     property UseOneCPUCore: Boolean read FUseOneCPUCore write SetUseOneCPUCore;
-    {* 在多CPU中只使用一个CPU内核，以解决兼容性问题}
+    {* 在多 CPU 中只使用一个 CPU 内核，以解决兼容性问题}
     property UseLargeIcon: Boolean read FUseLargeIcon write SetUseLargeIcon;
-    {* 是否在工具栏等处使用大尺寸图标}
+    {* 是否在工具栏等处使用大尺寸图标，注意运行期除了设置窗口外不要改变此值，避免与大图标不一致。}
     property SizeEnlarge: TCnWizSizeEnlarge read FSizeEnlarge write FSizeEnlarge;
     {* 窗体的字号与尺寸放大倍数枚举}
+    property DisableIcons: Boolean read FDisableIcons write FDisableIcons;
+    {* 禁用图标以减少 GDI 资源占用，暂未对外开放因为工具栏图标不好整}
 
     property UseCustomUserDir: Boolean read FUseCustomUserDir write SetUseCustomUserDir;
     {* 是否使用指定的 User 目录}
@@ -286,7 +303,7 @@ uses
   CnDebug,
 {$ENDIF}
 {$IFNDEF STAND_ALONE}
-  CnWizUtils, CnWizManager,
+  CnWizUtils, CnWizIdeUtils, CnWizManager, CnWizShareImages,
 {$ENDIF}
   CnWizConsts, CnCommon,  CnConsts, CnWizCompilerConst, CnNativeDecl;
 
@@ -323,6 +340,7 @@ const
   csUseOneCPUCore = 'UseOneCPUCore';
   csUseLargeIcon = 'UseLargeIcon';
   csSizeEnlarge = 'SizeEnlarge';
+  csDisableIcons = 'DisableIcons';
 {$IFDEF BDS}
   csUseOneCPUDefault = False;
 {$ELSE}
@@ -395,6 +413,9 @@ begin
   FHelpPath := MakePath(FDllPath + SCnWizHelpPath);
 
   FRegBase := SCnPackRegPath;
+  if FindCmdLineSwitch(SCnNoIcons, ['/', '-'], True) then
+    FTempForceDisableIco := True;
+
   for I := 1 to ParamCount do
   begin
     S := ParamStr(I);
@@ -409,7 +430,7 @@ begin
     begin
       FUseCmdUserDir := True;
       FCustomUserDir := Copy(S, Length(SCnUserDirSwitch) + 2, MaxInt);
-    end
+    end;
   end;
 
 {$IFDEF DEBUG}
@@ -447,6 +468,9 @@ begin
     FixThreadLocale := ReadBool(SCnOptionSection, csFixThreadLocale, False);
     FUseLargeIcon := ReadBool(SCnOptionSection, csUseLargeIcon, False);
     FSizeEnlarge := TCnWizSizeEnlarge(ReadInteger(SCnOptionSection, csSizeEnlarge, Ord(FSizeEnlarge)));
+    FDisableIcons := ReadBool(SCnOptionSection, csDisableIcons, False);
+    if FTempForceDisableIco then
+      FDisableIcons := True;
 
     FUseCustomUserDir := ReadBool(SCnOptionSection, csUseCustomUserDir, CheckWinVista);
     SHGetFolderPath(0, CSIDL_PERSONAL or CSIDL_FLAG_CREATE, 0, 0, SHUserDir);
@@ -502,7 +526,7 @@ begin
   end;
 end;
 
-procedure TCnWizOptions.SaveSettings;
+procedure TCnWizOptions.SaveSettings(Manual: Boolean);
 begin
   with CreateRegIniFile do
   try
@@ -514,8 +538,14 @@ begin
     WriteString(SCnOptionSection, csCExt, FCExt);
     WriteBool(SCnOptionSection, csUseToolsMenu, FUseToolsMenu);
     WriteBool(SCnOptionSection, csFixThreadLocale, FFixThreadLocale);
-    WriteBool(SCnOptionSection, csUseLargeIcon, FUseLargeIcon);
+
+    if Manual then // 该选项只在手工保存时保存
+      WriteBool(SCnOptionSection, csUseLargeIcon, FUseLargeIcon);
+
     WriteInteger(SCnOptionSection, csSizeEnlarge, Ord(FSizeEnlarge));
+    if not FTempForceDisableIco then
+      WriteBool(SCnOptionSection, csDisableIcons, FDisableIcons);
+
     WriteBool(SCnOptionSection, csUseCustomUserDir, FUseCustomUserDir);
     if not FUseCmdUserDir then // 不是命令行中指定目录时才保存目录名，避免命令行指定的目录覆盖掉设置目录
       WriteString(SCnOptionSection, csCustomUserDir, FCustomUserDir);
@@ -855,7 +885,7 @@ begin
   if AEnlarge = wseOrigin then
     Result := Value
   else
-    Result := Trunc(Value * GetFactorFromSizeEnlarge(AEnlarge));
+    Result := Round(Value * GetFactorFromSizeEnlarge(AEnlarge));
 end;
 
 class function TCnWizOptions.CalcIntUnEnlargedValue(AEnlarge: TCnWizSizeEnlarge;
@@ -864,9 +894,83 @@ begin
   if AEnlarge = wseOrigin then
     Result := Value
   else
-    Result := Trunc(Value / GetFactorFromSizeEnlarge(AEnlarge));
+    Result := Round(Value / GetFactorFromSizeEnlarge(AEnlarge));
+end;
+
+procedure TCnWizOptions.ResetToolbarWithLargeIcons(AToolBar: TToolBar);
+{$IFDEF IDE_SUPPORT_HDPI}
+var
+  NeedNew: Boolean;
+{$ENDIF}
+begin
+  if AToolBar = nil then
+    Exit;
+
+  if FUseLargeIcon then
+  begin
+    AToolBar.ButtonHeight := IdeGetScaledPixelsFromOrigin(csLargeButtonHeight, AToolBar);
+    AToolBar.ButtonWidth := IdeGetScaledPixelsFromOrigin(csLargeButtonWidth, AToolBar);
+  end;
+
+{$IFDEF IDE_SUPPORT_HDPI}
+  NeedNew := True;
+  if AToolBar.Images = dmCnSharedImages.Images then
+  begin
+    if FUseLargeIcon then
+      AToolBar.Images := dmCnSharedImages.LargeVirtualImages
+    else
+      AToolBar.Images := dmCnSharedImages.VirtualImages;
+    NeedNew := False;
+  end;
+  if AToolBar.DisabledImages = dmCnSharedImages.DisabledImages then
+  begin
+    if FUseLargeIcon then
+      AToolBar.DisabledImages := dmCnSharedImages.DisabledLargeVirtualImages
+    else
+      AToolBar.DisabledImages := dmCnSharedImages.DisabledVirtualImages;
+    NeedNew := False;
+  end;
+
+  if NeedNew and (AToolBar.Images <> nil) and (AToolBar.Owner = AToolBar.Images.Owner) then
+    AToolBar.Images := IdeGetVirtualImageListFromOrigin(AToolBar.Images);
+  if (AToolBar.DisabledImages <> nil) and (AToolBar.Owner = AToolBar.DisabledImages.Owner) then
+    AToolBar.DisabledImages := IdeGetVirtualImageListFromOrigin(AToolBar.DisabledImages);
+
+{$ELSE}
+  if FUseLargeIcon then
+  begin
+    if AToolBar.Images = dmCnSharedImages.Images then
+      AToolBar.Images := dmCnSharedImages.LargeImages;
+    if AToolBar.DisabledImages = dmCnSharedImages.DisabledImages then
+      AToolBar.DisabledImages := dmCnSharedImages.DisabledLargeImages;
+  end;
+{$ENDIF}
+
+  if FUseLargeIcon and (AToolBar.Height <= AToolBar.ButtonHeight) then
+    AToolBar.Height := AToolBar.ButtonHeight + csLargeToolbarHeightDelta;
+end;
+
+procedure TCnWizOptions.DumpToStrings(Infos: TStrings);
+begin
+  Infos.Add('DllName: ' + DllName);
+  Infos.Add('DllPath: ' + DllPath);
+  Infos.Add('CompilerPath: ' + CompilerPath);
+  Infos.Add('CurrentLangID: ' + IntToStr(CurrentLangID));
+  Infos.Add('LangPath: ' + LangPath);
+  Infos.Add('IconPath: ' + IconPath);
+  Infos.Add('DataPath: ' + DataPath);
+  Infos.Add('TemplatePath: ' + TemplatePath);
+  Infos.Add('UserPath: ' + UserPath);
+  Infos.Add('HelpPath: ' + HelpPath);
+  Infos.Add('RegBase: ' + RegBase);
+  Infos.Add('RegPath: ' + RegPath);
+  Infos.Add('PropEditorRegPath: ' + PropEditorRegPath);
+  Infos.Add('CompEditorRegPath: ' + CompEditorRegPath);
+  Infos.Add('IdeEhnRegPath: ' + IdeEhnRegPath);
+  Infos.Add('CompilerName: ' + CompilerName);
+  Infos.Add('CompilerID: ' + CompilerID);
+  Infos.Add('CompilerRegPath: ' + CompilerRegPath);
 end;
 
 {$ENDIF}
-
 end.

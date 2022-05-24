@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,7 +29,7 @@ unit CnSrcTemplate;
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该窗体中的字符串符合本地化处理方式
 * 修改记录：2005.08.22 V1.0
-*               从 CnEditorWizard 中分离出来
+*               从 CnEditorToolsetWizard 中分离出来
 ================================================================================
 |</PRE>}
 
@@ -129,6 +129,7 @@ type
     procedure ResetSettings(Ini: TCustomIniFile); override;
     function GetState: TWizardState; override;
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     function GetCaption: string; override;
     function GetHint: string; override;
     property Collection: TCnEditorCollection read FCollection;
@@ -164,7 +165,6 @@ type
       Change: TItemChange);
     procedure FormCreate(Sender: TObject);
   private
-    { Private declarations }
     FWizard: TCnSrcTemplate;
     FItemChanged: Boolean;
     procedure UpdateListViewItem(Index: Integer);
@@ -173,7 +173,6 @@ type
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     property ItemChanged: Boolean read FItemChanged write FItemChanged;
     {* 条目是否改变过？供保存时使用}
   end;
@@ -269,7 +268,7 @@ end;
 
 function TCnEditorCollection.LoadFromFile(const FileName: string): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
   try
@@ -277,11 +276,11 @@ begin
       Exit;
 
     TOmniXMLReader.LoadFromFile(Self, FileName);
-    // 弥补 XML 读入字符串的时候#13#10变成#10的问题。LiuXiao
-    for i := 0 to Count - 1 do
+    // 弥补 XML 读入字符串的时候 #13#10 变成 #10 的问题。LiuXiao
+    for I := 0 to Count - 1 do
     begin
-      Items[i].Content := StringReplace(Items[i].Content, #10, #13#10, [rfReplaceAll]);
-      Items[i].Content := StringReplace(Items[i].Content, #13#13, #13, [rfReplaceAll]);
+      Items[I].Content := StringReplace(Items[I].Content, #10, #13#10, [rfReplaceAll]);
+      Items[I].Content := StringReplace(Items[I].Content, #13#13, #13, [rfReplaceAll]);
     end;
     Result := True;
   except
@@ -410,7 +409,8 @@ procedure TCnSrcTemplate.LanguageChanged(Sender: TObject);
 begin
   inherited;
   LoadCollection;
-  UpdateActions;
+  if Active then
+    UpdateActions;
 end;
 
 procedure TCnSrcTemplate.LoadCollection;
@@ -450,7 +450,7 @@ end;
 
 procedure TCnSrcTemplate.SubActionExecute(Index: Integer);
 var
-  i: Integer;
+  I: Integer;
 begin
   inherited;
   if Index = FConfigIndex then
@@ -459,11 +459,11 @@ begin
   end
   else
   begin
-    for i := 0 to FCollection.Count - 1 do
-      if FCollection[i].FEnabled and (FCollection[i].FActionIndex
+    for I := 0 to FCollection.Count - 1 do
+      if FCollection[I].FEnabled and (FCollection[I].FActionIndex
         = Index) then
       begin
-        DoExecute(FCollection[i]);
+        DoExecute(FCollection[I]);
         Exit;
       end;
   end;
@@ -490,7 +490,7 @@ end;
 
 procedure TCnSrcTemplate.UpdateActions;
 var
-  i: Integer;
+  I: Integer;
 
   function ItemCanShow(Item: TCnEditorItem): Boolean;
   begin
@@ -513,26 +513,31 @@ begin
   try
     while SubActionCount > FConfigIndex + 1 do
       DeleteSubAction(FConfigIndex + 1);
-    for i := 0 to FCollection.Count - 1 do
+    for I := 0 to FCollection.Count - 1 do
     begin
 {$IFDEF DEBUG}
-      CnDebugger.TraceObject(FCollection[i]);
+      CnDebugger.TraceObject(FCollection[I]);
 {$ENDIF}
-      if ItemCanShow(FCollection[i]) then
+      if ItemCanShow(FCollection[I]) then
       begin
-        with FCollection[i] do
+        with FCollection[I] do
         begin
-          FActionIndex := RegisterASubAction(SCnSrcTemplateItem + IntToStr(i),
+          FActionIndex := RegisterASubAction(SCnSrcTemplateItem + IntToStr(I),
             FCaption, FShortCut, FHint, FIconName);
           SubActions[FActionIndex].ShortCut := FShortCut;
         end;
       end
       else
-        FCollection[i].FActionIndex := -1;
+        FCollection[I].FActionIndex := -1;
     end;
   finally
     WizShortCutMgr.EndUpdate;
   end;
+end;
+
+function TCnSrcTemplate.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '宏,macro,template';
 end;
 
 { TCnSrcTemplateForm }
@@ -562,13 +567,13 @@ end;
 
 procedure TCnSrcTemplateForm.UpdateListView;
 var
-  i: Integer;
+  I: Integer;
 begin
   ListView.Items.Clear;
-  for i := 0 to FWizard.FCollection.Count - 1 do
+  for I := 0 to FWizard.FCollection.Count - 1 do
   begin
     ListView.Items.Add;
-    UpdateListViewItem(i);
+    UpdateListViewItem(I);
   end;
   ListView.Selected := ListView.TopItem;
   UpdateButtons;

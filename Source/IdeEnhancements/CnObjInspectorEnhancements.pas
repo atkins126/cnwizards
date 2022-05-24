@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,11 +29,11 @@ unit CnObjInspectorEnhancements;
 * 兼容测试：
 * 本 地 化：该单元中的字符串支持本地化处理方式
 * 修改记录：2004.5.15 chinbo(shenloqi)
-*               支持setelement的粗体显示
+*               支持 setelement 的粗体显示
 *           2003.10.31
 *               注释了无效的枚举元素的加粗
 *           2003.10.27
-*               基本实现了D5下的加粗功能（D6,D7需要采用其他的方法）
+*               基本实现了 D5 下的加粗功能（D6, D7 需要采用其他的方法）
 *           2003.10.27
 *               实现属性编辑器方法挂接核心技术
 ================================================================================
@@ -71,6 +71,7 @@ type
     destructor Destroy; override;
 
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     procedure LoadSettings(Ini: TCustomIniFile); override;
     procedure SaveSettings(Ini: TCustomIniFile); override;
     procedure Config; override;
@@ -276,6 +277,11 @@ begin
   Author := SCnPack_Zjy;
   Email := SCnPack_ZjyEmail;
   Comment := SCnObjInspectorEnhanceWizardComment;
+end;
+
+function TCnObjInspectorEnhanceWizard.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '属性,property,';
 end;
 
 initialization

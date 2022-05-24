@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -261,6 +261,10 @@ var
   Ini: TCustomIniFile;
   I: Integer;
 begin
+{$IFDEF IDE_SUPPORT_HDPI}
+  Scaled := True;
+{$ENDIF}
+
   inherited Loaded;
   FScaler := TCnFormScaler.Create(Self);
   FScaler.DoEffects;
@@ -336,7 +340,9 @@ end;
 procedure TCnIdeDockForm.ReadState(Reader: TReader);
 begin
   inherited;
+  {$IFNDEF NO_OLDCREATEORDER}
   OldCreateOrder := False;
+  {$ENDIF}
 end;
 
 {$IFDEF CREATE_PARAMS_BUG}

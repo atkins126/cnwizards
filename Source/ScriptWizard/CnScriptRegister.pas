@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -76,6 +76,7 @@ uses
   {$IFDEF DELPHI102_TOKYO} CnScript_ToolsAPI_D102T, {$ENDIF}
   {$IFDEF DELPHI103_RIO} CnScript_ToolsAPI_D103R, {$ENDIF}
   {$IFDEF DELPHI104_SYDNEY} CnScript_ToolsAPI_D104S, {$ENDIF}
+  {$IFDEF DELPHI110_ALEXANDRIA} CnScript_ToolsAPI_D110A, {$ENDIF}
   {$IFDEF BCB5} CnScript_ToolsAPI_D5, {$ENDIF}
   {$IFDEF BCB6} CnScript_ToolsAPI_D6, {$ENDIF}
   CnScript_IdeInstComp, CnScript_CnCommon, CnScript_CnDebug, CnScript_CnWizUtils,

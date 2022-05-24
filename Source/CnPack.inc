@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,6 +29,24 @@
 // 功能配置选项
 //==============================================================================
 
+{$IFDEF FPC}
+  // Free Pascal Compiler 3.x Up Definitions
+  {$DEFINE SUPPORT_PASCAL}    // Pascal
+  {$DEFINE SUPPORT_UINT64}    // UInt64
+  {$IFDEF SYSTEMINLINE}
+    {$DEFINE SUPPORT_INLINE}  // inline
+  {$ENDIF}
+  {$IFDEF WIN64}
+    {$DEFINE CPUX64}  // x64
+  {$ENDIF}
+  {$IFDEF WINDOWS}
+    {$DEFINE MSWINDOWS}  // MS Windows
+  {$ENDIF}
+  {$DEFINE OBJECT_HAS_TOSTRING} // TObject.ToString
+  {$asmMode intel}
+  {$mode Delphi}         // Delphi Compatibility, not DelphiUnicode
+{$ELSE FPC} // Below is for Delphi Compiler
+
 //{$DEFINE PERSONAL_EDITION}
 {$DEFINE ENTERPRISE_EDITION}
 
@@ -40,6 +58,20 @@
 //==============================================================================
 // 产生编译器版本信息
 //==============================================================================
+
+{$IFDEF VER350}
+  {$DEFINE COMPILER28}
+  {$IFDEF LINUX}
+    {$DEFINE UCL10}
+  {$ELSE}
+    {$DEFINE VCL71}
+  {$ENDIF}
+  {$DEFINE DELPHI28}
+  {$DEFINE DELPHI110_ALEXANDRIA}
+  {$DEFINE BCB28}
+  {$DEFINE BCB110_ALEXANDRIA}
+  {$DEFINE BDS21}
+{$ENDIF}
 
 {$IFDEF VER340}
   {$DEFINE COMPILER27}
@@ -389,8 +421,9 @@
 
 // DELPHIX_UP from DELPHIX mappings
 
-{$IFDEF DELPHI27}
+{$IFDEF DELPHI28}
   {$DEFINE DELPHI}
+  {$DEFINE DELPHI28_UP}
   {$DEFINE DELPHI27_UP}
   {$DEFINE DELPHI26_UP}
   {$DEFINE DELPHI25_UP}
@@ -419,8 +452,36 @@
   {$DEFINE DELPHI1_UP}
 {$ENDIF}
 
-{$IFDEF DELPHI26}
+{$IFDEF DELPHI110_ALEXANDRIA}
+  {$DEFINE DELPHI110_ALEXANDRIA_UP}
+  {$DEFINE DELPHI104_SYDNEY_UP}
+  {$DEFINE DELPHI103_RIO_UP}
+  {$DEFINE DELPHI102_TOKYO_UP}
+  {$DEFINE DELPHI101_BERLIN_UP}
+  {$DEFINE DELPHI10_SEATTLE_UP}
+  {$DEFINE DELPHIXE8_UP}
+  {$DEFINE DELPHIXE7_UP}
+  {$DEFINE DELPHIXE6_UP}
+  {$DEFINE DELPHIXE5_UP}
+  {$DEFINE DELPHIXE4_UP}
+  {$DEFINE DELPHIXE3_UP}
+  {$DEFINE DELPHIXE2_UP}
+  {$DEFINE DELPHIXE_UP}
+
+  // NO DELPHI2014 defined, so need define below here.
+  {$DEFINE DELPHI2013_UP}
+  {$DEFINE DELPHI2012_UP}
+  {$DEFINE DELPHI2011_UP}
+  {$DEFINE DELPHI2010_UP}
+  {$DEFINE DELPHI2009_UP}
+  {$DEFINE DELPHI2007_UP}
+  {$DEFINE DELPHI2006_UP}
+  {$DEFINE DELPHI2005_UP}
+{$ENDIF}
+
+{$IFDEF DELPHI27}
   {$DEFINE DELPHI}
+  {$DEFINE DELPHI27_UP}
   {$DEFINE DELPHI26_UP}
   {$DEFINE DELPHI25_UP}
   {$DEFINE DELPHI24_UP}
@@ -472,6 +533,35 @@
   {$DEFINE DELPHI2007_UP}
   {$DEFINE DELPHI2006_UP}
   {$DEFINE DELPHI2005_UP}
+{$ENDIF}
+
+{$IFDEF DELPHI26}
+  {$DEFINE DELPHI}
+  {$DEFINE DELPHI26_UP}
+  {$DEFINE DELPHI25_UP}
+  {$DEFINE DELPHI24_UP}
+  {$DEFINE DELPHI23_UP}
+  {$DEFINE DELPHI22_UP}
+  {$DEFINE DELPHI21_UP}
+  {$DEFINE DELPHI20_UP}
+  {$DEFINE DELPHI19_UP}
+  {$DEFINE DELPHI18_UP}
+  {$DEFINE DELPHI17_UP}
+  {$DEFINE DELPHI16_UP}
+  {$DEFINE DELPHI15_UP}
+  {$DEFINE DELPHI14_UP}
+  {$DEFINE DELPHI12_UP}
+  {$DEFINE DELPHI11_UP}
+  {$DEFINE DELPHI10_UP}
+  {$DEFINE DELPHI9_UP}
+  {$DEFINE DELPHI8_UP}
+  {$DEFINE DELPHI7_UP}
+  {$DEFINE DELPHI6_UP}
+  {$DEFINE DELPHI5_UP}
+  {$DEFINE DELPHI4_UP}
+  {$DEFINE DELPHI3_UP}
+  {$DEFINE DELPHI2_UP}
+  {$DEFINE DELPHI1_UP}
 {$ENDIF}
 
 {$IFDEF DELPHI103_RIO}
@@ -1136,8 +1226,9 @@
 
 // BCBX_UP from BCBX mappings
 
-{$IFDEF BCB27}
+{$IFDEF BCB28}
   {$DEFINE BCB}
+  {$DEFINE BCB28_UP}
   {$DEFINE BCB27_UP}
   {$DEFINE BCB26_UP}
   {$DEFINE BCB25_UP}
@@ -1163,8 +1254,35 @@
   {$DEFINE BCB1_UP}
 {$ENDIF}
 
-{$IFDEF BCB26}
+{$IFDEF BCB110_ALEXANDRIA}
+  {$DEFINE BCB110_ALEXANDRIA_UP}
+  {$DEFINE BCB104_SYDNEY_UP}
+  {$DEFINE BCB103_RIO_UP}
+  {$DEFINE BCB102_TOKYO_UP}
+  {$DEFINE BCB101_BERLIN_UP}
+  {$DEFINE BCB10_SEATTLE_UP}
+  {$DEFINE BCBXE8_UP}
+  {$DEFINE BCBXE7_UP}
+  {$DEFINE BCBXE6_UP}
+  {$DEFINE BCBXE5_UP}
+  {$DEFINE BCBXE4_UP}
+  {$DEFINE BCBXE3_UP}
+  {$DEFINE BCBXE2_UP}
+  {$DEFINE BCBXE_UP}
+
+  // NO BCB2014 defined, so need define below here.
+  {$DEFINE BCB2013_UP}
+  {$DEFINE BCB2012_UP}
+  {$DEFINE BCB2011_UP}
+  {$DEFINE BCB2010_UP}
+  {$DEFINE BCB2009_UP}
+  {$DEFINE BCB2007_UP}
+  {$DEFINE BCB2006_UP}
+{$ENDIF}
+
+{$IFDEF BCB27}
   {$DEFINE BCB}
+  {$DEFINE BCB27_UP}
   {$DEFINE BCB26_UP}
   {$DEFINE BCB25_UP}
   {$DEFINE BCB24_UP}
@@ -1212,6 +1330,32 @@
   {$DEFINE BCB2009_UP}
   {$DEFINE BCB2007_UP}
   {$DEFINE BCB2006_UP}
+{$ENDIF}
+
+{$IFDEF BCB26}
+  {$DEFINE BCB}
+  {$DEFINE BCB26_UP}
+  {$DEFINE BCB25_UP}
+  {$DEFINE BCB24_UP}
+  {$DEFINE BCB23_UP}
+  {$DEFINE BCB22_UP}
+  {$DEFINE BCB21_UP}
+  {$DEFINE BCB20_UP}
+  {$DEFINE BCB19_UP}
+  {$DEFINE BCB18_UP}
+  {$DEFINE BCB17_UP}
+  {$DEFINE BCB16_UP}
+  {$DEFINE BCB15_UP}
+  {$DEFINE BCB14_UP}
+  {$DEFINE BCB12_UP}
+  {$DEFINE BCB11_UP}
+  {$DEFINE BCB10_UP}
+  {$DEFINE BCB7_UP}
+  {$DEFINE BCB6_UP}
+  {$DEFINE BCB5_UP}
+  {$DEFINE BCB4_UP}
+  {$DEFINE BCB3_UP}
+  {$DEFINE BCB1_UP}
 {$ENDIF}
 
 {$IFDEF BCB103_RIO}
@@ -1796,6 +1940,41 @@
 
 // BDSXX_UP from BDSXX mappings
 
+{$IFDEF BDS22}      // 11.0 ALEXANDRIA
+  {$DEFINE BDS}
+  {$DEFINE BDS22_UP}
+  {$DEFINE BDS21_UP}
+  {$DEFINE BDS20_UP}
+  {$DEFINE BDS19_UP}
+  {$DEFINE BDS18_UP}
+  {$DEFINE BDS17_UP}
+  {$DEFINE BDS16_UP}
+  {$DEFINE BDS15_UP}
+  {$DEFINE BDS14_UP}
+  {$DEFINE BDS12_UP}
+  {$DEFINE BDS11_UP}
+  {$DEFINE BDS10_UP}
+  {$DEFINE BDS9_UP}
+  {$DEFINE BDS8_UP}
+  {$DEFINE BDS7_UP}
+  {$DEFINE BDS6_UP}
+  {$DEFINE BDS5_UP}
+  {$DEFINE BDS4_UP}
+  {$DEFINE BDS3_UP}
+  {$DEFINE BDS2_UP}
+  {$DEFINE BDS1_UP}
+
+  // NO BDS2014 defined, so need define below here.
+  {$DEFINE BDS2013_UP}
+  {$DEFINE BDS2012_UP}
+  {$DEFINE BDS2011_UP}
+  {$DEFINE BDS2010_UP}
+  {$DEFINE BDS2009_UP}
+  {$DEFINE BDS2007_UP}
+  {$DEFINE BDS2006_UP}
+  {$DEFINE BDS2005_UP}
+{$ENDIF}
+
 {$IFDEF BDS21}      // 10.4 SYDNEY
   {$DEFINE BDS}
   {$DEFINE BDS21_UP}
@@ -2247,6 +2426,37 @@
 {$ENDIF}
 
 // COMPILERX_UP from COMPILERX mappings
+
+{$IFDEF COMPILER28}      // 11.0 ALEXANDRIA
+  {$DEFINE COMPILER28_UP}
+  {$DEFINE COMPILER27_UP}
+  {$DEFINE COMPILER26_UP}
+  {$DEFINE COMPILER25_UP}
+  {$DEFINE COMPILER24_UP}
+  {$DEFINE COMPILER23_UP}
+  {$DEFINE COMPILER22_UP}
+  {$DEFINE COMPILER21_UP}
+  {$DEFINE COMPILER20_UP}
+  {$DEFINE COMPILER19_UP}
+  {$DEFINE COMPILER18_UP}
+  {$DEFINE COMPILER17_UP}
+  {$DEFINE COMPILER16_UP}
+  {$DEFINE COMPILER15_UP}
+  {$DEFINE COMPILER14_UP}
+  {$DEFINE COMPILER12_UP}
+  {$DEFINE COMPILER11_UP}
+  {$DEFINE COMPILER10_UP}
+  {$DEFINE COMPILER9_UP}
+  {$DEFINE COMPILER8_UP}
+  {$DEFINE COMPILER7_UP}
+  {$DEFINE COMPILER6_UP}
+  {$DEFINE COMPILER5_UP}
+  {$DEFINE COMPILER4_UP}
+  {$DEFINE COMPILER35_UP}
+  {$DEFINE COMPILER3_UP}
+  {$DEFINE COMPILER2_UP}
+  {$DEFINE COMPILER1_UP}
+{$ENDIF}
 
 {$IFDEF COMPILER27}      // 10.4 SYDNEY
   {$DEFINE COMPILER27_UP}
@@ -2863,9 +3073,15 @@
   {$ENDIF}
 {$ENDIF}
 
+{$IFDEF DELPHI110_ALEXANDRIA_UP}
+  {$DEFINE NO_OLDCREATEORDER}           // Alexandria 11 removed OldCreateOrder
+  {$DEFINE IDE_SUPPORT_HDPI}            // Alexandria 11 supports HDPI using TVirtualImageList, etc.
+{$ENDIF}
+
 {$IFDEF DELPHI104_SYDNEY_UP}
   {$DEFINE IDE_SUPPORT_LSP}             // Sydney 10.4 或以上支持 LSP 语言服务器
   {$DEFINE IDE_HAS_ERRORINSIGHT}        // Sydney 10.4.2 或以上支持编辑器侧栏的 ErrorInsight
+  {$DEFINE IDE_SWITCH_BUG}              // Sydney 10.4.2 存在打开文件时莫名其妙切换到后台的 Bug
 {$ENDIF}
 
 {$IFDEF DELPHI102_TOKYO_UP}
@@ -2885,6 +3101,7 @@
 
 {$IFDEF DELPHIXE3_UP}
   {$DEFINE SUPPORT_ATOMIC}              // XE3 has Atomic Routines
+  {$DEFINE IDE_NP_FMX_DESIGN_BUG}       // XE3 FMX Designer Cut/Copy/Paste cause AV Bug for -np switch
 {$ENDIF}
 
 {$IFDEF DELPHIXE2_UP}
@@ -2893,6 +3110,8 @@
   {$DEFINE SUPPORT_UNITNAME_DOT}
   {$DEFINE SUPPORT_ENHANCED_INDEXEDPROPERTY}   // XE2 New RTTI Supports IndexedProperty
   {$DEFINE SUPPORT_ZLIB_WINDOWBITS}            // XE2 ZLib Supports WindowBits
+  {$DEFINE SUPPORT_GDIPLUS}                    // XE2 Supports GDI+
+  {$DEFINE SUPPORT_INT64ARRAY}                 // XE2 Defined Int64Array
 {$ENDIF}
 
 {$IFDEF DELPHIXE_UP}
@@ -2917,6 +3136,8 @@
   {$DEFINE SUPPORT_EXTERNAL_DELAYED}       // External functions can be declared as 'delayed'.
   {$DEFINE IDE_HAS_NEW_COMPONENT_PALETTE}  // IDE has a new style Component Palette.
   {$DEFINE IDE_HAS_EDITOR_SEARCHPANEL}     // Editor has a Search Panel
+  {$DEFINE SUPPORT_CLASS_CONSTRUCTOR}      // 2010 and above Supports class constructor and destructor
+  {$DEFINE SUPPORT_CLASS_DESTRUCTOR}
 {$ENDIF}
 
 {$IFDEF BDS2010}
@@ -2930,6 +3151,7 @@
   {$DEFINE OBJECT_HAS_TOSTRING}     // TObject.ToString Function
   {$DEFINE OBJECT_HAS_EQUAL}        // TObject.Equal Function
   {$DEFINE OBJECT_HAS_GETHASHCODE}  // TObject.GetHashCode Function
+  {$DEFINE TGRAPHIC_SUPPORT_PARTIALTRANSPARENCY} // TGraphic 类支持 Alpha 通道透明
   {$DEFINE SUPPORT_OTA_PROJECT_CONFIGURATION}
   {$DEFINE SUPPORT_GENERIC}      // 支持泛型
   {$DEFINE IDE_MAINFORM_EAT_MOUSEWHEEL}
@@ -2956,7 +3178,8 @@
 
 {$IFDEF BDS2007_UP}
   {$DEFINE IDE_CONF_MANAGER}
-  {$DEFINE TBYTES_DEFINED} // 2007 Defined TBytes = array of Byte;
+  {$DEFINE TBYTES_DEFINED}    // 2007 Defined TBytes = array of Byte;
+  {$DEFINE PROJECT_FILENAME_DPROJ} // Project File is .dproj
 {$ENDIF}
 
 {$IFDEF BDS2007}
@@ -2972,10 +3195,31 @@
   {$DEFINE OTA_CODE_TEMPLATE_API} // 2006 and above Provides CodeTemplateAPI.
   {$DEFINE EDITOR_TAB_ONLYFROM_WINCONTROL}
   // From BDS 2006 IDEGraident Editor Tab is Only From WinControl, not TabSet/TabControl
+  {$DEFINE SUPPORT_CLASS_VAR}     // 2006 and above Supports class var
 {$ENDIF}
 
 {$IFDEF BDS2005_UP}
-  {$DEFINE OTA_PALETTE_API} // 2005 and above Provides PaletteAPI.
+  {$DEFINE IDE_EDITOR_ELIDE}  // 2005 或以上编辑器支持折叠
+  {$DEFINE OTA_PALETTE_API}   // 2005 and above Provides PaletteAPI.
+  {$DEFINE IDE_FILE_HISTORY}  // 2005 或以上版本会存储文件历史版本
+{$ENDIF}
+
+{$IFDEF BDS2006}
+  {$DEFINE PROJECT_FILENAME_BDSPROJ} // Project File is .bdsproj
+{$ENDIF}
+
+{$IFDEF BDS2005}
+  {$DEFINE PROJECT_FILENAME_BDSPROJ} // Project File is .bdsproj
+{$ENDIF}
+
+{$IFDEF DELPHI5_UP}
+  {$IFNDEF BDS2005_UP}
+    {$DEFINE PROJECT_FILENAME_DPR}   // Delphi 5/6/7 Project File is .dpr
+  {$ENDIF}
+{$ENDIF}
+
+{$IFDEF COMPILER6_UP}
+  {$DEFINE SUPPORT_DEPRECATED}
 {$ENDIF}
 
 {$IFDEF COMPILER21_UP}
@@ -2994,6 +3238,22 @@
 {$IFDEF DELPHI101_BERLIN_UP}
   {$DEFINE IDE_NEW_EMBEDDED_DESIGNER}
   // 101B Re-opens "Embedded Designer" Option and Gives a New Container.
+{$ENDIF}
+
+{$IFDEF BCB5}
+  {$DEFINE BCB5OR6}  // 定义一个 BCB5OR6 以方便 BCB5 或 BCB6 使用
+{$ENDIF}
+
+{$IFDEF BCB6}
+  {$DEFINE BCB5OR6}
+{$ENDIF}
+
+{$IFDEF DELPHI5}
+  {$DEFINE DELPHI5OR6}  // 定义一个 DELPHI5OR6 以方便 DELPHI5 或 DELPHI6 使用
+{$ENDIF}
+
+{$IFDEF DELPHI6}
+  {$DEFINE DELPHI5OR6}
 {$ENDIF}
 
 //==============================================================================
@@ -3039,6 +3299,7 @@
 {$P+ Open string parameters}
 {$J+ Writeable typed constants}
 {$R- No Range checking}
+{$OVERFLOWCHECKS OFF}
 
 {$IFDEF COMPILER6_UP}
   {$WARN SYMBOL_PLATFORM OFF}
@@ -3058,3 +3319,6 @@
 {$ENDIF}
 
 {$DEFINE CN_USE_MSXML}
+
+{$ENDIF FPC}
+

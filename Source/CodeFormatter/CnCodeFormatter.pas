@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -41,7 +41,7 @@ interface
 
 uses
   Classes, SysUtils, Windows, Dialogs, Contnrs, CnHashMap,
-  CnTokens, CnScaners, CnCodeGenerators, CnCodeFormatRules, CnFormatterIntf;
+  CnTokens, CnScanners, CnCodeGenerators, CnCodeFormatRules, CnFormatterIntf;
 
 const
   CN_MATCHED_INVALID = -1;
@@ -65,7 +65,7 @@ type
 
   TCnAbstractCodeFormatter = class
   private
-    FScaner: TAbstractScaner;
+    FScanner: TAbstractScanner;
     FCodeGen: TCnCodeGenerator;
     FLastToken: TPascalToken;
     FLastNonBlankToken: TPascalToken;
@@ -166,7 +166,7 @@ type
     {* 返回首字母大写的字符串}
     property CodeGen: TCnCodeGenerator read FCodeGen;
     {* 目标代码生成器}
-    property Scaner: TAbstractScaner read FScaner;
+    property Scaner: TAbstractScanner read FScanner;
     {* 词法扫描器}
     property ElementType: TCnPascalFormattingElementType read FElementType;
     {* 标识当前区域的一个辅助变量}
@@ -184,14 +184,16 @@ type
     procedure SpecifyIdentifiers(Names: TStrings); overload;
     {* 以 TStrings 方式传入的字符串，用来指定特定符号的大小写}
     procedure SpecifyLineMarks(Marks: PDWORD);
-    {* 以 PDWORD 指向数组的方式传入的源文件的行映射的行}
+    {* 以 PDWORD 指向数组的方式传入的源文件的行映射的行，内部复制数组内容保存，
+      行号以 1 开始}
 
     procedure FormatCode(PreSpaceCount: Byte = 0); virtual; abstract;
     procedure SaveToFile(FileName: string);
     procedure SaveToStream(Stream: TStream);
     procedure SaveToStrings(AStrings: TStrings);
     procedure SaveOutputLineMarks(var Marks: PDWORD);
-    {* 将格式化结果中的行映射结果复制到数组中，数组指针须在外界释放}
+    {* 将格式化结果中的行映射结果复制到数组中，数组指针在过程内创建，
+      须在外界释放，行号以 1 开始}
 
     property SliceMode: Boolean read FSliceMode write FSliceMode;
     {* 片段模式，供外界控制。为 True 时碰到 EOF 应该平常退出而不报错}
@@ -299,7 +301,8 @@ type
     procedure FormatLabelDeclSection(PreSpaceCount: Byte = 0);
     procedure FormatConstSection(PreSpaceCount: Byte = 0);
     procedure FormatConstantDecl(PreSpaceCount: Byte = 0);
-    procedure FormatVarSection(PreSpaceCount: Byte = 0);
+    procedure FormatVarSection(PreSpaceCount: Byte = 0; IsGlobal: Boolean = False);
+    // IsGlobal 表示是全局的 interface 部分或 implementation 部分的 var，还是局部的 var
     procedure FormatVarDecl(PreSpaceCount: Byte = 0);
     procedure FormatInlineVarDecl(PreSpaceCount: Byte = 0; IndentForAnonymous: Byte = 0);
     procedure FormatProcedureDeclSection(PreSpaceCount: Byte = 0);
@@ -382,6 +385,8 @@ type
 
     procedure ScanerLineBreak(Sender: TObject);
     {* Scaner 扫描到源文件中的换行时触发的事件，根据需要写回车到输出中}
+    function ScanerGetCanLineBreak(Sender: TObject): Boolean;
+    {* 向 Scaner 返回当前是否保持换行}
   public
     constructor Create(AStream: TStream; AMatchedInStart: Integer = CN_MATCHED_INVALID;
       AMatchedInEnd: Integer = CN_MATCHED_INVALID;
@@ -512,18 +517,18 @@ begin
   FCodeGen := TCnCodeGenerator.Create;
   FCodeGen.CodeWrapMode := CnPascalCodeForRule.CodeWrapMode;
   FCodeGen.OnAfterWrite := CodeGenAfterWrite;
-  FScaner := TScaner.Create(AStream, FCodeGen, ACompDirectiveMode);
+  FScanner := TScanner.Create(AStream, FCodeGen, ACompDirectiveMode);
 
   FOldElementTypes := TCnElementStack.Create;
   FLineBreakKeepStack := TStack.Create;
-  FScaner.NextToken;
+  FScanner.NextToken;
 end;
 
 destructor TCnAbstractCodeFormatter.Destroy;
 begin
   FLineBreakKeepStack.Free;
   FOldElementTypes.Free;
-  FScaner.Free;
+  FScanner.Free;
   FCodeGen.Free;
   FNamesMap.Free;
   FOutputLineMarks.Free;
@@ -535,9 +540,9 @@ procedure TCnAbstractCodeFormatter.Error(const Ident: Integer);
 begin
   // 出错入口
   PascalErrorRec.ErrorCode := Ident;
-  PascalErrorRec.SourceLine := FScaner.SourceLine;
-  PascalErrorRec.SourceCol := FScaner.SourceCol;
-  PascalErrorRec.SourcePos := FScaner.SourcePos;
+  PascalErrorRec.SourceLine := FScanner.SourceLine;
+  PascalErrorRec.SourceCol := FScanner.SourceCol;
+  PascalErrorRec.SourcePos := FScanner.SourcePos;
   PascalErrorRec.CurrentToken := ErrorTokenString;
 
   ErrorStr(RetrieveFormatErrorString(Ident));
@@ -548,9 +553,9 @@ procedure TCnAbstractCodeFormatter.ErrorFmt(const Ident: Integer;
 begin
   // 出错入口
   PascalErrorRec.ErrorCode := Ident;
-  PascalErrorRec.SourceLine := FScaner.SourceLine;
-  PascalErrorRec.SourceCol := FScaner.SourceCol;
-  PascalErrorRec.SourcePos := FScaner.SourcePos;
+  PascalErrorRec.SourceLine := FScanner.SourceLine;
+  PascalErrorRec.SourceCol := FScanner.SourceCol;
+  PascalErrorRec.SourcePos := FScanner.SourcePos;
   PascalErrorRec.CurrentToken := ErrorTokenString;
 
   ErrorStr(Format(RetrieveFormatErrorString(Ident), Args));
@@ -565,7 +570,7 @@ procedure TCnAbstractCodeFormatter.ErrorStr(const Message: string);
 begin
   raise EParserError.CreateFmt(
         SParseError,
-        [ Message, FScaner.SourceLine, FScaner.SourcePos ]
+        [ Message, FScanner.SourceLine, FScanner.SourcePos ]
   );
 end;
 
@@ -773,7 +778,7 @@ end;
 
 procedure TCnAbstractCodeFormatter.EnsureWriteln;
 begin
-  if not FCodeGen.IsLastLineEmpty and not FScaner.InIgnoreArea then // 忽略区不主动写换行
+  if not FCodeGen.IsLastLineEmpty and not FScanner.InIgnoreArea then // 忽略区不主动写换行
     FCodeGen.Writeln;
 end;
 
@@ -2114,7 +2119,7 @@ begin
 
           if not IsDesignator then
           begin
-            //Match(tokLB);  优化不用的括号
+            // Match(tokLB);  优化不用的括号
             Scaner.NextToken;
 
             FormatSimpleStatement(PreSpaceCount);
@@ -2534,7 +2539,7 @@ begin
           ALabel := ALabel + ':';
         end;
 
-        // 如果是label，那么ALabel里头已经放入label了，所以不需要LoadBookmark了
+        // 如果是 label，那么 ALabel 里头已经放入 label 了，所以不需要 LoadBookmark 了
         if IsLabel then
         begin
           // Match(Scaner.Token);
@@ -2577,7 +2582,7 @@ begin
 
         if Scaner.Token <> tokCRLF then
         begin
-          if AfterKeyword then // 手工写入ASM关键字后面的内容，不用 Pascal 的空格规则
+          if AfterKeyword then // 手工写入 ASM 关键字后面的内容，不用 Pascal 的空格规则
           begin
             CodeGen.Write(Scaner.TokenString);
             FLastToken := Scaner.Token;
@@ -2612,7 +2617,7 @@ begin
         end;
       end;
 
-      //if not OnlyKeyword then
+      // if not OnlyKeyword then
       NewLine := False;
 
       if (T = tokSemicolon) or (Scaner.Token = tokCRLF) or
@@ -2829,29 +2834,6 @@ begin
     Match(Scaner.Token);
 
   FormatClassBody(PreSpaceCount);
-
-{
-  while Scaner.Token <> tokKeywordEnd do
-  begin
-    // skip ClassVisibilityTokens ( private public ... )
-    Scaner.SaveBookmark;
-    while (Scaner.Token in ClassVisibilityTokens + [tokKeywordEnd, tokEOF]) do
-    begin
-      Scaner.NextToken;
-    end;
-    Token := Scaner.Token;
-    Scaner.LoadBookmark;
-
-    if Token = tokKeywordProperty then
-      FormatClassPropertyList(Tab(PreSpaceCount))
-    else if Token in MethodListTokens then
-      FormatMethodList(Tab(PreSpaceCount))
-    else
-      FormatClassFieldList(Tab(PreSpaceCount));
-  end;
-
-  Match(tokKeywordEnd);
-}
 end;
 
 { ClassVisibility -> [PUBLIC | PROTECTED | PRIVATE | PUBLISHED] }
@@ -3132,86 +3114,93 @@ end;
 function TCnBasePascalFormatter.FormatFieldList(PreSpaceCount: Byte;
   IgnoreFirst: Boolean): Boolean;
 var
-  First, AfterIsRB: Boolean;
+  First, AfterIsRB, OldKeepOneBlankLine: Boolean;
 begin
   First := True;
-  while not (Scaner.Token in [tokKeywordEnd, tokKeywordCase, tokRB]) do
-  begin
-    if Scaner.Token in ClassVisibilityTokens then
-      FormatClassVisibility(BackTab(PreSpaceCount));
 
-    if Scaner.Token = tokKeywordCase then // 如果出现 public case 的场合，要跳出处理 case
-      Break;
+  OldKeepOneBlankLine := Scaner.KeepOneBlankLine;
+  Scaner.KeepOneBlankLine := True;
+  try
+    while not (Scaner.Token in [tokKeywordEnd, tokKeywordCase, tokRB]) do
+    begin
+      if Scaner.Token in ClassVisibilityTokens then
+        FormatClassVisibility(BackTab(PreSpaceCount));
 
-    if Scaner.Token in [tokKeywordProcedure, tokKeywordFunction,
-      tokKeywordConstructor, tokKeywordDestructor, tokKeywordClass] then
-    begin
-      FormatClassMethod(PreSpaceCount);
-      Writeln;
-      First := False;
-    end
-    else if Scaner.Token = tokKeywordProperty then
-    begin
-      FormatClassProperty(PreSpaceCount);
-      Writeln;
-      First := False;
-    end
-    else if Scaner.Token = tokKeywordType then
-    begin
-      FormatClassTypeSection(PreSpaceCount);
-      Writeln;
-      First := False;
-    end
-    else if Scaner.Token in [tokKeywordVar, tokKeywordThreadVar] then
-    begin
-      FormatVarSection(PreSpaceCount);
-      Writeln;
-      First := False;
-    end
-    else if Scaner.Token = tokKeywordConst then
-    begin
-      FormatClassConstSection(PreSpaceCount);
-      Writeln;
-      First := False;
-    end
-    else if Scaner.Token <> tokKeywordEnd then
-    begin
-      if First and IgnoreFirst then
-        FormatFieldDecl
-      else
-        FormatFieldDecl(PreSpaceCount);
-      First := False;
-
-      if Scaner.Token = tokSemicolon then
-      begin
-        AfterIsRB := Scaner.ForwardToken in [tokRB];
-        FTrimAfterSemicolon := AfterIsRB; // 后面没内容了，本分号后面不需要输出空格
-        Match(Scaner.Token);
-        FTrimAfterSemicolon := False;
-        if not AfterIsRB then // 后面还有别的内容才写换行并准备再开一个 Field
-          Writeln;
-      end
-      else if Scaner.Token = tokKeywordEnd then // 最后一项无分号时也可以
-      begin
-        Writeln;
+      if Scaner.Token = tokKeywordCase then // 如果出现 public case 的场合，要跳出处理 case
         Break;
+
+      if Scaner.Token in [tokKeywordProcedure, tokKeywordFunction,
+        tokKeywordConstructor, tokKeywordDestructor, tokKeywordClass] then
+      begin
+        FormatClassMethod(PreSpaceCount);
+        Writeln;
+        First := False;
+      end
+      else if Scaner.Token = tokKeywordProperty then
+      begin
+        FormatClassProperty(PreSpaceCount);
+        Writeln;
+        First := False;
+      end
+      else if Scaner.Token = tokKeywordType then
+      begin
+        FormatClassTypeSection(PreSpaceCount);
+        Writeln;
+        First := False;
+      end
+      else if Scaner.Token in [tokKeywordVar, tokKeywordThreadVar] then
+      begin
+        FormatVarSection(PreSpaceCount);
+        Writeln;
+        First := False;
+      end
+      else if Scaner.Token = tokKeywordConst then
+      begin
+        FormatClassConstSection(PreSpaceCount);
+        Writeln;
+        First := False;
+      end
+      else if Scaner.Token <> tokKeywordEnd then
+      begin
+        if First and IgnoreFirst then
+          FormatFieldDecl
+        else
+          FormatFieldDecl(PreSpaceCount);
+        First := False;
+
+        if Scaner.Token = tokSemicolon then
+        begin
+          AfterIsRB := Scaner.ForwardToken in [tokRB];
+          FTrimAfterSemicolon := AfterIsRB; // 后面没内容了，本分号后面不需要输出空格
+          Match(Scaner.Token);
+          FTrimAfterSemicolon := False;
+          if not AfterIsRB then // 后面还有别的内容才写换行并准备再开一个 Field
+            Writeln;
+        end
+        else if Scaner.Token = tokKeywordEnd then // 最后一项无分号时也可以
+        begin
+          Writeln;
+          Break;
+        end;
       end;
     end;
+
+    if First and not (Scaner.Token = tokKeywordCase) then // 没有声明则先换行，case 除外
+      Writeln;
+
+    Result := False;
+    if Scaner.Token = tokKeywordCase then
+    begin
+      FormatVariantSection(PreSpaceCount);
+      Writeln;
+      Result := True;
+    end;
+
+    if Scaner.Token = tokSemicolon then
+      Match(Scaner.Token);
+  finally
+    Scaner.KeepOneBlankLine := OldKeepOneBlankLine;
   end;
-
-  if First and not (Scaner.Token = tokKeywordCase) then // 没有声明则先换行，case 除外
-    Writeln;
-
-  Result := False;
-  if Scaner.Token = tokKeywordCase then
-  begin
-    FormatVariantSection(PreSpaceCount);
-    Writeln;
-    Result := True;
-  end;
-
-  if Scaner.Token = tokSemicolon then
-    Match(Scaner.Token);
 end;
 
 { FileType -> FILE [OF TypeId] }
@@ -3289,22 +3278,23 @@ end;
 procedure TCnBasePascalFormatter.FormatFunctionHeading(PreSpaceCount: Byte;
   AllowEqual: Boolean);
 var
-  IsOperator: Boolean;
+  IsOperator, IsClass: Boolean;
 begin
-  IsOperator := Scaner.Token = tokKeywordOperator;
-
-  if Scaner.Token = tokKeywordClass then
-  begin
+  IsClass := Scaner.Token = tokKeywordClass;
+  if IsClass then
     Match(tokKeywordClass, PreSpaceCount); // class 后无需再手工加空格
-    if Scaner.Token in [tokKeywordFunction, tokKeywordOperator] then
-      Match(Scaner.Token);
-  end
-  else
+
+  IsOperator := Scaner.Token = tokKeywordOperator;
+  if Scaner.Token in [tokKeywordFunction, tokKeywordOperator] then
   begin
-    if Scaner.Token in [tokKeywordFunction, tokKeywordOperator] then
-      Match(Scaner.Token, PreSpaceCount);
+    if IsClass then
+      Match(Scaner.Token)
+    else
+      Match(Scaner.Token, PreSpaceCount); // 没有 class，这个要缩进
   end;
-  
+
+  FormatPossibleAmpersand(CnPascalCodeForRule.SpaceBeforeOperator);
+
   {!! Fixed. e.g. "const proc: procedure = nil;" }
   if Scaner.Token in [tokSymbol, tokAmpersand] + ComplexTokens + DirectiveTokens
     + KeywordTokens then // 函数名允许出现关键字
@@ -3562,10 +3552,10 @@ var
   begin
     repeat
       Scaner.NextToken;
-    until not (Scaner.Token in [tokSymbol, tokDot, tokInteger, tokLB, tokRB,
+    until not (Scaner.Token in [tokSymbol, tokDot, tokInteger, tokString, tokLB, tokRB,
       tokPlus, tokMinus, tokStar, tokDiv, tokKeywordDiv, tokKeywordMod]);
     // 包括 () 是因为可能有类似于 Low(Integer)..High(Integer) 的情况
-    // 还得包括四则运算符等，以备有其他常量运算的情形
+    // 还得包括四则运算符与字符串等，以备有其他常量运算的情形
   end;
 
   procedure MatchTokenWithDot;
@@ -3777,6 +3767,8 @@ begin
   end
   else
     Match(Scaner.Token, PreSpaceCount);
+
+  FormatPossibleAmpersand(CnPascalCodeForRule.SpaceBeforeOperator);
 
   { !! Fixed. e.g. "const proc: procedure = nil;" }
   if Scaner.Token in [tokSymbol] + ComplexTokens + DirectiveTokens
@@ -4323,7 +4315,7 @@ begin
     end;
   end;
 
-  // 加入对<>泛型的支持
+  // 加入对 <> 泛型的支持
   if Scaner.Token = tokLess then
   begin
     FormatTypeParams;
@@ -4364,8 +4356,8 @@ begin
         end;
       end;
     tokLB:
-      begin // 是括号的，表示是组合的Type
-        if Scaner.ForwardToken = tokLB then // 如果后面还是括号，则说明本大类是常量或array
+      begin // 是括号的，表示是组合的 Type
+        if Scaner.ForwardToken = tokLB then // 如果后面还是括号，则说明本大类是常量或 array
         begin
           Scaner.SaveBookmark(Bookmark);
           OldLastToken := FLastToken;
@@ -4529,7 +4521,7 @@ const
 var
   FirstType: Boolean;
 begin
-  Match(tokKeywordType, PreSpaceCount);
+  Match(tokKeywordType, PreSpaceCount); // type 区不需要 Scaner.KeepOneBlankLine := True; 因为自己已经用空行隔开了
   Writeln;
 
   FirstType := True;
@@ -4708,6 +4700,8 @@ procedure TCnBasePascalFormatter.FormatConstSection(PreSpaceCount: Byte);
 const
   IsConstStartTokens = [tokSymbol, tokSLB] + ComplexTokens + DirectiveTokens
     + KeywordTokens - NOTExpressionTokens;
+var
+  OldKeepOneBlankLine: Boolean;
 begin
   if Scaner.Token in [tokKeywordConst, tokKeywordResourcestring] then
     Match(Scaner.Token, PreSpaceCount);
@@ -4719,7 +4713,13 @@ begin
       Exit;
 
     Writeln;
-    FormatConstantDecl(Tab(PreSpaceCount));
+    OldKeepOneBlankLine := Scaner.KeepOneBlankLine;
+    Scaner.KeepOneBlankLine := True;
+    try
+      FormatConstantDecl(Tab(PreSpaceCount));
+    finally
+      Scaner.KeepOneBlankLine := OldKeepOneBlankLine;
+    end;
     Match(tokSemicolon);
   end;
 end;
@@ -4769,7 +4769,7 @@ begin
         end;
       tokKeywordVar, tokKeywordThreadvar:
         begin
-          FormatVarSection(PreSpaceCount);
+          FormatVarSection(PreSpaceCount, True);
           LastIsInternalProc := False;
         end;
       tokKeywordExports:
@@ -5237,10 +5237,12 @@ begin
 end;
 
 { VarSection -> VAR | THREADVAR (VarDecl ';')... }
-procedure TCnBasePascalFormatter.FormatVarSection(PreSpaceCount: Byte);
+procedure TCnBasePascalFormatter.FormatVarSection(PreSpaceCount: Byte; IsGlobal: Boolean);
 const
   IsVarStartTokens = [tokSymbol, tokSLB, tokAmpersand] + ComplexTokens + DirectiveTokens
     + KeywordTokens - NOTExpressionTokens;
+var
+  OldKeepOneBlankLine: Boolean;
 begin
   if Scaner.Token in [tokKeywordVar, tokKeywordThreadvar] then
     Match(Scaner.Token, PreSpaceCount);
@@ -5252,8 +5254,14 @@ begin
       Exit;
 
     Writeln;
-    FormatVarDecl(Tab(PreSpaceCount));
-    Match(tokSemicolon);
+    OldKeepOneBlankLine := Scaner.KeepOneBlankLine;
+    Scaner.KeepOneBlankLine := True;
+    try
+      FormatVarDecl(Tab(PreSpaceCount));
+    finally
+      Scaner.KeepOneBlankLine := OldKeepOneBlankLine;
+    end;
+    Match(tokSemicolon); // 分号放在 KeepOneBlankLine 设为 True 之外，避免分号后的空一行导致输出空两行
   end;
 end;
 
@@ -5441,7 +5449,7 @@ begin
       tokKeywordUses: FormatUsesClause(PreSpaceCount, CnPascalCodeForRule.UsesUnitSingleLine); // 加入 uses 的处理以提高容错性
       tokKeywordConst, tokKeywordResourcestring: FormatConstSection(PreSpaceCount);
       tokKeywordType: FormatTypeSection(PreSpaceCount);
-      tokKeywordVar, tokKeywordThreadvar: FormatVarSection(PreSpaceCount);
+      tokKeywordVar, tokKeywordThreadvar: FormatVarSection(PreSpaceCount, True);
       tokKeywordProcedure, tokKeywordFunction: FormatExportedHeading(PreSpaceCount);
       tokKeywordExports: FormatExportsSection(PreSpaceCount);
       tokSLB: FormatSingleAttribute(PreSpaceCount);
@@ -5654,6 +5662,8 @@ end;
 { ClassMemberList -> ([ClassVisibility] [ClassMember]) ... }
 procedure TCnBasePascalFormatter.FormatClassMemberList(
   PreSpaceCount: Byte);
+var
+  OldKeepOneBlankLine: Boolean;
 begin
   while Scaner.Token in ClassVisibilityTokens + ClassMemberSymbolTokens do
   begin
@@ -5666,7 +5676,15 @@ begin
     end;
 
     if Scaner.Token in ClassMemberSymbolTokens then
-      FormatClassMember(Tab(PreSpaceCount));
+    begin
+      OldKeepOneBlankLine := Scaner.KeepOneBlankLine;
+      Scaner.KeepOneBlankLine := True;
+      try
+        FormatClassMember(Tab(PreSpaceCount));
+      finally
+        Scaner.KeepOneBlankLine := OldKeepOneBlankLine;
+      end;
+    end;
   end;
 end;
 
@@ -5684,7 +5702,8 @@ begin
       FormatMethodHeading
     else
       FormatMethodHeading(PreSpaceCount, True);
-  end else if Scaner.Token in [tokKeywordVar, tokKeywordThreadVar] then
+  end
+  else if Scaner.Token in [tokKeywordVar, tokKeywordThreadVar] then
   begin
     FormatMethodHeading(PreSpaceCount, False);
   end
@@ -5923,7 +5942,8 @@ constructor TCnBasePascalFormatter.Create(AStream: TStream; AMatchedInStart,
   AMatchedInEnd: Integer; ACompDirectiveMode: TCompDirectiveMode);
 begin
   inherited;
-  FScaner.OnLineBreak := ScanerLineBreak;
+  FScanner.OnLineBreak := ScanerLineBreak;
+  FScanner.OnGetCanLineBreak := ScanerGetCanLineBreak;
 end;
 
 { TCnPascalCodeFormatter }
@@ -5973,7 +5993,7 @@ begin
   begin
     for I := 0 to FInputLineMarks.Count - 1 do
     begin
-      if Scaner.SourceLine = Integer(FInputLineMarks[I]) then
+      if Scaner.SourceLine >= Integer(FInputLineMarks[I]) then
         if Integer(FOutputLineMarks[I]) = 0 then // 第一回匹配
           FOutputLineMarks[I] := Pointer(TCnCodeGenerator(Sender).ActualRow);
     end;
@@ -5981,13 +6001,13 @@ begin
 
   if IsWriteBlank then
   begin
-    StartPos := FScaner.BlankStringPos;
-    EndPos := FScaner.BlankStringPos + FScaner.BlankStringLength;
+    StartPos := FScanner.BlankStringPos;
+    EndPos := FScanner.BlankStringPos + FScanner.BlankStringLength;
   end
   else
   begin
-    StartPos := FScaner.SourcePos;
-    EndPos := FScaner.SourcePos + FScaner.TokenStringLength;
+    StartPos := FScanner.SourcePos;
+    EndPos := FScanner.SourcePos + FScanner.TokenStringLength;
   end;
 
   // 写出不属于代码本身的空行时超出标记的话，不算
@@ -6243,7 +6263,7 @@ procedure TCnBasePascalFormatter.ScanerLineBreak(Sender: TObject);
 var
   LineBreak: Boolean;
 begin
-  if FScaner.IsForwarding then
+  if FScanner.IsForwarding then
     Exit;
 
   LineBreak := CanKeepLineBreak;
@@ -6269,7 +6289,7 @@ end;
 
 procedure TCnAbstractCodeFormatter.EnsureWriteLine;
 begin
-  if FScaner.InIgnoreArea then
+  if FScanner.InIgnoreArea then
     Exit;
 
   // 如果已经连续俩空行了就不写
@@ -6279,6 +6299,12 @@ begin
     Writeln
   else // 啥都没有就写俩
     WriteLine;
+end;
+
+function TCnBasePascalFormatter.ScanerGetCanLineBreak(
+  Sender: TObject): Boolean;
+begin
+  Result := CanKeepLineBreak;
 end;
 
 initialization

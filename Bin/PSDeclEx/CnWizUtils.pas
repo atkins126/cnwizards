@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -57,7 +57,7 @@ type
   TCnCompiler = (cnDelphi5, cnDelphi6, cnDelphi7, cnDelphi8, cnDelphi9,
     cnDelphi10, cnDelphi11, cnDelphi12, cnDelphi14, cnDelphi15, cnDelphi16,
     cnDelphi17, cnDelphiXE4, cnDelphiXE5, cnDelphiXE6, cnDelphiXE7, cnDelphiXE8,
-    cnDelphi10S, cnDelphi101B, cnDelphi102T, cnDelphi103R, cnDelphi104S, cnBCB5, cnBCB6);
+    cnDelphi10S, cnDelphi101B, cnDelphi102T, cnDelphi103R, cnDelphi104S, cnDelphi110A, cnBCB5, cnBCB6);
   TCnCompilers = set of TCnCompiler;
 
 const
@@ -97,6 +97,7 @@ const
   _DELPHI102_TOKYO = {$IFDEF DELPHI102_TOKYO}True{$ELSE}False{$ENDIF};
   _DELPHI103_RIO = {$IFDEF DELPHI103_RIO}True{$ELSE}False{$ENDIF};
   _DELPHI104_SYDNEY = {$IFDEF DELPHI104_SYDNEY}True{$ELSE}False{$ENDIF};
+  _DELPHI110_ALEXANDRIA = {$IFDEF DELPHI110_ALEXANDRIA}True{$ELSE}False{$ENDIF};
 
   _DELPHI1_UP = {$IFDEF DELPHI1_UP}True{$ELSE}False{$ENDIF};
   _DELPHI2_UP = {$IFDEF DELPHI2_UP}True{$ELSE}False{$ENDIF};
@@ -124,6 +125,7 @@ const
   _DELPHI102_TOKYO = {$IFDEF DELPHI102_TOKYO_UP}True{$ELSE}False{$ENDIF};
   _DELPHI103_RIO_UP = {$IFDEF DELPHI103_RIO_UP}True{$ELSE}False{$ENDIF};
   _DELPHI104_SYDNEY_UP = {$IFDEF DELPHI104_SYDNEY_UP}True{$ELSE}False{$ENDIF};
+  _DELPHI110_ALEXANDRIA_UP = {$IFDEF DELPHI110_ALEXANDRIA_UP}True{$ELSE}False{$ENDIF};
 
   _BCB1 = {$IFDEF BCB1}True{$ELSE}False{$ENDIF};
   _BCB3 = {$IFDEF BCB3}True{$ELSE}False{$ENDIF};
@@ -148,6 +150,7 @@ const
   _BCB102_TOKYO = {$IFDEF BCB102_TOKYO}True{$ELSE}False{$ENDIF};
   _BCB103_RIO = {$IFDEF BCB103_RIO}True{$ELSE}False{$ENDIF};
   _BCB104_SYDNEY = {$IFDEF BCB104_SYDNEY}True{$ELSE}False{$ENDIF};
+  _BCB110_ALEXANDRIA = {$IFDEF BCB110_ALEXANDRIA}True{$ELSE}False{$ENDIF};
 
   _BCB1_UP = {$IFDEF BCB1_UP}True{$ELSE}False{$ENDIF};
   _BCB3_UP = {$IFDEF BCB3_UP}True{$ELSE}False{$ENDIF};
@@ -172,6 +175,7 @@ const
   _BCB102_TOKYO_UP = {$IFDEF BCB102_TOKYO_UP}True{$ELSE}False{$ENDIF};
   _BCB103_RIO_UP = {$IFDEF BCB103_RIO_UP}True{$ELSE}False{$ENDIF};
   _BCB104_SYDNEY_UP = {$IFDEF BCB104_SYDNEY_UP}True{$ELSE}False{$ENDIF};
+  _BCB110_ALEXANDRIA_UP = {$IFDEF BCB110_ALEXANDRIA_UP}True{$ELSE}False{$ENDIF};
 
   _KYLIX1 = {$IFDEF KYLIX1}True{$ELSE}False{$ENDIF};
   _KYLIX2 = {$IFDEF KYLIX2}True{$ELSE}False{$ENDIF};
@@ -200,6 +204,7 @@ const
   _BDS19 = {$IFDEF BDS19}True{$ELSE}False{$ENDIF};
   _BDS20 = {$IFDEF BDS20}True{$ELSE}False{$ENDIF};
   _BDS21 = {$IFDEF BDS21}True{$ELSE}False{$ENDIF};
+  _BDS22 = {$IFDEF BDS22}True{$ELSE}False{$ENDIF};
 
   _BDS2_UP = {$IFDEF BDS2_UP}True{$ELSE}False{$ENDIF};
   _BDS3_UP = {$IFDEF BDS3_UP}True{$ELSE}False{$ENDIF};
@@ -220,6 +225,7 @@ const
   _BDS19_UP = {$IFDEF BDS19_UP}True{$ELSE}False{$ENDIF};
   _BDS20_UP = {$IFDEF BDS20_UP}True{$ELSE}False{$ENDIF};
   _BDS21_UP = {$IFDEF BDS21_UP}True{$ELSE}False{$ENDIF};
+  _BDS22_UP = {$IFDEF BDS22_UP}True{$ELSE}False{$ENDIF};
 
   _COMPILER1 = {$IFDEF COMPILER1}True{$ELSE}False{$ENDIF};
   _COMPILER2 = {$IFDEF COMPILER2}True{$ELSE}False{$ENDIF};
@@ -248,6 +254,7 @@ const
   _COMPILER25 = {$IFDEF COMPILER25}True{$ELSE}False{$ENDIF};
   _COMPILER26 = {$IFDEF COMPILER26}True{$ELSE}False{$ENDIF};
   _COMPILER27 = {$IFDEF COMPILER27}True{$ELSE}False{$ENDIF};
+  _COMPILER28 = {$IFDEF COMPILER28}True{$ELSE}False{$ENDIF};
 
   _COMPILER1_UP = {$IFDEF COMPILER1_UP}True{$ELSE}False{$ENDIF};
   _COMPILER2_UP = {$IFDEF COMPILER2_UP}True{$ELSE}False{$ENDIF};
@@ -276,6 +283,7 @@ const
   _COMPILER25_UP = {$IFDEF COMPILER25_UP}True{$ELSE}False{$ENDIF};
   _COMPILER26_UP = {$IFDEF COMPILER26_UP}True{$ELSE}False{$ENDIF};
   _COMPILER27_UP = {$IFDEF COMPILER27_UP}True{$ELSE}False{$ENDIF};
+  _COMPILER28_UP = {$IFDEF COMPILER28_UP}True{$ELSE}False{$ENDIF};
 
   _SUPPORT_OTA_PROJECT_CONFIGURATION = {$IFDEF SUPPORT_OTA_PROJECT_CONFIGURATION}True{$ELSE}False{$ENDIF};
   _SUPPORT_CROSS_PLATFORM = {$IFDEF SUPPORT_CROSS_PLATFORM}True{$ELSE}False{$ENDIF};
@@ -550,6 +558,8 @@ function CnOtaGetDesignContainerFromEditor(FormEditor: IOTAFormEditor): TWinCont
 {* 取得窗体编辑器的容器控件}
 function CnOtaGetCurrentDesignContainer: TWinControl;
 {* 取得当前窗体编辑器的容器控件}
+function CnOtaGetSelectedComponentFromCurrentForm(List: TList): Boolean;
+{* 取得当前窗体编辑器的已选择的组件}
 function CnOtaGetSelectedControlFromCurrentForm(List: TList): Boolean;
 {* 取得当前窗体编辑器的已选择的控件}
 function CnOtaShowFormForModule(const Module: IOTAModule): Boolean;
@@ -584,6 +594,8 @@ function CnOtaGetProjectGroup: IOTAProjectGroup;
 {* 取当前工程组}
 function CnOtaGetProjectGroupFileName: string;
 {* 取当前工程组文件名}
+function CnOtaGetProjectSourceFileName(Project: IOTAProject): string;
+{* 取工程的源码文件 dpr/dpk}
 function CnOtaGetProjectResource(Project: IOTAProject): IOTAProjectResource;
 {* 取工程资源}
 function CnOtaGetProjectVersion(Project: IOTAProject): string;
@@ -611,6 +623,8 @@ function CnOtaGetProjectCurrentBuildConfigurationValue(Project: IOTAProject; con
 procedure CnOtaSetProjectCurrentBuildConfigurationValue(Project: IOTAProject; const APropName,
   AValue: string);
 {* 设置项目的当前BuildConfiguration中的属性值，如不支持此特性则什么都不做}
+function CnOtaGetProjectOutputDirectory(Project: IOTAProject): string;
+{* 获得项目的二进制文件输出目录}
 procedure CnOtaGetProjectList(const List: TInterfaceList);
 {* 取得所有工程列表}
 function CnOtaGetCurrentProjectName: string;
@@ -686,6 +700,8 @@ function CnOtaDeleteCurrTokenRight(FirstSet: TCnCharSet = [];
 {* 删除当前光标下的标识符右半部分}
 function CnOtaIsEditPosOutOfLine(EditPos: TOTAEditPos; View: IOTAEditView = nil): Boolean;
 {* 判断位置是否超出行尾了 }
+function CnOtaSelectCurrentToken(FirstSet: TAnsiCharSet = []; CharSet: TAnsiCharSet = []): Boolean;
+{* 选中当前光标下的标识符，如果光标下没有标识符则返回 False}
 procedure CnOtaSelectBlock(const Editor: IOTASourceEditor; const Start, After: TOTACharPos);
 {* 选择一个代码块}
 function CnOtaMoveAndSelectLine(LineNum: Integer; View: IOTAEditView = nil): Boolean;
@@ -859,6 +875,9 @@ procedure CnOtaClosePage(EditView: IOTAEditView);
 
 procedure CnOtaCloseEditView(AModule: IOTAModule);
 {* 仅关闭模块的视图，而不关闭模块}
+
+procedure ParseUnitUsesFromFileName(const FileName: string; UsesList: TStrings);
+{* 分析源代码中引用的单元，FileName 是完整文件名}
 
 //==============================================================================
 // 窗体操作相关函数
@@ -1377,6 +1396,10 @@ function CnOtaGetCurrentDesignContainer: TWinControl;
 begin
 end;
 
+function CnOtaGetSelectedComponentFromCurrentForm(List: TList): Boolean;
+begin
+end;
+
 function CnOtaGetSelectedControlFromCurrentForm(List: TList): Boolean;
 begin
 end;
@@ -1445,6 +1468,10 @@ function CnOtaGetProjectGroupFileName: string;
 begin
 end;
 
+function CnOtaGetProjectSourceFileName(Project: IOTAProject): string;
+begin
+end;
+
 function CnOtaGetProjectResource(Project: IOTAProject): IOTAProjectResource;
 begin
 end;
@@ -1493,6 +1520,10 @@ end;
 
 procedure CnOtaSetProjectCurrentBuildConfigurationValue(const APropName,
   AValue: string);
+begin
+end;
+
+function CnOtaGetProjectOutputDirectory(Project: IOTAProject): string;
 begin
 end;
 
@@ -1638,6 +1669,10 @@ begin
 end;
 
 function CnOtaIsEditPosOutOfLine(EditPos: TOTAEditPos; View: IOTAEditView = nil): Boolean;
+begin
+end;
+
+function CnOtaSelectCurrentToken(FirstSet: TAnsiCharSet = []; CharSet: TAnsiCharSet = []): Boolean;
 begin
 end;
 
@@ -1830,6 +1865,10 @@ begin
 end;
 
 procedure CnOtaCloseEditView(AModule: IOTAModule);
+begin
+end;
+
+procedure ParseUnitUsesFromFileName(const FileName: string; UsesList: TStrings);
 begin
 end;
 

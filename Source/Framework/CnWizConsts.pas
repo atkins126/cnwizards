@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -58,7 +58,7 @@ const
   SCnWizardDesc = 'CnPack IDE Wizards for Delphi/C++Builder/BDS/Rad Studio' + #13#10 +
                   '' + #13#10 +
                   'Version: ' + SCnWizardFullVersion + #13#10 +
-                  'Copyright: 2001-2021 CnPack Team' + #13#10 +
+                  'Copyright: 2001-2022 CnPack Team' + #13#10 +
                   '' + #13#10 +
                   'This is a freeware, you can use it freely without any fee. ' +
                   'You can copy or distribute it in any form, without any fee. ' +
@@ -80,6 +80,7 @@ resourcestring
   SCnPackKeyboard = 'CnPack_Keyboard';
   SCnActiveSection = 'Active';
   SCnMenuOrderSection = 'MenuOrder';
+  SCnNoName = '<NoName>';
 
   // 保存窗体位置
   SCnFormPosition = 'FormPosition';
@@ -104,6 +105,7 @@ resourcestring
   SCnShowBootFormSwitch = 'swcn';
   SCnUserRegSwitch = 'cnreg';
   SCnUserDirSwitch = 'cnuserdir';
+  SCnNoIcons = 'noico';
 
   SCnWizardsPage = 'CnPack';
   SCnWizardsNamePrefix = 'CnPack';
@@ -232,8 +234,8 @@ resourcestring
   SCnProjExtListUsed = 'CnProjExtListUsed';
   SCnProjExtBackup = 'CnProjExtBackup';
   SCnProjExtDelTemp = 'CnProjExtDelTemp';
-  SCnProjExtFileReopen = 'CnProjExtFileReopen';
   SCnProjExtDirBuilder = 'CnProjExtDirBuilder';
+  SCnProjExtVclToFmx = 'CnProjExtVclToFmx';
 
   SCnProjExtPasIntf = 'interface';
   SCnProjExtPasImpl = 'implementation';
@@ -241,9 +243,10 @@ resourcestring
   SCnProjExtCppSource = 'cpp';
 
   // CnFilesSnapshotWizard
-  SCnProjExtFilesSnapshotAdd = 'CnProjExtFilesSnapshotAdd';
-  SCnProjExtFilesSnapshotManage = 'CnProjExtFilesSnapshotManage';
-  SCnProjExtFilesSnapshotsItem = 'CnProjExtFilesSnapshotsItem';
+  SCnFilesSnapshotAdd = 'CnFilesSnapshotAdd';
+  SCnFilesSnapshotManage = 'CnFilesSnapshotManage';
+  SCnFilesSnapshotsItem = 'CnFilesSnapshotsItem';
+  SCnFilesSnapshotReopen = 'CnFilesSnapshotReopen';
 
   // CnWizAbout
   SCnWizAboutHelp = 'CnWizAboutHelp';
@@ -303,6 +306,8 @@ resourcestring
   // CnCpuWinEnhancements
   SCnMenuCopy30LinesName = 'CnCopy30Lines';
   SCnMenuCopyLinesName = 'CnCopyLines';
+  SCnDumpViewCopyName = 'CnDumpViewCopy';
+  SCnDumpViewCopyCaption = '&Copy';   // DO NOT Localize and Translate
 
   // CnWizMultiLang
   SCnWizMultiLangName = 'Language Switch';
@@ -331,6 +336,11 @@ resourcestring
 
   // CnInputHelper
   SCnInputHelperPopup = 'CnInputHelperPopup';
+
+  // CnUsesTools
+  SCnUsesToolsCleaner = 'CnUsesToolsCleaner';
+  SCnUsesToolsInitTree = 'CnUsesToolsInitTree';
+  SCnUsesToolsFromIdent = 'CnUsesToolsFromIdent';
 
   // CnIdeEnhanceMenu
   SCnIdeEnhanceMenuCommand = 'CnIdeEnhanceMenu';
@@ -390,6 +400,7 @@ var
   SCnInputFile: string = 'Please Enter the Filename.';
   SCnDoublePasswordError: string = 'Password Error or Mismatch, Please Enter again.';
   SCnMoreMenu: string = 'More...';
+  SCnCountFmt: string = 'Count: %d';
 
   // 反馈向导
   STypeDescription: string =
@@ -515,6 +526,7 @@ var
 
   // CnShortcut
   SCnDuplicateShortCutName: string = 'Duplicated Shortcut: %s';
+  SCnShortCutUsingByActionQuery: string = 'ShortCut %s already Occupied by "%s", Continue?';
 
   // CnMenuAction
   SCnDuplicateCommand: string = 'Duplicated Command: %s';
@@ -608,6 +620,7 @@ var
   SCnBookmarkWizardName: string = 'BookMark Browser';
   SCnBookmarkWizardComment: string = 'Browsing BookMarks of All Opening Files';
   SCnBookmarkAllUnit: string = '<All Units>';
+  SCnBookmarkCurrentUnit: string = '<Current Unit>';
   SCnBookmarkFileCount: string = 'Units Count: %d';
 
   // CnEditorToolsetWizard
@@ -762,6 +775,16 @@ var
   SCnEditorFontDecMenuHint: string = 'Zoom Smaller Editor Font';
   SCnEditorFontDecName: string = 'Zoom Smaller Editor Font Tool';
 
+  // CnEditorExtendingSelect
+  SCnEditorExtendingSelectMenuCaption: string = 'Extending Select';
+  SCnEditorExtendingSelectMenuHint: string = 'Select Content with Extending Mode';
+  SCnEditorExtendingSelectName: string = 'Extending Select Tool';
+
+  // CnEditorDuplicateUnit
+  SCnEditorDuplicateUnitMenuCaption: string = 'Duplicate Current Unit';
+  SCnEditorDuplicateUnitMenuHint: string = 'Duplicate Current Unit/Form/Frame to a New One';
+  SCnEditorDuplicateUnitName: string = 'Duplicate Current Unit Tool';
+
   // CnSrcTemplate
   SCnSrcTemplateMenuCaption: string = 'Source Te&mplates';
   SCnSrcTemplateMenuHint: string = 'Source and Comment Templates';
@@ -906,7 +929,7 @@ var
   SCnSourceDiffUpdateFile: string = '&Refresh Current File';
   SCnDiskFile: string = 'File';
   SCnEditorBuff: string = 'Mem';
-  SCnBakFile: string = 'Bak';
+  SCnBackupFile: string = 'Backup';
 
   // CnStatWizard
   SCnStatWizardMenuCaption: string = 'So&urce Statistics...';
@@ -920,7 +943,7 @@ var
   SCnStatusBarFindFileFmt: string = '%s Files Found...';
   SCnStatClearResult: string = 'Preparing for New Statistics...';
   SCnErrorNoFile: string = 'File NOT Exists.';
-  SCnErrorNoFind: string = 'String not Found: %s';
+  SCnErrorNoFind: string = 'String NOT Found: %s';
   SCnStatBytesFmtStr: string = '%s Bytes, Code %s Bytes, Comment %s Blocks, %s Bytes.';
   SCnStatLinesFmtStr: string = '%s Lines, Code %s Lines, Comment %s Lines, Blank %s Lines, Effective %s Lines.';
   SCnStatFilesCaption: string = 'Files Information';
@@ -1190,6 +1213,8 @@ var
   SCnNonArrangeHint: string = 'Arrange the Non-visual Components';
   SCnListCompCaption: string = 'Locate Components...';
   SCnListCompHint: string = 'Search and Locate Components in Designer';
+  SCnComparePropertyCaption: string = 'Compare Properties...';
+  SCnComparePropertyHint: string = 'Compare Properties for Selected Components';
   SCnCompToCodeCaption: string = 'Convert to Code...';
   SCnCompToCodeHint: string = 'Convert Selected Components to Creating Code';
   SCnHideComponentCaption: string = 'Hide Non-visual';
@@ -1206,6 +1231,11 @@ var
   SCnNonNonVisualNotSupport: string = 'Only VCL Designer Supported.';
   SCnSpacePrompt: string = 'Please Enter the Space:';
   SCnMustDigital: string = 'Please Enter a Digital Value.';
+  SCnPropertyCompareSelectCaptionFmt: string = 'Select %s:%s to Compare';
+  SCnPropertyCompareToComponentsFmt: string = 'Compare to %s:%s';
+  SCnPropertyCompareTwoComponentsFmt: string = 'Compare %s:%s with %s:%s';
+  SCnPropertyCompareNoPrevDiff: string = 'NO Previous Different Property.';
+  SCnPropertyCompareNoNextDiff: string = 'NO Next Different Property.';
 
   // CnPaletteEnhanceWizard
   SCnPaletteEnhanceWizardName: string = 'IDE Main Form Enhancements';
@@ -1237,8 +1267,8 @@ var
   SCnCorrectPropertyErrNoForm: string = 'No Form to Process.';
   SCnCorrectPropertyErrNoResult: string = 'No Property Found.';
   SCnCorrectPropertyErrNoModuleFound: string = 'Component NOT Exists, Perhaps Deleted or the Form has Closed.';
-  SCnCorrectPropertyErrClassFmt: string = 'Can not Find the Class %s ,Continue?';
-  SCnCorrectPropertyErrClassCreate: string = 'Can not Create the Class %s to Verify the Property, Continue?';
+  SCnCorrectPropertyErrClassFmt: string = 'Can NOT Find the Class %s ,Continue?';
+  SCnCorrectPropertyErrClassCreate: string = 'Can NOT Create the Class %s to Verify the Property, Continue?';
   SCnCorrectPropertyErrPropFmt: string = 'In %s, There''s No %s Property, Maybe only Exist in Decend Classes, Continue?';
   SCnCorrPropSetPropValueErrorFmt: string = 'Error Occurred when Processing the %s Property, Please Check Rules.' + #13#10#13#10;
 
@@ -1281,7 +1311,7 @@ var
   SCnProjExtUnitsFileCount: string = 'Units Count: %d';
   SCnProjExtFramesFileCount: string = 'Frames Count: %d';
   SCnProjExtNotSave: string = '(Not Saved)';
-  SCnProjExtFileNotExistOrNotSave: string = 'The File NOT Exists or Not Saved!';
+  SCnProjExtFileNotExistOrNotSave: string = 'The File NOT Exists or NOT Saved!';
   SCnProjExtOpenFormWarning: string = 'You Selected More than One Forms, Continue?';
   SCnProjExtOpenUnitWarning: string = 'You Selected More than One Units, Continue?';
   SCnProjExtFileIsReadOnly: string = 'The File is ReadOnly, Set its Attribute to Normal and Continue to Convert It?';
@@ -1292,8 +1322,6 @@ var
   SCnProjExtAddExtension: string = 'Add File Extension';
   SCnProjExtAddNewText: string = 'Enter a File Extension:';
   SCnProjExtCleaningComplete: string = 'Cleaning complete. ' + #13#10 + 'Total delete %d files, ' + #13#10 + '%s bytes.';
-  SCnProjExtFileReopenCaption: string = '&Open Historical Files...';
-  SCnProjExtFileReopenHint: string = 'Open Historical Files';
   SCnProjExtCustomBackupFile: string = 'Customized Files';
   SCnProjExtBackupAddFile: string = '%d File(s) Added.';
   SCnProjExtDirBuilderCaption: string = 'Project Dir Bui&lder...';
@@ -1309,6 +1337,10 @@ var
   SCnProjExtDirNameHasInvalidChar: string = 'The Directory Name can NOT Contain Following Char:'' + #10#13 + '' \ / :  * ? " < > | ';
   SCnProjExtDirCreateSucc: string = 'Directories Built Succeed.';
   SCnProjExtDirCreateFail: string = 'Directories Built Failed! Perhaps the Destination is Readonly.';
+  SCnProjExtVclToFmxCaption: string = 'Convert Delphi VCL Form to FMX...';
+  SCnProjExtVclToFmxHint: string = 'Convert Delphi VCL Form and Unit to FMX Form';
+  SCnProjExtVclToFmxConvertOK: string = 'Convert OK. File(s) Saved.';
+  SCnProjExtVclToFmxConvertError: string = 'Convert Failed!';
 
   // CnFilesSnapshotWizard
   SCnFilesSnapshotWizardName: string = 'Historical Files Snapshot';
@@ -1319,6 +1351,8 @@ var
   SCnFilesSnapshotAddHint: string = 'Create a Snapshot of Opened Files';
   SCnFilesSnapshotManageCaption: string = '&Manage Snapshot List...';
   SCnFilesSnapshotManageHint: string = 'Manage Snapshot List';
+  SCnFilesSnapshotReopenCaption: string = '&Open Historical Files...';
+  SCnFilesSnapshotReopenHint: string = 'Open Historical Files';
   SCnFilesSnapshotManageFrmCaptionManage: string = 'Manage File List Snapshots';
   SCnFilesSnapshotManageFrmCaptionAdd: string = 'Create a File List Snapshot';
   SCnFilesSnapshotManageFrmLblSnapshotsCaptionManage: string = 'Select a Snapshot:';
@@ -1450,6 +1484,7 @@ var
   SCnInputHelperSortByText: string = 'by Text(&2)';
   SCnInputHelperSortByLength: string = 'by Length(&3)';
   SCnInputHelperSortByKind: string = 'by Type(&4)';
+  SCnInputHelperCopy: string = '&Copy';
   SCnInputHelperAddSymbol: string = 'Add a User-defined &Symbol...';
   SCnInputHelperHelp: string = 'Input Helper Tool &Help';
   SCnInputHelperKibitzCompileRunning: string = 'Retrieving Symbols in Background';
@@ -1459,19 +1494,19 @@ var
   SCnInputHelperUnitNameList: string = 'Unit Names in uses Statement Area';
   SCnInputHelperUnitUsesList: string = 'Used Unit Names in Source Code Area';
   SCnInputHelperIDECodeTemplateList: string = 'IDE''s Code Templates';
-  SCnInputHelperIDESymbolList: string = 'Symbols getting from System Compiler';
+  SCnInputHelperIDESymbolList: string = 'Symbols Getting from System Compiler';
   SCnInputHelperUserSymbolList: string = 'User-defined Symbols and Code Templates';
   SCnInputHelperXMLCommentList: string = 'Code Comments in XML Style';
   SCnInputHelperJavaDocList: string = 'Code Comments in JavaDoc Style';
   SCnInputHelperSymbolNameIsEmpty: string = 'Symbol Name can NOT be Empty!';
-  SCnInputHelperSymbolKindError: string = 'Please select the Symbol Type!';
+  SCnInputHelperSymbolKindError: string = 'Please Select the Symbol Type!';
   SCnInputHelperUserMacroCaption: string = 'User-defined Macro';
-  SCnInputHelperUserMacroPrompt: string = 'Please Input Macro Name:';
+  SCnInputHelperUserMacroPrompt: string = 'Please Enter Macro Name:';
   SCnInputHelperDisableCodeCompletionSucc: string = 'IDE Code Completion Disabled.';
   SCnKeywordDefault: string = 'Unchange';
-  SCnKeywordLower: string = 'Lower case';
-  SCnKeywordUpper: string = 'Upper case';
-  SCnKeywordFirstUpper: string = 'Only first up';
+  SCnKeywordLower: string = 'Lower Case';
+  SCnKeywordUpper: string = 'Upper Case';
+  SCnKeywordFirstUpper: string = 'Only First Up';
 
   // CnProcListWizard
   SCnProcListWizardName: string = 'Procedure List Wizard';
@@ -1504,12 +1539,18 @@ var
   SCnProcListErrorNoIntf: string = 'Interface NOT Found.';
   SCnProcListErrorNoImpl: string = 'Implementation NOT Found.';
 
+  // CnUsesTools
+  SCnUsesToolsMenuCaption: string = '&Uses Units Tools';
+  SCnUsesToolsMenuHint: string = 'Uses Units Tools';
+  SCnUsesToolsName: string = 'Uses Units Tools';
+  SCnUsesToolsComment: string = 'Uses Units Tools';
+
   // CnUsesCleaner
   SCnUsesCleanerMenuCaption: string = '&Uses Cleaner...';
   SCnUsesCleanerMenuHint: string = 'Clean Unused Units Reference';
   SCnUsesCleanerName: string = 'Uses Units Cleaner';
   SCnUsesCleanerComment: string = 'Clean Unused Units Reference';
-  SCnUsesCleanerCompileFail: string = 'Compile Error. Cleaner can NOT continue.';
+  SCnUsesCleanerCompileFail: string = 'Compile Error. Cleaner can NOT Continue.';
   SCnUsesCleanerUnitError: string = 'Processing %s Failed.' + #13#10#13#10 + 'Perhaps the Format is NOT supported, Please contact CnPack Team. ';
   SCnUsesCleanerProcessError: string = 'Failed when Processing file %s , Continue?';
   SCnUsesCleanerHasInitSection: string = 'Including initialization';
@@ -1520,6 +1561,20 @@ var
   SCnUsesCleanerNotSource: string = 'NO Source Code.';
   SCnUsesCleanerNoneResult: string = 'Nothing to Process.';
   SCnUsesCleanerReport: string = 'Clean Complete!' + #13#10 + '%d Unused Reference Units Removed from %d Units.' + #13#10#13#10 + 'Do you want to view log?';
+
+  // CnUsesInitTree
+  SCnUsesInitTreeMenuCaption: string = 'Show &Initialization Tree...';
+  SCnUsesInitTreeMenuHint: string = 'Show Uses Units Initialization Tree';
+  SCnUsesInitTreeSearchInProject: string = 'In Project';
+  SCnUsesInitTreeSearchInProjectSearch: string = 'In Project Search Path';
+  SCnUsesInitTreeSearchInSystemSearch: string = 'In System Search Path';
+  SCnUsesInitTreeNotFound: string = 'Search Text NOT Found.';
+
+  // CnUsesFromIdent
+  SCnUsesUnitFromIdentMenuCaption: string = 'Use Unit from Identifier...';
+  SCnUsesUnitFromIdentMenuHint: string = 'Search and Use Unit from Identifier under Cursor';
+  SCnUsesUnitAnalyzeWaiting: string = 'Analyzing Library Files...';
+  SCNUsesUnitFromIdentErrorFmt: string = 'Can NOT Find %s in Searching Units';
 
   // CnIdeEnhanceMenu
   SCnIdeEnhanceMenuCaption: string = '&IDE Enhancements Settings';
@@ -1576,6 +1631,7 @@ var
   SCnScriptModeApplicationEvent: string = 'Trigger by Application Event';
   SCnScriptModeActiveFormChanged: string = 'Trigger after Active Form Changed';
   SCnScriptModeEditorFlatButton: string = 'Attach to Editor Flat Button Menu';
+  SCnScriptModeDesignerContextMenu: string = 'Attach to Designer Context Menu';
 
   // CnFeedReaderWizard
   SCnFeedReaderWizardName: string = 'FeedReader Wizard';

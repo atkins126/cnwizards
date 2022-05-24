@@ -66,6 +66,7 @@ See http://www.suigeneris.org/want/ for details.
   <property name="exe.D103R"      value="${ProgramFiles}\Embarcadero\Studio\20.0\Bin\DCC32.EXE" unless="env.D103R" />
   <property name="exe.D104S1"      value="${ProgramFiles}\Embarcadero\Studio\21.0_1\Bin\DCC32.EXE" unless="env.D104S1" />
   <property name="exe.D104S"      value="${ProgramFiles}\Embarcadero\Studio\21.0\Bin\DCC32.EXE" unless="env.D104S" />
+  <property name="exe.D110A"      value="${ProgramFiles}\Embarcadero\Studio\22.0\Bin\DCC32.EXE" unless="env.D110A" />
   <property name="exe.brcc32"     value="%{BRCC32}" />
   <property name="exe.git"        value="%{env.git}" if="env.git" />
   <property name="exe.git"        value="${ProgramFiles}\Git\bin\git.exe" unless="env.git" />
@@ -77,12 +78,12 @@ See http://www.suigeneris.org/want/ for details.
   <property name="release.pro"    value=""          if="full" />
   <property name="release.pro"    value="_Lite"     if="lite" />
 
-  <property name="cnwizards_list" value="-cnwizloader,-d5,-d6,-d7,-d2005,-d2006,-d2007,-d2009,-d2010,-dxe,-dxe21,-dxe2,-dxe3,-dxe4,-dxe5,-dxe6,-dxe7,-dxe8,-d10s,-d101b,-d102t,-d103r1,-d103r,-d104s1,-d104s,-cb5,-cb6" unless="lite" />
+  <property name="cnwizards_list" value="-cnwizloader,-d5,-d6,-d7,-d2005,-d2006,-d2007,-d2009,-d2010,-dxe,-dxe21,-dxe2,-dxe3,-dxe4,-dxe5,-dxe6,-dxe7,-dxe8,-d10s,-d101b,-d102t,-d103r1,-d103r,-d104s1,-d104s,-d110a,-cb5,-cb6" unless="lite" />
   <property name="cnwizards_list" value="-cnwizloader,-d6,-d7,-d2006,-d2007,-cb6" if="lite" />
   <property name="tools_list"     value="cnconfigio,cndebugviewer,cndfm6to5,cnascii,cnidebr,cnmanagewiz,cnselectlang,cnsmr,cnwizsetup,cnfixstart" unless="lite" />
   <property name="tools_list"     value="cnconfigio,cndebugviewer,cnwizsetup" if="lite" />
-  <property name="all_list"       value="cnwizards,resdll,cnwizhelperdll,cnziputilsdll,cnpnglib,cnformatlib,cnformatlibw,tools,makehelp,makeinst" unless="lite" />
-  <property name="all_list"       value="cnwizards,resdll,cnpnglib,cnformatlib,cnformatlibw,tools,makeinst" if="lite" />
+  <property name="all_list"       value="cnwizards,resdll,cnwizhelperdll,cnziputilsdll,cnpnglib,cnformatlib,cnformatlibw,cnvcltofmx,tools,makehelp,makeinst" unless="lite" />
+  <property name="all_list"       value="cnwizards,resdll,cnpnglib,cnformatlib,cnformatlibw,cnvcltofmx,tools,makeinst" if="lite" />
 
   <property name="install_lite"   value=""          unless="lite"/>
   <property name="install_lite"   value="/DLITE"    if="lite"/>
@@ -206,7 +207,7 @@ Usage: want [target-name] [-Dname=value]
     gitpull    - Update all files.
     cnwizloader  - Compile CnWizards Loader DLL.
     d5         - Compile CnWizards for Delphi 5.
-                 (d6, d7, d2005, d2006, d2007, d2009, d2010, dxe, dxe21, dxe2, dxe3, dxe4, dxe5, dxe6, dxe7, dxe8, d10s, d101b, d102t, d103r1, d103r, d104s1, d104s, cb5, cb6 also)
+                 (d6, d7, d2005, d2006, d2007, d2009, d2010, dxe, dxe21, dxe2, dxe3, dxe4, dxe5, dxe6, dxe7, dxe8, d10s, d101b, d102t, d103r1, d103r, d104s1, d104s, d110a, cb5, cb6 also)
     cnwizards  - Compile all CnWizards DLLs (D5, D6, etc.).
     resdll     - Compile CnWizards Resource DLL.
     cnwizhelperdll - Compile CnWizards Helper DLL.
@@ -214,6 +215,7 @@ Usage: want [target-name] [-Dname=value]
     cnpnglib   - Compile CnPngLib DLL.
     cnformatlib - Compile CnFormatLib DLL.
     cnformatlibw - Compile CnFormatLibW DLL for Unicode.
+    cnvcltofmx - Compile CnVclToFmx DLL.
     cnconfigio - Compile CnConfigIO.
     cndebugviewer  - Compile CnDebugViewer.
     cndfm6to5  - Compile CnDfm6To5.
@@ -232,9 +234,8 @@ Usage: want [target-name] [-Dname=value]
     makeinst   - Build CnWizards Installer.
     all        - All above tasks except gitpull.
     allgit     - All above tasks.
-    upload     - Upload Installer to Server (Master only).
     incbuild   - Increase build and commit (Master only).
-    publish    - Publish a new version (Master only).
+    publish    - Publish a new version (Master only. Need Manually Upload).
 
   where name=value may:
     unstable=true - Make unstable version (default).
@@ -345,6 +346,7 @@ Usage: want [target-name] [-Dname=value]
   <target name="d103r" depends="-d103r,-cw_final" description="Compile CnWizards for RAD Studio 10.3 Rio." />
   <target name="d104s1" depends="-d104s,-cw_final" description="Compile CnWizards for RAD Studio 10.4.0 Sydney or below." />
   <target name="d104s" depends="-d104s,-cw_final" description="Compile CnWizards for RAD Studio 10.4 Sydney." />
+  <target name="d110a" depends="-d110a,-cw_final" description="Compile CnWizards for RAD Studio 11.0 Alexandria." />
   <target name="cb5" depends="-cb5,-cw_final" description="Compile CnWizards for C++Builder 5." />
   <target name="cb6" depends="-cb6,-cw_final" description="Compile CnWizards for C++Builder 6." />
 
@@ -925,6 +927,28 @@ Usage: want [target-name] [-Dname=value]
     </move>
   </target>
 
+  <target name="-d110a" depends="-cw_prepare" >
+    <property name="Ver.FileDescription"  value="CnWizards For RAD Studio 11 Alexandria" />
+    <property name="Ver.InternalName"     value="CnWizards_D110A" />
+    <property name="Ver.OriginalFilename" value="CnWizards_D110A.DLL" />
+    <copy tofile="${src}/CnWizards_D110A.res.old" >
+       <include name="${src}/CnWizards_D110A.res" />
+    </copy>
+    <echo input="${src}/CnWizards.template.rc" file="${src}/CnWizards_D110A.rc" />
+    <brcc file="${src}/CnWizards_D110A.rc" exename="${exe.brcc32}" output="${src}/CnWizards_D110A.res" />
+    <dcc basedir="${src}" source="CnWizards_D110A.dpr" exename="${exe.D110A}" usecfg="true" arguments="${dcc_arg}" >
+      <define name="${define.add}" />
+    </dcc>
+    <delete dir="${src}">
+       <include name="CnWizards_D110A.res" />
+       <include name="CnWizards_D110A.rc" />
+       <include name="CnWizards_D110A.drc" />
+    </delete>
+    <move tofile="${src}/CnWizards_D110A.res" >
+       <include name="${src}/CnWizards_D110A.res.old" />
+    </move>
+  </target>
+
   <target name="-cb5" depends="-cw_prepare" >
     <delete dir="${dcu}" >
        <exclude name="?svn" />
@@ -1154,6 +1178,27 @@ Usage: want [target-name] [-Dname=value]
     </delete>
     <move tofile="${tools}/CnFormatLib/CnFormatLibW.res" >
        <include name="${tools}/CnFormatLib/CnFormatLibW.res.old" />
+    </move>
+  </target>
+
+  <!-- 编译 CnVclToFmx DLL -->
+  <target name="cnvcltofmx" depends="-prepare" description="Compile CnVclToFmx DLL." >
+    <property name="Ver.FileDescription"  value="CnVclToFmx DLL" />
+    <property name="Ver.InternalName"     value="CnVclToFmx" />
+    <property name="Ver.OriginalFilename" value="CnVclToFmx.DLL" />
+    <copy tofile="${tools}/CnVclToFmx/CnVclToFmx.res.old" >
+       <include name="${tools}/CnVclToFmx/CnVclToFmx.res" />
+    </copy>
+    <echo input="${tools}/CnDll.template.rc" file="${tools}/CnVclToFmx/CnVclToFmx.rc" />
+    <brcc file="${tools}/CnVclToFmx/CnVclToFmx.rc" output="${tools}/CnVclToFmx/CnVclToFmx.res" />
+    <dcc basedir="${tools}/CnVclToFmx" source="CnVclToFmx.dpr" exename="${exe.D103R}"  usecfg="true" />
+    <delete dir="${tools}/CnVclToFmx">
+       <include name="CnVclToFmx.res" />
+       <include name="CnVclToFmx.rc" />
+       <include name="CnVclToFmx.drc" />
+    </delete>
+    <move tofile="${tools}/CnVclToFmx/CnVclToFmx.res" >
+       <include name="${tools}/CnVclToFmx/CnVclToFmx.res.old" />
     </move>
   </target>
 
@@ -1430,13 +1475,14 @@ Usage: want [target-name] [-Dname=value]
   <target name="allgit" depends="-prepare,clean,gitpull,${all_list}" description="All above tasks." >
   </target>
 
-  <!-- FTP 上传服务器 -->
+  <!-- FTP 上传服务器
   <target name="upload_ftp" depends="-prepare" if="ismaster" description="Upload Installer to FTP Server (Master only)." >
     <ftp server="www.cnpack.org" userid="?{${master.ini}:Master:ftpuser}" password="?{${master.ini}:Master:ftppass}" >
       <cd dir="${ftpdir}" />
       <put basedir="${install.output}" src="${Installer.Name}" />
     </ftp>
   </target>
+  -->
 
   <!-- 上传到 Google Code 服务器
   <target name="upload_google" depends="-prepare" if="ismaster" description="Upload Installer to Google Code Server (Master only)." >
@@ -1458,7 +1504,9 @@ Usage: want [target-name] [-Dname=value]
   </target>
   -->
 
-  <target name="upload" depends="-prepare,upload_ftp" if="ismaster" description="Upload Installer to FTP and Google Code Servers (Master only)." />
+  <!--
+  <target name="upload" depends="-prepare" if="ismaster" description="Upload Installer to FTP and Google Code Servers (Master only)." />
+  -->
 
   <!-- 更新 build 号及提交文件 -->
   <target name="incbuild" depends="-prepare" if="ismaster" description="Increase build and commit (Master only)." >
@@ -1488,6 +1536,6 @@ Usage: want [target-name] [-Dname=value]
   </target>
 
   <!-- 完整构建并发布 -->
-  <target name="publish" depends="allgit,incbuild,upload" description="Publish a new version (Master only)." >
+  <target name="publish" depends="allgit,incbuild" description="Publish a new version (Master only)." >
   </target>
 </project>

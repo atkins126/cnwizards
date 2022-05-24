@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -39,7 +39,7 @@ unit CnWizMacroUtils;
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该窗体中的字符串均符合本地化处理方式
 * 修改记录：2003.09.26 V1.1 何清(QSoft)
-*               修正编码工具集中的加入过程头时，对Class methods处理错误的BUG 
+*               修正编码工具集中的加入过程头时，对 Class methods 处理错误的 BUG 
 *           2002.12.04 V1.0
 *               创建单元，实现功能
 ================================================================================
@@ -87,9 +87,12 @@ function EdtGetCodeLines: string;
 
 function EdtGetProcInfo(var Name: string; var Args: TCnProcArguments;
   var ResultType: string): Boolean;
+{* 从当前光标往后找第一个函数的声明内容}
 
 procedure EdtInsertTextToCurSource(const AContent: string;
   InsertPos: TEditorInsertPos; ASavePos: Boolean; PosInText: Integer = 0);
+{* AContent 是待插入的内容；InsertPos是待插入的位置
+   ASavePos 是否插入后光标回到原处，如为 False，则根据 PosInText 调整光标位置}
 
 implementation
 
@@ -107,7 +110,7 @@ end;
 procedure GetNameArgsResult(var Name, Args, ResultType: string;
   RetEmpty: Boolean = False; IgnoreCompDir: Boolean = False);
 var
-  Parser: TmwPasLex;
+  Parser: TCnGeneralWidePasLex; // Ansi/Utf16/Utf16
   MemStream: TMemoryStream;
 begin
   if RetEmpty then
@@ -125,8 +128,8 @@ begin
 
   MemStream := TMemoryStream.Create;
   try
-    CnOtaSaveCurrentEditorToStream(MemStream, True);
-    Parser := TmwPasLex.Create;
+    CnGeneralSaveEditorToStream(nil, MemStream, True); // Ansi/Utf16/Utf16
+    Parser := TCnGeneralWidePasLex.Create;
     try
       Parser.Origin := MemStream.Memory;
       while not (Parser.TokenID in [tkNull, tkProcedure, tkFunction, tkConstructor, tkDestructor]) do
@@ -461,14 +464,14 @@ var
   label BeginFindProcHead;
 
   var
-    Parser: TmwPasLex;
+    Parser: TCnGeneralWidePasLex; // Ansi/Utf16/Utf16;
     MemStream: TMemoryStream;
     ClassPos: Integer;
   begin
     MemStream := TMemoryStream.Create;
     try
-      CnOtaSaveCurrentEditorToStream(MemStream, True);
-      Parser := TmwPasLex.Create;
+      CnGeneralSaveEditorToStream(nil, MemStream, True); // Ansi/Utf16/Utf16
+      Parser := TCnGeneralWidePasLex.Create;
       try
         Parser.Origin := MemStream.Memory;
 
@@ -480,16 +483,16 @@ var
         // 处理 class proceduer classfunc 类型的过程定义
         if Parser.TokenID = tkClass then
         begin
-          ClassPos := Parser.TokenPos; // 先记录class保留字的开始位置
+          ClassPos := Parser.TokenPos; // 先记录 class 保留字的开始位置
           Parser.NextNoJunk;
           if Parser.TokenID in [tkProcedure, tkFunction] then
-            CnOtaGotoPosition(CnOtaGetCurrPos + ClassPos)
-          else // class 保留字后未跟有procedure 或 function，则重新找过程头
+            CnOtaGotoPosition(CnOtaGetCurrPos + ClassPos, nil, False)
+          else // class 保留字后未跟有 procedure 或 function，则重新找过程头
             goto BeginFindProcHead;  
         end
         else if Parser.TokenID in [tkProcedure, tkFunction,
           tkConstructor, tkDestructor] then
-          CnOtaGotoPosition(CnOtaGetCurrPos + Parser.TokenPos);
+          CnOtaGotoPosition(CnOtaGetCurrPos + Parser.TokenPos, nil, False);
       finally
         Parser.Free;
       end;
@@ -532,6 +535,10 @@ begin
     begin
       // 空行，需要纠正，也就是增加空格。注意不能加 Position，会跑到下一行去
       S := Spc(EditPos.Col - 1) + S;
+
+      // 光标位置也要相应往后移
+      if PosInText > 0 then
+        Inc(PosInText, EditPos.Col - 1);
     end;
   end;
 
@@ -543,7 +550,7 @@ begin
 {$ENDIF}
 
   if ASavePos then
-    CnOtaGotoPosition(SavePos)
+    CnOtaGotoPosition(SavePos, EditView, False)
   else
   begin
     if PosInText > 0 then
@@ -552,8 +559,7 @@ begin
       CnDebugger.LogFmt('EdtInsertTextToCurSource Position %d, PosInText %d.',
         [Position, PosInText]);
 {$ENDIF}
-      CnOtaGotoPosition(Position + PosInText); // 必须减1
-      EditView.Paint;
+      CnOtaGotoPosition(Position + PosInText, EditView, False); // 必须减 1。并且垂直方向上不强制居中
     end;
     EditView.MoveViewToCursor;
   end;

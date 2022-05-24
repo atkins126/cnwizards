@@ -1,8 +1,8 @@
 inherited CnProjectDelTempForm: TCnProjectDelTempForm
-  Left = 289
-  Top = 169
-  Width = 478
-  Height = 418
+  Left = 338
+  Top = 172
+  Width = 583
+  Height = 477
   BorderIcons = [biSystemMenu]
   Caption = 'Clean Project Temporary Files'
   Constraints.MinHeight = 376
@@ -84,8 +84,8 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
   object nb: TNotebook
     Left = 8
     Top = 8
-    Width = 445
-    Height = 334
+    Width = 558
+    Height = 401
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     object TPage
@@ -95,15 +95,15 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
       object pnlDelCond: TPanel
         Left = 0
         Top = 0
-        Width = 445
-        Height = 334
+        Width = 558
+        Height = 401
         Align = alClient
         BevelOuter = bvNone
         TabOrder = 0
         object grpPath: TGroupBox
           Left = 0
           Top = 0
-          Width = 445
+          Width = 558
           Height = 161
           Align = alTop
           Caption = '&Path'
@@ -113,7 +113,7 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
             Top = 142
             Width = 260
             Height = 13
-            Caption = 'Checking the Checkbox before Path means Recursive.'
+            Caption = 'Checking the Checkbox before Path Means Recursive.'
           end
           object lblpe: TLabel
             Left = 8
@@ -122,10 +122,48 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
             Height = 13
             Caption = 'Kind:'
           end
+          object btnSelAllDirs: TSpeedButton
+            Left = 474
+            Top = 96
+            Width = 23
+            Height = 22
+            Anchors = [akTop, akRight]
+            Flat = True
+            Glyph.Data = {
+              36030000424D3603000000000000360000002800000010000000100000000100
+              18000000000000030000C40E0000C40E00000000000000000000C8D0D4C8D0D4
+              C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0
+              D4C8D0D4C8D0D4C8D0D4905F5A905F5A905F5A905F5A905F5A905F5A905F5A90
+              5F5A905F5A905F5AC8D0D4000000000000000000000000C8D0D4905F5AEDD8CA
+              E9D0BFE6CAB5E3C4ABE0BDA1DDB898DAB28FD7AD86905F5AC8D0D4000000C8D0
+              D40001DC000000C8D0D4905F5AFBF4EEF8EDE0F7E6D1F4E0C5F2D9B8F0D3ACEF
+              CCA0EDC793905F5AC8D0D40000000001DC0001DC000000C8D0D4905F5A905F5A
+              905F5A905F5A905F5A905F5A905F5A905F5A905F5A905F5AC8D0D40000000000
+              000000000000BBC8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8
+              D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D40001DC905F5A905F5A
+              905F5A905F5A905F5A905F5A905F5A905F5A905F5A905F5AC8D0D40000000000
+              00000000000000C8D0D4905F5AEDD8CAE9D0BFE6CAB5E3C4ABE0BDA1DDB898DA
+              B28FD7AD86905F5AC8D0D4000000C8D0D40001DC000000C8D0D4905F5AFBF4EE
+              F8EDE0F7E6D1F4E0C5F2D9B8F0D3ACEFCCA0EDC793905F5AC8D0D40000000001
+              DC0001DC000000C8D0D4905F5A905F5A905F5A905F5A905F5A905F5A905F5A90
+              5F5A905F5A905F5AC8D0D40000000000000000000000BBC8D0D4C8D0D4C8D0D4
+              C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0
+              D4C8D0D4C8D0D40001DC905F5A905F5A905F5A905F5A905F5A905F5A905F5A90
+              5F5A905F5A905F5AC8D0D4000000000000000000000000C8D0D4905F5AEDD8CA
+              E9D0BFE6CAB5E3C4ABE0BDA1DDB898DAB28FD7AD86905F5AC8D0D4000000C8D0
+              D40001DC000000C8D0D4905F5AFBF4EEF8EDE0F7E6D1F4E0C5F2D9B8F0D3ACEF
+              CCA0EDC793905F5AC8D0D40000000001DC0001DC000000C8D0D4905F5A905F5A
+              905F5A905F5A905F5A905F5A905F5A905F5A905F5A905F5AC8D0D40000000000
+              000000000000BBC8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8
+              D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D40001DC}
+            ParentShowHint = False
+            ShowHint = True
+            OnClick = btnSelAllDirsClick
+          end
           object chklstDirs: TCheckListBox
             Left = 8
             Top = 41
-            Width = 345
+            Width = 458
             Height = 98
             Anchors = [akLeft, akTop, akRight, akBottom]
             ItemHeight = 13
@@ -135,7 +173,7 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
             OnKeyPress = chklstDirsKeyPress
           end
           object btnAdd: TButton
-            Left = 360
+            Left = 473
             Top = 40
             Width = 75
             Height = 21
@@ -145,7 +183,7 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
             OnClick = btnAddClick
           end
           object btnRemove: TButton
-            Left = 360
+            Left = 473
             Top = 65
             Width = 75
             Height = 21
@@ -158,7 +196,7 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
           object cbbSelectType: TComboBox
             Left = 48
             Top = 16
-            Width = 305
+            Width = 418
             Height = 21
             Style = csDropDownList
             Anchors = [akLeft, akTop, akRight]
@@ -175,17 +213,55 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
         object grpFileType: TGroupBox
           Left = 0
           Top = 168
-          Width = 445
-          Height = 166
+          Width = 558
+          Height = 233
           Align = alBottom
           Anchors = [akLeft, akTop, akRight, akBottom]
           Caption = 'File &Type'
           TabOrder = 1
+          object btnSelAllExts: TSpeedButton
+            Left = 474
+            Top = 71
+            Width = 23
+            Height = 22
+            Anchors = [akTop, akRight]
+            Flat = True
+            Glyph.Data = {
+              36030000424D3603000000000000360000002800000010000000100000000100
+              18000000000000030000C40E0000C40E00000000000000000000C8D0D4C8D0D4
+              C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0
+              D4C8D0D4C8D0D4C8D0D4905F5A905F5A905F5A905F5A905F5A905F5A905F5A90
+              5F5A905F5A905F5AC8D0D4000000000000000000000000C8D0D4905F5AEDD8CA
+              E9D0BFE6CAB5E3C4ABE0BDA1DDB898DAB28FD7AD86905F5AC8D0D4000000C8D0
+              D40001DC000000C8D0D4905F5AFBF4EEF8EDE0F7E6D1F4E0C5F2D9B8F0D3ACEF
+              CCA0EDC793905F5AC8D0D40000000001DC0001DC000000C8D0D4905F5A905F5A
+              905F5A905F5A905F5A905F5A905F5A905F5A905F5A905F5AC8D0D40000000000
+              000000000000BBC8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8
+              D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D40001DC905F5A905F5A
+              905F5A905F5A905F5A905F5A905F5A905F5A905F5A905F5AC8D0D40000000000
+              00000000000000C8D0D4905F5AEDD8CAE9D0BFE6CAB5E3C4ABE0BDA1DDB898DA
+              B28FD7AD86905F5AC8D0D4000000C8D0D40001DC000000C8D0D4905F5AFBF4EE
+              F8EDE0F7E6D1F4E0C5F2D9B8F0D3ACEFCCA0EDC793905F5AC8D0D40000000001
+              DC0001DC000000C8D0D4905F5A905F5A905F5A905F5A905F5A905F5A905F5A90
+              5F5A905F5A905F5AC8D0D40000000000000000000000BBC8D0D4C8D0D4C8D0D4
+              C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0
+              D4C8D0D4C8D0D40001DC905F5A905F5A905F5A905F5A905F5A905F5A905F5A90
+              5F5A905F5A905F5AC8D0D4000000000000000000000000C8D0D4905F5AEDD8CA
+              E9D0BFE6CAB5E3C4ABE0BDA1DDB898DAB28FD7AD86905F5AC8D0D4000000C8D0
+              D40001DC000000C8D0D4905F5AFBF4EEF8EDE0F7E6D1F4E0C5F2D9B8F0D3ACEF
+              CCA0EDC793905F5AC8D0D40000000001DC0001DC000000C8D0D4905F5A905F5A
+              905F5A905F5A905F5A905F5A905F5A905F5A905F5A905F5AC8D0D40000000000
+              000000000000BBC8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8
+              D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D4C8D0D40001DC}
+            ParentShowHint = False
+            ShowHint = True
+            OnClick = btnSelAllExtsClick
+          end
           object chklstExtensions: TCheckListBox
             Left = 8
             Top = 16
-            Width = 345
-            Height = 121
+            Width = 458
+            Height = 164
             Anchors = [akLeft, akTop, akRight, akBottom]
             Columns = 3
             ItemHeight = 13
@@ -196,7 +272,7 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
             OnKeyPress = chklstExtensionsKeyPress
           end
           object btnAddExt: TButton
-            Left = 360
+            Left = 473
             Top = 16
             Width = 75
             Height = 21
@@ -206,7 +282,7 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
             OnClick = btnAddExtClick
           end
           object btnRemoveExt: TButton
-            Left = 360
+            Left = 473
             Top = 40
             Width = 75
             Height = 21
@@ -217,8 +293,8 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
             OnClick = btnRemoveExtClick
           end
           object btnDefault: TButton
-            Left = 360
-            Top = 116
+            Left = 473
+            Top = 159
             Width = 75
             Height = 21
             Anchors = [akRight, akBottom]
@@ -228,11 +304,21 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
           end
           object chkCheckSource: TCheckBox
             Left = 8
-            Top = 142
-            Width = 345
+            Top = 209
+            Width = 425
             Height = 17
             Anchors = [akLeft, akBottom]
             Caption = 'Keep Obj/Dcu Files when NO Same Source Files Exist.'
+            TabOrder = 5
+            OnClick = chkCheckSourceClick
+          end
+          object chkRemoveHistory: TCheckBox
+            Left = 8
+            Top = 188
+            Width = 425
+            Height = 17
+            Anchors = [akLeft, akBottom]
+            Caption = 'Remove __history and __recovery Directories.'
             TabOrder = 4
           end
         end
@@ -245,24 +331,24 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
       object pnlDelList: TPanel
         Left = 0
         Top = 0
-        Width = 445
-        Height = 334
+        Width = 558
+        Height = 401
         Align = alClient
         BevelOuter = bvNone
         TabOrder = 0
         object grpFileList: TGroupBox
           Left = 0
           Top = 0
-          Width = 445
-          Height = 334
+          Width = 558
+          Height = 401
           Align = alClient
           Caption = 'File List'
           TabOrder = 0
           object chklstFileList: TCheckListBox
             Left = 8
             Top = 24
-            Width = 428
-            Height = 301
+            Width = 541
+            Height = 368
             Anchors = [akLeft, akTop, akRight, akBottom]
             ItemHeight = 13
             TabOrder = 0
@@ -272,8 +358,8 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
     end
   end
   object btnFinish: TButton
-    Left = 378
-    Top = 354
+    Left = 491
+    Top = 421
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
@@ -283,8 +369,8 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
     OnClick = btnFinishClick
   end
   object btnNext: TButton
-    Left = 298
-    Top = 354
+    Left = 411
+    Top = 421
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
@@ -293,8 +379,8 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
     OnClick = btnNextClick
   end
   object btnPrio: TButton
-    Left = 218
-    Top = 354
+    Left = 331
+    Top = 421
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
@@ -304,7 +390,7 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
   end
   object btnCancel: TButton
     Left = 8
-    Top = 354
+    Top = 421
     Width = 75
     Height = 21
     Anchors = [akLeft, akBottom]
@@ -315,7 +401,7 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
   end
   object btnHelp: TButton
     Left = 88
-    Top = 354
+    Top = 421
     Width = 75
     Height = 21
     Anchors = [akLeft, akBottom]
@@ -325,8 +411,8 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
     OnClick = btnHelpClick
   end
   object ActionList: TActionList
-    Left = 135
-    Top = 346
+    Left = 183
+    Top = 386
     object actDirsCheckAll: TAction
       Caption = '&Select All'
       OnExecute = CheckActionExecute
@@ -353,8 +439,8 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
     end
   end
   object pmuDirs: TPopupMenu
-    Left = 199
-    Top = 346
+    Left = 247
+    Top = 386
     object mitDirsCheckAll: TMenuItem
       Action = actDirsCheckAll
     end
@@ -366,8 +452,8 @@ inherited CnProjectDelTempForm: TCnProjectDelTempForm
     end
   end
   object pmuExts: TPopupMenu
-    Left = 167
-    Top = 346
+    Left = 215
+    Top = 386
     object mitExtsCheckAll: TMenuItem
       Action = actExtsCheckAll
     end

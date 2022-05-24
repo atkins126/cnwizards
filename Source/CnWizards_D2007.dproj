@@ -66,7 +66,7 @@
     <Borland.Personality>Delphi.Personality</Borland.Personality>
     <Borland.ProjectType />
     <BorlandProject>
-<BorlandProject><Delphi.Personality><Parameters><Parameters Name="HostApplication">C:\Program Files\CodeGear\RAD Studio\5.0\bin\bds.exe</Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters></Parameters><VersionInfo><VersionInfo Name="IncludeVerInfo">True</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">1</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">0</VersionInfo><VersionInfo Name="Build">0</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">2057</VersionInfo><VersionInfo Name="CodePage">1200</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="FileDescription">CnWizards For Delphi 2007</VersionInfoKeys><VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="InternalName">CnWizards_D2007</VersionInfoKeys><VersionInfoKeys Name="OriginalFilename">CnWizards_D2007.DLL</VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="LegalCopyright">(C)Copyright 2001-2021 CnPack Team</VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks">CnPack</VersionInfoKeys><VersionInfoKeys Name="ProductName">CnWizards</VersionInfoKeys><VersionInfoKeys Name="Comments">http://www.cnpack.org</VersionInfoKeys><VersionInfoKeys Name="CompanyName">CnPack Team</VersionInfoKeys></VersionInfoKeys><Source><Source Name="MainSource">CnWizards_D2007.dpr</Source></Source>
+<BorlandProject><Delphi.Personality><Parameters><Parameters Name="HostApplication">C:\Program Files\CodeGear\RAD Studio\5.0\bin\bds.exe</Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters></Parameters><VersionInfo><VersionInfo Name="IncludeVerInfo">True</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">1</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">0</VersionInfo><VersionInfo Name="Build">0</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">2057</VersionInfo><VersionInfo Name="CodePage">1200</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="FileDescription">CnWizards For Delphi 2007</VersionInfoKeys><VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="InternalName">CnWizards_D2007</VersionInfoKeys><VersionInfoKeys Name="OriginalFilename">CnWizards_D2007.DLL</VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="LegalCopyright">(C)Copyright 2001-2022 CnPack Team</VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks">CnPack</VersionInfoKeys><VersionInfoKeys Name="ProductName">CnWizards</VersionInfoKeys><VersionInfoKeys Name="Comments">http://www.cnpack.org</VersionInfoKeys><VersionInfoKeys Name="CompanyName">CnPack Team</VersionInfoKeys></VersionInfoKeys><Source><Source Name="MainSource">CnWizards_D2007.dpr</Source></Source>
   </Delphi.Personality></BorlandProject></BorlandProject>
   </ProjectExtensions>
   <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets" />
@@ -94,7 +94,7 @@
       <Form>CnCorPropForm</Form>
     </DCCReference>
     <DCCReference Include="CorProperty\CnCorPropRulesFrm.pas">
-      <Form>CorPropRuleForm</Form>
+      <Form>CnCorPropRuleForm</Form>
     </DCCReference>
     <DCCReference Include="CorProperty\CnCorPropWizard.pas" />
     <DCCReference Include="DesignEditors\CnAlignPropEditor.pas" />
@@ -150,6 +150,7 @@
       <Form>CnEditorCollectorForm</Form>
     </DCCReference>
     <DCCReference Include="CodingToolset\CnEditorFontZoom.pas" />
+    <DCCReference Include="CodingToolset\CnEditorDuplicateUnit.pas" />
     <DCCReference Include="CodingToolset\CnEditorInsertColor.pas" />
     <DCCReference Include="CodingToolset\CnEditorInsertTime.pas">
       <Form>CnEditorInsertTimeForm</Form>
@@ -162,7 +163,7 @@
     <DCCReference Include="CodingToolset\CnEditorSortLines.pas" />
     <DCCReference Include="CodingToolset\CnEditorToggleUses.pas" />
     <DCCReference Include="CodingToolset\CnEditorToggleVar.pas" />
-    <DCCReference Include="CodingToolset\CnEditorWizard.pas">
+    <DCCReference Include="CodingToolset\CnEditorToolsetWizard.pas">
       <Form>CnEditorToolsForm</Form>
     </DCCReference>
     <DCCReference Include="CodingToolset\CnEditorZoomFullScreen.pas">
@@ -314,7 +315,6 @@
       <Form>CnProjectFilesSnapshotManageForm</Form>
     </DCCReference>
     <DCCReference Include="ReopenWizard\CnRoClasses.pas" />
-    <DCCReference Include="ReopenWizard\CnRoConst.pas" />
     <DCCReference Include="ReopenWizard\CnRoFilesList.pas">
       <Form>CnFilesListForm</Form>
     </DCCReference>
@@ -348,7 +348,7 @@
     <DCCReference Include="ScriptWizard\CnScriptWizard.pas">
       <Form>CnScriptWizardForm</Form>
     </DCCReference>
-    <DCCReference Include="SimpleWizards\CnAlignSizeWizard.pas">
+    <DCCReference Include="DesignWizard\CnAlignSizeWizard.pas">
       <Form>CnNonArrangeForm</Form>
     </DCCReference>
     <DCCReference Include="SimpleWizards\CnBookmarkConfigFrm.pas">
@@ -358,18 +358,24 @@
       <Form>CnBookmarkForm</Form>
     </DCCReference>
     <DCCReference Include="SimpleWizards\CnCommentCropper.pas">
-      <Form>CommentCropForm</Form>
+      <Form>CnCommentCropForm</Form>
     </DCCReference>
     <DCCReference Include="SimpleWizards\CnComponentSelector.pas">
       <Form>CnComponentSelectorForm</Form>
     </DCCReference>
-    <DCCReference Include="SimpleWizards\CnCompToCodeFrm.pas">
+    <DCCReference Include="DesignWizard\CnCompToCodeFrm.pas">
       <Form>CnCompToCodeForm</Form>
     </DCCReference>
     <DCCReference Include="SimpleWizards\CnIdeBRWizard.pas" />
-    <DCCReference Include="SimpleWizards\CnListCompFrm.pas">
+    <DCCReference Include="DesignWizard\CnListCompFrm.pas">
       <Form>CnListCompForm</Form>
     </DCCReference>
+    <DCCReference Include="DesignWizard\CnPropertyCompareFrm.pas">
+			<Form>CnPropertyCompareForm</Form>
+		</DCCReference>
+		<DCCReference Include="DesignWizard\CnPropertyCompConfigFrm.pas">
+			<Form>CnPropertyCompConfigForm</Form>
+		</DCCReference>
     <DCCReference Include="SimpleWizards\CnMessageBoxWizard.pas">
       <Form>CnMessageBoxForm</Form>
     </DCCReference>
@@ -394,11 +400,17 @@
     <DCCReference Include="SimpleWizards\CnTabOrderWizard.pas">
       <Form>CnTabOrderForm</Form>
     </DCCReference>
-    <DCCReference Include="SimpleWizards\CnUsesCleaner.pas">
+    <DCCReference Include="UsesWizard\CnUsesToolsWizard.pas">
       <Form>CnUsesCleanerForm</Form>
     </DCCReference>
-    <DCCReference Include="SimpleWizards\CnUsesCleanResultFrm.pas">
+    <DCCReference Include="UsesWizard\CnUsesCleanResultFrm.pas">
       <Form>CnUsesCleanResultForm</Form>
+    </DCCReference>
+    <DCCReference Include="UsesWizard\CnUsesInitTreeFrm.pas">
+      <Form>CnUsesInitTreeForm</Form>
+    </DCCReference>
+    <DCCReference Include="UsesWizard\CnUsesIdentFrm.pas">
+      <Form>CnUsesIdentForm</Form>
     </DCCReference>
     <DCCReference Include="SourceDiff\CnDiffEditorFrm.pas">
       <Form>CnDiffEditorForm</Form>

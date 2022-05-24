@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,7 +29,7 @@ unit CnRoFilesList;
 * 兼容测试：PWin2000 + Delphi 5/6/7
 * 本 地 化：该窗体中的字符串支持本地化处理方式
 * 修改记录：2004-12-12 V1.1
-*               去除TIniContainer处理，改为用IRoOptions接口处理。
+*               去除 TIniContainer 处理，改为用 IRoOptions 接口处理。
 *           2004-03-02 V1.0
 *               创建并移植单元
 ================================================================================
@@ -46,7 +46,7 @@ uses
   StdCtrls, Buttons, ComCtrls, ToolWin, ExtCtrls, IniFiles, ImgList, ActnList,
   Menus,
   CnWizMultiLang, CnWizShareImages, CnRoOptions, CnRoFrmFileList,CnRoClasses,
-  CnRoInterfaces, CnRoConst;
+  CnRoInterfaces;
 
 type
 
@@ -121,7 +121,7 @@ implementation
 {$R *.DFM}
 
 uses
-  ToolsAPI, CnCommon, CnRoWizard, CnLangMgr;
+  ToolsAPI, CnCommon, CnRoWizard, CnLangMgr, CnWizOptions;
 
 {***************************** TCnFilesListForm *******************************}
 
@@ -265,6 +265,8 @@ procedure TCnFilesListForm.FormCreate(Sender: TObject);
 var
   I: Integer;
 begin
+  WizOptions.ResetToolbarWithLargeIcons(tlb1);
+
   ReadFiles(frBPG, SProjectGroup);
   ReadFiles(frDPR, SProject);
   ReadFiles(frPAS, SUnt);

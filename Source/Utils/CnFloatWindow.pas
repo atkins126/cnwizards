@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -132,10 +132,21 @@ begin
   inherited;
   Params.Style := Params.Style or WS_CHILDWINDOW or WS_MAXIMIZEBOX;
   Params.ExStyle := WS_EX_TOOLWINDOW or WS_EX_WINDOWEDGE;
-  if {$IFDEF DELPHI104_SYDNEY_UP} False and {$ENDIF} CheckWinXP then
-    Params.WindowClass.style := CS_DBLCLKS or CS_DROPSHADOW
-  else
+
+  if {$IFDEF DELPHI104_SYDNEY_UP} True or {$ENDIF} CheckWin8 then
+  begin
     Params.WindowClass.style := CS_DBLCLKS;
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('%s Create with NO Shadow.', [ClassName]);
+{$ENDIF}
+  end
+  else
+  begin
+    Params.WindowClass.style := CS_DBLCLKS or CS_DROPSHADOW;
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('%s Create with Shadow.', [ClassName]);
+{$ENDIF}
+  end;
 end;
 
 procedure TCnFloatWindow.CreateWnd;
@@ -234,10 +245,21 @@ begin
   Params.Style := (Params.Style or WS_CHILDWINDOW or WS_SIZEBOX or WS_MAXIMIZEBOX
     or LBS_NODATA or LBS_OWNERDRAWFIXED) and not (LBS_SORT or LBS_HASSTRINGS);
   Params.ExStyle := WS_EX_TOOLWINDOW or WS_EX_WINDOWEDGE;
-  if {$IFDEF DELPHI104_SYDNEY_UP} False and {$ENDIF} CheckWinXP then
-    Params.WindowClass.style := CS_DBLCLKS or CS_DROPSHADOW
-  else
+
+  if {$IFDEF DELPHI104_SYDNEY_UP} True or {$ENDIF} CheckWin8 then
+  begin
     Params.WindowClass.style := CS_DBLCLKS;
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('%s Create with NO Shadow.', [ClassName]);
+{$ENDIF}
+  end
+  else
+  begin
+    Params.WindowClass.style := CS_DBLCLKS or CS_DROPSHADOW;
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('%s Create with Shadow.', [ClassName]);
+{$ENDIF}
+  end;
 end;
 
 procedure TCnFloatListBox.CreateWnd;

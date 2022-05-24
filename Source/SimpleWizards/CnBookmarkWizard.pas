@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -28,10 +28,12 @@ unit CnBookmarkWizard;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该窗体中的字符串均符合本地化处理方式
-* 修改记录：2008.06.28 V1.2
+* 修改记录：2021.10.29 V1.3
+*               将 RichEdit 换成 Memo
+*           2008.06.28 V1.2
 *               综合处理 Close all 时与关闭标签页时通知的问题，感谢 Chide Ng
 *           2002.12.10 V1.2
-*               修正98/Me下RichEdit闪烁的问题
+*               修正 98/Me 下 RichEdit 闪烁的问题
 *           2002.11.23 V1.1
 *               源代码允许高亮显示书签行
 *           2002.11.20 V1.0
@@ -63,7 +65,7 @@ type
   TCnEditorObj = class
   public
     FileName: string;
-    List: TObjectList;
+    FList: TObjectList;
     constructor Create;
     destructor Destroy; override;
   end;
@@ -85,7 +87,7 @@ type
     Panel1: TPanel;
     Splitter: TSplitter;
     ListView: TListView;
-    RichEdit: TRichEdit;
+    mmoPreview: TMemo;
     tbConfig: TToolButton;
     ToolButton3: TToolButton;
     btnRefresh: TToolButton;
@@ -112,13 +114,13 @@ type
     procedure FormDeactivate(Sender: TObject);
     procedure FormCreate(Sender: TObject);
   private
-    { Private declarations }
-    List: TObjectList;
-    UpdateCount: Integer;
-    Wizard: TCnBookmarkWizard;
-    SaveAllUnit: Boolean;
-    SaveFileName: string;
-    SaveBookmark: Integer;
+    FList: TObjectList;
+    FUpdateCount: Integer;
+    FWizard: TCnBookmarkWizard;
+    FSavedAllUnit: Boolean;
+    FSavedCurrentUnit: Boolean;
+    FSavedFileName: string;
+    FSavedBookmark: Integer;
     procedure SortList(AList: TObjectList);
     function UpdateBookmarkList: Boolean;
     function GetBufferFromFile(const AFileName: string): IOTAEditBuffer;
@@ -135,7 +137,6 @@ type
     procedure DoSaveWindowState(Desktop: TCustomIniFile; IsProject: Boolean); override;
     procedure DoLanguageChanged(Sender: TObject); override;
   public
-    { Public declarations }
     procedure UpdateConfig;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -158,6 +159,8 @@ type
     FRefreshInterval: Integer;
     FRichEditHeight: Integer;
     FWidthString: string;
+    FCurrentSource: string;
+    FSourceFileChanged: Boolean;
     procedure SourceEditorNotifier(SourceEditor: IOTASourceEditor;
       NotifyType: TCnWizSourceEditorNotifyType; EditView: IOTAEditView);
     procedure LoadBookmark(SourceEditor: IOTASourceEditor);
@@ -195,7 +198,7 @@ uses
 {$IFDEF DEBUG}
   CnDebug,
 {$ENDIF}
-  CnIni, CnWizUtils, CnWizConsts, CnConsts, CnCommon, CnWizOptions,
+  CnIni, CnWizUtils, CnWizConsts, CnConsts, CnCommon, CnWizOptions, CnWizIdeUtils,
   CnBookmarkConfigFrm, CnWizShareImages, CnWizManager;
 
 {$R *.DFM}
@@ -241,6 +244,7 @@ begin
   FListFont := TFont.Create;
   FAutoRefresh := True;
   FRefreshInterval := 1000;
+
   CnWizNotifierServices.AddSourceEditorNotifier(SourceEditorNotifier);
   IdeDockManager.RegisterDockableForm(TCnBookmarkForm, CnBookmarkForm,
     csBrowseForm);
@@ -254,6 +258,7 @@ begin
     CnBookmarkForm.Free;
     CnBookmarkForm := nil;
   end;
+
   CnWizNotifierServices.RemoveSourceEditorNotifier(SourceEditorNotifier);
   FHighlightFont.Free;
   FSourceFont.Free;
@@ -275,39 +280,39 @@ end;
 
 function TCnBookmarkWizard.StrToCharPos(Str: string): TOTACharPos;
 var
-  i: Integer;
+  I: Integer;
 begin
-  i := Pos(',', Str);
-  Result.Line := StrToIntDef(Trim(Copy(Str, 1, i - 1)), 0);
-  Result.CharIndex := StrToIntDef(Trim(Copy(Str, i + 1, Length(Str) - i - 1)), 0);
+  I := Pos(',', Str);
+  Result.Line := StrToIntDef(Trim(Copy(Str, 1, I - 1)), 0);
+  Result.CharIndex := StrToIntDef(Trim(Copy(Str, I + 1, Length(Str) - I - 1)), 0);
 end;
 
 function TCnBookmarkWizard.FindSection(Ini: TCustomIniFile;
   const FileName: string; var Section: string): Boolean;
 var
   Sections: TStrings;
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
   Sections := TStringList.Create;
   try
     Ini.ReadSections(Sections);
-    for i := 0 to Sections.Count - 1 do
-      if Pos(csItem, Sections[i]) > 0 then
-        if SameFileName(Ini.ReadString(Sections[i], csFileName, ''), FileName) then
+    for I := 0 to Sections.Count - 1 do
+      if Pos(csItem, Sections[I]) > 0 then
+        if SameFileName(Ini.ReadString(Sections[I], csFileName, ''), FileName) then
         begin
-          Section := Sections[i];
+          Section := Sections[I];
           Result := True;
           Break;
         end;
     if not Result then
     begin
-      i := 0;
+      I := 0;
       while True do
       begin
-        Section := csItem + IntToStr(i);
+        Section := csItem + IntToStr(I);
         if Ini.SectionExists(Section) then
-          Inc(i)
+          Inc(I)
         else
           Break;
       end;
@@ -319,7 +324,7 @@ end;
 
 procedure TCnBookmarkWizard.LoadBookmark(SourceEditor: IOTASourceEditor);
 var
-  i: Integer;
+  I: Integer;
   View: IOTAEditView;
   Pos: TOTACharPos;
   EditPos, SavePos: TOTAEditPos;
@@ -344,15 +349,15 @@ begin
       {$ENDIF}
         View := SourceEditor.EditViews[0];
         SavePos := View.CursorPos;
-        for i := 0 to 9 do
+        for I := 0 to 9 do
         begin
-          Pos := StrToCharPos(Ini.ReadString(Section, csBookmark + IntToStr(i), ''));
+          Pos := StrToCharPos(Ini.ReadString(Section, csBookmark + IntToStr(I), ''));
           if (Pos.CharIndex <> 0) or (Pos.Line <> 0) then
           begin
             EditPos.Col := Pos.CharIndex + 1;
             EditPos.Line := Pos.Line;
             View.SetCursorPos(EditPos);
-            View.BookmarkRecord(i);
+            View.BookmarkRecord(I);
           end;
         end;
         View.SetCursorPos(SavePos);
@@ -368,7 +373,7 @@ end;
 
 procedure TCnBookmarkWizard.SaveBookmark(SourceEditor: IOTASourceEditor);
 var
-  i: Integer;
+  I: Integer;
   View: IOTAEditView;
   Pos: TOTACharPos;
   Ini: TCustomIniFile;
@@ -389,9 +394,9 @@ begin
       if FindSection(Ini, SourceEditor.FileName, Section) then
         Ini.EraseSection(Section); // 如果已经存在则先删除
       FileNameSaved := False;
-      for i := 0 to 9 do
+      for I := 0 to 9 do
       begin
-        Pos := View.BookmarkPos[i];
+        Pos := View.BookmarkPos[I];
         if (Pos.CharIndex <> 0) or (Pos.Line <> 0) then
         begin
           if not FileNameSaved then
@@ -403,7 +408,7 @@ begin
             Ini.WriteString(Section, csFileName, SourceEditor.FileName);
             FileNameSaved := True;
           end;
-          Ini.WriteString(Section, csBookmark + IntToStr(i), CharPosToStr(Pos));
+          Ini.WriteString(Section, csBookmark + IntToStr(I), CharPosToStr(Pos));
         end;
       end;
     finally
@@ -417,8 +422,11 @@ end;
 
 procedure TCnBookmarkWizard.SourceEditorNotifier(SourceEditor: IOTASourceEditor;
   NotifyType: TCnWizSourceEditorNotifyType; EditView: IOTAEditView);
+var
+  S: string;
 begin
-  if not Active then Exit;
+  if not Active then
+    Exit;
 
   if FSaveBookmark then
   begin
@@ -427,27 +435,43 @@ begin
     else if NotifyType in [setEditViewRemove, setClosing] then
       SaveBookmark(SourceEditor);
   end;
+
+  FSourceFileChanged := False; // 当前源文件发生改变时也通知
+  if NotifyType in [setOpened, setClosing, setEditViewRemove, setEditViewActivated] then
+  begin
+    S := CnOtaGetCurrentSourceFile;
+    if S <> FCurrentSource then
+    begin
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('Bookmark Notify Source from %s to %s', [FCurrentSource, S]);
+{$ENDIF}
+      FCurrentSource := S;
+      FSourceFileChanged := True;
+    end;
+  end;
+
   // setEditViewRemove setClosing 都需要，
   // setEditViewRemove 目的是避开关闭 dpk 时 Closing 来通知时 EditView 已经关闭的问题。
   // setClosing 目的是避免 Close All 时不出现 setEditViewRemove 事件而漏掉保存
   // 虽然可能多造成些不必要的保存，但代价不大。
 
-  if Assigned(CnBookmarkForm) and (NotifyType in [setOpened, setEditViewRemove, setClosing]) then
+  if Assigned(CnBookmarkForm) and
+    (FSourceFileChanged or (NotifyType in [setOpened, setEditViewRemove, setClosing])) then
     CnWizNotifierServices.ExecuteOnApplicationIdle(CnBookmarkForm.UpdateAll);
 end;
 
 procedure TCnBookmarkWizard.ClearInvalidBookmarks(Ini: TCustomIniFile);
 var
   Sections: TStrings;
-  i: Integer;
+  I: Integer;
 begin
   Sections := TStringList.Create;
   try
     Ini.ReadSections(Sections);
-    for i := 0 to Sections.Count - 1 do
-      if Pos(csItem, Sections[i]) > 0 then  // 清除文件不存在的标签
-        if not FileExists(Ini.ReadString(Sections[i], csFileName, '')) then
-          Ini.EraseSection(Sections[i]);
+    for I := 0 to Sections.Count - 1 do
+      if Pos(csItem, Sections[I]) > 0 then  // 清除文件不存在的标签
+        if not FileExists(Ini.ReadString(Sections[I], csFileName, '')) then
+          Ini.EraseSection(Sections[I]);
   finally
     Sections.Free;
   end;
@@ -571,12 +595,12 @@ end;
 constructor TCnEditorObj.Create;
 begin
   inherited Create;
-  List := TObjectList.Create;
+  FList := TObjectList.Create;
 end;
 
 destructor TCnEditorObj.Destroy;
 begin
-  List.Free;
+  FList.Free;
   inherited;
 end;
 
@@ -596,19 +620,19 @@ begin
   CnDebugger.LogMsg('TCnBookmarkForm.Create');
 {$ENDIF}
   inherited;
-  List := TObjectList.Create;
-  Wizard := TCnBookmarkWizard(CnWizardMgr.WizardByClass(TCnBookmarkWizard));
-  Icon := Wizard.Icon;
+  FList := TObjectList.Create;
+  FWizard := TCnBookmarkWizard(CnWizardMgr.WizardByClass(TCnBookmarkWizard));
+  Icon := FWizard.Icon;
   ShowHint := WizOptions.ShowHint;
-  RichEdit.Height := Wizard.FRichEditHeight;
-  if Wizard.FListFont.Name <> '' then
-    ListView.Font := Wizard.FListFont;
-  SetListViewWidthString(ListView, Wizard.FWidthString, GetFactorFromSizeEnlarge(Enlarge));
+  mmoPreview.Height := FWizard.FRichEditHeight;
+  if FWizard.FListFont.Name <> '' then
+    ListView.Font := FWizard.FListFont;
+  SetListViewWidthString(ListView, FWizard.FWidthString, GetFactorFromSizeEnlarge(Enlarge));
 end;
 
 destructor TCnBookmarkForm.Destroy;
 begin
-  List.Free;
+  FList.Free;
   CnBookmarkForm := nil;
   inherited;
 {$IFDEF DEBUG}
@@ -661,7 +685,7 @@ function TCnBookmarkForm.UpdateBookmarkList: Boolean;
 var
   EditorObj: TCnEditorObj;
   BkObj: TCnBookmarkObj;
-  i, j, k: Integer;
+  I, J, K: Integer;
   ModuleSvcs: IOTAModuleServices;
   Module: IOTAModule;
   Buffer: IOTAEditBuffer;
@@ -670,7 +694,7 @@ var
 
   function SameEditorList(List1, List2: TObjectList): Boolean;
   var
-    i, j: Integer;
+    I, J: Integer;
     Edt1, Edt2: TCnEditorObj;
     Bk1, Bk2: TCnBookmarkObj;
   begin
@@ -680,21 +704,21 @@ var
       Exit;
     end;
 
-    for i := 0 to List1.Count - 1 do
+    for I := 0 to List1.Count - 1 do
     begin
-      Edt1 := TCnEditorObj(List1[i]);
-      Edt2 := TCnEditorObj(List2[i]);
+      Edt1 := TCnEditorObj(List1[I]);
+      Edt2 := TCnEditorObj(List2[I]);
       if not SameText(Edt1.FileName, Edt2.FileName) or
-        (Edt1.List.Count <> Edt2.List.Count) then
+        (Edt1.FList.Count <> Edt2.FList.Count) then
       begin
         Result := False;
         Exit;
       end;
 
-      for j := 0 to Edt1.List.Count - 1 do
+      for J := 0 to Edt1.FList.Count - 1 do
       begin
-        Bk1 := TCnBookmarkObj(Edt1.List[j]);
-        Bk2 := TCnBookmarkObj(Edt2.List[j]);
+        Bk1 := TCnBookmarkObj(Edt1.FList[J]);
+        Bk2 := TCnBookmarkObj(Edt2.FList[J]);
         if (Bk1.BookmarkID <> Bk2.BookmarkID) or
           not SameCharPos(Bk1.Pos, Bk2.Pos) then
         begin
@@ -713,19 +737,19 @@ begin
   NewList := TObjectList.Create;
   try
     try
-      for i := 0 to ModuleSvcs.ModuleCount - 1 do
+      for I := 0 to ModuleSvcs.ModuleCount - 1 do
       begin
-        Module := ModuleSvcs.Modules[i];
-        for j := 0 to Module.GetModuleFileCount - 1 do
+        Module := ModuleSvcs.Modules[I];
+        for J := 0 to Module.GetModuleFileCount - 1 do
         begin
-          if Supports(Module.GetModuleFileEditor(j), IOTAEditBuffer, Buffer) then
+          if Supports(Module.GetModuleFileEditor(J), IOTAEditBuffer, Buffer) then
           begin
             EditorObj := nil;
             if Assigned(Buffer.TopView) then
             begin
-              for k := 0 to 9 do
+              for K := 0 to 9 do
               begin
-                Pos := Buffer.TopView.BookmarkPos[k];
+                Pos := Buffer.TopView.BookmarkPos[K];
                 if (Pos.CharIndex <> 0) or (Pos.Line <> 0) then
                 begin
                   if EditorObj = nil then
@@ -735,10 +759,10 @@ begin
                     NewList.Add(EditorObj);
                   end;
                   BkObj := TCnBookmarkObj.Create(EditorObj);
-                  BkObj.BookmarkID := k;
+                  BkObj.BookmarkID := K;
                   BkObj.Pos := Pos;
                   BkObj.Line := CnOtaGetLineText(Pos.Line, Buffer);
-                  EditorObj.List.Add(BkObj);
+                  EditorObj.FList.Add(BkObj);
                 end;
               end;
             end;
@@ -747,12 +771,12 @@ begin
       end;
       SortList(NewList);
 
-      Result := not SameEditorList(List, NewList);
+      Result := not SameEditorList(FList, NewList);
       if Result then
       begin
-        List.Clear;
+        FList.Clear;
         while NewList.Count > 0 do
-          List.Add(NewList.Extract(NewList.First));
+          FList.Add(NewList.Extract(NewList.First));
       end;
     except
       ;
@@ -765,43 +789,51 @@ end;
 procedure TCnBookmarkForm.UpdateComboBox;
 var
   Editor: TCnEditorObj;
-  i, Idx: Integer;
+  I, Idx: Integer;
 begin
-  if UpdateCount > 0 then Exit;
-  Inc(UpdateCount);
+  if FUpdateCount > 0 then
+    Exit;
+
+  Inc(FUpdateCount);
   try
     cbbUnit.Clear;
     cbbUnit.Items.Add(SCnBookmarkAllUnit);
+    cbbUnit.Items.Add(SCnBookmarkCurrentUnit);
+
     Idx := 0;
-    for i := 0 to List.Count - 1 do
+    if FSavedCurrentUnit then
+      Idx := 1;
+
+    for I := 0 to FList.Count - 1 do
     begin
-      Editor := TCnEditorObj(List[i]);
+      Editor := TCnEditorObj(FList[I]);
       cbbUnit.Items.Add(_CnExtractFileName(Editor.FileName));
-      if not SaveAllUnit and (CompareText(Editor.FileName, SaveFileName) = 0) then
-        Idx := i + 1;
+      if not FSavedAllUnit and not FSavedCurrentUnit and (CompareText(Editor.FileName, FSavedFileName) = 0) then
+        Idx := I + 2; // 前面有两项
     end;
     cbbUnit.ItemIndex := Idx;
   finally
-    Dec(UpdateCount);
+    Dec(FUpdateCount);
   end;
+
   UpdateListView;
 end;
 
 procedure TCnBookmarkForm.UpdateListView;
 var
-  i: Integer;
+  I: Integer;
   Editor: TCnEditorObj;
   NewSel: TListItem;
 
-  procedure AddEditor(AEditor: TCnEditorObj);
+  procedure AddBookmarksFromEditor(AEditor: TCnEditorObj);
   var
-    i: Integer;
+    I: Integer;
     BkObj: TCnBookmarkObj;
     Item: TListItem;
   begin
-    for i := 0 to AEditor.List.Count - 1 do
+    for I := 0 to AEditor.FList.Count - 1 do
     begin
-      BkObj := TCnBookmarkObj(AEditor.List[i]);
+      BkObj := TCnBookmarkObj(AEditor.FList[I]);
       Item := ListView.Items.Add;
       with Item do
       begin
@@ -811,33 +843,47 @@ var
         SubItems.Add(BkObj.Line);
         Data := BkObj;
       end;
-      if SameText(AEditor.FileName, SaveFileName) and
-        (BkObj.BookmarkID = SaveBookmark) then
+      if SameText(AEditor.FileName, FSavedFileName) and
+        (BkObj.BookmarkID = FSavedBookmark) then
         NewSel := Item;
     end;
   end;
+
 begin
-  if UpdateCount > 0 then Exit;
-  Inc(UpdateCount);
+  if FUpdateCount > 0 then
+    Exit;
+
+  Inc(FUpdateCount);
   ListView.Items.BeginUpdate;
   try
+    // 外面已经记录了当前选中的书签的文件名与行号
+
     ListView.Items.Clear;
     NewSel := nil;
+
     if cbbUnit.ItemIndex <= 0 then
     begin
-      for i := 0 to List.Count - 1 do
-        AddEditor(TCnEditorObj(List[i]));
+      for I := 0 to FList.Count - 1 do
+        AddBookmarksFromEditor(TCnEditorObj(FList[I]));
+    end
+    else if cbbUnit.ItemIndex = 1 then
+    begin
+      for I := 0 to FList.Count - 1 do
+        if TCnEditorObj(FList[I]).FileName = FWizard.FCurrentSource then
+          AddBookmarksFromEditor(TCnEditorObj(FList[I]));
     end
     else
     begin
-      Editor := TCnEditorObj(List[cbbUnit.ItemIndex - 1]);
-      AddEditor(Editor);
+      Editor := TCnEditorObj(FList[cbbUnit.ItemIndex - 2]);
+      AddBookmarksFromEditor(Editor);
     end;
   finally
     ListView.Items.EndUpdate;
-    Dec(UpdateCount);
+    Dec(FUpdateCount);
   end;
-  
+
+  // AddBookmarksFromEditor 里根据记录的文件名与行号查询新列表中有无对应项，有则塞给 NewSel
+
   if NewSel <> nil then
     ListView.Selected := NewSel
   else if ListView.Items.Count > 0 then
@@ -849,10 +895,12 @@ end;
 procedure TCnBookmarkForm.UpdateStatusBar;
 begin
   if cbbUnit.ItemIndex <= 0 then
-    StatusBar.SimpleText := Format(SCnBookmarkFileCount, [List.Count])
+    StatusBar.SimpleText := Format(SCnBookmarkFileCount, [FList.Count])
+  else if cbbUnit.ItemIndex = 1 then
+    StatusBar.SimpleText := FWizard.FCurrentSource
   else
-    StatusBar.SimpleText := TCnEditorObj(List[cbbUnit.ItemIndex
-      - 1]).FileName;
+    StatusBar.SimpleText := TCnEditorObj(FList[cbbUnit.ItemIndex
+      - 2]).FileName;
 end;
 
 procedure TCnBookmarkForm.cbbUnitChange(Sender: TObject);
@@ -870,89 +918,75 @@ end;
 procedure TCnBookmarkForm.UpdatePreview;
 var
   Line1, Line2, Line3: string;
+  FromLine: Integer;
   Buffer: IOTAEditBuffer;
 begin
-  if UpdateCount > 0 then Exit;
-  RichEdit.Perform(WM_SETREDRAW, 0, 0);
+  if FUpdateCount > 0 then Exit;
+  mmoPreview.Perform(WM_SETREDRAW, 0, 0);
   try
-    RichEdit.Clear;
+    mmoPreview.Clear;
     if Assigned(ListView.Selected) then
     with TCnBookmarkObj(ListView.Selected.Data) do
     begin
       Buffer := GetBufferFromFile(Parent.FileName);
       if Assigned(Buffer) then
       begin
-        Line1 := CnOtaGetLineText(Pos.Line - Wizard.FDispLines, Buffer,
-          Wizard.FDispLines);
+        Line1 := CnOtaGetLineText(Pos.Line - FWizard.FDispLines, Buffer,
+          FWizard.FDispLines);
         Line2 := CnOtaGetLineText(Pos.Line, Buffer, 1);
-        Line3 := CnOtaGetLineText(Pos.Line + 1, Buffer, Wizard.FDispLines);
+        Line3 := CnOtaGetLineText(Pos.Line + 1, Buffer, FWizard.FDispLines);
 
-        if Length(Line1) > 0 then
-        begin
-          RichEdit.SelAttributes.Assign(Wizard.FSourceFont);
-          try
-            RichEdit.Lines.Add(Line1);
-          except
-            ;
-          end;
-        end;
-
-        RichEdit.SelAttributes.Assign(Wizard.FHighlightFont);
-        try
-          RichEdit.Lines.Add(Line2);
-        except
-          ;
-        end;
-
-        if Length(Line3) > 0 then
-        begin
-          RichEdit.SelAttributes.Assign(Wizard.FSourceFont);
-          try
-            RichEdit.Lines.Add(Line3);
-          except
-            ;
-          end;
-        end;
+        mmoPreview.Lines.Add(Line1);
+        FromLine := mmoPreview.Lines.Count;
+        mmoPreview.Lines.Add(Line2);
+        mmoPreview.Lines.Add(Line3);
+        SelectMemoOneLine(mmoPreview, FromLine);
       end;
     end;
   finally
-    RichEdit.Perform(WM_SETREDRAW, 1, 0);
-    RichEdit.Invalidate;
+    mmoPreview.Perform(WM_SETREDRAW, 1, 0);
+    mmoPreview.Invalidate;
   end;
 end;
 
 procedure TCnBookmarkForm.UpdateConfig;
 begin
   UpdatePreview;
-  if Wizard.FListFont.Name <> '' then
-    ListView.Font := Wizard.FListFont;
-  tmrRefresh.Enabled := Wizard.FAutoRefresh;
-  tmrRefresh.Interval := Wizard.FRefreshInterval;
+  if FWizard.FListFont.Name <> '' then
+    ListView.Font := FWizard.FListFont;
+  tmrRefresh.Enabled := FWizard.FAutoRefresh;
+  tmrRefresh.Interval := FWizard.FRefreshInterval;
 end;
 
 procedure TCnBookmarkForm.UpdateAll(Sender: TObject);
 begin
-  SaveAllUnit := cbbUnit.ItemIndex <= 0;
+  FSavedAllUnit := cbbUnit.ItemIndex <= 0;
+  FSavedCurrentUnit := cbbUnit.ItemIndex = 1;
+
   if ListView.Selected <> nil then
   begin
     with TCnBookmarkObj(ListView.Selected.Data) do
     begin
-      SaveFileName := Parent.FileName;
-      SaveBookmark := BookmarkID;
+      FSavedFileName := Parent.FileName;
+      FSavedBookmark := BookmarkID;
     end;
   end
   else
   begin
-    SaveFileName := '';
-    SaveBookmark := -1;
+    FSavedFileName := '';
+    FSavedBookmark := -1;
   end;
   
   if UpdateBookmarkList then
-  begin
     UpdateComboBox;
+
+  // 单纯切文件，没有书签更新时也需要更新
+  if FWizard.FSourceFileChanged then
+  begin
+    FWizard.FSourceFileChanged := False;
     UpdateListView;
     UpdateStatusBar;
-  end;    
+  end;
 end;
 
 procedure TCnBookmarkForm.ListViewDblClick(Sender: TObject);
@@ -977,7 +1011,7 @@ end;
 
 procedure TCnBookmarkForm.btnDeleteClick(Sender: TObject);
 var
-  i: Integer;
+  I: Integer;
   BkObj: TCnBookmarkObj;
   SavePos: TOTAEditPos;
   EditPos: TOTAEditPos;
@@ -988,11 +1022,11 @@ begin
   if (ListView.SelCount > 1) and not QueryDlg(SCnDeleteConfirm) then
     Exit;
 
-  for i := ListView.Items.Count - 1 downto 0 do
+  for I := ListView.Items.Count - 1 downto 0 do
   begin
-    if ListView.Items[i].Selected then
+    if ListView.Items[I].Selected then
     begin
-      BkObj := TCnBookmarkObj(ListView.Items[i].Data);
+      BkObj := TCnBookmarkObj(ListView.Items[I].Data);
       Buffer := GetBufferFromFile(BkObj.Parent.FileName);
       if Assigned(Buffer) and Assigned(Buffer.TopView) then
       begin
@@ -1009,15 +1043,15 @@ begin
         View.CursorPos := SavePos;
         View.Paint;
       end;
-      BkObj.Parent.List.Remove(BkObj);
-      ListView.Items.Delete(i);
+      BkObj.Parent.FList.Remove(BkObj);
+      ListView.Items.Delete(I);
     end;
   end;
 end;
 
 procedure TCnBookmarkForm.tbConfigClick(Sender: TObject);
 begin
-  Wizard.DoConfig;
+  FWizard.DoConfig;
 end;
 
 procedure TCnBookmarkForm.tbCloseClick(Sender: TObject);
@@ -1033,7 +1067,7 @@ end;
 procedure TCnBookmarkForm.DoLoadWindowState(Desktop: TCustomIniFile);
 begin
   inherited;
-  RichEdit.Height := Desktop.ReadInteger(csBrowseForm, csEditHeight, RichEdit.Height);
+  mmoPreview.Height := Desktop.ReadInteger(csBrowseForm, csEditHeight, mmoPreview.Height);
   SetListViewWidthString(ListView, Desktop.ReadString(csBrowseForm, csColumnWidth, ''),
     GetFactorFromSizeEnlarge(Enlarge));
 end;
@@ -1042,7 +1076,7 @@ procedure TCnBookmarkForm.DoSaveWindowState(Desktop: TCustomIniFile;
   IsProject: Boolean);
 begin
   inherited;
-  Desktop.WriteInteger(csBrowseForm, csEditHeight, RichEdit.Height);
+  Desktop.WriteInteger(csBrowseForm, csEditHeight, mmoPreview.Height);
   Desktop.WriteString(csBrowseForm, csColumnWidth, GetListViewWidthString(ListView, GetFactorFromSizeEnlarge(Enlarge)));
 end;
 
@@ -1053,13 +1087,14 @@ begin
   inherited;
   if cbbUnit.Items.Count > 0 then
   begin
-    Inc(UpdateCount);
+    Inc(FUpdateCount);
     try
       Save := cbbUnit.ItemIndex;
       cbbUnit.Items[0] := SCnBookmarkAllUnit;
+      cbbUnit.Items[1] := SCnBookmarkCurrentUnit;
       cbbUnit.ItemIndex := Save;
     finally
-      Dec(UpdateCount);
+      Dec(FUpdateCount);
     end;                
   end;
   UpdateStatusBar;
@@ -1077,8 +1112,8 @@ end;
 
 procedure TCnBookmarkForm.SyncSettings;
 begin
-  Wizard.FRichEditHeight := RichEdit.Height;
-  Wizard.FWidthString := GetListViewWidthString(ListView, GetFactorFromSizeEnlarge(Enlarge));
+  FWizard.FRichEditHeight := mmoPreview.Height;
+  FWizard.FWidthString := GetListViewWidthString(ListView, GetFactorFromSizeEnlarge(Enlarge));
 end;
 
 procedure TCnBookmarkForm.FormDeactivate(Sender: TObject);
@@ -1088,7 +1123,8 @@ end;
 
 procedure TCnBookmarkForm.FormCreate(Sender: TObject);
 begin
-//  EnlargeListViewColumns(ListView);
+  WizOptions.ResetToolbarWithLargeIcons(ToolBar);
+  IdeScaleToolbarComboFontSize(cbbUnit);
 end;
 
 initialization

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -246,8 +246,17 @@ procedure RegisterBaseDesignMenuExecutor(Executor: TCnBaseMenuExecutor);
 procedure RegisterDesignMenuExecutor(Executor: TCnContextMenuExecutor);
 {* 注册一个设计器右键菜单的执行对象实例的另一形式}
 
+procedure UnregisterBaseDesignMenuExecutor(Executor: TCnBaseMenuExecutor);
+{* 反注册一个设计器右键菜单的执行对象实例，反注册后 Executor 被自动释放}
+
+procedure UnregisterDesignMenuExecutor(Executor: TCnContextMenuExecutor);
+{* 反注册一个设计器右键菜单的执行对象实例的另一形式，反注册后 Executor 被自动释放}
+
 procedure RegisterEditorMenuExecutor(Executor: TCnContextMenuExecutor);
 {* 注册一个编辑器右键菜单的执行对象实例，应该在专家创建时注册}
+
+procedure UnregisterEditorMenuExecutor(Executor: TCnContextMenuExecutor);
+{* 反注册一个编辑器右键菜单的执行对象实例，反注册后 Executor 被自动释放}
 
 function GetEditorMenuExecutorCount: Integer;
 {* 返回已注册的编辑器右键菜单条目数量，供编辑器扩展实现自定义编辑器菜单用}
@@ -273,6 +282,11 @@ const
   csCnWizFreeMutex = 'CnWizFreeMutex';
   csMaxWaitFreeTick = 5000;
 
+  SCN_DBG_CMD_SEARCH = 'search';
+  SCN_DBG_CMD_DUMP = 'dump';
+  SCN_DBG_CMD_OPTION = 'option';
+  SCN_DBG_CMD_STATE = 'state';
+
 var
   CnDesignExecutorList: TObjectList = nil; // 设计器右键菜单执行对象列表
 
@@ -292,12 +306,32 @@ begin
   RegisterBaseDesignMenuExecutor(Executor);
 end;
 
+// 反注册一个设计器右键菜单的执行对象实例，反注册后 Executor 被自动释放
+procedure UnregisterBaseDesignMenuExecutor(Executor: TCnBaseMenuExecutor);
+begin
+  Assert(CnDesignExecutorList <> nil, 'CnDesignExecutorList is nil!');
+  CnDesignExecutorList.Remove(Executor);
+end;
+
+// 反注册一个设计器右键菜单的执行对象实例的另一形式，反注册后 Executor 被自动释放
+procedure UnregisterDesignMenuExecutor(Executor: TCnContextMenuExecutor);
+begin
+  UnregisterBaseDesignMenuExecutor(Executor);
+end;
+
 // 注册一个编辑器右键菜单的执行对象实例，应该在专家创建时注册
 procedure RegisterEditorMenuExecutor(Executor: TCnContextMenuExecutor);
 begin
   Assert(CnEditorExecutorList <> nil, 'CnEditorExecutorList is nil!');
   if CnEditorExecutorList.IndexOf(Executor) < 0 then
     CnEditorExecutorList.Add(Executor);
+end;
+
+// 反注册一个编辑器右键菜单的执行对象实例，反注册后 Executor 被自动释放
+procedure UnregisterEditorMenuExecutor(Executor: TCnContextMenuExecutor);
+begin
+  Assert(CnEditorExecutorList <> nil, 'CnEditorExecutorList is nil!');
+  CnEditorExecutorList.Remove(Executor);
 end;
 
 // 返回已注册的编辑器右键菜单条目数量，供编辑器扩展实现自定义编辑器菜单用
@@ -343,12 +377,20 @@ begin
 
   CreateIDEMenu;
 
+  // 创建所有专家
   InstallWizards;
 
+  // 加载所有专家设置并创建子菜单
   LoadSettings;
 
-  // 根据 MenuOrder 来进行排序然后插入菜单
+  // 创建杂项子菜单，菜单排序在外面后面做
   CreateMiscMenu;
+
+{$IFNDEF CNWIZARDS_MINIMUM}
+  // 专家创建完毕并加载设置完毕后，主图标与子菜单图标才被塞进 IDE 的 ImageList 中，
+  // 此时复制大号到 IDE 的主 ImageList 中才能保证不漏
+  dmCnSharedImages.CopyLargeIDEImageList;
+{$ENDIF}
 
   // 创建完菜单项后再插入到 IDE 中，以解决 D7 下菜单点需要点击才能下拉的问题
   InstallIDEMenu;
@@ -409,6 +451,14 @@ begin
 {$IFDEF DEBUG}
   CnDebugger.LogEnter('DoLaterLoad');
 {$ENDIF}
+
+{$IFDEF DEBUG}
+  {$IFDEF IDE_SUPPORT_HDPI}
+    if Application.MainForm <> nil then
+      CnDebugger.LogInteger(Application.MainForm.CurrentPPI, 'Application MainForm PPI: ');
+  {$ENDIF}
+{$ENDIF}
+
   FLaterLoadTimer.Enabled := False;
   for I := 0 to WizardCount - 1 do
   try
@@ -574,7 +624,7 @@ procedure TCnWizardMgr.InstallIDEMenu;
 var
   MainMenu: TMainMenu;
 begin
-  MainMenu := GetIDEMainMenu; // IDE主菜单
+  MainMenu := GetIDEMainMenu; // IDE 主菜单
   if MainMenu <> nil then
   begin
     FToolsMenu := GetIDEToolsMenu;
@@ -834,8 +884,8 @@ var
   frmBoot: TCnWizBootForm;
   KeyState: TKeyboardState;
 {$ENDIF}
-  bUserBoot: boolean;
-  BootList: array of boolean;
+  bUserBoot: Boolean;
+  BootList: array of Boolean;
 begin
   if not QuerySvcs(BorlandIDEServices, IOTAWizardServices, WizardSvcs) then
   begin
@@ -1021,6 +1071,9 @@ begin
       if MenuWizards[I] is TCnSubMenuWizard then
       begin
         (MenuWizards[I] as TCnSubMenuWizard).ClearSubActions;
+{$IFDEF DEBUG}
+         CnDebugger.LogFmt('%d %s to AcquireSubActions.', [I, MenuWizards[I].ClassName]);
+{$ENDIF}
         (MenuWizards[I] as TCnSubMenuWizard).AcquireSubActions;
       end;
     end;
@@ -1250,6 +1303,10 @@ begin
   CnDebugger.LogEnter('OnIdleLoaded');
 {$ENDIF}
 
+{$IFNDEF CNWIZARDS_MINIMUM}
+  dmCnSharedImages.CopyLargeIDEImageList(True); // 再复制一次大尺寸图标
+{$ENDIF}
+
   WizShortCutMgr.BeginUpdate;
 {$IFNDEF CNWIZARDS_MINIMUM}
   CnListBeginUpdate;
@@ -1411,33 +1468,30 @@ end;
 
 // 分发处理 Debug 输出命令并将结果放置入 Results 中，供内部调试用
 procedure TCnWizardMgr.DispatchDebugComand(Cmd: string; Results: TStrings);
-{$IFDEF DEBUG}
 var
   LocalCmd, ID: string;
   Cmds: TStrings;
   I: Integer;
   Wizard: TCnBaseWizard;
   Matched: Boolean;
-{$ENDIF}
 begin
   if (Cmd = '') or (Results = nil) then
     Exit;
   Results.Clear;
 
-{$IFDEF DEBUG}
   Cmds := TStringList.Create;
   try
     ExtractStrings([' '], [], PChar(Cmd), Cmds);
     if Cmds.Count = 0 then
       Exit;
 
-    LocalCmd := Cmds[0];
+    LocalCmd := LowerCase(Cmds[0]);
     Matched := False;
     Wizard := nil;
     for I := 0 to GetWizardCount - 1 do
     begin
       Wizard := GetWizards(I);
-      ID := Wizard.GetIDStr;
+      ID := LowerCase(Wizard.GetIDStr);
       if Pos(LocalCmd, ID) > 0 then
       begin
         Matched := True;
@@ -1448,18 +1502,46 @@ begin
     if Matched and (Wizard <> nil) then
     begin
       Cmds.Delete(0);
-      Wizard.DebugComand(Cmds, Results);
-      Exit;
+      // 先处理针对 Wizard 的通用命令
+      if (Cmds.Count = 1) and (LowerCase(Cmds[0]) = SCN_DBG_CMD_SEARCH) then
+        Results.Add(Wizard.GetSearchContent)
+      else
+        Wizard.DebugComand(Cmds, Results);
+    end
+    else
+    begin
+      // 处理一些不针对单个 Wizard 的全局命令
+      if LowerCase(Cmds[0]) = SCN_DBG_CMD_DUMP then
+      begin
+        // 循环打印每个 Wizard 的基本信息
+        for I := 0 to GetWizardCount - 1 do
+        begin
+          Wizard := GetWizards(I);
+          if Wizard <> nil then
+          begin
+            Results.Add('#' + IntToStr(I) + ':');
+            GetCnWizardInfoStrs(Wizard, Results);
+            Results.Add('');
+          end;
+        end;
+      end
+      else if LowerCase(Cmds[0]) = SCN_DBG_CMD_OPTION then
+      begin
+        WizOptions.DumpToStrings(Results);
+        Results.Add('');
+      end
+      else if  LowerCase(Cmds[0]) = SCN_DBG_CMD_STATE then
+      begin
+        // 打印内部状态
+        Results.Add('Loaded Icons: ' + IntToStr(CnLoadedIconCount));
+        Results.Add('');
+      end
+      else  // No Wizard can process this debug command, do other stuff
+        Results.Add('Unknown Debug Command ' + Cmd);
     end;
-
-    // No Wizard can process this debug command, do other stuff
-    Results.Add('Unknown Debug Command ' + Cmd);
   finally
     Cmds.Free;
   end;
-{$ELSE}
-  Results.Add('CnPack IDE Wizards Debug Command Disabled.');
-{$ENDIF}
 end;
 
 //------------------------------------------------------------------------------
@@ -1598,28 +1680,6 @@ begin
       ShowSimpleCommentForm('', Format(SCnKeyMappingConflictsHint, [WizOptions.CompilerRegPath + KEY_MAPPING_REG]),
         SCnCheckKeyMappingEnhModulesSequence + CompilerShortName, False);
 {$ENDIF}
-
-      // 交换最大的值和 CnPack 的值。但未必有效，先不这么整。
-//      Reg := TRegistry.Create(KEY_WRITE);
-//      try
-//        if Reg.OpenKey(WizOptions.CompilerRegPath + KEY_MAPPING_REG + '\' + List[CnPackIdx], False) then
-//        begin
-//          Reg.WriteInteger(PRIORITY_KEY, Integer(List.Objects[MaxIdx]));
-//          Reg.CloseKey;
-//        end;
-//        if Reg.OpenKey(WizOptions.CompilerRegPath + KEY_MAPPING_REG + '\' + List[MaxIdx], False) then
-//        begin
-//          Reg.WriteInteger(PRIORITY_KEY, Integer(List.Objects[CnPackIdx]));
-//          Reg.CloseKey;
-//        end;
-//{$IFDEF DEBUG}
-//        CnDebugger.LogFmt('Key Mapping Exchange Priority: %s to %d; %s to %d.',
-//          [List[MaxIdx], Integer(List.Objects[CnPackIdx]),
-//          List[CnPackIdx], Integer(List.Objects[MaxIdx])]);
-//{$ENDIF}
-//      finally
-//        Reg.Free;
-//      end;
     end;
   finally
     List.Free;
@@ -1659,9 +1719,13 @@ var
   Executor: TCnBaseMenuExecutor;
 begin
   Executor := TCnBaseMenuExecutor(CnDesignExecutorList[Index]);
+  if (Executor <> nil) and ((Executor.Wizard = nil) or Executor.Wizard.Active) then
+    Executor.Prepare;
+
   AItem.Visible := (Executor <> nil) and
     ((Executor.Wizard = nil) or Executor.Wizard.Active)
     and Executor.GetActive;
+
   if AItem.Visible then
     AItem.Enabled := Executor.GetEnabled;
 end;

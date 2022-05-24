@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -76,6 +76,7 @@ type
     FParentProject: TCnProjectInfo;
     FFuzzyScore: Integer;
     FStartOffset: Integer;
+    FImageIndex: Integer;
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -88,6 +89,8 @@ type
     {* 模糊匹配 Text 的下标}
     property ParentProject: TCnProjectInfo read FParentProject write FParentProject;
     {* 该元素从属的 Project，无则为 nil}
+    property ImageIndex: Integer read FImageIndex write FImageIndex;
+    {* 显示时用来存 ImageIndex 图标序号，多个子类需要，因此提至父类中}
   published
     property Text: string read FText write FText;
     {* Text 表示第一列显示的文字}
@@ -148,6 +151,7 @@ type
     dlgFont: TFontDialog;
     btnMatchFuzzy: TToolButton;
     actMatchFuzzy: TAction;
+    pnlMain: TPanel;
     procedure lvListDblClick(Sender: TObject);
     procedure edtMatchSearchKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
@@ -183,6 +187,7 @@ type
       Shift: TShiftState);
     procedure actMatchFuzzyExecute(Sender: TObject);
   private
+    FOutDataListRef: TStringList; // 外部 DataList 临时存储的地方
     FSortIndex: Integer;
     FSortDown: Boolean;
     FUpArrow: TBitmap;
@@ -190,6 +195,7 @@ type
     FNoArrow: TBitmap;
 {$IFNDEF STAND_ALONE}
     FListViewWidthStr: string;
+    FListViewWidthOldStr: string;
 {$ENDIF}
     function GetMatchAny: Boolean;
     procedure SetMatchAny(const Value: Boolean);
@@ -199,6 +205,7 @@ type
     procedure InitArrowBitmaps;
     procedure ClearColumnArrow;
     procedure ChangeColumnArrow;
+    procedure DoOpenSelect;
 {$IFNDEF STAND_ALONE}
     procedure FirstUpdate(Sender: TObject);
     procedure ChangeIconToIDEImageList;
@@ -211,7 +218,8 @@ type
     ProjectInfoSearch: TCnProjectInfo;  // 标记待限定的 Project 搜索范围
     DataList: TStringList;        // 供子类存储原始需要搜索的列表名字以及 Object
     DisplayList: TStringList;     // 供子类容纳过滤后需要显示的列表名字以及 Object（引用）
-    function DoSelectOpenedItem: string; virtual; abstract;
+    function DisableLargeIcons: Boolean; virtual; // 供子类重载以因为特殊原因禁用大图标，默认跟着设置走
+    function DoSelectOpenedItem: string; virtual;
     procedure DoSelectItemChanged(Sender: TObject); virtual;
     procedure DoUpdateListView; virtual;
 
@@ -233,7 +241,8 @@ type
 
     // 默认匹配的实现，只匹配 DataList 中的字符串，不处理其 Object 所代表的内容
     function DefaultMatchHandler(const AMatchStr: string; AMatchMode: TCnMatchMode;
-      DataListIndex: Integer; var StartOffset: Integer; MatchedIndexes: TList): Boolean;
+      DataListIndex: Integer; var StartOffset: Integer; MatchedIndexes: TList;
+      CaseSensitive: Boolean = False): Boolean;
     // 默认允许优先选择最头上匹配的项
     function DefaultSelectHandler(const AMatchStr: string; AMatchMode: TCnMatchMode;
       DataListIndex: Integer): Boolean;
@@ -263,6 +272,9 @@ type
     procedure LoadProjectSettings(Ini: TCustomIniFile; aSection: string);
     procedure SaveProjectSettings(Ini: TCustomIniFile; aSection: string);
   public
+    constructor Create(AOwner: TComponent; ADataList: TStringList = nil); reintroduce;
+    procedure AfterConstruction; override;
+
     procedure SelectOpenedItem;
     procedure LoadSettings(Ini: TCustomIniFile; aSection: string); virtual;
     procedure SaveSettings(Ini: TCustomIniFile; aSection: string); virtual;
@@ -293,6 +305,8 @@ const
   csWidth = 'Width';
   csHeight = 'Height';
   csListViewWidth = 'ListViewWidth';
+
+  csDrawIconMargin = 1;
 
   {CommCtrl Constants For Windows >= XP }
   HDF_SORTUP              = $0400;
@@ -331,7 +345,10 @@ end;
 { TCnProjectViewBaseForm }
 
 procedure TCnProjectViewBaseForm.FormCreate(Sender: TObject);
+var
+  OldC: TCursor;
 begin
+  OldC := Screen.Cursor;
   Screen.Cursor := crHourGlass;
   try
     FRegExpr := TRegExpr.Create;
@@ -357,7 +374,7 @@ begin
 {$ENDIF}
     UpdateComboBox;
   finally
-    Screen.Cursor := crDefault;
+    Screen.Cursor := OldC;
   end;
 end;
 
@@ -486,7 +503,7 @@ end;
 
 procedure TCnProjectViewBaseForm.actOpenExecute(Sender: TObject);
 begin
-  OpenSelect;
+  DoOpenSelect;
 end;
 
 procedure TCnProjectViewBaseForm.actHookIDEExecute(Sender: TObject);
@@ -597,7 +614,7 @@ end;
 
 procedure TCnProjectViewBaseForm.lvListDblClick(Sender: TObject);
 begin
-  OpenSelect;
+  DoOpenSelect;
 end;
 
 procedure TCnProjectViewBaseForm.cbbProjectListChange(Sender: TObject);
@@ -675,8 +692,11 @@ begin
     Height := ReadInteger(aSection, csHeight, Height);
 {$IFNDEF STAND_ALONE}
     CenterForm(Self);
+    if FListViewWidthOldStr = '' then // 保留旧宽度供判断是否改变过
+      FListViewWidthOldStr := GetListViewWidthString(lvList, GetFactorFromSizeEnlarge(Enlarge));
     FListViewWidthStr := ReadString(aSection, csListViewWidth, '');
-    SetListViewWidthString(lvList, FListViewWidthStr, GetFactorFromSizeEnlarge(Enlarge));
+    if FListViewWidthStr <> '' then
+      SetListViewWidthString(lvList, FListViewWidthStr, GetFactorFromSizeEnlarge(Enlarge));
 {$ENDIF}
   finally
     Free;
@@ -687,6 +707,10 @@ begin
 end;
 
 procedure TCnProjectViewBaseForm.SaveSettings(Ini: TCustomIniFile; aSection: string);
+{$IFNDEF STAND_ALONE}
+var
+  S: string;
+{$ENDIF}
 begin
   with TCnIniFile.Create(Ini) do
   try
@@ -704,8 +728,9 @@ begin
     WriteInteger(aSection, csWidth, Width);
     WriteInteger(aSection, csHeight, Height);
 {$IFNDEF STAND_ALONE}
-    WriteString(aSection, csListViewWidth,
-      GetListViewWidthString(lvList, GetFactorFromSizeEnlarge(Enlarge)));
+    S := GetListViewWidthString(lvList, GetFactorFromSizeEnlarge(Enlarge));
+    if S <> FListViewWidthOldStr then // 只变化了才保存
+      WriteString(aSection, csListViewWidth, S);
 {$ENDIF}
   finally
     Free;
@@ -810,6 +835,7 @@ begin
     lvList.Selected := nil;
     lvList.Selected := lvList.Items[AIndex];
     lvList.ItemFocused := lvList.Selected;
+    lvList.Selected.MakeVisible(True);
   end;
 end;
 
@@ -1026,6 +1052,9 @@ begin
           ToSels.Add(DataList[I]);
       end;
     end;
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('ViewBase Form, Get %d to Display from %d.', [DisplayList.Count, DataList.Count]);
+{$ENDIF}
 
     DoSortListView;
     lvList.Items.Count := DisplayList.Count;
@@ -1067,7 +1096,7 @@ end;
 
 function TCnProjectViewBaseForm.DefaultMatchHandler(const AMatchStr: string;
   AMatchMode: TCnMatchMode; DataListIndex: Integer; var StartOffset: Integer;
-  MatchedIndexes: TList): Boolean;
+  MatchedIndexes: TList; CaseSensitive: Boolean): Boolean;
 var
   S: string;
 begin
@@ -1078,10 +1107,22 @@ begin
 
   S := DataList[DataListIndex];
   StartOffset := 0;
-  case AMatchMode of
-    mmStart:    Result := Pos(AMatchStr, S) = 1;
-    mmAnywhere: Result := Pos(AMatchStr, S) > 0;
-    mmFuzzy:    Result := FuzzyMatchStr(AMatchStr, S, MatchedIndexes);
+
+  if CaseSensitive then
+  begin
+    case AMatchMode of
+      mmStart:    Result := Pos(AMatchStr, S) = 1;
+      mmAnywhere: Result := Pos(AMatchStr, S) > 0;
+      mmFuzzy:    Result := FuzzyMatchStr(AMatchStr, S, MatchedIndexes);
+    end
+  end
+  else
+  begin
+    case AMatchMode of
+      mmStart:    Result := Pos(UpperCase(AMatchStr), UpperCase(S)) = 1;
+      mmAnywhere: Result := Pos(UpperCase(AMatchStr), UpperCase(S)) > 0;
+      mmFuzzy:    Result := FuzzyMatchStr(AMatchStr, S, MatchedIndexes);
+    end
   end;
 end;
 
@@ -1165,8 +1206,9 @@ procedure TCnProjectViewBaseForm.ClearDataList;
 var
   I: Integer;
 begin
-  for I := 0 to DataList.Count - 1 do
-    DataList.Objects[I].Free;
+  if FOutDataListRef = nil then // 有外部的 List 存在时则不能释放 Object
+    for I := 0 to DataList.Count - 1 do
+      DataList.Objects[I].Free;
   DataList.Clear;
 end;
 
@@ -1290,10 +1332,19 @@ begin
       Bmp.Width, LV.Height));
 
     if (Item.ImageIndex >= 0) and (LV.SmallImages <> nil) then
-      LV.SmallImages.Draw(Bmp.Canvas, 1, (Bmp.Height - LV.SmallImages.Height) div 2, Item.ImageIndex);
+    begin
+{$IFDEF IDE_SUPPORT_HDPI}
+      // TODO: 拉伸绘制
+      LV.SmallImages.Draw(Bmp.Canvas, IdeGetScaledPixelsFromOrigin(csDrawIconMargin, LV),
+        (Bmp.Height - LV.SmallImages.Height) div 2, Item.ImageIndex);
+{$ELSE}
+      // 图标在竖直方向上在 Bmp 中居中
+      LV.SmallImages.Draw(Bmp.Canvas, csDrawIconMargin, (Bmp.Height - LV.SmallImages.Height) div 2, Item.ImageIndex);
+{$ENDIF}
+    end;
 
     if LV.SmallImages <> nil then
-      X := LV.SmallImages.Width + 2
+      X := IdeGetScaledPixelsFromOrigin(LV.SmallImages.Width, LV) + 2
     else
       X := Bmp.Height + 2;
 
@@ -1346,6 +1397,16 @@ begin
   // 基类啥都不改，按默认绘制
 end;
 
+function TCnProjectViewBaseForm.DisableLargeIcons: Boolean;
+begin
+  Result := False;
+end;
+
+function TCnProjectViewBaseForm.DoSelectOpenedItem: string;
+begin
+  Result := '';
+end;
+
 {$IFNDEF STAND_ALONE}
 
 procedure TCnProjectViewBaseForm.ChangeIconToIDEImageList;
@@ -1353,8 +1414,19 @@ var
   I: Integer;
   Act: TCustomAction;
 begin
-  ActionList.Images := dmCnSharedImages.GetMixedImageList;
-  ToolBar.Images := dmCnSharedImages.GetMixedImageList;
+  if WizOptions.UseLargeIcon and not DisableLargeIcons then
+  begin
+    ToolBar.ButtonWidth := csLargeButtonWidth;
+    ToolBar.ButtonHeight := csLargeButtonHeight;
+    ActionList.Images := dmCnSharedImages.GetMixedImageList;
+    ToolBar.Images := dmCnSharedImages.GetMixedImageList;
+  end
+  else  // 强制小图标
+  begin
+    ActionList.Images := dmCnSharedImages.GetMixedImageList(True);
+    ToolBar.Images := dmCnSharedImages.GetMixedImageList(True);
+  end;
+
   for I := 0 to ActionList.ActionCount - 1 do
   begin
     if ActionList.Actions[I] is TCustomAction then
@@ -1372,6 +1444,25 @@ begin
 end;
 
 {$ENDIF}
+
+constructor TCnProjectViewBaseForm.Create(AOwner: TComponent;
+  ADataList: TStringList);
+begin
+  FOutDataListRef := ADataList;
+  inherited Create(AOwner);
+end;
+
+procedure TCnProjectViewBaseForm.AfterConstruction;
+begin
+  inherited; // 这里 DataList 才会 Create
+  if FOutDataListRef <> nil then
+    DataList.Assign(FOutDataListRef);
+end;
+
+procedure TCnProjectViewBaseForm.DoOpenSelect;
+begin
+  OpenSelect;
+end;
 
 { TCnBaseElementInfo }
 

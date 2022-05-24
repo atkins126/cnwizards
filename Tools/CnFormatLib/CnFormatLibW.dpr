@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -30,7 +30,7 @@ uses
   CnCodeGenerators in '..\..\Source\CodeFormatter\CnParser\CnCodeGenerators.pas',
   CnParseConsts in '..\..\Source\CodeFormatter\CnParser\CnParseConsts.pas',
   CnPascalGrammar in '..\..\Source\CodeFormatter\CnParser\CnPascalGrammar.pas',
-  CnScaners in '..\..\Source\CodeFormatter\CnParser\CnScaners.pas',
+  CnScanners in '..\..\Source\CodeFormatter\CnParser\CnScanners.pas',
   CnTokens in '..\..\Source\CodeFormatter\CnParser\CnTokens.pas';
 
 {$R *.RES}

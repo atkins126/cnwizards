@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -53,8 +53,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Dialogs, ToolsAPI,
-  IniFiles, Forms, Menus, ActnList, Math,
-  {$IFDEF DELPHIXE3_UP}Actions,{$ENDIF}
+  IniFiles, Forms, Menus, ActnList, Math, {$IFDEF DELPHIXE3_UP} Actions, {$ENDIF}
   CnCommon, CnWizUtils, CnWizIdeUtils, CnWizConsts, CnEditControlWrapper,
   CnWizFlatButton, CnConsts, CnWizNotifier, CnWizShortCut, CnPopupMenu,
   CnSrcEditorCodeWrap, CnSrcEditorGroupReplace, CnSrcEditorWebSearch,
@@ -82,9 +81,11 @@ type
     FLowerCaseShortCut: TCnWizShortCut;
     FUpperCaseShortCut: TCnWizShortCut;
     FToggleCaseShortCut: TCnWizShortCut;
+{$IFDEF BDS}
     FBlockMoveUpShortCut: TCnWizShortCut;
     FBlockMoveDownShortCut: TCnWizShortCut;
     FBlockDelLinesShortCut: TCnWizShortCut;
+{$ENDIF}
     FActive: Boolean;
     FOnEnhConfig: TNotifyEvent;
     FShowBlockTools: Boolean;
@@ -162,20 +163,6 @@ type
     property OnEnhConfig: TNotifyEvent read FOnEnhConfig write FOnEnhConfig;
   end;
 
-{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
-{$IFDEF SUPPORT_PASCAL_SCRIPT}
-  TCnScriptSettingChangedReceiver = class(TInterfacedObject, ICnEventBusReceiver)
-  private
-    FBlock: TCnSrcEditorBlockTools;
-  public
-    constructor Create(ABlock: TCnSrcEditorBlockTools);
-    destructor Destroy; override;
-
-    procedure OnEvent(Event: TCnEvent);
-  end;
-{$ENDIF}
-{$ENDIF}
-
 {$ENDIF CNWIZARDS_CNSRCEDITORENHANCE}
 
 implementation
@@ -194,6 +181,21 @@ const
   csShowColor = 'ShowColor';
   csTabIndent = 'TabIndent';
 
+{$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
+{$IFDEF SUPPORT_PASCAL_SCRIPT}
+type
+  TCnSrcEditorScriptSettingChangedReceiver = class(TInterfacedObject, ICnEventBusReceiver)
+  private
+    FBlock: TCnSrcEditorBlockTools;
+  public
+    constructor Create(ABlock: TCnSrcEditorBlockTools);
+    destructor Destroy; override;
+
+    procedure OnEvent(Event: TCnEvent);
+  end;
+{$ENDIF}
+{$ENDIF}
+
 { TCnSrcEditorBlockTools }
 
 procedure TCnSrcEditorBlockTools.CreateShortCuts;
@@ -207,6 +209,7 @@ begin
     FUpperCaseShortCut := WizShortCutMgr.Add('CnEditUpperCase', 0, OnEditUpperCase);
   if FToggleCaseShortCut = nil then
     FToggleCaseShortCut := WizShortCutMgr.Add('CnEditToggleCase', 0, OnEditToggleCase);
+{$IFDEF BDS}
   if FBlockMoveUpShortCut = nil then
     FBlockMoveUpShortCut := WizShortCutMgr.Add('CnEditBlockMoveUp',
       ShortCut(Word('U'), [ssCtrl, ssAlt, ssShift]), OnEditBlockMoveUp);
@@ -216,13 +219,16 @@ begin
   if FBlockDelLinesShortCut = nil then
     FBlockDelLinesShortCut := WizShortCutMgr.Add('CnEditBlockDeleteLines',
       ShortCut(Word('D'), [ssCtrl, ssShift]), OnEditBlockDelLines);
+{$ENDIF}
 end;
 
 procedure TCnSrcEditorBlockTools.DestroyShortCuts;
 begin
+{$IFDEF BDS}
   WizShortCutMgr.DeleteShortCut(FBlockDelLinesShortCut);
   WizShortCutMgr.DeleteShortCut(FBlockMoveDownShortCut);
   WizShortCutMgr.DeleteShortCut(FBlockMoveUpShortCut);
+{$ENDIF}
   WizShortCutMgr.DeleteShortCut(FToggleCaseShortCut);
   WizShortCutMgr.DeleteShortCut(FUpperCaseShortCut);
   WizShortCutMgr.DeleteShortCut(FLowerCaseShortCut);
@@ -237,7 +243,7 @@ begin
   FShowColor := True;
 
   FIcon := TIcon.Create;
-  CnWizLoadIcon(nil, FIcon, 'CnSrcEditorBlockTools'); // 强制加载成小图标
+  CnWizLoadIcon(nil, FIcon, 'CnSrcEditorBlockTools', False, True); // 强制加载成小图标
 
   FCodeWrap := TCnSrcEditorCodeWrapTool.Create;
   FGroupReplace := TCnSrcEditorGroupReplaceTool.Create;
@@ -256,7 +262,7 @@ begin
 
 {$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
 {$IFDEF SUPPORT_PASCAL_SCRIPT}
-  FScriptSettingChangedReceiver := TCnScriptSettingChangedReceiver.Create(Self);
+  FScriptSettingChangedReceiver := TCnSrcEditorScriptSettingChangedReceiver.Create(Self);
   EventBus.RegisterReceiver(FScriptSettingChangedReceiver, EVENT_SCRIPT_SETTING_CHANGED);
 {$ENDIF}
 {$ENDIF}
@@ -705,7 +711,7 @@ var
     S: string;
   begin
     S := IntToStr(DefValue);
-    if CnInputQuery(ACaption, APrompt, S) then
+    if CnWizInputQuery(ACaption, APrompt, S) then
       Value := StrToIntDef(S, 0)
     else
       Value := 0;
@@ -971,15 +977,39 @@ var
   IsColor: Boolean;
   AColor: TColor;
   Button: TCnWizFlatButton;
-  X, Y, E: Integer;
+  X, Y, E, Idx: Integer;
   StartingRow, EndingRow: Integer;
   S: string;
+  PosChanged: Boolean;
 {$IFDEF BDS}
   ElidedStartingRows, ElidedEndingRows, I, RowEnd: Integer;
 {$ENDIF}
 {$IFDEF IDE_SYNC_EDIT_BLOCK}
   SyncBtn: TControl;
 {$ENDIF}
+
+  function StringIsColor(const ColorStr: string; out AColor: TColor): Boolean;
+  begin
+    Result := False;
+    if IdentToColor(ColorStr, Longint(AColor)) then
+      Result := True
+    else
+    begin
+      if (Length(ColorStr) = 6) or (Length(ColorStr) = 8) then
+      begin
+        Val('$' + ColorStr, Integer(AColor), E);
+        if E = 0 then
+          Result := True;
+      end
+      else if (Length(ColorStr) = 7) or (Length(ColorStr) = 9) and (ColorStr[1] = '$') then
+      begin
+        Val(ColorStr, Integer(AColor), E);
+        if E = 0 then
+          Result := True;
+      end;
+    end;
+  end;
+
 begin
   Button := TCnWizFlatButton(FindComponentByClass(EditWindow, TCnWizFlatButton,
     SCnSrcEditorBlockButton));
@@ -989,16 +1019,18 @@ begin
     begin
       Button := TCnWizFlatButton.Create(EditWindow);
       Button.Name := SCnSrcEditorBlockButton;
-      Button.Image := FIcon;
+      Button.Icon := FIcon;
       Button.DropdownMenu := FPopupMenu;
       Button.AutoDropdown := False;
       Button.Hint := SCnSrcBlockToolsHint;
+
       // BDS 下 Parent 在 EditControl.Parent 上可能导致 ModelMaker Explorer
       // 工具栏自动隐藏判断错误
       // D5 下 Parent 在 EditControl 上可能导致按钮刷新不正确
       // 所以两边分开处理
     {$IFDEF BDS}
       Button.Parent := TWinControl(EditControl);
+      Button.Alpha := True;
     {$ELSE}
       Button.Parent := EditControl.Parent;
     {$ENDIF}
@@ -1067,36 +1099,38 @@ begin
       EditControl.ClientHeight - Button.Height);
     X := EditControl.Left + csLeftKeep;
 {$ENDIF}
+
+    PosChanged := False;
     if Y <> Button.Top then
+    begin
       Button.Top := Y;
+      PosChanged := True;
+    end;
     if X <> Button.Left then
+    begin
       Button.Left := X;
+      PosChanged := True;
+    end;
+
+    if Button.Alpha and PosChanged then
+      Button.Invalidate;
 
     // 判断选择区是否有颜色，有则设置预览
     if FShowColor then
     begin
-      IsColor := False;
       S := Trim(EditView.Block.Text);
-      if IdentToColor(S, Longint(AColor)) then
-        IsColor := True
+      IsColor := StringIsColor(S, AColor);
+      if IsColor then
+        Button.DisplayColor := AColor
       else
       begin
-        if (Length(S) = 6) or (Length(S) = 8) then
+        if CnOtaGetCurrPosToken(S, Idx) then
         begin
-          Val('$' + S, Integer(AColor), E);
-          if E = 0 then
-            IsColor := True;
-        end
-        else if (Length(S) = 7) or (Length(S) = 9) and (S[1] = '$') then
-        begin
-          Val(S, Integer(AColor), E);
-          if E = 0 then
-            IsColor := True;
+          IsColor := StringIsColor(S, AColor);
+          if IsColor then
+            Button.DisplayColor := AColor;
         end;
       end;
-
-      if IsColor then
-        Button.DisplayColor := AColor;
       Button.ShowColor := IsColor;
     end
     else
@@ -1297,22 +1331,22 @@ end;
 {$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
 {$IFDEF SUPPORT_PASCAL_SCRIPT}
 
-{ TCnScriptSettingChangedReceiver }
+{ TCnSrcEditorScriptSettingChangedReceiver }
 
-constructor TCnScriptSettingChangedReceiver.Create(
+constructor TCnSrcEditorScriptSettingChangedReceiver.Create(
   ABlock: TCnSrcEditorBlockTools);
 begin
   inherited Create;
   FBlock := ABlock;
 end;
 
-destructor TCnScriptSettingChangedReceiver.Destroy;
+destructor TCnSrcEditorScriptSettingChangedReceiver.Destroy;
 begin
   inherited;
 
 end;
 
-procedure TCnScriptSettingChangedReceiver.OnEvent(Event: TCnEvent);
+procedure TCnSrcEditorScriptSettingChangedReceiver.OnEvent(Event: TCnEvent);
 begin
   if FBlock <> nil then
     FBlock.UpdateMenu(FBlock.FPopupMenu.Items);

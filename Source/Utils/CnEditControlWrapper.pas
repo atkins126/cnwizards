@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -28,7 +28,9 @@ unit CnEditControlWrapper;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2021.02.28 V1.7
+* 修改记录：2021.05.03 V1.8
+*               用新 RTTI 办法更精准地获取编辑器字符长宽
+*           2021.02.28 V1.7
 *               适应 10.4.2 下 ErroInsight 导致行距与字符高度改变以及通知
 *           2018.03.20 V1.6
 *               增加主题改变时的通知与字体重算
@@ -72,11 +74,11 @@ type
     TopLine: Integer;         // 顶行号
     LinesInWindow: Integer;   // 窗口显示行数
     LineCount: Integer;       // 代码缓冲区总行数
-    CaretX: Integer;          // 光标X位置
-    CaretY: Integer;          // 光标Y位置
+    CaretX: Integer;          // 光标 X 位置
+    CaretY: Integer;          // 光标 Y 位置
     CharXIndex: Integer;      // 字符序号
 {$IFDEF BDS}
-    LineDigit: Integer;       // 编辑器总行数的位数，如100行为3, 计算而来
+    LineDigit: Integer;       // 编辑器总行数的位数，如 100 行为 3, 计算而来
 {$ENDIF}
   end;
 
@@ -88,25 +90,27 @@ type
     ctFont,                   // 字体变更
     ctVScroll,                // 编辑器垂直滚动
     ctHScroll,                // 编辑器横向滚动
-    ctBlock,                  // 块变更
+    ctBlock,                  // 块变更，也就是选择范围或状态有变化
     ctModified,               // 编辑内容修改
     ctTopEditorChanged,       // 当前显示的上层编辑器变更
 {$IFDEF BDS}
-    ctLineDigit,              // 编辑器总行数位数变化，如99到100
+    ctLineDigit,              // 编辑器总行数位数变化，如 99 到 100
 {$ENDIF}
+{$IFDEF IDE_EDITOR_ELIDE}
     ctElided,                 // 编辑器行折叠，有限支持
     ctUnElided,               // 编辑器行展开，有限支持
+{$ENDIF}
     ctOptionChanged           // 编辑器设置对话框曾经打开过
     );
-    
+
   TEditorChangeTypes = set of TEditorChangeType;
 
   TEditorContext = record
-    TopRow: Integer;
-    BottomRow: Integer;
+    TopRow: Integer;               // 视觉上第一行的行号
+    BottomRow: Integer;            // 视觉上最下面一行的行号
     LeftColumn: Integer;
     CurPos: TOTAEditPos;
-    LineCount: Integer;
+    LineCount: Integer;            // 记录编辑器里的文字总行数
     LineText: string;
     ModTime: TDateTime;
     BlockValid: Boolean;
@@ -117,7 +121,7 @@ type
     BlockEndingRow: Integer;
     EditView: Pointer;
 {$IFDEF BDS}
-    LineDigit: Integer;       // 编辑器总行数的位数，如100行为3, 计算而来
+    LineDigit: Integer;       // 编辑器总行数的位数，如 100 行为 3, 计算而来
 {$ENDIF}
   end;
 
@@ -249,7 +253,7 @@ type
     FMouseNotifyAvailable: Boolean;
     FPaintLineHook: TCnMethodHook;
     FSetEditViewHook: TCnMethodHook;
-
+    FCmpLines: TList;
     FMouseUpNotifiers: TList;
     FMouseDownNotifiers: TList;
     FMouseMoveNotifiers: TList;
@@ -287,7 +291,9 @@ type
     procedure UpdateEditControlList;
     procedure CheckOptionDlg;
     function GetEditorContext(Editor: TEditorObject): TEditorContext;
-    function CheckViewLines(Editor: TEditorObject; Context: TEditorContext): Boolean;
+    function CheckViewLinesChange(Editor: TEditorObject; Context: TEditorContext): Boolean;
+    // 检查某个 View 中的具体行号分布有无改变，包括纵向滚动、纵向伸缩、折叠等，不包括单行内改动
+
     function CheckEditorChanges(Editor: TEditorObject): TEditorChangeTypes;
     procedure OnActiveFormChange(Sender: TObject);
     procedure AfterThemeChange(Sender: TObject);
@@ -310,8 +316,10 @@ type
   protected
     procedure DoAfterPaintLine(Editor: TEditorObject; LineNum, LogicLineNum: Integer);
     procedure DoBeforePaintLine(Editor: TEditorObject; LineNum, LogicLineNum: Integer);
+{$IFDEF IDE_EDITOR_ELIDE}
     procedure DoAfterElide(EditControl: TControl);   // 暂不支持
     procedure DoAfterUnElide(EditControl: TControl); // 暂不支持
+{$ENDIF}
     procedure DoEditControlNotify(EditControl: TControl; Operation: TOperation);
     procedure DoEditorChange(Editor: TEditorObject; ChangeType: TEditorChangeTypes);
 
@@ -345,7 +353,7 @@ type
     property HighlightCount: Integer read GetHighlightCount;
     property HighlightNames[Index: Integer]: string read GetHighlightName;
     property Highlights[Index: Integer]: THighlightItem read GetHighlight;
-    
+
     function GetCharHeight: Integer;
     {* 返回编辑器行高 }
     function GetCharWidth: Integer;
@@ -379,6 +387,13 @@ type
     function GetLineIsElided(EditControl: TControl; LineNum: Integer): Boolean;
     {* 返回指定行是否折叠，不包括折叠的头尾，也就是返回是否隐藏。
        只对 BDS 有效，其余情况返回 False}
+
+{$IFDEF IDE_EDITOR_ELIDE}
+    procedure ElideLine(EditControl: TControl; LineNum: Integer);
+    {* 折叠某行，行号必须是可折叠区的首行}
+    procedure UnElideLine(EditControl: TControl; LineNum: Integer);
+    {* 展开某行，行号必须是可折叠区的首行}
+{$ENDIF}
 
 {$IFDEF BDS}
     function GetPointFromEdPos(EditControl: TControl; APos: TOTAEditPos): TPoint;
@@ -682,6 +697,11 @@ const
 {$ENDIF}
 {$ENDIF}
 
+{$IFDEF IDE_EDITOR_ELIDE}
+  SEditControlElideName = '@Editorcontrol@TCustomEditControl@Elide$qqri';
+  SEditControlUnElideName = '@Editorcontrol@TCustomEditControl@unElide$qqri';
+{$ENDIF}
+
 type
   TControlHack = class(TControl);
 {$IFDEF DELPHI10_SEATTLE_UP}
@@ -711,6 +731,11 @@ type
     var Element, LineFlag: Integer; B1: Boolean);
 {$ENDIF}
 
+{$IFDEF IDE_EDITOR_ELIDE}
+  TEditControlElideProc = procedure(Self: TObject; Line: Integer);
+  TEditControlUnElideProc = procedure(Self: TObject; Line: Integer);
+{$ENDIF}
+
 var
   PaintLine: TPaintLineProc = nil;
 {$IFDEF DELPHI10_SEATTLE_UP}
@@ -726,6 +751,10 @@ var
 {$IFDEF BDS}
   PointFromEdPos: TPointFromEdPosProc = nil;
   IndexPosToCurPosProc: TIndexPosToCurPosProc = nil;
+{$ENDIF}
+{$IFDEF IDE_EDITOR_ELIDE}
+  EditControlElide: TEditControlElideProc = nil;
+  EditControlUnElide: TEditControlUnElideProc = nil;
 {$ENDIF}
 
   PaintLineLock: TRTLCriticalSection;
@@ -839,6 +868,7 @@ begin
   inherited;
   FOptionChanged := True;
 
+  FCmpLines := TList.Create;
   FBeforePaintLineNotifiers := TList.Create;
   FAfterPaintLineNotifiers := TList.Create;
   FEditControlNotifiers := TList.Create;
@@ -924,6 +954,8 @@ begin
   ClearAndFreeList(FEditorChangeNotifiers);
   ClearAndFreeList(FKeyDownNotifiers);
   ClearAndFreeList(FKeyUpNotifiers);
+
+  FCmpLines.Free;
   inherited;
 end;
 
@@ -931,56 +963,65 @@ procedure TCnEditControlWrapper.InitEditControlHook;
 begin
   try
     FCorIdeModule := LoadLibrary(CorIdeLibName);
-    CnWizAssert(FCorIdeModule <> 0, 'Failed to load FCorIdeModule');
+    CnWizAssert(FCorIdeModule <> 0, 'Load FCorIdeModule');
 
     GetOTAEditView := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetOTAEditViewName));
-    CnWizAssert(Assigned(GetOTAEditView), 'Failed to load GetOTAEditView from FCorIdeModule');
+    CnWizAssert(Assigned(GetOTAEditView), 'Load GetOTAEditView from FCorIdeModule');
 
     DoGetAttributeAtPos := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetAttributeAtPosName));
-    CnWizAssert(Assigned(DoGetAttributeAtPos), 'Failed to load GetAttributeAtPos from FCorIdeModule');
+    CnWizAssert(Assigned(DoGetAttributeAtPos), 'Load GetAttributeAtPos from FCorIdeModule');
 
     PaintLine := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SPaintLineName));
-    CnWizAssert(Assigned(PaintLine), 'Failed to load PaintLine from FCorIdeModule');
+    CnWizAssert(Assigned(PaintLine), 'Load PaintLine from FCorIdeModule');
 
 {$IFDEF DELPHI10_SEATTLE_UP}
     GetCanvas := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetCanvas));
-    CnWizAssert(Assigned(GetCanvas), 'Failed to load GetCanvas from FCorIdeModule');
+    CnWizAssert(Assigned(GetCanvas), 'Load GetCanvas from FCorIdeModule');
 {$ENDIF}
 
     DoMarkLinesDirty := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SMarkLinesDirtyName));
-    CnWizAssert(Assigned(DoMarkLinesDirty), 'Failed to load MarkLinesDirty from FCorIdeModule');
+    CnWizAssert(Assigned(DoMarkLinesDirty), 'Load MarkLinesDirty from FCorIdeModule');
 
     EdRefresh := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SEdRefreshName));
-    CnWizAssert(Assigned(EdRefresh), 'Failed to load EdRefresh from FCorIdeModule');
+    CnWizAssert(Assigned(EdRefresh), 'Load EdRefresh from FCorIdeModule');
 
     DoGetTextAtLine := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetTextAtLineName));
-    CnWizAssert(Assigned(DoGetTextAtLine), 'Failed to load GetTextAtLine from FCorIdeModule');
+    CnWizAssert(Assigned(DoGetTextAtLine), 'Load GetTextAtLine from FCorIdeModule');
 
-  {$IFDEF BDS}
-    // BDS 下才有效
+{$IFDEF IDE_EDITOR_ELIDE}
     LineIsElided := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SLineIsElidedName));
-    CnWizAssert(Assigned(LineIsElided), 'Failed to load LineIsElided from FCorIdeModule');
+    CnWizAssert(Assigned(LineIsElided), 'Load LineIsElided from FCorIdeModule');
 
+    EditControlElide := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SEditControlElideName));
+    CnWizAssert(Assigned(EditControlElide), 'Load EditControlElide from FCorIdeModule');
+
+    EditControlUnElide := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SEditControlUnElideName));
+    CnWizAssert(Assigned(EditControlUnElide), 'Load EditControlUnElide from FCorIdeModule');
+{$ENDIF}
+
+{$IFDEF BDS}
+    // BDS 下才有效
     PointFromEdPos := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SPointFromEdPosName));
-    CnWizAssert(Assigned(PointFromEdPos), 'Failed to load PointFromEdPos from FCorIdeModule');
+    CnWizAssert(Assigned(PointFromEdPos), 'Load PointFromEdPos from FCorIdeModule');
 
     IndexPosToCurPosProc := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SIndexPosToCurPosName));
-    CnWizAssert(Assigned(IndexPosToCurPosProc), 'Failed to load IndexPosToCurPos from FCorIdeModule');
-  {$ENDIF}
+    CnWizAssert(Assigned(IndexPosToCurPosProc), 'Load IndexPosToCurPos from FCorIdeModule');
+{$ENDIF}
+
 
     SetEditView := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SSetEditViewName));
-    CnWizAssert(Assigned(SetEditView), 'Failed to load SetEditView from FCorIdeModule');
+    CnWizAssert(Assigned(SetEditView), 'Load SetEditView from FCorIdeModule');
 
     FPaintLineHook := TCnMethodHook.Create(@PaintLine, @MyPaintLine);
 
-  {$IFDEF DEBUG}
+{$IFDEF DEBUG}
     CnDebugger.LogMsg('EditControl.PaintLine Hooked');
-  {$ENDIF}
+{$ENDIF}
 
     FSetEditViewHook := TCnMethodHook.Create(@SetEditView, @MySetEditView);
-  {$IFDEF DEBUG}
+{$IFDEF DEBUG}
     CnDebugger.LogMsg('EditControl.SetEditView Hooked');
-  {$ENDIF}
+{$ENDIF}
 
     FPaintNotifyAvailable := True;
   except
@@ -1111,61 +1152,58 @@ begin
   Result := -1;
 end;
 
-function TCnEditControlWrapper.CheckViewLines(Editor: TEditorObject;
+function TCnEditControlWrapper.CheckViewLinesChange(Editor: TEditorObject;
   Context: TEditorContext): Boolean;
 var
   I, Idx, LineCount: Integer;
-  Lines: TList;
 begin
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('TCnEditControlWrapper.CheckViewLines');
+  CnDebugger.LogMsg('TCnEditControlWrapper.CheckViewLinesChange');
 {$ENDIF}
   Result := False;
-  Lines := TList.Create;
-  try
-    LineCount := Context.LineCount;
-    Idx := Context.TopRow;
-    Editor.FLastTop := Idx;
-    Editor.FLastBottomElided := GetLineIsElided(Editor.EditControl, LineCount);
-    for I := Context.TopRow to Context.BottomRow do
-    begin
-      Lines.Add(Pointer(Idx));
-      repeat
-        Inc(Idx);
-        if Idx > LineCount then
-          Break;
-      until not GetLineIsElided(Editor.EditControl, Idx);
+  FCmpLines.Clear;
 
+  LineCount := Context.LineCount;
+  Idx := Context.TopRow;
+  Editor.FLastTop := Idx;
+  Editor.FLastBottomElided := GetLineIsElided(Editor.EditControl, LineCount);
+  for I := Context.TopRow to Context.BottomRow do
+  begin
+    FCmpLines.Add(Pointer(Idx));
+    repeat
+      Inc(Idx);
       if Idx > LineCount then
         Break;
-    end;
+    until not GetLineIsElided(Editor.EditControl, Idx);
 
-    if Lines.Count <> Editor.FLines.Count then
-      Result := True
-    else
-    begin
-      for i := 0 to Lines.Count - 1 do
-        if Lines[i] <> Editor.FLines[i] then
-        begin
-          Result := True;
-          Break;
-        end;
-    end;
+    if Idx > LineCount then
+      Break;
+  end;
 
-    if Result then
-    begin
-      Editor.FLines.Count := Lines.Count;
-      for i := 0 to Lines.Count - 1 do
-        Editor.FLines[i] := Lines[i];
-    {$IFDEF DEBUG}
-      CnDebugger.LogMsg('Lines Changed');
-    {$ENDIF}
-    end;
+  if FCmpLines.Count <> Editor.FLines.Count then
+    Result := True
+  else
+  begin
+    for I := 0 to FCmpLines.Count - 1 do
+      if FCmpLines[I] <> Editor.FLines[I] then
+      begin
+        Result := True;
+        Break;
+      end;
+  end;
 
-    Editor.FLinesChanged := False;
-  finally
-    Lines.Free;
-  end;          
+  if Result then
+  begin
+    Editor.FLines.Count := FCmpLines.Count;
+    for I := 0 to FCmpLines.Count - 1 do
+      Editor.FLines[I] := FCmpLines[I];
+  {$IFDEF DEBUG}
+    CnDebugger.LogMsg('Lines Changed');
+  {$ENDIF}
+  end;
+
+  Editor.FLinesChanged := False;
+  FCmpLines.Clear;
 end;
 
 function TCnEditControlWrapper.CheckEditorChanges(Editor: TEditorObject):
@@ -1218,12 +1256,16 @@ begin
   if (Context.TopRow <> OldContext.TopRow) or
     (Context.BottomRow <> OldContext.BottomRow) then
     Include(Result, ctWindow);
+
   if (Context.LeftColumn <> OldContext.LeftColumn) then
     Include(Result, ctHScroll);
+
   if Context.CurPos.Line <> OldContext.CurPos.Line then
     Include(Result, ctCurrLine);
+
   if Context.CurPos.Col <> OldContext.CurPos.Col then
     Include(Result, ctCurrCol);
+
   if (Context.BlockValid <> OldContext.BlockValid) or
     (Context.BlockSize <> OldContext.BlockSize) or
     (Context.BlockStartingColumn <> OldContext.BlockStartingColumn) or
@@ -1231,6 +1273,7 @@ begin
     (Context.BlockEndingColumn <> OldContext.BlockEndingColumn) or
     (Context.BlockEndingRow <> OldContext.BlockEndingRow) then
     Include(Result, ctBlock);
+
   if Context.EditView <> OldContext.EditView then
     Include(Result, ctView);
 
@@ -1238,9 +1281,14 @@ begin
     (Editor.FLastBottomElided <> GetLineIsElided(Editor.EditControl,
     Context.LineCount)) then
   begin
-    if CheckViewLines(Editor, Context) then
+    // 如果首尾行分布发生变化，又不是因为 Window 改变或 View 改变，则认为折叠改变了
+    if CheckViewLinesChange(Editor, Context) then
+    begin
+{$IFDEF IDE_EDITOR_ELIDE}
       if Result * [ctWindow, ctView] = [] then
         Result := Result + [ctElided, ctUnElided];
+{$ENDIF}
+    end;
   end;
 
 {$IFDEF BDS}
@@ -1255,7 +1303,7 @@ begin
     Include(Result, ctModified);
   end
   else if (Context.CurPos.Line = OldContext.CurPos.Line) and
-    not AnsiSameStr(Context.LineText, OldContext.LineText) then
+    (Context.LineText <> OldContext.LineText) then
   begin
     Include(Result, ctModified);
   end
@@ -1365,6 +1413,9 @@ var
   end;
 
 begin
+  if WizOptions = nil then
+    Exit;
+
   ClearHighlights;
   Reg := nil;
   Names := nil;
@@ -1439,7 +1490,13 @@ var
   FontName: string;
   FontHeight: Integer;
   Size: TSize;
-  i: Integer;
+  I: Integer;
+{$IFDEF SUPPORT_ENHANCED_RTTI}
+  RttiContext: TRttiContext;
+  RttiType: TRttiType;
+  RttiProperty: TRttiProperty;
+  V: Integer;
+{$ENDIF}
 
   procedure CalcFont(const AName: string; ALogFont: TLogFont);
   var
@@ -1502,6 +1559,7 @@ begin
 
   if GetObject(Control.Font.Handle, SizeOf(LogFont), @LogFont) <> 0 then
   begin
+    // 坑一：EditControl.Font 一般是默认的 MS Sans Serif，不代表真实情况
   {$IFDEF DEBUG}
     CnDebugger.LogMsg('TCnEditControlWrapper.CalcCharSize');
     CnDebugger.LogFmt('FontName: %s Height: %d Width: %d',
@@ -1514,6 +1572,7 @@ begin
     FSaveErrorInsightIsSmoothWave := GetErrorInsightRenderStyle = csErrorInsightRenderStyleSmoothWave;
   {$ENDIF}
 
+    // 坑二：在编辑器设置对话框里选了字体再取消，Options 里会被更新成选择后的字体，导致和实际情况不符
     FontName := Option.FontName;
     FontHeight := -MulDiv(Option.FontSize, Screen.PixelsPerInch, 72);
 
@@ -1539,16 +1598,16 @@ begin
       SaveFont := 0;
       if HighlightCount > 0 then
       begin
-        for i := 0 to HighlightCount - 1 do
+        for I := 0 to HighlightCount - 1 do
         begin
           AFont := LogFont;
-          if Highlights[i].Bold then
+          if Highlights[I].Bold then
             AFont.lfWeight := FW_BOLD;
-          if Highlights[i].Italic then
+          if Highlights[I].Italic then
             AFont.lfItalic := 1;
-          if Highlights[i].Underline then
+          if Highlights[I].Underline then
             AFont.lfUnderline := 1;
-          CalcFont(HighlightNames[i], AFont);
+          CalcFont(HighlightNames[I], AFont);
         end;
       {$IFDEF DEBUG}
         CnDebugger.LogFmt('CharSize from registry: X = %d Y = %d',
@@ -1580,6 +1639,49 @@ begin
       end;
 
       Result := (FCharSize.cx > 0) and (FCharSize.cy > 0);
+
+      // 兜底办法，拿 EditControl 的 CharHeight 和 CharWidth 属性，注意普通办法拿不到
+      // --- 拿到后，覆盖上面所有的字符长宽计算结果！---
+{$IFDEF SUPPORT_ENHANCED_RTTI}
+      RttiContext := TRttiContext.Create;
+      try
+        RttiType := RttiContext.GetType(Control.ClassType);
+        try
+          RttiProperty := RttiType.GetProperty('CharHeight');
+          V := RttiProperty.GetValue(Control).AsInteger;
+          if (V > 1) and (V <> FCharSize.cy) then
+          begin
+            FCharSize.cy := V;
+{$IFDEF DEBUG}
+            CnDebugger.LogFmt('RTTI EditControl CharHeight %d.', [V]);
+{$ENDIF}
+          end;
+        except
+          ;
+        end;
+
+        try
+          RttiProperty := RttiType.GetProperty('CharWidth');
+          V := RttiProperty.GetValue(Control).AsInteger;
+          if (V > 1) and (V <> FCharSize.cx) then
+          begin
+            FCharSize.cx := V;
+{$IFDEF DEBUG}
+            CnDebugger.LogFmt('RTTI EditControl CharWidth %d.', [V]);
+{$ENDIF}
+          end;
+        except
+          ;
+        end;
+      finally
+        RttiContext.Free;
+      end;
+{$ENDIF}
+
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('Finally Get FCharSize: x %d, y %d.',
+        [FCharSize.cx, FCharSize.cy]);
+{$ENDIF}
     finally
       SaveFont := SelectObject(DC, SaveFont);
       if SaveFont <> 0 then
@@ -2257,6 +2359,8 @@ begin
   end;
 end;
 
+{$IFDEF IDE_EDITOR_ELIDE}
+
 procedure TCnEditControlWrapper.DoAfterElide(EditControl: TControl);
 var
   I: Integer;
@@ -2274,6 +2378,8 @@ begin
   if I >= 0 then
     DoEditorChange(Editors[I], [ctUnElided]);
 end;
+
+{$ENDIF}
 
 //------------------------------------------------------------------------------
 // 编辑器控件通知
@@ -2332,6 +2438,9 @@ begin
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnEditControlWrapper.DoEditorChange: ' + EditorChangeTypesToStr(ChangeType));
 {$ENDIF}
+
+  if Editor = nil then // 某些古怪情况下 Editor 为 nil？
+    Exit;
 
   if ChangeType * [ctView, ctWindow{$IFDEF BDS}, ctLineDigit{$ENDIF}] <> [] then
   begin
@@ -2925,6 +3034,24 @@ begin
   if Value <> nil then
     FFontArray[Index].Assign(Value);
 end;
+
+{$IFDEF IDE_EDITOR_ELIDE}
+
+procedure TCnEditControlWrapper.ElideLine(EditControl: TControl;
+  LineNum: Integer);
+begin
+  if Assigned(EditControlElide) then
+    EditControlElide(EditControl, LineNum);
+end;
+
+procedure TCnEditControlWrapper.UnElideLine(EditControl: TControl;
+  LineNum: Integer);
+begin
+  if Assigned(EditControlUnElide) then
+    EditControlUnElide(EditControl, LineNum);
+end;
+
+{$ENDIF}
 
 initialization
   InitializeCriticalSection(PaintLineLock);

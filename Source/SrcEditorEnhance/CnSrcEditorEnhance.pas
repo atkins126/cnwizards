@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -224,6 +224,7 @@ type
     destructor Destroy; override;
 
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     procedure LoadSettings(Ini: TCustomIniFile); override;
     procedure SaveSettings(Ini: TCustomIniFile); override;
     procedure ResetSettings(Ini: TCustomIniFile); override;
@@ -626,7 +627,12 @@ begin
     chkAutoBracket.Checked := FEditorKey.AutoBracket;
     chkShiftEnter.Checked := FEditorKey.ShiftEnter;
     chkHomeExtend.Checked := FEditorKey.HomeExt;
+{$IFDEF DELPHI104_SYDNEY_UP}  // 10.4 无法支持光标行尾
+    chkCursorBeforeEOL.Checked := False;
+    chkCursorBeforeEOL.Enabled := False;
+{$ELSE}
     chkCursorBeforeEOL.Checked := FEditorKey.CursorBeforeEOL;
+{$ENDIF}
     chkLeftWrapLine.Checked := FEditorKey.LeftLineWrap;
     chkRightWrapLine.Checked := FEditorKey.RightLineWrap;
     chkSearchAgain.Checked := FEditorKey.F3Search;
@@ -804,6 +810,14 @@ begin
   Email := SCnPack_ZjyEmail + ';' + SCnPack_LiuXiaoEmail +
     ';' + SCnPack_LeeonEmail + ';' + SCnPack_DragonPCEmail;
   Comment := SCnEditorEnhanceWizardComment;
+end;
+
+function TCnSrcEditorEnhance.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent +
+    '行号,工具栏,前进,后退,右键,菜单,只读,浮动,按钮,f2,快捷键,热键,括号,标签,缩进,自动保存,缩略图,' +
+    'linenumber,toolbar,front,back,popupmenu,readonly,float,button,shortcut,hotkey,' +
+    'bracket,tab,indent,autosave,thumbnail,gutter,';
 end;
 
 initialization

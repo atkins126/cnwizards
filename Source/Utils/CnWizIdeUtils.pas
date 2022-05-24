@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -42,7 +42,7 @@ unit CnWizIdeUtils;
 * 修改记录：2016.04.04 by liuxiao
 *               增加 2010 以上版本的新风格控件板的支持
 *           2012.09.19 by shenloqi
-*               移植到Delphi XE3
+*               移植到 Delphi XE3
 *           2005.05.06 V1.3
 *               hubdog 增加 获取版本信息的函数
 *           2004.03.19 V1.2
@@ -59,16 +59,19 @@ interface
 {$I CnWizards.inc}
 
 uses
-  Windows, Messages, Classes, Controls, SysUtils, Graphics, Forms, Tabs,
+  Windows, Messages, Classes, Controls, SysUtils, Graphics, Forms, Tabs, Contnrs,
   Menus, Buttons, ComCtrls, StdCtrls, ExtCtrls, TypInfo, ToolsAPI, ImgList,
   {$IFDEF OTA_PALETTE_API} PaletteAPI, {$ENDIF}
+  {$IFDEF IDE_SUPPORT_HDPI} Vcl.VirtualImageList, Vcl.ImageCollection, {$ENDIF}
   {$IFDEF COMPILER6_UP}
   DesignIntf, DesignEditors, ComponentDesigner, Variants,
   {$ELSE}
   DsgnIntf, LibIntf,
   {$ENDIF}
-  CnPasCodeParser, CnWidePasParser,
-  CnWizUtils, CnWizEditFiler, CnCommon, CnWizOptions, CnWizCompilerConst;
+  {$IFNDEF CNWIZARDS_MINIMUM} CnIDEVersion, {$ENDIF}
+  CnPasCodeParser, CnWidePasParser, CnWizMethodHook, mPasLex, CnPasWideLex,
+  mwBCBTokenList, CnBCBWideTokenList, CnWizUtils, CnWizEditFiler, CnCommon,
+  CnWizOptions, CnWizCompilerConst;
 
 //==============================================================================
 // IDE 中的常量定义
@@ -203,6 +206,24 @@ type
   TXTreeView = TTreeView;
 {$ENDIF BDS}
 
+  TCnModuleSearchType = (mstInvalid, mstInProject, mstProjectSearch, mstSystemSearch);
+  {* 搜索到的源码位置类型：非法、工程内、工程搜索目录内、系统搜索目录内（包括安装目录的系统库）}
+
+  TCnModuleSearchTypes = set of TCnModuleSearchType;
+
+  TCnUsesFileType = (uftInvalid, uftPascalSource, uftPascalDcu, uftCppHeader);
+
+  TCnUnitCallback = procedure(const AUnitFullName: string; Exists: Boolean;
+    FileType: TCnUsesFileType; ModuleSearchType: TCnModuleSearchType) of object;
+
+type
+  PCnUnitsInfoRec = ^TCnUnitsInfoRec;
+  TCnUnitsInfoRec = record
+    IsCppMode: Boolean;
+    Sorted: TStringList;
+    Unsorted: TStringList;
+  end;
+
 //==============================================================================
 // IDE 代码编辑器功能函数
 //==============================================================================
@@ -238,7 +259,8 @@ function IdeGetBlockIndent: Integer;
 {* 获得当前编辑器块缩进宽度 }
 
 function IdeGetSourceByFileName(const FileName: string): string;
-{* 根据文件名取得内容。如果文件在 IDE 中打开，返回编辑器中的内容，否则返回文件内容。}
+{* 根据文件名取得内容。如果文件在 IDE 中打开，返回编辑器中的内容，否则返回文件内容。
+  内容应该是无 BOM 头的 Ansi/Ansi/Utf16}
 
 function IdeSetSourceByFileName(const FileName: string; Source: TStrings;
   OpenInIde: Boolean): Boolean;
@@ -250,6 +272,10 @@ function IsCurrentToken(AView: Pointer; AControl: TControl; Token: TCnPasToken):
 
 function IsCurrentTokenW(AView: Pointer; AControl: TControl; Token: TCnWidePasToken): Boolean;
 {* 判断标识符是否在光标下，同上，但使用 WideToken，可供 Unicode/Utf8 环境下调用}
+
+function IsGeneralCurrentToken(AView: Pointer; AControl: TControl;
+    Token: TCnGeneralPasToken): Boolean;
+{* 判断标识符是否在光标下，囊括以上两种情况}
 
 //==============================================================================
 // IDE 窗体编辑器功能函数
@@ -337,8 +363,15 @@ function GetBDSUserDataDir: string;
 procedure GetProjectLibPath(Paths: TStrings);
 {* 取当前工程组的相关 Path 内容}
 
+function GetProjectDcuPath(AProject: IOTAProject): string;
+{* 取当前工程的输出目录}
+
 function GetFileNameFromModuleName(AName: string; AProject: IOTAProject = nil): string;
 {* 根据模块名获得完整文件名}
+
+function GetFileNameSearchTypeFromModuleName(AName: string;
+  var SearchType: TCnModuleSearchType; AProject: IOTAProject = nil): string;
+{* 根据模块名获得完整文件名以及处于哪一类搜索目录中，无扩展名时默认搜 pas}
 
 function CnOtaGetVersionInfoKeys(Project: IOTAProject = nil): TStrings;
 {* 获取当前项目中的版本信息键值}
@@ -357,12 +390,6 @@ function GetIDERegistryFont(const RegItem: string; AFont: TFont): Boolean;
    RegItem 可以是 '', 'Assembler', 'Comment', 'Preprocessor',
     'Identifier', 'Reserved word', 'Number', 'Whitespace', 'String', 'Symbol'
     等注册表里头已经定义了的键值}
-
-function GetIDEBigImageList: TImageList;
-{* 获取一个大尺寸的 IDE 的 ImageList 引用，从 IDE 的 ImageList 拉扯而来}
-
-procedure ClearIDEBigImageList;
-{* 清空大尺寸的 IDE 的 ImageList，供通知重建而使用}
 
 function IsDesignControl(AControl: TControl): Boolean;
 {* 判断一 Control 是否是设计期 WinControl}
@@ -423,6 +450,9 @@ function IsKeyMacroRunning: Boolean;
 function GetCurrentCompilingProject: IOTAProject;
 {* 返回当前正在编译的工程，注意不一定是当前工程}
 
+function CompileProject(AProject: IOTAProject): Boolean;
+{* 编译工程，返回编译是否成功}
+
 type
   TCnSrcEditorPage = (epCode, epDesign, epCPU, epWelcome, epOthers);
 
@@ -447,6 +477,16 @@ procedure ApplyThemeOnToolBar(ToolBar: TToolBar; Recursive: Boolean = True);
 function GetErrorInsightRenderStyle: Integer;
 {* 返回 ErrorInsight 的当前类型，返回值为 csErrorInsightRenderStyle* 系列常数
    -1 为不支持，1 时会影响编辑器行高，影响程度和显示 Leve 以及是否侧边栏显示均无关}
+
+function IdeEnumUsesIncludeUnits(UnitCallback: TCnUnitCallback; IsCpp: Boolean = False;
+  SearchTypes: TCnModuleSearchTypes = [mstInProject, mstProjectSearch, mstSystemSearch]): Boolean;
+{* 遍历 Uses 单元，可根据 SearchTypes 指定范围。返回的文件名可能是 IDE 中打开的还未保存的
+  Delphi 会遍历 pas 和 dcu，C++Builder 会遍历 h/hpp，均会在 UnitCallback 中指明}
+
+procedure CorrectCaseFromIdeModules(UnitFilesList: TStringList; IsCpp: Boolean = False);
+{* 根据文件名获得的系统 Uses 的单元名大小写可能不正确，此处通过遍历 IDE 模块来更新
+  UnitFilesList 是不带 dcu 扩展名的文件名列表，注意不是完整路径名列表，
+  且跑完后 UnitFilesList.Sorted 会被设为 True}
 
 //==============================================================================
 // 扩展控件
@@ -642,6 +682,50 @@ function CnMessageViewWrapper: TCnMessageViewWrapper;
 function CnThemeWrapper: TCnThemeWrapper;
 {* 主题封装处理}
 
+procedure DisableWaitDialogShow;
+{* 以 Hook 方式禁用 WaitDialog}
+
+procedure EnableWaitDialogShow;
+{* 以解除 Hook 方式启用 WaitDialog}
+
+function IdeGetScaledPixelsFromOrigin(APixels: Integer; AControl: TControl = nil): Integer;
+{* IDE 中根据 DPI 与缩放设置，计算原始像素数的真实所需像素数用于绘制
+  支持 Windows 中的缩放比，支持 IDE 运行在 DPI Ware/Unware 下
+  也就是说：Windows 缩放比是 100% 也就是原始大小时，无论 IDE 运行模式如何都返回原始数据
+  缩放比不为 100% 时，DPI Ware 才返回 APixels * HDPI 比例，Unware 无论啥设置仍返回原始数据}
+
+function IdeGetScaledFactor(AControl: TControl = nil): Single;
+{* 获得 IDE 中某控件的应该放大的比例}
+
+procedure IdeSetReverseScaledFontSize(AControl: TControl);
+{* IDE 中根据 DPI 与缩放设置，反推计算某字号的原始尺寸，以便 Scale 时恢复原始尺寸。暂不使用。}
+
+procedure IdeScaleToolbarComboFontSize(Combo: TControl);
+{* 统一根据当前 HDPI 与缩放设置等设置 Toolbar 中的 Combobox 的字号}
+
+{$IFDEF IDE_SUPPORT_HDPI}
+
+function IdeGetVirtualImageListFromOrigin(Origin: TCustomImageList;
+  AControl: TControl = nil; IgnoreWizLargeOption: Boolean = False): TVirtualImageList;
+{* 统一根据当前 HDPI 与缩放设置等，从原始 TImageList 创建一个 TVirtualImageList，无需释放
+  IgnoreWizLargeOption 表示不处理专家包设置中的使用大图标}
+
+{$ENDIF}
+
+function SearchUsesInsertPosInCurrentPas(IsIntf: Boolean; out HasUses: Boolean;
+  out CharPos: TOTACharPos): Boolean;
+{* 在当前编辑的 Pascal 源文件中搜索 uses 待插入的位置，IsIntf 指明搜索的是 interface 处的 uses
+  还是 implemetation 的，返回是否成功，成功时返回位置，以及该处是否已有 uses}
+
+function SearchUsesInsertPosInCurrentCpp(out CharPos: TOTACharPos;
+  SourceEditor: IOTASourceEditor = nil): Boolean;
+{* 在编辑的 C++ 源文件中搜索 include 待插入的位置，返回是否成功，成功时返回位置}
+
+function JoinUsesOrInclude(IsCpp, FileHasUses: Boolean; IsHFromSystem: Boolean;
+  const IncFiles: TStrings): string;
+{* 根据源码类型与待插入的文件名列表得到插入的 uses 或 include 字符串，
+  FileHasUses 只对 Pascal 代码有效、IsHFromSystem 只对 Cpp 文件有效}
+
 implementation
 
 uses
@@ -653,6 +737,9 @@ uses
 const
   SSyncButtonName = 'SyncButton';
   SCodeTemplateListBoxName = 'CodeTemplateListBox';
+{$IFDEF IDE_SWITCH_BUG}
+  SWaitDialogShow = '@Waitdialog@TIDEWaitDialog@Show$qqrx20System@UnicodeStringt1o';
+{$ENDIF}
 
 {$IFDEF BDS4_UP}
 const
@@ -664,10 +751,35 @@ var
   EndBatchOpenCloseProc: TProcedure = nil;
 {$ENDIF}
 
+{$IFDEF IDE_SUPPORT_HDPI}
 var
-  FIDEBigImageList: TImageList = nil;
+  FOriginImages: TObjectList = nil;
+  FVirtualImages: TObjectList = nil;
+  FImageCollections: TObjectList = nil;
+{$ENDIF}
+
+{$IFDEF IDE_SWITCH_BUG}
+type
+  TCnWaitDialogShowProc = procedure (ASelfClass: Pointer; const Caption: string;
+    const TitleMessage: string; LockDrawing: Boolean);
+
+var
+  FDesignIdeHandle: THandle = 0;
+  FWaitDialogHook: TCnMethodHook = nil;
+  OldWaitDialogShow: TCnWaitDialogShowProc = nil;
+
+procedure MyWaitDialogShow(ASelfClass: Pointer; const Caption: string; const TitleMessage: string; LockDrawing: Boolean);
+begin
+  // 啥都不做
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('MyWaitDialogShow Called. Do Nothing.');
+{$ENDIF}
+end;
+
+{$ENDIF}
 
 type
+  TControlHack = class(TControl);
   TCustomControlHack = class(TCustomControl);
 
 //==============================================================================
@@ -959,9 +1071,9 @@ var
 begin
   Strm := TMemoryStream.Create;
   try
-    EditFilerSaveFileToStream(FileName, Strm, True);
-    // 得到 AnsiString 内容，转成 string
-    Result := string(PAnsiChar(Strm.Memory));
+    EditFilerSaveFileToStream(FileName, Strm, True); // Ansi/Ansi/Utf16
+    // 得到 Ansi/Ansi/Utf16 内容，对应直接转成 string
+    Result := string(PChar(Strm.Memory));
   finally
     Strm.Free;
   end;
@@ -997,6 +1109,17 @@ begin
   Result := True;
 end;  
 
+// 判断标识符是否在光标下
+function IsGeneralCurrentToken(AView: Pointer; AControl: TControl;
+  Token: TCnGeneralPasToken): Boolean;
+begin
+{$IFDEF SUPPORT_WIDECHAR_IDENTIFIER}
+  Result := IsCurrentTokenW(AView, AControl, Token);
+{$ELSE}
+  Result := IsCurrentToken(AView, AControl, Token);
+{$ENDIF}
+end;
+
 // 判断标识符是否在光标下，各版本均可使用
 function IsCurrentToken(AView: Pointer; AControl: TControl; Token: TCnPasToken): Boolean;
 var
@@ -1011,6 +1134,7 @@ begin
     Result := False;
     Exit;
   end;
+
   View := IOTAEditView(AView);
   LineNo := View.CursorPos.Line;
   Col := View.CursorPos.Col;
@@ -1038,7 +1162,7 @@ begin
   Result := (Col >= Token.EditCol) and (Col <= Token.EditCol + Length(Token.Token));
 end;
 
-{* 判断标识符是否在光标下，使用 WideToken，可供 Unicode/Utf8 环境下调用}
+// 判断标识符是否在光标下，使用 WideToken，可供 Unicode/Utf8 环境下调用
 function IsCurrentTokenW(AView: Pointer; AControl: TControl; Token: TCnWidePasToken): Boolean;
 var
   LineNo, Col: Integer;
@@ -1049,6 +1173,7 @@ begin
     Result := False;
     Exit;
   end;
+
   View := IOTAEditView(AView);
   LineNo := View.CursorPos.Line;
   Col := View.CursorPos.Col;
@@ -1099,7 +1224,7 @@ end;
 function IdeGetFormSelection(Selections: TList; Designer: IDesigner = nil;
   ExcludeForm: Boolean = True): Boolean;
 var
-  i: Integer;
+  I: Integer;
   AObj: TPersistent;
   AList: IDesignerSelections;
 begin
@@ -1114,12 +1239,12 @@ begin
       Selections.Clear;
       AList := CreateSelectionList;
       Designer.GetSelections(AList);
-      for i := 0 to AList.Count - 1 do
+      for I := 0 to AList.Count - 1 do
       begin
       {$IFDEF COMPILER6_UP}
-        AObj := TPersistent(AList[i]);
+        AObj := TPersistent(AList[I]);
       {$ELSE}
-        AObj := TryExtractPersistent(AList[i]);
+        AObj := TryExtractPersistent(AList[I]);
       {$ENDIF}
         if AObj <> nil then // perhaps is nil when disabling packages in the IDE
           Selections.Add(AObj);
@@ -1138,8 +1263,10 @@ end;
 // 取得当前是否是嵌入式设计窗体模式
 function IdeGetIsEmbeddedDesigner: Boolean;
 {$IFDEF BDS}
+{$IFNDEF DELPHI104_SYDNEY_UP}
 var
   S: string;
+{$ENDIF}
 {$ENDIF}
 begin
 {$IFDEF BDS}
@@ -1292,16 +1419,16 @@ end;
 function GetComponentPaletteControlBar: TControlBar;
 var
   MainForm: TCustomForm;
-  i: Integer;
+  I: Integer;
 begin
   Result := nil;
 
   MainForm := GetIdeMainForm;
   if MainForm <> nil then
-    for i := 0 to MainForm.ComponentCount - 1 do
-      if MainForm.Components[i] is TControlBar then
+    for I := 0 to MainForm.ComponentCount - 1 do
+      if MainForm.Components[I] is TControlBar then
       begin
-        Result := MainForm.Components[i] as TControlBar;
+        Result := MainForm.Components[I] as TControlBar;
         Break;
       end;
       
@@ -1369,14 +1496,16 @@ end;
 // 将源码编辑器设为活跃
 procedure BringIdeEditorFormToFront;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to Screen.CustomFormCount - 1 do
-    if IsIdeEditorForm(Screen.CustomForms[i]) then
+  for I := 0 to Screen.CustomFormCount - 1 do
+  begin
+    if IsIdeEditorForm(Screen.CustomForms[I]) then
     begin
-      Screen.CustomForms[i].BringToFront;
+      Screen.CustomForms[I].BringToFront;
       Exit;
     end;
+  end;
 end;
 
 // 判断 IDE 是否是当前的活动窗口
@@ -1459,7 +1588,11 @@ begin
 {$IFDEF DELPHI104_SYDNEY}
   Result := Result + 'Embarcadero\BDS\21.0';
 {$ELSE}
+{$IFDEF DELPHI110_ALEXANDRIA}
+  Result := Result + 'Embarcadero\BDS\22.0';
+{$ELSE}
   Error: Unknown Compiler
+{$ENDIF}
 {$ENDIF}
 {$ENDIF}
 {$ENDIF}
@@ -1513,11 +1646,11 @@ var
   procedure AddList(AList: TStrings);
   var
     S: string;
-    i: Integer;
+    I: Integer;
   begin
-    for i := 0 to List.Count - 1 do
+    for I := 0 to List.Count - 1 do
     begin
-      S := Trim(MakePath(List[i]));
+      S := Trim(MakePath(List[I]));
       if (S <> '') and (Paths.IndexOf(S) < 0) then
         Paths.Add(S);
     end;
@@ -1591,7 +1724,7 @@ procedure AddProjectPath(Project: IOTAProject; Paths: TStrings; IDStr: string);
 var
   APath: string;
   APaths: TStrings;
-  i: Integer;
+  I: Integer;
 begin
   if not Assigned(Project.ProjectOptions) then
     Exit;
@@ -1610,11 +1743,11 @@ begin
     APaths := TStringList.Create;
     try
       APaths.Text := StringReplace(APath, ';', #13#10, [rfReplaceAll]);
-      for i := 0 to APaths.Count - 1 do
+      for I := 0 to APaths.Count - 1 do
       begin
-        if Trim(APaths[i]) <> '' then   // 无效目录
+        if Trim(APaths[I]) <> '' then   // 无效目录
         begin
-          APath := MakePath(Trim(APaths[i]));
+          APath := MakePath(Trim(APaths[I]));
           if (Length(APath) > 2) and (APath[2] = ':') then // 全路径目录
           begin
             if Paths.IndexOf(APath) < 0 then
@@ -1640,7 +1773,7 @@ var
   ProjectGroup: IOTAProjectGroup;
   Project: IOTAProject;
   Path: string;
-  i, j: Integer;
+  I, j: Integer;
   APaths: TStrings;
 begin
   Paths.Clear;
@@ -1655,9 +1788,9 @@ begin
   begin
     APaths := TStringList.Create;
     try
-      for i := 0 to ProjectGroup.GetProjectCount - 1 do
+      for I := 0 to ProjectGroup.GetProjectCount - 1 do
       begin
-        Project := ProjectGroup.Projects[i];
+        Project := ProjectGroup.Projects[I];
         if Assigned(Project) then
         begin
           // 增加工程搜索路径
@@ -1686,11 +1819,36 @@ begin
 {$ENDIF}
 end;
 
+function GetProjectDcuPath(AProject: IOTAProject): string;
+begin
+  if (AProject <> nil) and (AProject.ProjectOptions <> nil) then
+  begin
+    Result := ReplaceToActualPath(AProject.ProjectOptions.Values['UnitOutputDir'], AProject);
+    if Result <> '' then
+      Result := MakePath(LinkPath(_CnExtractFilePath(AProject.FileName), Result));
+  {$IFDEF DEBUG}
+    CnDebugger.LogMsg('GetProjectDcuPath: ' + Result);
+  {$ENDIF}
+  end
+  else
+    Result := '';
+end;
+
 // 根据模块名获得完整文件名
 function GetFileNameFromModuleName(AName: string; AProject: IOTAProject = nil): string;
 var
+  SearchType: TCnModuleSearchType;
+begin
+  SearchType := mstInvalid;
+  Result := GetFileNameSearchTypeFromModuleName(AName, SearchType, AProject);
+end;
+
+// 根据模块名获得完整文件名以及处于哪一类搜索目录中
+function GetFileNameSearchTypeFromModuleName(AName: string;
+  var SearchType: TCnModuleSearchType; AProject: IOTAProject = nil): string;
+var
   Paths: TStringList;
-  i: Integer;
+  I, ProjectSrcIdx: Integer;
   Ext, ProjectPath: string;
 begin
   if AProject = nil then
@@ -1701,13 +1859,16 @@ begin
     AName := AName + '.pas';
 
   Result := '';
+  SearchType := mstInvalid;
+
   // 在工程模块中查找
   if AProject <> nil then
   begin
-    for i := 0 to AProject.GetModuleCount - 1 do
-      if SameFileName(_CnExtractFileName(AProject.GetModule(i).FileName), AName) then
+    for I := 0 to AProject.GetModuleCount - 1 do
+      if SameFileName(_CnExtractFileName(AProject.GetModule(I).FileName), AName) then
       begin
-        Result := AProject.GetModule(i).FileName;
+        Result := AProject.GetModule(I).FileName;
+        SearchType := mstInProject;
         Exit;
       end;
 
@@ -1715,26 +1876,33 @@ begin
     if FileExists(ProjectPath + AName) then
     begin
       Result := ProjectPath + AName;
+      SearchType := mstInProject;
       Exit;
     end;
   end;
 
   Paths := TStringList.Create;
   try
-    if Assigned(AProject) then
-    begin
-      // 在工程搜索路径里查找
+    if Assigned(AProject) then  // 加入工程搜索路径
       AddProjectPath(AProject, Paths, 'SrcDir');
-    end;
 
-    // 在系统搜索路径里查找
+    ProjectSrcIdx := Paths.Count; // 前 ProjectSrcIdx 个，也就是 0 到 ProjectSrcIdx - 1 是工程搜索路径
+
+    // 加入系统搜索路径
     GetLibraryPath(Paths, False);
-    for i := 0 to Paths.Count - 1 do
-      if FileExists(MakePath(Paths[i]) + AName) then
+
+    for I := 0 to Paths.Count - 1 do
+    begin
+      if FileExists(MakePath(Paths[I]) + AName) then
       begin
-        Result := MakePath(Paths[i]) + AName;
+        Result := MakePath(Paths[I]) + AName;
+        if I >= ProjectSrcIdx then        // 系统路径里找到的
+          SearchType := mstSystemSearch
+        else
+          SearchType := mstProjectSearch; // 工程路径里找到的
         Exit;
       end;
+    end;
   finally
     Paths.Free;
   end;
@@ -1767,7 +1935,7 @@ end;
 procedure GetInstalledComponents(Packages, Components: TStrings);
 var
   PackSvcs: IOTAPackageServices;
-  i, j: Integer;
+  I, j: Integer;
 begin
   QuerySvcs(BorlandIDEServices, IOTAPackageServices, PackSvcs);
   if Assigned(Packages) then
@@ -1775,13 +1943,13 @@ begin
   if Assigned(Components) then
     Components.Clear;
     
-  for i := 0 to PackSvcs.PackageCount - 1 do
+  for I := 0 to PackSvcs.PackageCount - 1 do
   begin
     if Assigned(Packages) then
-      Packages.Add(PackSvcs.PackageNames[i]);
+      Packages.Add(PackSvcs.PackageNames[I]);
     if Assigned(Components) then
-      for j := 0 to PackSvcs.ComponentCount[i] - 1 do
-        Components.Add(PackSvcs.ComponentNames[i, j]);
+      for j := 0 to PackSvcs.ComponentCount[I] - 1 do
+        Components.Add(PackSvcs.ComponentNames[I, j]);
   end;
 end;
 
@@ -1830,7 +1998,9 @@ var
 
 begin
   // 从某项注册表中载入某项字体并赋值给 AFont
-  Result := False; 
+  Result := False;
+  if WizOptions = nil then
+    Exit;
 
   if AFont <> nil then
   begin
@@ -1903,77 +2073,6 @@ begin
       Reg.Free;
     end;
   end;
-end;
-
-function GetIDEBigImageList: TImageList;
-const
-  MaskColor = clBtnFace;
-var
-  I: Integer;
-  Img: TCustomImageList;
-  SrcBmp, DstBmp: TBitmap;
-  Rs, Rd: TRect;
-begin
-  Result := nil;
-  if not WizOptions.UseLargeIcon then
-    Exit;
-
-  if (FIDEBigImageList = nil) or (FIDEBigImageList.Count = 0) then
-  begin
-    Img := GetIDEImageList;
-    if Img <> nil then
-    begin
-      if FIDEBigImageList = nil then
-      begin
-        FIDEBigImageList := TImageList.Create(nil);
-        FIDEBigImageList.Height := 24;
-        FIDEBigImageList.Width := 24;
-      end;
-
-      // 从 IDE 的 ImageList 中拉扯绘制，把 16*16 扩展到 24* 24
-      SrcBmp := nil;
-      DstBmp := nil;
-      try
-        SrcBmp := CreateEmptyBmp24(16, 16, MaskColor);
-        DstBmp := CreateEmptyBmp24(24, 24, MaskColor);
-
-        Rs := Rect(0, 0, SrcBmp.Width, SrcBmp.Height);
-        Rd := Rect(0, 0, DstBmp.Width, DstBmp.Height);
-
-        SrcBmp.Canvas.Brush.Color := MaskColor;
-        SrcBmp.Canvas.Brush.Style := bsSolid;
-        DstBmp.Canvas.Brush.Color := clFuchsia;
-        DstBmp.Canvas.Brush.Style := bsSolid;
-
-        for I := 0 to Img.Count - 1 do
-        begin
-          SrcBmp.Canvas.FillRect(Rs);
-          Img.GetBitmap(I, SrcBmp);
-          DstBmp.Canvas.FillRect(Rd);
-          DstBmp.Canvas.StretchDraw(Rd, SrcBmp);
-          FIDEBigImageList.AddMasked(DstBmp, MaskColor);
-        end;
-      finally
-        SrcBmp.Free;
-        DstBmp.Free;
-      end;
-    end;
-  end;
-  Result := FIDEBigImageList;
-end;
-
-procedure ClearIDEBigImageList;
-begin
-  if FIDEBigImageList <> nil then
-  begin
-    FIDEBigImageList.Clear;
-    GetIDEBigImageList;
-  end;
-end;
-
-procedure FreeIDEBigImageList;
-begin
-  FreeAndNil(FIDEBigImageList);
 end;
 
 // 判断一 Control 是否是设计期 Control
@@ -2081,15 +2180,15 @@ end;
 function EnumEditControl(Proc: TEnumEditControlProc; Context: Pointer;
   EditorMustExists: Boolean): Integer;
 var
-  i: Integer;
+  I: Integer;
   EditWindow: TCustomForm;
   EditControl: TControl;
 begin
   Result := 0;
-  for i := 0 to Screen.CustomFormCount - 1 do
-    if IsIdeEditorForm(Screen.CustomForms[i]) then
+  for I := 0 to Screen.CustomFormCount - 1 do
+    if IsIdeEditorForm(Screen.CustomForms[I]) then
     begin
-      EditWindow := Screen.CustomForms[i];
+      EditWindow := Screen.CustomForms[I];
       EditControl := GetEditControlFromEditorForm(EditWindow);
       if Assigned(EditControl) or not EditorMustExists then
       begin
@@ -2154,7 +2253,7 @@ begin
 {$ENDIF}
 end;
 
-// 当前是否在键盘宏的录制或D回放，不支持或不在返回 False
+// 当前是否在键盘宏的录制或回放，不支持或不在返回 False
 function IsKeyMacroRunning: Boolean;
 var
   Key: IOTAKeyboardServices;
@@ -2167,6 +2266,13 @@ begin
     if Rec <> nil then
       Result := Rec.IsPlaying or Rec.IsRecording;
   end;
+end;
+
+// 编译工程，返回编译是否成功
+function CompileProject(AProject: IOTAProject): Boolean;
+begin
+  Result := not AProject.ProjectBuilder.ShouldBuild or
+    AProject.ProjectBuilder.BuildProject(cmOTAMake, False);
 end;
 
 // 返回当前正在编译的工程，注意不一定是当前工程
@@ -2305,6 +2411,214 @@ begin
   else
     Result := V;
 {$ENDIF}
+end;
+
+procedure GetInfoProc(const Name: string; NameType: TNameType; Flags: Byte;
+  Param: Pointer);
+var
+  Idx: Integer;
+  Cpp: Boolean;
+begin
+  // 将单元名或头文件名替换成正确的大小写格式
+  if NameType = ntContainsUnit then
+  begin
+    Cpp := PCnUnitsInfoRec(Param).IsCppMode;
+    if not Cpp then
+    begin
+      Idx := PCnUnitsInfoRec(Param).Sorted.IndexOf(Name);
+      if Idx >= 0 then
+        PCnUnitsInfoRec(Param).Unsorted[Idx] := Name;
+    end
+    else
+    begin
+      Idx := PCnUnitsInfoRec(Param).Sorted.IndexOf(Name + '.hpp');
+      if Idx >= 0 then
+        PCnUnitsInfoRec(Param).Unsorted[Idx] := Name + '.hpp'
+      else
+      begin
+        Idx := PCnUnitsInfoRec(Param).Sorted.IndexOf(Name + '.h');
+        if Idx >= 0 then
+          PCnUnitsInfoRec(Param).Unsorted[Idx] := Name + '.h'
+      end;
+    end;
+  end;
+end;
+
+function GetModuleProc(HInstance: THandle; Data: Pointer): Boolean;
+var
+  Flags: Integer;
+begin
+  Result := True;
+  try
+    if FindResource(HInstance, 'PACKAGEINFO', RT_RCDATA) <> 0 then
+      GetPackageInfo(HInstance, Data, Flags, GetInfoProc);
+  except
+    ;
+  end;
+end;
+
+var
+  FCurrFileType: TCnUsesFileType;
+  FCurrSearchType: TCnModuleSearchType;
+  FUnitCallback: TCnUnitCallback = nil;
+
+procedure InternalDoFindFile(ASelf: TObject; const FileName: string; const Info:
+  TSearchRec; var Abort: Boolean);
+begin
+  FUnitCallback(FileName, True, FCurrFileType, FCurrSearchType);
+end;
+
+function IdeEnumUsesIncludeUnits(UnitCallback: TCnUnitCallback; IsCpp: Boolean;
+  SearchTypes: TCnModuleSearchTypes): Boolean;
+var
+  Paths: TStringList;
+  ProjectGroup: IOTAProjectGroup;
+  Project: IOTAProject;
+  FileName: string;
+  I, J: Integer;
+  FindCallBack: TFindCallback;
+  A, B: Boolean;
+
+  procedure EnumPaths(APaths: TStringList);
+  var
+    K: Integer;
+  begin
+    if IsCpp then
+    begin
+      FCurrFileType := uftCppHeader;
+      for K := 0 to APaths.Count - 1 do
+        FindFile(APaths[K], '*.h*', FindCallBack, nil, False, False);
+    end
+    else
+    begin
+      for K := 0 to APaths.Count - 1 do
+      begin
+        if APaths.Objects[K] = nil then // 有标记的话不搜 pas，譬如 Lib 目录
+        begin
+          FCurrFileType := uftPascalSource;
+          FindFile(APaths[K], '*.pas', FindCallBack, nil, False, False);
+        end;
+        FCurrFileType := uftPascalDcu;
+        FindFile(APaths[K], '*.dcu', FindCallBack, nil, False, False);
+      end;
+    end;
+  end;
+
+begin
+  Result := False;
+  if not Assigned(UnitCallback) then
+    Exit;
+
+  Paths := nil;
+  try
+    Paths := TStringList.Create;
+    Paths.Sorted := True;
+
+    FUnitCallback := UnitCallback;
+    TMethod(FindCallBack).Code := @InternalDoFindFile;
+    TMethod(FindCallBack).Data := nil;
+
+    if mstSystemSearch in SearchTypes then
+    begin
+      Paths.Clear;
+      FCurrSearchType := mstSystemSearch;
+      GetLibraryPath(Paths, False);
+
+      if IsCpp then
+        Paths.Add(MakePath(GetInstallDir) + 'Include\')
+      else
+      begin
+        Paths.Add(MakePath(GetInstallDir) + 'Lib\');
+        Paths.Objects[Paths.Count - 1] := TObject(True); // 标记只搜 dcu
+      end;
+
+      EnumPaths(Paths);
+    end;
+
+    if mstProjectSearch in SearchTypes then
+    begin
+      Paths.Clear;
+      FCurrSearchType := mstProjectSearch;
+
+      GetProjectLibPath(Paths);
+      EnumPaths(Paths);
+    end;
+
+    if mstInProject in SearchTypes then
+    begin
+      FCurrSearchType := mstInProject;
+      ProjectGroup := CnOtaGetProjectGroup;
+      if not Assigned(ProjectGroup) then
+        Exit;
+
+      for I := 0 to ProjectGroup.GetProjectCount - 1 do
+      begin
+        Project := ProjectGroup.Projects[I];
+        if not Assigned(Project) then
+          Continue;
+
+        for J := 0 to Project.GetModuleCount - 1 do
+        begin
+          FileName := Project.GetModule(J).FileName;
+          if IsCpp then
+          begin
+            FileName := _CnChangeFileExt(FileName, '.h');
+            A := FileExists(FileName);
+            B := CnOtaIsFileOpen(FileName);
+            if A or B then
+              UnitCallback(FileName, A, uftCppHeader, mstInProject)
+            else
+            begin
+              FileName := _CnChangeFileExt(FileName, '.hpp');
+              A := FileExists(FileName);
+              B := CnOtaIsFileOpen(FileName);
+              if A or B then
+                UnitCallback(FileName, A, uftCppHeader, mstInProject);
+            end;
+          end
+          else
+          begin
+            A := FileExists(FileName);
+            B := CnOtaIsFileOpen(FileName);
+
+            if A or B then ; // 只 Pas 或 Dcu 通知 Callback
+            begin
+              if IsPas(FileName) then
+                UnitCallback(FileName, A, uftPascalSource, mstInProject)
+              else if IsDcu(FileName) then
+                UnitCallback(FileName, A, uftPascalDcu, mstInProject);
+            end;
+          end;
+        end;
+      end;
+    end;
+    Result := True;
+  finally
+    Paths.Free;
+  end;
+end;
+
+procedure CorrectCaseFromIdeModules(UnitFilesList: TStringList; IsCpp: Boolean);
+var
+  Data: TCnUnitsInfoRec;
+begin
+  { Use a sorted StringList for searching and copy this list to an unsorted list
+    which is manipulated in GetInfoProc(). After that the unsorted list is
+    copied back to the original sorted list. BinSearch is a lot faster than
+    linear search. (by AHUser) }
+  Data.IsCppMode := IsCpp;
+  Data.Sorted := UnitFilesList;
+  Data.Unsorted := TStringList.Create;
+  try
+    Data.Unsorted.Assign(UnitFilesList);
+    Data.Unsorted.Sorted := False; // added to avoid exception
+    EnumModules(GetModuleProc, @Data);
+  finally
+    UnitFilesList.Sorted := False;
+    UnitFilesList.Assign(Data.Unsorted);
+    UnitFilesList.Sorted := True;
+    Data.Unsorted.Free;
+  end;
 end;
 
 //==============================================================================
@@ -2690,7 +3004,7 @@ begin
   if S <> '' then
   begin
     AClass := GetClass(S);
-    if (AClass <> nil) and (PTypeInfo(AClass.ClassInfo).Kind = tkClass) then
+    if (AClass <> nil) and (PTypeInfo(AClass.ClassInfo).Kind = TypInfo.tkClass) then
       Result := string(GetTypeData(PTypeInfo(AClass.ClassInfo)).UnitName);
 
     // 新型组件板下由于 FMX 等无法获得 Class 的，得另外想办法
@@ -2812,7 +3126,7 @@ var
 begin
   Result := '';
   AClass := GetClass(AClassName);
-  if (AClass <> nil) and (PTypeInfo(AClass.ClassInfo).Kind = tkClass) then
+  if (AClass <> nil) and (PTypeInfo(AClass.ClassInfo).Kind = TypInfo.tkClass) then
     Result := string(GetTypeData(PTypeInfo(AClass.ClassInfo)).UnitName);
 
 {$IFDEF DEBUG}
@@ -3289,10 +3603,390 @@ begin
   FCurrentIsLight := FActiveThemeName = 'Light';
 end;
 
+procedure DisableWaitDialogShow;
+begin
+{$IFDEF IDE_SWITCH_BUG}
+  {$IFNDEF DELPHI110_ALEXANDRIA_UP}
+  if not CnIsDelphi10Dot4GEDot2 then
+    Exit;
+  {$ENDIF}
+
+  if FWaitDialogHook = nil then
+  begin
+    FDesignIdeHandle := GetModuleHandle(DesignIdeLibName);
+    if FDesignIdeHandle <> 0 then
+    begin
+      OldWaitDialogShow := GetBplMethodAddress(GetProcAddress(FDesignIdeHandle, SWaitDialogShow));
+      FWaitDialogHook := TCnMethodHook.Create(@OldWaitDialogShow, @MyWaitDialogShow);
+    end;
+  end;
+  FWaitDialogHook.HookMethod;
+{$ENDIF}
+end;
+
+procedure EnableWaitDialogShow;
+begin
+{$IFDEF IDE_SWITCH_BUG}
+  {$IFNDEF DELPHI110_ALEXANDRIA_UP}
+  if not CnIsDelphi10Dot4GEDot2 then
+    Exit;
+  {$ENDIF}
+
+  if FWaitDialogHook <> nil then
+    FWaitDialogHook.UnhookMethod;
+{$ENDIF}
+end;
+
+function IdeGetScaledPixelsFromOrigin(APixels: Integer; AControl: TControl): Integer;
+begin
+{$IFDEF IDE_SUPPORT_HDPI}
+  if AControl = nil then
+    AControl := Application.MainForm;
+
+  if AControl = nil then
+    Result := APixels
+  else
+  begin
+    Result := MulDiv(APixels, AControl.CurrentPPI, Windows.USER_DEFAULT_SCREEN_DPI);
+  end;
+{$ELSE}
+  Result := APixels; // IDE 不支持 HDPI 时原封不动地返回，交给 OS 处理
+{$ENDIF}
+end;
+
+function IdeGetScaledFactor(AControl: TControl = nil): Single;
+begin
+{$IFDEF IDE_SUPPORT_HDPI}
+  if AControl = nil then
+    AControl := Application.MainForm;
+
+  if AControl = nil then
+    Result := 1.0
+  else
+  begin
+    Result := AControl.CurrentPPI / Windows.USER_DEFAULT_SCREEN_DPI;
+  end;
+{$ELSE}
+  Result := 1.0; // IDE 不支持 HDPI 时原封不动地返回，交给 OS 处理
+{$ENDIF}
+
+end;
+
+procedure IdeSetReverseScaledFontSize(AControl: TControl);
+begin
+{$IFDEF IDE_SUPPORT_HDPI}
+  if AControl <> nil then
+  begin
+  if not TControlHack(AControl).ParentFont and
+    (sfFont in TControlHack(AControl).DefaultScalingFlags) then
+    TControlHack(AControl).Font.Height := MulDiv(TControlHack(AControl).Font.Height,
+      Windows.USER_DEFAULT_SCREEN_DPI, AControl.CurrentPPI);
+  end;
+{$ENDIF}
+end;
+
+procedure IdeScaleToolbarComboFontSize(Combo: TControl);
+begin
+  // 高 DPI 下 Toolbar 中的 ComboBox 似乎会被自动放大，因此这里无需 IdeGetScaledPixelsFromOrigin
+  if WizOptions.UseLargeIcon then
+    TControlHack(Combo).Font.Size := csLargeComboFontSize;
+end;
+
+{$IFDEF IDE_SUPPORT_HDPI}
+
+function IdeGetVirtualImageListFromOrigin(Origin: TCustomImageList;
+  AControl: TControl; IgnoreWizLargeOption: Boolean): TVirtualImageList;
+var
+  Idx: Integer;
+  AVL: TVirtualImageList;
+  AIC: TImageCollection;
+begin
+  Result := nil;
+  if Origin = nil then
+    Exit;
+
+  if Origin.Count = 0 then
+    Exit;
+
+  Idx := FOriginImages.IndexOf(Origin);
+  if (Idx >= 0) and (Idx < FVirtualImages.Count) then
+  begin
+    Result := TVirtualImageList(FVirtualImages[Idx]);
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('IdeGetVirtualImageListFromOrigin Existing Result Index %d', [Idx]);
+{$ENDIF}
+    Exit;
+  end;
+
+  AVL := TVirtualImageList.Create(Application);
+  AIC := TImageCollection.Create(Application);
+  AVL.ImageCollection := AIC;
+
+  FOriginImages.Add(Origin);
+  FVirtualImages.Add(AVL);
+  FImageCollections.Add(AIC);
+
+  if WizOptions.UseLargeIcon and not IgnoreWizLargeOption then
+  begin
+    AVL.Width := IdeGetScaledPixelsFromOrigin(csLargeImageListWidth, AControl);
+    AVL.Height := IdeGetScaledPixelsFromOrigin(csLargeImageListHeight, AControl);
+  end
+  else
+  begin
+    AVL.Width := IdeGetScaledPixelsFromOrigin(Origin.Width, AControl);
+    AVL.Height := IdeGetScaledPixelsFromOrigin(Origin.Height, AControl);
+  end;
+
+  CopyImageListToVirtual(Origin, AVL);
+{$IFDEF DEBUG}
+  CnDebugger.LogFmt('IdeGetVirtualImageListFromOrigin New Result Index %d', [FVirtualImages.Count - 1]);
+{$ENDIF}
+  Result := AVL;
+end;
+
+{$ENDIF}
+
+function SearchUsesInsertPosInCurrentPas(IsIntf: Boolean; out HasUses: Boolean;
+  out CharPos: TOTACharPos): Boolean;
+var
+  Stream: TMemoryStream;
+{$IFDEF UNICODE}
+  Lex: TCnPasWideLex;
+  LineText: string;
+  S: AnsiString;
+{$ELSE}
+  Lex: TmwPasLex;
+  {$IFDEF IDE_STRING_ANSI_UTF8}
+  LineText: string;
+  S: AnsiString;
+  {$ENDIF}
+{$ENDIF}
+  InIntf: Boolean;
+  MeetIntf: Boolean;
+  InImpl: Boolean;
+  MeetImpl: Boolean;
+  IntfLine, ImplLine: Integer;
+begin
+  Result := False;
+  Stream := TMemoryStream.Create;
+
+{$IFDEF UNICODE}
+  Lex := TCnPasWideLex.Create;
+  CnOtaSaveCurrentEditorToStreamW(Stream, False);
+{$ELSE}
+  Lex := TmwPasLex.Create;
+  CnOtaSaveCurrentEditorToStream(Stream, False);
+{$ENDIF}
+
+  InIntf := False;
+  InImpl := False;
+  MeetIntf := False;
+  MeetImpl := False;
+
+  HasUses := False;
+  IntfLine := 0;
+  ImplLine := 0;
+
+  CharPos.Line := 0;
+  CharPos.CharIndex := -1;
+
+  try
+{$IFDEF UNICODE}
+    Lex.Origin := PWideChar(Stream.Memory);
+{$ELSE}
+    Lex.Origin := PAnsiChar(Stream.Memory);
+{$ENDIF}
+
+    while Lex.TokenID <> tkNull do
+    begin
+      case Lex.TokenID of
+      tkUses:
+        begin
+          if (IsIntf and InIntf) or (not IsIntf and InImpl) then
+          begin
+            HasUses := True; // 到达了自己需要的 uses 处
+            while not (Lex.TokenID in [tkNull, tkSemiColon]) do
+              Lex.Next;
+
+            if Lex.TokenID = tkSemiColon then
+            begin
+              // 插入位置就在分号前
+              Result := True;
+{$IFDEF UNICODE}
+              CharPos.Line := Lex.LineNumber;
+              CharPos.CharIndex := Lex.TokenPos - Lex.LineStartOffset;
+
+              LineText := CnOtaGetLineText(CharPos.Line);
+              S := AnsiString(Copy(LineText, 1, CharPos.CharIndex));
+
+              CharPos.CharIndex := Length(CnAnsiToUtf8(S));  // 不明白 Unicode 环境里的 TOTACharPos 为什么也需要做 Utf8 转换
+{$ELSE}
+              CharPos.Line := Lex.LineNumber + 1;
+              CharPos.CharIndex := Lex.TokenPos - Lex.LinePos;
+  {$IFDEF IDE_STRING_ANSI_UTF8}
+              LineText := CnOtaGetLineText(CharPos.Line);
+              S := AnsiString(Copy(LineText, 1, CharPos.CharIndex));
+
+              CharPos.CharIndex := Length(CnAnsiToUtf8(S));
+  {$ENDIF}
+{$ENDIF}
+              Exit;
+            end
+            else // uses 后找不着分号，出错
+            begin
+              Result := False;
+              Exit;
+            end;
+          end;
+        end;
+      tkInterface:
+        begin
+          MeetIntf := True;
+          InIntf := True;
+          InImpl := False;
+{$IFDEF UNICODE}
+          IntfLine := Lex.LineNumber;
+{$ELSE}
+          IntfLine := Lex.LineNumber + 1;
+{$ENDIF}
+        end;
+      tkImplementation:
+        begin
+          MeetImpl := True;
+          InIntf := False;
+          InImpl := True;
+{$IFDEF UNICODE}
+          ImplLine := Lex.LineNumber;
+{$ELSE}
+          ImplLine := Lex.LineNumber + 1;
+{$ENDIF}
+        end;
+      end;
+      Lex.Next;
+    end;
+
+    // 解析完毕，到此处是没有 uses 的情形
+    if IsIntf and MeetIntf then    // 曾经遇到过 interface 就以 interface 为插入点
+    begin
+      Result := True;
+      CharPos.Line := IntfLine;
+      CharPos.CharIndex := Length('interface');
+    end
+    else if not IsIntf and MeetImpl then // 曾经遇到过 interface 就以 interface 为插入点
+    begin
+      Result := True;
+      CharPos.Line := ImplLine;
+      CharPos.CharIndex := Length('implementation');
+    end;
+  finally
+    Lex.Free;
+    Stream.Free;
+  end;
+end;
+
+function SearchUsesInsertPosInCurrentCpp(out CharPos: TOTACharPos;
+  SourceEditor: IOTASourceEditor = nil): Boolean;
+var
+  Stream: TMemoryStream;
+  LastIncLine: Integer;
+{$IFDEF UNICODE}
+  CParser: TCnBCBWideTokenList;
+{$ELSE}
+  CParser: TBCBTokenList;
+{$ENDIF}
+begin
+  // 插在最后一个 include 前面。如无 include，h 文件和 cpp 处理还不同。
+  Result := False;
+  Stream := nil;
+  CParser := nil;
+
+  try
+    Stream := TMemoryStream.Create;
+
+{$IFDEF UNICODE}
+    CParser := TCnBCBWideTokenList.Create;
+    CParser.DirectivesAsComments := False;
+    CnOtaSaveEditorToStreamW(SourceEditor, Stream, False);
+    CParser.SetOrigin(PWideChar(Stream.Memory), Stream.Size div SizeOf(Char));
+{$ELSE}
+    CParser := TBCBTokenList.Create;
+    CParser.DirectivesAsComments := False;
+    CnOtaSaveEditorToStream(SourceEditor, Stream, False);
+    CParser.SetOrigin(PAnsiChar(Stream.Memory), Stream.Size);
+{$ENDIF}
+
+    LastIncLine := -1;
+    while CParser.RunID <> ctknull do
+    begin
+      if CParser.RunID = ctkdirinclude then
+      begin
+{$IFDEF UNICODE}
+        LastIncLine := CParser.LineNumber;
+{$ELSE}
+        LastIncLine := CParser.RunLineNumber;
+{$ENDIF}
+      end;
+      CParser.NextNonJunk;
+    end;
+
+    if LastIncLine >= 0 then
+    begin
+      Result := True;
+      CharPos.Line := LastIncLine + 1; // 最后一个 inc 的行首
+      CharPos.CharIndex := 0;
+    end;
+  finally
+    CParser.Free;
+    Stream.Free;
+  end;
+end;
+
+function JoinUsesOrInclude(IsCpp, FileHasUses: Boolean; IsHFromSystem: Boolean;
+  const IncFiles: TStrings): string;
+var
+  I: Integer;
+begin
+  Result := '';
+  if (IncFiles = nil) or (IncFiles.Count = 0) then
+    Exit;
+
+  if IsCpp then
+  begin
+    for I := 0 to IncFiles.Count - 1 do
+    begin
+      if IsHFromSystem then
+        Result := Result + Format('#include <%s>' + #13#10, [IncFiles[I]])
+      else
+        Result := Result + Format('#include "%s"' + #13#10, [IncFiles[I]]);
+    end;
+  end
+  else
+  begin
+    if FileHasUses then
+    begin
+      for I := 0 to IncFiles.Count - 1 do
+        Result := Result + ', ' + IncFiles[I];
+    end
+    else
+    begin
+      Result := #13#10#13#10 + 'uses' + #13#10 + Spc(CnOtaGetBlockIndent) + IncFiles[0];
+      for I := 1 to IncFiles.Count - 1 do
+        Result := Result + ', ' + IncFiles[I];
+      Result := Result + ';';
+    end;
+  end;
+end;
+
 initialization
   // 使用此全局变量可以避免频繁调用 IdeGetIsEmbeddedDesigner 函数
   IdeIsEmbeddedDesigner := IdeGetIsEmbeddedDesigner;
   InitIdeAPIs;
+
+{$IFDEF IDE_SUPPORT_HDPI}
+  FOriginImages := TObjectList.Create(False);
+  FVirtualImages := TObjectList.Create(False);
+  FImageCollections := TObjectList.Create(False);
+{$ENDIF}
 
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('Initialization Done: CnWizIdeUtils.');
@@ -3301,6 +3995,16 @@ initialization
 finalization
 {$IFDEF DEBUG}
   CnDebugger.LogEnter('CnWizIdeUtils finalization.');
+{$ENDIF}
+
+{$IFDEF IDE_SUPPORT_HDPI}
+  FImageCollections.Free;
+  FVirtualImages.Free;
+  FOriginImages.Free;
+{$ENDIF}
+
+{$IFDEF IDE_SWITCH_BUG}
+  FWaitDialogHook.Free;
 {$ENDIF}
 
   if FCnPaletteWrapper <> nil then
@@ -3312,7 +4016,6 @@ finalization
   if FThemeWrapper <> nil then
     FreeAndNil(FThemeWrapper);
 
-  FreeIDEBigImageList;
   FinalIdeAPIs;
 
 {$IFDEF DEBUG}

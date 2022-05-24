@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,7 +29,7 @@ unit CnWizDfmParser;
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串支持本地化处理方式
 * 修改记录：2012.09.19 by shenloqi
-*               移植到Delphi XE3
+*               移植到 Delphi XE3
 *           2005.03.23 V1.0
 *               创建单元
 ================================================================================
@@ -86,6 +86,7 @@ type
     function GetItems(Index: Integer): TCnDfmLeaf;
     procedure SetItems(Index: Integer; const Value: TCnDfmLeaf);
     function GetTree: TCnDfmTree;
+    function GetPropertyValue(const PropertyName: string): string;
   protected
     procedure AssignTo(Dest: TPersistent); override;
   public
@@ -100,17 +101,20 @@ type
     property Items[Index: Integer]: TCnDfmLeaf read GetItems write SetItems; default;
     property Tree: TCnDfmTree read GetTree;
 
-    // 用父类的 Text 属性当作 Name
+    // 注意：解析过程中，用父类的 Text 属性当作 Name
     property ElementClass: string read FElementClass write FElementClass;
     {* ClassName 类名}
     property ElementKind: TDfmKind read FElementKind write FElementKind;
     {* 元素类型}
     property Properties: TStrings read FProperties;
-    {* 存储文本属性，格式为 PropName = PropValue，注意 Objects 属性里可能存 TMemoryStream 的二进制数据}
+    {* 存储文本属性，格式为 PropName = PropValue，对于复杂属性，PropValue 里可能包含回车
+      注意 Objects 属性里可能存 TMemoryStream 的二进制数据}
+    property PropertyValue[const PropertyName: string]: string read GetPropertyValue;
+    {* 根据某属性名拿到属性值，如果是字符串，会带 DFM 中的单引号与转码，注意不支持多行属性}
   end;
 
   TCnDfmTree = class(TCnTree)
-  {* 代表 DFM 树，其中 Root 的第一个子节点是根容器}
+  {* 代表 DFM 树，其中 Root 的第一个子节点是根容器，不代表实际组件}
   private
     FDfmFormat: TDfmFormat;
     FDfmKind: TDfmKind;
@@ -143,6 +147,10 @@ function ParseDfmStream(Stream: TStream; Info: TDfmInfo): Boolean;
 function ParseDfmFile(const FileName: string; Info: TDfmInfo): Boolean;
 {* 简单解析 DFM 文件读出最外层 Container 的信息}
 
+function LoadMultiTextStreamToTree(Stream: TStream; Tree: TCnDfmTree): Boolean;
+{* 将字符串流解析成树，允许多次调用以应对剪贴板内那种无根的多个组件
+  注意 Stream 内的内容需要是 AnsiString，因为 TParser 没法处理 UTF16 流}
+
 function LoadDfmStreamToTree(Stream: TStream; Tree: TCnDfmTree): Boolean;
 {* 将 DFM 流解析成树}
 
@@ -152,11 +160,17 @@ function LoadDfmFileToTree(const FileName: string; Tree: TCnDfmTree): Boolean;
 function SaveTreeToDfmFile(const FileName: string; Tree: TCnDfmTree): Boolean;
 {* 将树的内容存成 DFM 文本文件}
 
+function SaveTreeToStrings(const List: TStrings; Tree: TCnDfmTree): Boolean;
+{* 将树的内容存成字符串列表}
+
 function ConvertWideStringToDfmString(const W: WideString): WideString;
 {* 将宽字符串转换为 Delphi 7 或以上版本中的 DFM 字符串}
 
 function ConvertStreamToHexDfmString(Stream: TStream; Tab: Integer = 2): string;
 {* 将二进制数据转换为 DFM 字符串，不带前后大括号}
+
+function DecodeDfmStr(const QuotedStr: string): string;
+{* 把 Caption 里那种带引号的转码后的字符转换为正常字符串}
 
 implementation
 
@@ -950,16 +964,60 @@ begin
   end;
 end;
 
+function LoadMultiTextStreamToTree(Stream: TStream; Tree: TCnDfmTree): Boolean;
+var
+  Pos: Integer;
+  Signature: Integer;
+  SaveSeparator: Char;
+  Parser: TParser;
+  StartLeaf: TCnDfmLeaf;
+begin
+  Result := False;
+  Pos := Stream.Position;
+  Signature := 0;
+  Stream.Read(Signature, SizeOf(Signature));
+  Stream.Position := Pos;
+
+  if AnsiChar(Signature) in ['o','O','i','I',' ',#13,#11,#9] then
+  begin
+    Tree.DfmFormat := dfText;
+    SaveSeparator := {$IFDEF DELPHIXE3_UP}FormatSettings.{$ENDIF}DecimalSeparator;
+    {$IFDEF DELPHIXE3_UP}FormatSettings.{$ENDIF}DecimalSeparator := '.';
+
+    Parser := TParser.Create(Stream);
+    try
+      while Parser.Token <> #0 do
+      begin
+        StartLeaf := Tree.AddChild(Tree.Root) as TCnDfmLeaf;
+        try
+          ParseTextObjectToLeaf(Parser, Tree, StartLeaf as TCnDfmLeaf);
+        except
+          // StartLeaf 解析失败，可能到尾巴了，要删掉
+          StartLeaf.Delete;
+          Result := Tree.Count > 1;
+          Exit;
+        end;
+      end;
+      Result := True;
+    finally
+      {$IFDEF DELPHIXE3_UP}FormatSettings.{$ENDIF}DecimalSeparator := SaveSeparator;
+      Parser.Free;
+    end;
+  end;
+end;
+
 function LoadDfmStreamToTree(Stream: TStream; Tree: TCnDfmTree): Boolean;
 var
   Pos: Integer;
   Signature: Integer;
   BOM: array[1..3] of AnsiChar;
 begin
+  Result := False;
   Pos := Stream.Position;
   Signature := 0;
   Stream.Read(Signature, SizeOf(Signature));
   Stream.Position := Pos;
+
   if AnsiChar(Signature) in ['o','O','i','I',' ',#13,#11,#9] then
   begin
     Tree.DfmFormat := dfText;
@@ -980,7 +1038,12 @@ begin
     end
     else
     begin
-      Stream.ReadResHeader;
+      try
+        Stream.ReadResHeader;
+      except
+        Exit; // 如果内容异常就退出
+      end;
+
       Pos := Stream.Position;
       Signature := 0;
       Stream.Read(Signature, SizeOf(Signature));
@@ -1015,6 +1078,11 @@ begin
   end;
 end;
 
+function SaveTreeToStrings(const List: TStrings; Tree: TCnDfmTree): Boolean;
+begin
+  Result := Tree.SaveToStrings(List);
+end;
+
 function SaveTreeToDfmFile(const FileName: string; Tree: TCnDfmTree): Boolean;
 var
   List: TStrings;
@@ -1028,6 +1096,73 @@ begin
       List.SaveToFile(FileName);
     finally
       List.Free;
+    end;
+  end;
+end;
+
+function DecodeDfmStr(const QuotedStr: string): string;
+var
+  Stream: TMemoryStream;
+  Parser: TParser;
+  Reparse: Boolean;
+{$IFDEF UNICODE}
+  A: AnsiString;
+{$ENDIF}
+begin
+  Result := QuotedStr;
+  if QuotedStr = '' then
+    Exit;
+
+  Reparse := True;
+  if Pos('#', Result) > 0 then
+  begin
+    Stream := nil;
+    Parser := nil;
+
+    try
+      // 通过 Parser 处理掉 #12345 这种 Unicode 转义字符
+      Stream := TMemoryStream.Create;
+  {$IFDEF UNICODE}  // Parser 只接受 AnsiString 内容
+      A := AnsiString(QuotedStr);
+      Stream.Write(A[1], Length(A));
+  {$ELSE}
+      Stream.Write(QuotedStr[1], Length(QuotedStr));
+  {$ENDIF}
+      Stream.Position := 0;
+
+      Parser := TParser.Create(Stream);
+      Parser.NextToken;
+
+      Result := string(Parser.TokenWideString);
+
+      Reparse := Result = ''; // # 如果解析成功，则 Reparse 设为 False，无需重解析
+    finally
+      Parser.Free;
+      Stream.Free;
+    end;
+  end;
+
+  // 以上经过 Parser，如果原始内容有 #，则会解析通过，大概已经没引号了
+  // 但如果原始内容没 #，会解析出空字符串，相当于失败了，重新手工去引号
+  if Reparse then
+  begin
+    Result := QuotedStr;
+    if Length(Result) > 1 then
+    begin
+      if Result[1] = '''' then // 删头引号
+        Delete(Result, 1, 1)
+      else
+        Exit;
+
+      if Length(Result) > 0 then
+      begin
+        if Result[Length(Result)] = '''' then // 删尾引号
+          Delete(Result, Length(Result), 1)
+        else
+          Exit;
+
+        Result := StringReplace(Result, '''''', '''', [rfReplaceAll]); // 双引号替换成单引号
+      end;
     end;
   end;
 end;
@@ -1175,6 +1310,25 @@ end;
 function TCnDfmLeaf.GetItems(Index: Integer): TCnDfmLeaf;
 begin
   Result := TCnDfmLeaf(inherited GetItems(Index));
+end;
+
+function TCnDfmLeaf.GetPropertyValue(const PropertyName: string): string;
+var
+  I, D: Integer;
+begin
+  Result := '';
+  for I := 0 to FProperties.Count - 1 do
+  begin
+    D := Pos('=', FProperties[I]);
+    if D > 1 then
+    begin
+      if PropertyName = Trim(Copy(FProperties[I], 1, D - 1)) then
+      begin
+        Result := Trim(Copy(FProperties[I], D + 1, MaxInt));
+        Exit;
+      end;
+    end;
+  end;
 end;
 
 function TCnDfmLeaf.GetTree: TCnDfmTree;

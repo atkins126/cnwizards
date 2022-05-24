@@ -69,50 +69,6 @@ inherited CnProjectViewBaseForm: TCnProjectViewBaseForm
       OnChange = cbbProjectListChange
     end
   end
-  object lvList: TListView
-    Left = 0
-    Top = 66
-    Width = 622
-    Height = 348
-    Align = alClient
-    AllocBy = 500
-    Columns = <
-      item
-        Caption = 'Form'
-        Width = 210
-      end
-      item
-        Caption = 'Caption'
-        Width = 100
-      end
-      item
-        Caption = 'Type'
-        Width = 140
-      end
-      item
-        Alignment = taRightJustify
-        Caption = 'Project'
-        Width = 80
-      end
-      item
-        Caption = 'Size(Byte)'
-        Width = 72
-      end>
-    HideSelection = False
-    MultiSelect = True
-    ReadOnly = True
-    RowSelect = True
-    SmallImages = dmCnSharedImages.Images
-    SortType = stText
-    TabOrder = 1
-    ViewStyle = vsReport
-    OnColumnClick = lvListColumnClick
-    OnCustomDrawItem = lvListCustomDrawItem
-    OnDblClick = lvListDblClick
-    OnKeyDown = lvListKeyDown
-    OnKeyPress = lvListKeyPress
-    OnSelectItem = lvListSelectItem
-  end
   object StatusBar: TStatusBar
     Left = 0
     Top = 414
@@ -279,6 +235,59 @@ inherited CnProjectViewBaseForm: TCnProjectViewBaseForm
       Action = actClose
     end
   end
+  object pnlMain: TPanel
+    Left = 0
+    Top = 66
+    Width = 622
+    Height = 348
+    Align = alClient
+    BevelOuter = bvNone
+    TabOrder = 4
+    object lvList: TListView
+      Left = 0
+      Top = 66
+      Width = 622
+      Height = 348
+      Align = alClient
+      AllocBy = 500
+      Columns = <
+        item
+          Caption = 'Form'
+          Width = 210
+        end
+        item
+          Caption = 'Caption'
+          Width = 100
+        end
+        item
+          Caption = 'Type'
+          Width = 140
+        end
+        item
+          Alignment = taRightJustify
+          Caption = 'Project'
+          Width = 80
+        end
+        item
+          Caption = 'Size(Byte)'
+          Width = 72
+        end>
+      HideSelection = False
+      MultiSelect = True
+      ReadOnly = True
+      RowSelect = True
+      SmallImages = dmCnSharedImages.Images
+      SortType = stText
+      TabOrder = 1
+      ViewStyle = vsReport
+      OnColumnClick = lvListColumnClick
+      OnCustomDrawItem = lvListCustomDrawItem
+      OnDblClick = lvListDblClick
+      OnKeyDown = lvListKeyDown
+      OnKeyPress = lvListKeyPress
+      OnSelectItem = lvListSelectItem
+    end
+  end
   object ActionList: TActionList
     Images = dmCnSharedImages.Images
     OnUpdate = ActionListUpdate
@@ -291,8 +300,8 @@ inherited CnProjectViewBaseForm: TCnProjectViewBaseForm
       OnExecute = actOpenExecute
     end
     object actAttribute: TAction
-      Caption = 'P&roperty'
-      Hint = 'Show Property of Selected Form File'
+      Caption = 'Att&ribute'
+      Hint = 'Show Attribute of Selected Form File'
       ImageIndex = 19
       OnExecute = actAttributeExecute
     end

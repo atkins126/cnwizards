@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -44,18 +44,16 @@ interface
 
 {$DEFINE SUPPORT_INPUTHELPER}
 
-//{$IFDEF DELPHI}
-  {$DEFINE SUPPORT_IDESymbolList}
-//{$ENDIF}
+{$DEFINE SUPPORT_IDESYMBOLLIST}
 
 {$IFDEF BDS}
-  {$DEFINE ADJUST_CodeParamWindow}
+  {$DEFINE ADJUST_CODEPARAMWINDOW}
 {$ENDIF}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ComCtrls, ExtCtrls, ImgList, Menus, ToolsApi, IniFiles, Math,
-  Buttons, TypInfo, mPasLex, AppEvnts, Contnrs,
+  Buttons, TypInfo, mPasLex, AppEvnts, Contnrs, Clipbrd,
   {$IFDEF OTA_CODE_TEMPLATE_API} CodeTemplateAPI, {$ENDIF}
   CnConsts, CnCommon, CnWizClasses, CnWizConsts, CnWizUtils, CnWizIdeUtils,
   CnInputSymbolList, CnInputIdeSymbolList, CnIni, CnWizMultiLang, CnWizNotifier,
@@ -235,11 +233,12 @@ type
     FRemoveSame: Boolean;
     FKeywordStyle: TCnKeywordStyle;
     FUseEditorColor: Boolean;
-{$IFNDEF SUPPORT_IDESymbolList}
+    FSymbolReloading: Boolean;
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
     // 如果不支持 IDE 符号列表，需要挂掉 Cppcodcmplt::TCppKibitzManager::CCError
     FCCErrorHook: TCnMethodHook;
 {$ENDIF}
-{$IFDEF ADJUST_CodeParamWindow}
+{$IFDEF ADJUST_CODEPARAMWINDOW}
     FCodeWndProc: TWndMethod;
 {$ENDIF}
     function AcceptDisplay: Boolean;
@@ -253,14 +252,14 @@ type
     procedure HideList;                       // 隐藏列表
     procedure ClearList;                      // 清除列表内容
     procedure HideAndClearList;
-{$IFDEF ADJUST_CodeParamWindow}
+{$IFDEF ADJUST_CODEPARAMWINDOW}
     procedure CodeParamWndProc(var Message: TMessage);
     procedure HookCodeParamWindow(Wnd: TWinControl);
     procedure AdjustCodeParamWindowPos;
 {$ENDIF}
-    function HandleKeyDown(var Msg: TMsg): Boolean;
-    function HandleKeyUp(var Msg: TMsg): Boolean;
-    function HandleKeyPress(Key: AnsiChar): Boolean;
+    function HandleKeyDown(var Msg: TMsg): Boolean;  // 通过 Application.OnMessage 拦截 WM_KEYDOWN 消息
+    function HandleKeyUp(var Msg: TMsg): Boolean;    // 通过 Application.OnMessage 拦截 WM_KEYUP 消息
+    function HandleKeyPress(Key: AnsiChar): Boolean; // 并非控件事件拦截，而是 HandleKeyDown 转换来的
     procedure SortSymbolList;
     procedure SortCurrSymbolList;
     function UpdateCurrList(ForcePopup: Boolean): Boolean;
@@ -278,6 +277,7 @@ type
     procedure SetAutoPopup(Value: Boolean);
     procedure OnDispBtnMenu(Sender: TObject);
     procedure OnConfigMenu(Sender: TObject);
+    procedure OnCopyMenu(Sender: TObject);
     procedure OnAddSymbolMenu(Sender: TObject);
     procedure OnSortKindMenu(Sender: TObject);
     procedure OnIconMenu(Sender: TObject);
@@ -319,6 +319,7 @@ type
     procedure Config; override;
     procedure Loaded; override;
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     procedure LanguageChanged(Sender: TObject); override;
     procedure LoadSettings(Ini: TCustomIniFile); override;
     procedure SaveSettings(Ini: TCustomIniFile); override;
@@ -415,6 +416,8 @@ uses
   CnInputHelperFrm, CnWizCompilerConst, mwBCBTokenList;
 
 const
+  MY_VK_DOT_KEY = 190;
+
   // BCB 下出错框的地址
   SCppKibitzManagerCCError = '@Cppcodcmplt@TCppKibitzManager@CCError$qqrp20System@TResStringRec';
 
@@ -482,6 +485,14 @@ const
 {$ENDIF COMPILER6_UP}
   csKibitzWindowName = 'KibitzWindow';
 
+  // 代码参数提示小黄框的类名与组件名
+  csCodeParamWindowClassName = 'TTokenWindow';
+{$IFDEF DELPHI104_SYDNEY_UP}
+  csCodeParamWindowName = 'TokenWindow';
+{$ELSE}
+  csCodeParamWindowName = 'CodeParamWindow';
+{$ENDIF}
+
   csKeyCodeCompletion = 'CodeCompletion';
 
   // 图标集合设置
@@ -490,11 +501,11 @@ const
   csCompDirectSymbolKind = [skCompDirect];
   csCommentSymbolKind = [skComment];
   csUnitSymbolKind = [skUnit, skCompDirect];
-  csDeclearSymbolKind = csAllSymbolKind - [skUnknown, skLabel];
-  csDefineSymbolKind = csAllSymbolKind - [skUnknown, skUnit, skLabel];
+  csDeclareSymbolKind = csAllSymbolKind - [skUnknown, skLabel];
+  csDefineSymbolKind = csAllSymbolKind - [skUnknown, {skUnit,} skLabel]; // 声明区也允许输入单元名
   csCodeSymbolKind = csAllSymbolKind;
   csFieldSymbolKind = csAllSymbolKind - [skUnknown,
-    skUnit, skLabel, skInterface, skKeyword, skClass, skUser];
+    {skUnit,} skLabel, skInterface, skKeyword, skClass, skUser];
   // 2005 后支持 class constant 和 class type，所以不能去除 skConstant, skType,
 
   // BCB 中不易区分 Field，干脆就等同于Code。
@@ -506,8 +517,8 @@ const
     csCommentSymbolKind,       // 注释块内部
     csUnitSymbolKind,          // interface 的 uses 内部
     csUnitSymbolKind,          // implementation 的 uses 内部
-    csDeclearSymbolKind,       // class 声明内部
-    csDeclearSymbolKind,       // interface 声明内部
+    csDeclareSymbolKind,       // class 声明内部
+    csDeclareSymbolKind,       // interface 声明内部
     csDefineSymbolKind,        // type 定义区
     csDefineSymbolKind,        // const 定义区
     csDefineSymbolKind,        // resourcestring 定义区
@@ -529,8 +540,8 @@ const
     csCommentSymbolKind,       // 注释块内部
     csUnitSymbolKind,          // interface 的 uses 内部
     csUnitSymbolKind,          // implementation 的 uses 内部
-    csDeclearSymbolKind,       // class 声明内部
-    csDeclearSymbolKind,       // interface 声明内部
+    csDeclareSymbolKind,       // class 声明内部
+    csDeclareSymbolKind,       // interface 声明内部
     csDefineSymbolKind,        // type 定义区
     csDefineSymbolKind,        // const 定义区
     csDefineSymbolKind,        // resourcestring 定义区
@@ -563,7 +574,7 @@ const
 //  );
 //{$ENDIF}
 
-{$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
 
   TSCppKibitzManagerCCError = procedure (Rec: PResStringRec); // TResStringRec
 
@@ -624,10 +635,10 @@ begin
   inherited;
   FLastItem := -1;
 
-  Constraints.MinHeight := WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, ItemHeight * csMinDispItems + 4);
-  Constraints.MinWidth := WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, csMinDispWidth);
-  Height := WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, ItemHeight * csDefDispItems + 8);
-  Width := WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, csDefDispWidth);
+  Constraints.MinHeight := IdeGetScaledPixelsFromOrigin(WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, ItemHeight * csMinDispItems + 4));
+  Constraints.MinWidth := IdeGetScaledPixelsFromOrigin(WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, csMinDispWidth));
+  Height := IdeGetScaledPixelsFromOrigin(WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, ItemHeight * csDefDispItems + 8));
+  Width := IdeGetScaledPixelsFromOrigin(WizOptions.CalcIntEnlargedValue(WizOptions.SizeEnlarge, csDefDispWidth));
 
   CreateExtraForm;
 {$IFDEF IDE_MAINFORM_EAT_MOUSEWHEEL}
@@ -644,18 +655,20 @@ begin
   FBtnForm := TCnFloatWindow.Create(Self);
   BtnForm.Parent := Application.MainForm;
   BtnForm.Visible := False;
-  BtnForm.Width := csBtnWidth;
-  BtnForm.Height := csBtnHeight * (Ord(High(TCnInputButton)) + 1);
+  BtnForm.Width := IdeGetScaledPixelsFromOrigin(csBtnWidth);
+  BtnForm.Height := IdeGetScaledPixelsFromOrigin(csBtnHeight * (Ord(High(TCnInputButton)) + 1));
   for Btn := Low(Btn) to High(Btn) do
   begin
     SpeedBtn := TSpeedButton.Create(BtnForm);
     SpeedBtn.Parent := BtnForm;
-    SpeedBtn.SetBounds(0, Ord(Btn) * csBtnHeight, csBtnWidth, csBtnHeight);
+    SpeedBtn.SetBounds(0, IdeGetScaledPixelsFromOrigin(Ord(Btn) * csBtnHeight),
+      IdeGetScaledPixelsFromOrigin(csBtnWidth), IdeGetScaledPixelsFromOrigin(csBtnHeight));
     SpeedBtn.Tag := Ord(Btn);
     SpeedBtn.ShowHint := True;
     SpeedBtn.Hint := StripHotkey(SCnInputButtonHints[Btn]^);
     SpeedBtn.OnClick := OnBtnClick;
     dmCnSharedImages.ilInputHelper.GetBitmap(Ord(Btn), SpeedBtn.Glyph);
+    CnEnlargeButtonGlyphForHDPI(SpeedBtn);
   end;
 
   FHintForm := TCnFloatWindow.Create(Self);
@@ -1078,7 +1091,7 @@ end;
 { TCnInputHelper }
 
 constructor TCnInputHelper.Create;
-{$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
 var
   DphIdeModule: HMODULE;
 {$ENDIF}
@@ -1119,7 +1132,7 @@ begin
   FDispKindSet := csAllSymbolKind;
   AutoPopup := True;
 
-{$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
   // 如果不支持 IDE 符号列表，需要挂掉 Cppcodcmplt::TCppKibitzManager::CCError
   DphIdeModule := LoadLibrary(DphIdeLibName);
   if DphIdeModule <> 0 then
@@ -1139,7 +1152,7 @@ begin
   CnWizNotifierServices.RemoveActiveControlNotifier(ActiveControlChanged);
   CnWizNotifierServices.RemoveApplicationMessageNotifier(ApplicationMessage);
 
-{$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
   FCCErrorHook.Free;
 {$ENDIF}
 
@@ -1246,12 +1259,23 @@ begin
     not IsInIncreSearch and not IsInMacroOp and not GetCodeTemplateListBoxVisible;
 end;
 
-procedure TCnInputHelper.ApplicationMessage(var Msg: TMsg;
-  var Handled: Boolean);
+procedure TCnInputHelper.ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
 begin
   if ((Msg.message >= WM_KEYFIRST) and (Msg.message <= WM_KEYLAST)) or
     (Msg.message = WM_MOUSEWHEEL) then
   begin
+//{$IFDEF IDE_SUPPORT_LSP}
+//    if FSymbolReloading then
+//    begin
+//      // 如果在异步加载符号表，本应该将相关键盘信息滞后处理以避免漏消息
+//      // 但容易因为消息队列空而陷入死循环。如果存储消息， Reloading 结束后再处理
+//      // 又会引起键盘消息间隔太长导致多输入大量字符的问题，
+//      所以最终还是得注释掉！！！
+//      PostMessage(Msg.hwnd, Msg.message, Msg.wParam, Msg.lParam);
+//      Handled := True;
+//      Exit;
+//    end;
+//{$ENDIF}
     if AcceptDisplay then
     begin
       case Msg.message of
@@ -1369,7 +1393,7 @@ var
   Option: IOTAEnvironmentOptions;
 begin
   Result := False;
-  if DispOnIDECompDisabled and ((Key = VK_DECIMAL) or (Key = 190)) then
+  if DispOnIDECompDisabled and ((Key = VK_DECIMAL) or (Key = MY_VK_DOT_KEY)) then
   begin
     Option := CnOtaGetEnvironmentOptions;
     if not Option.GetOptionValue(csKeyCodeCompletion) then
@@ -1395,6 +1419,8 @@ begin
   end;
 end;
 
+// 处理 KeyDown 事件，如果已有列表显示则判断并输入，如未输入则转换成 KeyPress 处理列表即时过滤
+// 如列表未显示，则记录按键状态准备触发显示
 function TCnInputHelper.HandleKeyDown(var Msg: TMsg): Boolean;
 var
   Shift: TShiftState;
@@ -1407,6 +1433,15 @@ var
 {$ENDIF}
 begin
   Result := False;
+{$IFDEF IDE_SUPPORT_LSP}
+  if FSymbolReloading then
+  begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('TCnInputHelper.HandleKeyDown. SymbolReloading Exit.');
+{$ENDIF}
+    Exit;
+  end;
+{$ENDIF}
 
   Key := Msg.wParam;
   Shift := KeyDataToShiftState(Msg.lParam);
@@ -1446,17 +1481,17 @@ begin
           SendSymbolToIDE(False, True, False, #0, Result);
           Result := True;
         end;
-      VK_TAB, VK_DECIMAL, 190: // '.'
+      VK_TAB, VK_DECIMAL, MY_VK_DOT_KEY: // '.'
         begin
           ShouldIgnore := ((Key = VK_TAB) and not FTabComplete) or
-            ((Key = 190) and FIgnoreDot);
+            ((Key = MY_VK_DOT_KEY) and FIgnoreDot);
 {$IFDEF IDE_SYNC_EDIT_BLOCK}
           // 块编辑模式时，Tab 用于输入后应该吃掉，免得造成额外跳转
           ShouldEatTab := (Key = VK_TAB) and IsCurrentEditorInSyncMode;
 {$ENDIF}
 
 {$IFDEF SUPPORT_UNITNAME_DOT}
-          if (Key = 190) and CurrentIsDelphiSource then
+          if (Key = MY_VK_DOT_KEY) and CurrentIsDelphiSource then
           begin
             // if IndexStr(FToken, csUnitDotPrefixes, CurrentIsDelphiSource) >= 0 then
             // 支持 Unit 名的 IDE 下，uses 区的点号应该忽略，而不是之前查找固定前缀
@@ -1501,6 +1536,14 @@ begin
           HideAndClearList;
           Result := True;
         end;
+      86, 90:  // V Z
+        begin
+          if ssCtrl in Shift then // 粘贴或撤销前取消弹出
+          begin
+            HideAndClearList;
+            Result := False;
+          end;
+        end;
       VK_UP, VK_DOWN, VK_PRIOR, VK_NEXT:
         begin
           SendMessage(List.Handle, Msg.message, Msg.wParam, Msg.lParam);
@@ -1521,17 +1564,17 @@ begin
         end;
     end;
 
-    if not Result then
+    if not Result then // 如果显示列表状态没有键能输入当前条目或者取消条目，则调用 HandleKeyPress 处理输入字符与过滤
     begin
       Result := HandleKeyPress(KeyDownChar);
     end;
   end
-  else
+  else // 如果未显示列表，则记录按键准备弹出条件
   begin
     Timer.Enabled := False;
     if AutoPopup and ((FKeyCount < DispOnlyAtLeastKey - 1) or CurrBlockIsEmpty) and
       (IsValidCharKey(Key, ScanCode) or IsValidDelelteKey(Key) or IsValidDotKey(Key)
-       or IsValidCppPopupKey(Key, ScanCode)) then
+       or IsValidCppPopupKey(Key, ScanCode)) then // 判断是否满足弹出条件积累
     begin
       // 为了解决增量查找及其它兼容问题，此处保存当前行文本与信息
       CnNtaGetCurrLineText(FCurrLineText, FCurrLineNo, FCurrIndex);
@@ -1542,7 +1585,7 @@ begin
       FKeyDownTick := GetTickCount;
       SetKeyDownValid(True);
     end
-    else
+    else // 重置弹出条件
     begin
       SetKeyDownValid(False);
       FKeyCount := 0;
@@ -1604,9 +1647,9 @@ begin
       if FSpcComplete and FIgnoreSpc and (Key = ' ') then
         Result := True;
     end
-    else if IsValidSymbolChar(Char(Key), False) then
+    else if IsValidSymbolChar(Char(Key), False) or ((FMatchStr = '') and (Key = '{')) then
     begin
-      FNeedUpdate := True;
+      FNeedUpdate := True;  // 如果是此次刚输入的头一个 {，也要保持列表是弹出状态以输入编译指令，而不是隐藏
     end
     else
     begin
@@ -1624,6 +1667,15 @@ var
   ScanCode: Word;
 begin
   Result := False;
+{$IFDEF IDE_SUPPORT_LSP}
+  if FSymbolReloading then
+  begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('TCnInputHelper.HandleKeyUp. SymbolReloading Exit.');
+{$ENDIF}
+    Exit;
+  end;
+{$ENDIF}
   Key := Msg.wParam;
   ScanCode := (Msg.lParam and $00FF0000) shr 16;
   
@@ -1640,7 +1692,7 @@ begin
 //    CnDebugger.LogFmt('Input Helper. Line: %d, Len %d. CurLine %d, CurLen %d', [LineNo, Len, FCurrLineNo, FCurrLineLen]);
 {$ENDIF}
     // 如果此次按键对当前行作了修改才认为是有效按键，以处理增量查找等问题
-    // XE4的BCB环境中，空行默认长度都是4，后以空格填充，因此不能简单比较长度，得比内容
+    // XE4 的 BCB 环境中，空行默认长度都是 4，后以空格填充，因此不能简单比较长度，得比内容
     if (LineNo = FCurrLineNo) and ((Len <> FCurrLineLen) or (LineText <> FCurrLineText)) then
     begin
       Inc(FKeyCount);
@@ -1873,12 +1925,12 @@ end;
 procedure TCnInputHelper.ShowList(ForcePopup: Boolean);
 var
   Pt: TPoint;
-  i: Integer;
-  Left, Top: Integer;
+  I: Integer;
+  ALeft, ATop: Integer;
   CurrPos: Integer;
   AForm: TCustomForm;
   WorkRect: TRect;
-{$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
   AToken: string;
 {$ENDIF}
 begin
@@ -1908,8 +1960,8 @@ begin
         // 判断是否需要显示
         if not ForcePopup and SmartDisplay then
         begin
-          for i := 0 to FItems.Count - 1 do
-            with TSymbolItem(FItems.Objects[i]) do
+          for I := 0 to FItems.Count - 1 do
+            with TSymbolItem(FItems.Objects[I]) do
             if not AlwaysDisp and ((Kind = skKeyword) and
               (CompareStr(GetKeywordText(KeywordStyle), FToken) = 0) or
               (Kind <> skKeyword) and (CompareStr(Name, Text) = 0) and
@@ -1929,27 +1981,36 @@ begin
             WorkRect := Bounds(Left, Top, Width, Height)
         else
           WorkRect := Bounds(0, 0, Screen.Width, Screen.Height);
+
         if Pt.x + List.Width <= WorkRect.Right then
-          Left := Pt.x
+          ALeft := Pt.x
         else
-          Left := Max(Pt.x - List.Width, WorkRect.Left);
+          ALeft := Max(Pt.x - List.Width, WorkRect.Left);
         if Pt.y + csLineHeight + List.Height <= WorkRect.Bottom then
-          Top := Pt.y + csLineHeight
+        begin
+          ATop := Pt.y + csLineHeight;
+{$IFDEF IDE_SUPPORT_HDPI}
+          // 加边框高度，免得边框占位置
+          if (List.Height - List.ClientHeight > 8) and (List.Height - List.ClientHeight < 64) then
+            ATop := ATop + (List.Height - List.ClientHeight) div 2;
+{$ENDIF}
+        end
         else
-          Top := Max(Pt.y - List.Height - csLineHeight div 2, WorkRect.Top);
-        List.SetPos(Left, Top);
+          ATop := Max(Pt.y - List.Height - csLineHeight div 2, WorkRect.Top);
+        List.SetPos(ALeft, ATop);
 
         // 判断是否需要根据放大倍数修正显示字号
         UpdateListFont;
         List.Popup;   // 真正显示
-      {$IFDEF ADJUST_CodeParamWindow}
+
+{$IFDEF ADJUST_CODEPARAMWINDOW}
         AdjustCodeParamWindowPos;
-      {$ENDIF}
+{$ENDIF}
       end
       else if not (FPosInfo.PosKind in [pkUnknown, pkFlat, pkComment, pkIntfUses,
         pkImplUses, pkResourceString, pkCompDirect, pkString]) then // 这个判断，Pascal 和 C++ 通用
       begin
-      {$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
         // 如果不支持 IDE 符号列表，只在非标识的地方显示外挂列表
         if not FPosInfo.IsPascal then
         begin
@@ -1963,7 +2024,7 @@ begin
               ShowIDECodeCompletion;
           end;
         end;
-      {$ENDIF}
+{$ENDIF}
       end;
     end;
   end;
@@ -1987,7 +2048,11 @@ procedure TCnInputHelper.ClearList;
 begin
   FSymbols.Clear;
   FItems.Clear;
-  List.SetCount(0);
+  try
+    List.SetCount(0); // 退出时有可能出 No Parent 错，屏蔽
+  except
+    ;
+  end;
 end;
 
 function TCnInputHelper.GetIsShowing: Boolean;
@@ -1995,7 +2060,8 @@ begin
   Result := List.Visible;
 end;
 
-{$IFDEF ADJUST_CodeParamWindow}
+{$IFDEF ADJUST_CODEPARAMWINDOW}
+
 procedure TCnInputHelper.CodeParamWndProc(var Message: TMessage);
 var
   Msg: TWMWindowPosChanging;
@@ -2009,8 +2075,8 @@ begin
     Msg := TWMWindowPosChanging(Message);
     if Msg.WindowPos.flags and SWP_NOMOVE = 0 then
     begin
-      ParaComp := Application.FindComponent('CodeParamWindow');
-      if (ParaComp <> nil) and ParaComp.ClassNameIs('TTokenWindow') and
+      ParaComp := Application.FindComponent(csCodeParamWindowName);
+      if (ParaComp <> nil) and ParaComp.ClassNameIs(csCodeParamWindowClassName) and
         (ParaComp is TWinControl) then
       begin
         ParaWnd := TWinControl(ParaComp);
@@ -2039,7 +2105,7 @@ begin
   begin
     FCodeWndProc := Wnd.WindowProc;
     Wnd.WindowProc := CodeParamWndProc;
-  end;  
+  end;
 end;
 
 procedure TCnInputHelper.AdjustCodeParamWindowPos;
@@ -2051,12 +2117,12 @@ begin
   // BDS 下函数参数提示窗口在当前行的下方，挡住了助手窗口，需要移到当前行上方去
   if IsShowing then
   begin
-    ParaComp := Application.FindComponent('CodeParamWindow');
-    if (ParaComp <> nil) and ParaComp.ClassNameIs('TTokenWindow') and
+    ParaComp := Application.FindComponent(csCodeParamWindowName);
+    if (ParaComp <> nil) and ParaComp.ClassNameIs(csCodeParamWindowClassName) and
       (ParaComp is TWinControl) then
     begin
       ParaWnd := TWinControl(ParaComp);
-      // Hook参数窗口，阻止其自动恢复位置
+      // Hook 参数窗口，阻止其自动恢复位置
       HookCodeParamWindow(ParaWnd);
       // 判断并调整参数窗口的位置
       GetWindowRect(ParaWnd.Handle, R1);
@@ -2269,8 +2335,13 @@ begin
 //    CnDebugger.LogFmt('Input Helper To Reload %s. PosKind %s', [SymbolList.ClassName,
 //      GetEnumName(TypeInfo(TCodePosKind), Ord(FPosInfo.PosKind))]);
 {$ENDIF}
+
+      // 注意：LSP 模式下的 IDESymbolList 调用 Reload 时内部会异步等待，也就是主线程可能
+      // 先去处理其他键处理函数如 KeyDown/KeyPress/KeyUp 等，从而打乱顺序造成混乱，需要标记处理
+      FSymbolReloading := True;  // 记录标记，但仍无法阻止 IDE 按点号弹出自身的代码自动完成
       if SymbolList.Active and SymbolList.Reload(Editor, FMatchStr, FPosInfo) then
       begin
+        FSymbolReloading := False; // 及时恢复标记
 {$IFDEF DEBUG}
 //      CnDebugger.LogFmt('Input Helper Reload %s Success: %d', [SymbolList.ClassName, SymbolList.Count]);
 {$ENDIF}
@@ -2321,6 +2392,7 @@ begin
           end;
         end;
       end;
+      FSymbolReloading := False; // 也恢复标记
     end;
 {$IFDEF DEBUG}
     CnDebugger.LogFmt('UpdateSymbolList. Get Symbols %d.', [FSymbols.Count]);
@@ -2336,7 +2408,7 @@ var
   I, Idx: Integer;
   Symbol: string;
 begin
-{$IFDEF ADJUST_CodeParamWindow}
+{$IFDEF ADJUST_CODEPARAMWINDOW}
   AdjustCodeParamWindowPos;
 {$ENDIF}
 
@@ -2485,7 +2557,7 @@ end;
 function TCnInputHelper.UpdateListBox(ForcePopup, InitPopup: Boolean): Boolean;
 var
   CurrPos: Integer;
-{$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
   AToken: string;
 {$ENDIF}
 begin
@@ -2503,7 +2575,7 @@ begin
 //    CnDebugger.LogFmt('InputHelper UpdateCurrList Returns %d', [Integer(Result)]);
 {$ENDIF}
 
-  {$IFNDEF SUPPORT_IDESymbolList}
+  {$IFNDEF SUPPORT_IDESYMBOLLIST}
     // 如果不支持 IDE 符号列表，只有从前面匹配的才有效
     if Result then
     begin
@@ -2518,7 +2590,7 @@ begin
   if not Result then
   begin
     HideAndClearList;
-  {$IFNDEF SUPPORT_IDESymbolList}
+  {$IFNDEF SUPPORT_IDESYMBOLLIST}
     // 如果不支持 IDE 符号列表，则在无匹配项时切换成 IDE 的自动完成
     if not InitPopup and not (FPosInfo.PosKind in [pkUnknown, pkFlat, pkComment,
       pkIntfUses, pkImplUses, pkResourceString, pkCompDirect, pkString]) then
@@ -2673,8 +2745,8 @@ begin
           CnOtaDeleteCurrToken(CalcFirstSet(FirstSet, FPosInfo.IsPascal), CalcCharSet(CharSet, @FPosInfo));
       end;
 
-      // 如果是Pascal编译指令并且光标后有个}则要把}删掉
-      // 不能简单地在上面的Charset中加}，因为还会有其他判断
+      // 如果是 Pascal 编译指令并且光标后有个}则要把}删掉
+      // 不能简单地在上面的 Charset 中加 }，因为还会有其他判断
       if FPosInfo.IsPascal and (Item.Kind = skCompDirect) then
       begin
         C := CnOtaGetCurrChar();
@@ -2686,7 +2758,7 @@ begin
           EditPos := CnOtaGetEditPosition;
           if Assigned(EditPos) then
           begin
-            EditPos.MoveRelative(0, 1);  // 退格删掉这个}
+            EditPos.MoveRelative(0, 1);  // 退格删掉这个 }
             EditPos.BackspaceDelete(1);
           end;
         end;
@@ -2841,15 +2913,21 @@ begin
       Kind := dmCnSharedImages.SymbolImages.Count - 1;
 
     Canvas.FillRect(Rect);
+{$IFDEF IDE_SUPPORT_HDPI}
+    Menu.Images.Draw(Canvas, Rect.Left + 2, Rect.Top, Kind);
+{$ELSE}
     dmCnSharedImages.SymbolImages.Draw(Canvas, Rect.Left + 2, Rect.Top, Kind);
+{$ENDIF}
     Canvas.Brush.Style := bsClear;
     Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
     AText := SymbolItem.GetKeywordText(KeywordStyle);
     if FMatchMode in [mmStart, mmAnywhere] then
-      DrawMatchText(Canvas, FMatchStr, AText, Rect.Left + LEFT_ICON, Rect.Top, MatchColor)
+      DrawMatchText(Canvas, FMatchStr, AText, Rect.Left +
+        IdeGetScaledPixelsFromOrigin(LEFT_ICON, Control), Rect.Top, MatchColor)
     else
-      DrawMatchText(Canvas, FMatchStr, AText, Rect.Left + LEFT_ICON, Rect.Top,
+      DrawMatchText(Canvas, FMatchStr, AText, Rect.Left +
+        IdeGetScaledPixelsFromOrigin(LEFT_ICON, Control), Rect.Top,
         MatchColor, SymbolItem.FuzzyMatchIndexes);
 
     TextWith := Canvas.TextWidth(AText);
@@ -2864,7 +2942,8 @@ begin
         Canvas.Font.Color := List.FontColor;
     end;
 
-    Canvas.TextOut(Rect.Left + DESC_INTERVAL + TextWith, Rect.Top, SymbolItem.Description);
+    Canvas.TextOut(Rect.Left + IdeGetScaledPixelsFromOrigin(DESC_INTERVAL, Control)
+      + TextWith, Rect.Top, SymbolItem.Description);
   end;
 end;
 
@@ -2918,8 +2997,13 @@ var
     Result.RadioItem := ARadioItem;
     Result.ImageIndex := AImageIndex;
   end;
+
 begin
+{$IFDEF IDE_SUPPORT_HDPI}
+  Menu.Images := IdeGetVirtualImageListFromOrigin(dmCnSharedImages.SymbolImages, nil, True);
+{$ELSE}
   Menu.Images := dmCnSharedImages.SymbolImages;
+{$ENDIF}
   Menu.Items.Clear;
 
   AutoMenuItem := NewMenuItem(SCnInputHelperAutoPopup, Click);
@@ -2942,8 +3026,9 @@ begin
     IconMenuItem.Add(NewMenuItem(GetSymbolKindName(Kind), OnIconMenu,
       Ord(Kind), Ord(Kind)));
   Menu.Items.Add(IconMenuItem);
-  
+
   Menu.Items.Add(NewMenuItem('-', nil));
+  Menu.Items.Add(NewMenuItem(SCnInputHelperCopy, OnCopyMenu));
   Menu.Items.Add(NewMenuItem(SCnInputHelperAddSymbol, OnAddSymbolMenu));
   Menu.Items.Add(NewMenuItem(SCnInputHelperConfig, OnConfigMenu));
 end;
@@ -2968,6 +3053,18 @@ end;
 procedure TCnInputHelper.OnConfigMenu(Sender: TObject);
 begin
   Config;
+end;
+
+procedure TCnInputHelper.OnCopyMenu(Sender: TObject);
+var
+  SymbolItem: TSymbolItem;
+begin
+  if List.ItemIndex >= 0 then
+  begin
+    SymbolItem := TSymbolItem(FItems.Objects[List.ItemIndex]);
+    if SymbolItem <> nil then
+      Clipboard.AsText := SymbolItem.Name + ' ' + SymbolItem.Description;
+  end;
 end;
 
 procedure TCnInputHelper.OnAddSymbolMenu(Sender: TObject);
@@ -3034,7 +3131,7 @@ begin
   AutoMenuItem.Checked := Value;
   if not FAutoPopup and IsShowing then
     HideAndClearList;
-{$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
   if FCCErrorHook <> nil then
   begin
     if Value and Active then
@@ -3099,7 +3196,7 @@ end;
 procedure TCnInputHelper.Config;
 begin
   HideAndClearList;
-  if CnInputHelperConfig(Self{$IFNDEF SUPPORT_IDESymbolList}, True{$ENDIF}) then
+  if CnInputHelperConfig(Self{$IFNDEF SUPPORT_IDESYMBOLLIST}, True{$ENDIF}) then
     ConfigChanged;
 end;
 
@@ -3250,7 +3347,7 @@ end;
 procedure TCnInputHelper.SetActive(Value: Boolean);
 begin
   inherited;
-{$IFNDEF SUPPORT_IDESymbolList}
+{$IFNDEF SUPPORT_IDESYMBOLLIST}
   if FCCErrorHook <> nil then
   begin
     if Value and FAutoPopup then
@@ -3384,6 +3481,10 @@ var
       else
         S := 16; // 最小 16
 
+{$IFDEF IDE_SUPPORT_HDPI}
+      Inc(S, 2);
+{$ENDIF}
+
       if S <> List.ItemHeight then
       begin
         List.ItemHeight := S;
@@ -3426,6 +3527,11 @@ procedure TCnInputHelper.SetUseEditorColor(const Value: Boolean);
 begin
   FUseEditorColor := Value;
   List.UseEditorColor := Value;
+end;
+
+function TCnInputHelper.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '自动弹出,标识符,列表,symbol,list,pascal,c++,';
 end;
 
 initialization

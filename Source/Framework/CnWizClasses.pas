@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -107,6 +107,8 @@ type
     {* HasConfig 属性读方法，子类重载该方法返回是否存在可配置内容 }
     function GetIcon: TIcon; virtual; abstract;
     {* Icon 属性读方法，子类重载该方法返回返回专家图标，用户专家通常不需自己处理 }
+    function GetBigIcon: TIcon; virtual; abstract;
+    {* 大尺寸 Icon 属性读方法，子类重载该方法返回返回专家图标，用户专家通常不需自己处理 }
 
     // IOTAWizard methods
     function GetIDString: string;
@@ -119,7 +121,11 @@ type
     class function WizardName: string;
     {* 取专家名称，可以是支持本地化的字符串 }
     function GetAuthor: string; virtual;
+    {* 返回作者}
     function GetComment: string; virtual;
+    {* 返回注释}
+    function GetSearchContent: string; virtual;
+    {* 返回供搜索的字符串，可以是以半角逗号分割的中英文关键词，均要求小写}
     procedure DebugComand(Cmds: TStrings; Results: TStrings); virtual;
     {* 处理 Debug 输出命令并将结果放置入 Results 中，供内部调试用}
 
@@ -179,7 +185,9 @@ type
     property WizardIndex: Integer read FWizardIndex write FWizardIndex;
     {* 专家注册后由 IDE 返回的索引号，在释放专家时使用，请不要修改该值 }
     property Icon: TIcon read GetIcon;
-    {* 专家图标属性 }
+    {* 专家图标属性，大小由子类决定，比如 ActionWizard 及以下是 16x16，而 IconWizard 默认 32x32 }
+    property BigIcon: TIcon read GetBigIcon;
+    {* 专家大图标，如果有的话}
   end;
   
 {$M-}
@@ -197,11 +205,12 @@ type
   {* IDE 带图标属性的基础类 }
   private
     FIcon: TIcon;
-    FSmallIcon: TIcon;
   protected
     function GetIcon: TIcon; override;
     {* 返回该类专家的图标，子类可重载此过程返回其它的 Icon 对象
        FIcon 使用系统默认尺寸，一般是 32 * 32 的}
+    function GetBigIcon: TIcon; override;
+    {* 返回该类专家的大图标，32 * 32 的}
     procedure InitIcon(AIcon, ASmallIcon: TIcon); virtual;
     {* 根据类名初始化图标，对象创建时调用，子类可重载此过程重新处理 FIcon }
     class function GetIconName: string; virtual;
@@ -229,7 +238,7 @@ type
 { TCnActionWizard }
 
   TCnActionWizard = class(TCnIDEEnhanceWizard)
-  {* 带 Action 和快捷键的 CnWizard 专家抽象基类 }
+  {* 带 Action 和快捷键的 CnWizard 专家抽象基类，从该类起，Icon 是 16x16 }
   private
     FAction: TCnWizAction;
     function GetImageIndex: Integer;
@@ -241,7 +250,7 @@ type
     function GetCaption: string; virtual; abstract;
     {* 返回专家的标题 }
     function GetHint: string; virtual;
-    {* 返回专家的Hint提示 }
+    {* 返回专家的 Hint 提示 }
     function GetDefShortCut: TShortCut; virtual;
     {* 返回专家的默认快捷键，实际使用时专家的快捷键会可能由管理器来设定，这里
        只需要返回默认的就行了。 }
@@ -250,6 +259,8 @@ type
     {* 类构造器 }
     destructor Destroy; override;
     {* 类析构器 }
+    function GetSearchContent: string; override;
+    {* 返回供搜索的字符串，把标题与 Hint 塞进去 }
     property ImageIndex: Integer read GetImageIndex;
     {* 专家图标在 IDE 的主 ImageList 中的索引号 }
     property Action: TCnWizAction read FAction;
@@ -278,6 +289,7 @@ type
     function CreateAction: TCnWizAction; override;
   public
     constructor Create; override;
+
     function EnableShortCut: Boolean; override;
     {* 返回专家是否可以用快捷键调用 }
     property Menu: TMenuItem read GetMenu;
@@ -298,7 +310,7 @@ type
   private
     FList: TList;
     FPopupMenu: TPopupMenu;
-    FPopupAction: TCnWizAction;
+    FPopupAction: TCnWizAction; // 用于放置到工具栏上时弹出的按钮对应的 Action，和主 Action 图标重复
     FExecuting: Boolean;
     FRefreshing: Boolean;
     procedure FreeSubMenus;
@@ -309,6 +321,7 @@ type
     function GetSubActionCount: Integer;
     function GetSubMenus(Index: Integer): TMenuItem;
   protected
+    procedure SetActive(Value: Boolean); override;
     procedure OnActionUpdate(Sender: TObject); override;
     function CreateAction: TCnWizAction; override;
     procedure Click(Sender: TObject); override;
@@ -344,14 +357,18 @@ type
     {* 类构造器 }
     destructor Destroy; override;
     {* 类析构器 }
+    function GetSearchContent: string; override;
+    {* 返回供搜索的字符串，把所有子菜单的标题与 Hint 塞进去 }
     procedure DebugComand(Cmds: TStrings; Results: TStrings); override;
     {* 调试时打印子菜单以及 Action 等的信息}
     procedure Execute; override;
     {* 执行体什么都不做 }
+    function EnableShortCut: Boolean; override;
+    {* 返回是否可以用快捷键调用 False }
     procedure AcquireSubActions; virtual;
     {* 子类重载此过程，内部调用 RegisterASubAction 创建子菜单项。
         此过程在多语切换时会被重复调用。 }
-    procedure ClearSubActions;
+    procedure ClearSubActions; virtual;
     {* 删除所有的子 Action，包括子菜单中的分隔线 }
     procedure RefreshAction; override;
     {* 重载的刷新 Action 的方法，除了继承刷新菜单项外，还刷新子菜单 Action }
@@ -368,7 +385,7 @@ type
   end;
 
 //==============================================================================
-// 抽象Repository专家基类
+// 抽象 Repository 专家基类
 //==============================================================================
 
 { TCnRepositoryWizard }
@@ -428,6 +445,7 @@ type
   TCnBaseMenuExecutor = class(TObject)
   {* 设计器或编辑器右键菜单执行条目的基类，可从属于某一专家实例}
   private
+    FTag: Integer;
     FWizard: TCnBaseWizard;
   public
     constructor Create(OwnWizard: TCnBaseWizard); virtual;
@@ -436,18 +454,22 @@ type
     {* 类析构器 }
 
     function GetActive: Boolean; virtual;
-    {* 控制条目是否显示}
+    {* 控制条目是否显示，调用顺序排第三}
     function GetCaption: string; virtual;
-    {* 条目显示的标题}
+    {* 条目显示的标题，调用顺序排第一}
     function GetHint: string; virtual;
     {* 条目的提示}
     function GetEnabled: Boolean; virtual;
-    {* 控制条目是否使能}
+    {* 控制条目是否使能，调用顺序排第四}
+    procedure Prepare; virtual;
+    {* PrepareItem 时被调用，调用顺序排第二}
     function Execute: Boolean; virtual;
     {* 条目执行方法，基类默认什么都不做}
 
     property Wizard: TCnBaseWizard read FWizard;
     {* 所属 Wizard 实例}
+    property Tag: Integer read FTag write FTag;
+    {* 挂一个 Tag}
   end;
 
 //==============================================================================
@@ -510,6 +532,9 @@ function GetCnWizardTypeNameFromClass(AClass: TClass): string;
 function GetCnWizardTypeName(AWizard: TCnBaseWizard): string;
 {* 根据专家实例名取指定的专家类引用 }
 
+procedure GetCnWizardInfoStrs(AWizard: TCnBaseWizard; Infos: TStrings);
+{* 获取专家实例的描述字符串列表，供信息输出用}
+
 implementation
 
 uses
@@ -537,11 +562,11 @@ end;
 // 根据专家类名取指定的专家类引用
 function GetCnWizardClass(const ClassName: string): TCnWizardClass;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to CnWizardClassList.Count - 1 do
+  for I := 0 to CnWizardClassList.Count - 1 do
   begin
-    Result := CnWizardClassList[i];
+    Result := CnWizardClassList[I];
     if Result.ClassNameIs(ClassName) then Exit;
   end;
   Result := nil;
@@ -562,7 +587,7 @@ begin
 end;
 
 // 根据专家类名取专家类型名称
-function GetCnWizardTypeNameFromClass(AClass: TClass): String;
+function GetCnWizardTypeNameFromClass(AClass: TClass): string;
 begin
   if AClass.InheritsFrom(TCnProjectWizard) then
     Result := SCnProjectWizardName
@@ -585,9 +610,32 @@ begin
 end;
 
 // 根据专家实例名取指定的专家类引用
-function GetCnWizardTypeName(AWizard: TCnBaseWizard): String;
+function GetCnWizardTypeName(AWizard: TCnBaseWizard): string;
 begin
   Result := GetCnWizardTypeNameFromClass(AWizard.ClassType);
+end;
+
+procedure GetCnWizardInfoStrs(AWizard: TCnBaseWizard; Infos: TStrings);
+begin
+  if (AWizard <> nil) and (Infos <> nil) then
+  begin
+    Infos.Add('ClassName: ' + AWizard.ClassName);
+    Infos.Add('IDString: ' + AWizard.GetIDString);
+    Infos.Add('WizardName: ' + AWizard.WizardName);
+    Infos.Add('Comment: ' + AWizard.GetComment);
+
+    if AWizard is TCnIconWizard then
+    begin
+      // 打印 Icon 信息，暂无
+    end;
+    if AWizard is TCnActionWizard then
+    begin
+      Infos.Add('Action Caption: ' + (AWizard as TCnActionWizard).Action.Caption);
+      Infos.Add('Action Hint: ' + (AWizard as TCnActionWizard).Action.Hint);
+      Infos.Add('Action ImageIndex: ' + IntToStr((AWizard as TCnActionWizard).Action.ImageIndex));
+      Infos.Add('Action ShortCut: ' + ShortCutToText((AWizard as TCnActionWizard).Action.ShortCut));
+    end;
+  end;
 end;
 
 //==============================================================================
@@ -646,6 +694,12 @@ var
   Name, Author, Email: string;
 begin
   GetWizardInfo(Name, Author, Email, Result);
+end;
+
+// 返回供搜索的字符串，可以是以半角逗号分割的中英文关键词，均要求小写
+function TCnBaseWizard.GetSearchContent: string;
+begin
+  Result := '';
 end;
 
 // 该专家是否属于内部专家，不显示、不可配置
@@ -808,6 +862,9 @@ end;
 procedure TCnBaseWizard.SetActive(Value: Boolean);
 begin
   FActive := Value;
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg(ClassName + ' SetActive to ' + IntToStr(Integer(Value)));
+{$ENDIF}
 end;
 
 //------------------------------------------------------------------------------
@@ -842,19 +899,23 @@ begin
   inherited;
   FActive := True;
   FIcon := TIcon.Create;
-  FSmallIcon := TIcon.Create;
-  InitIcon(FIcon, FSmallIcon);
+  InitIcon(FIcon, nil);
 end;
 
 destructor TCnIconWizard.Destroy;
 begin
   inherited;
-  FSmallIcon.Free;
   FIcon.Free;
 end;
 
-// 返回 Icon 属性，如使用其他图标，可重载。
+// 返回 Icon 属性，如使用其他图标，可重载
 function TCnIconWizard.GetIcon: TIcon;
+begin
+  Result := FIcon;
+end;
+
+// 返回大 Icon 属性，不建议重载
+function TCnIconWizard.GetBigIcon: TIcon;
 begin
   Result := FIcon;
 end;
@@ -865,7 +926,7 @@ begin
   Result := ClassName;
 end;
 
-// 根据类名初始化图标，可重载。
+// 根据类名初始化图标，可重载
 procedure TCnIconWizard.InitIcon(AIcon, ASmallIcon: TIcon);
 begin
   if AIcon <> nil then
@@ -956,10 +1017,15 @@ begin
   Result := True;
 end;
 
-// 取Hint提示方法
+// 取 Hint 提示方法
 function TCnActionWizard.GetHint: string;
 begin
   Result := ''
+end;
+
+function TCnActionWizard.GetSearchContent: string;
+begin
+  Result := GetCaption + ',' + GetHint + ',';
 end;
 
 //------------------------------------------------------------------------------
@@ -1043,9 +1109,12 @@ begin
   FPopupMenu := TPopupMenu.Create(nil);
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   FPopupMenu.Images := Svcs40.ImageList;
-  // 用于关联到工具栏上按钮的 Action
+
+  // 用于关联到工具栏上按钮的 Action，图标应和主 Action 图标一样，为避免重复创建
   FPopupAction := WizActionMgr.AddAction(GetIDStr + '1', GetCaption, 0, OnPopup,
-    GetIconName, GetHint);
+    '', GetHint);
+  // 先传空的图标名，再复制 ImageIndex 值，能省下所有 SubMenuWizard 中的每一个 Icon
+  FPopupAction.ImageIndex := Action.ImageIndex;
   FPopupAction.OnUpdate := OnActionUpdate;
 end;
 
@@ -1058,6 +1127,19 @@ begin
   FPopupMenu.Free;
   FList.Free;
   inherited;
+end;
+
+function TCnSubMenuWizard.GetSearchContent: string;
+var
+  I: Integer;
+  Act: TCnWizAction;
+begin
+  Result := inherited GetSearchContent;
+  for I := 0 to SubActionCount - 1 do
+  begin
+    Act := SubActions[I];
+    Result := Result + Act.Caption + ',' + Act.Hint + ',';
+  end;
 end;
 
 procedure TCnSubMenuWizard.DebugComand(Cmds: TStrings; Results: TStrings);
@@ -1080,16 +1162,22 @@ end;
 // 创建专家 Action 项
 function TCnSubMenuWizard.CreateAction: TCnWizAction;
 begin
-  Result := inherited CreateAction;
+  Result := inherited CreateAction;  // 该主 Action 图标和 FPopupAction 重复，但影响不大
   Assert(Result is TCnWizMenuAction);
   Result.ActionList := nil; // 防止该 Action 被自动允许加载到 ToolBar 中
   TCnWizMenuAction(Result).Menu.ImageIndex := -1; // 带子菜单的项不显示位图
 end;
 
-// 执行体什么也不做
+// 执行体
 procedure TCnSubMenuWizard.Execute;
 begin
 // 执行体什么都不做
+end;
+
+// 子菜单专家不允许用快捷键调用本身
+function TCnSubMenuWizard.EnableShortCut: Boolean;
+begin
+  Result := False;
 end;
 
 // 带子菜单专家在刷新 Action 的时候，重载，顺便把子 Action 也刷新一下。
@@ -1113,9 +1201,16 @@ end;
 // 刷新子 Action ，如被重载，可不 inherited 以阻止被刷新。
 procedure TCnSubMenuWizard.RefreshSubActions;
 begin
-//  ClearSubActions;
-  AcquireSubActions;
-  WizActionMgr.ArrangeMenuItems(Menu);
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg(ClassName + ' to RefreshSubActions.');
+{$ENDIF}
+  if FActive then
+  begin
+    AcquireSubActions;
+    WizActionMgr.ArrangeMenuItems(Menu);
+  end
+  else
+    ClearSubActions;
 end;
 
 // 登记一个子 Action，返回索引号
@@ -1179,6 +1274,9 @@ procedure TCnSubMenuWizard.ClearSubActions;
 var
   WizAction: TCnWizAction;
 begin
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg(ClassName + ' to ClearSubActions.');
+{$ENDIF}
   while FList.Count > 0 do
   begin
     WizAction := SubActions[0];
@@ -1233,13 +1331,13 @@ end;
 // 返回指定子 Action 在列表中的索引号
 function TCnSubMenuWizard.IndexOf(SubAction: TCnWizMenuAction): Integer;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := -1;
-  for i := 0 to FList.Count - 1 do
-    if SubActions[i] = SubAction then
+  for I := 0 to FList.Count - 1 do
+    if SubActions[I] = SubAction then
     begin
-      Result := i;
+      Result := I;
       Exit;
     end;
 end;
@@ -1268,28 +1366,28 @@ end;
 // Action 执行体
 procedure TCnSubMenuWizard.OnExecute(Sender: TObject);
 var
-  i: Integer;
+  I: Integer;
 begin
   if not Active or FExecuting then Exit;
   FExecuting := True;
   try
-    for i := 0 to FList.Count - 1 do
-      if TObject(FList[i]) = Sender then
+    for I := 0 to FList.Count - 1 do
+      if TObject(FList[I]) = Sender then
       begin
         // 防止通过快捷键调用无效的工具
-        SubActions[i].Update;
-        if SubActions[i].Enabled then
+        SubActions[I].Update;
+        if SubActions[I].Enabled then
         begin
           try
             // 内部专家不提示
             if IsInternalWizard {$IFNDEF CNWIZARDS_MINIMUM} or ShowCnWizCommentForm(WizardName + ' - ' +
-              GetCaptionOrgStr(SubActions[i].Caption), SubActions[i].Icon,
-              SubActions[i].Command) {$ENDIF} then
-              SubActionExecute(i);
+              GetCaptionOrgStr(SubActions[I].Caption), SubActions[I].Icon,
+              SubActions[I].Command) {$ENDIF} then
+              SubActionExecute(I);
           except
             on E: Exception do
               DoHandleException(Format('%s.SubActions[%d].Execute: %s - %s',
-                [ClassName, i, E.ClassName, E.Message]));
+                [ClassName, I, E.ClassName, E.Message]));
           end;
         end;
 
@@ -1303,13 +1401,13 @@ end;
 // Action 更新
 procedure TCnSubMenuWizard.OnUpdate(Sender: TObject);
 var
-  i: Integer;
+  I: Integer;
 begin
   OnActionUpdate(nil);
-  for i := 0 to FList.Count - 1 do
-    if TObject(FList[i]) = Sender then
+  for I := 0 to FList.Count - 1 do
+    if TObject(FList[I]) = Sender then
     begin
-      SubActionUpdate(i);
+      SubActionUpdate(I);
       Exit;
     end;
 end;
@@ -1322,6 +1420,15 @@ begin
 {$ELSE}
   Result := False;
 {$ENDIF}
+end;
+
+procedure TCnSubMenuWizard.SetActive(Value: Boolean);
+begin
+  if FActive <> Value then
+  begin
+    inherited;
+    RefreshSubActions;
+  end;
 end;
 
 procedure TCnSubMenuWizard.OnActionUpdate(Sender: TObject);
@@ -1484,6 +1591,12 @@ destructor TCnBaseMenuExecutor.Destroy;
 begin
 
   inherited;
+end;
+
+// PrepareItem 时被调用，基类默认什么都不做
+procedure TCnBaseMenuExecutor.Prepare;
+begin
+
 end;
 
 // 条目执行方法，基类默认什么都不做

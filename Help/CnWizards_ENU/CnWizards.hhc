@@ -129,8 +129,8 @@
 			<param name="Local" value="wizards\cnproclistwizard.htm">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="Uses Units Cleaner">
-			<param name="Local" value="wizards\cnusescleaner.htm">
+			<param name="Name" value="Uses Units Tools">
+			<param name="Local" value="wizards\cnusestools.htm">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="IDE Config Backup Restore Tool">
@@ -308,6 +308,10 @@
 			<LI> <OBJECT type="text/sitemap">
 				<param name="Name" value="Decrease Font Size Tool">
 				<param name="Local" value="wizards\editors\editorfontdec.htm">
+				</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Duplicate Current Unit Tool">
+				<param name="Local" value="wizards\editors\editorduplicateunit.htm">
 				</OBJECT>
 		</UL>
 		<LI> <OBJECT type="text/sitemap">

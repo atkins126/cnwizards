@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -367,7 +367,7 @@ type
 
     procedure LanguageChanged(Sender: TObject); override;
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
-
+    function GetSearchContent: string; override;
     property PropBar: TCnFormFloatPropBar read FPropBar;
     property FlatToolBars[Index: Integer]: TCnFormFloatToolBar read GetFlatToolBar;
     property FlatToolBarCount: Integer read GetFlatToolBarCount;
@@ -460,8 +460,6 @@ uses
   CnMultiLineEditorFrm;
 
 const
-  csButtonWidth = 20;
-  csButtonHeight = 20;
   csTitleWidth = 12;
   csUpdateInterval = 100;
 
@@ -1097,7 +1095,7 @@ var
         // 如果大图模式，则手工复制大图
         if WizOptions.UseLargeIcon and (Actn is TCustomAction) then
         begin
-          BigImg := GetIDEBigImageList;
+          BigImg := dmCnSharedImages.IDELargeImages;
           Btn.Glyph.Width := BigImg.Width;
           Btn.Glyph.Height := BigImg.Height;
           Btn.Glyph.Canvas.Brush.Color := clFuchsia;
@@ -1707,6 +1705,9 @@ var
         for j := 0 to FFreqProp.Count - 1 do
         begin
           PInfo := GetPropInfoIncludeSub(AObj, FFreqProp[j], csTypeInfoSimple);
+          if PInfo = nil then
+            Continue;
+
           if SameText(FFreqProp[j], PList[i]) and
             (PInfo.PropType^^.Kind = PTypeInfo(PList.Objects[i])^.Kind) and
             SameText(TypeInfoName(PInfo.PropType^), TypeInfoName(PTypeInfo(PList.Objects[i]))) then
@@ -1715,6 +1716,7 @@ var
             Break;
           end;
         end;
+
         if not PropValid then
           PList.Delete(i);
       end;
@@ -2543,6 +2545,11 @@ begin
   Author := SCnPack_Zjy + ';' + SCnPack_LiuXiao;
   Email := SCnPack_ZjyEmail + ';' + SCnPack_LiuXiaoEmail;
   Comment := SCnFormEnhanceWizardComment;
+end;
+
+function TCnFormEnhanceWizard.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '浮动,面板,工具栏,floatbar,propertybar,';
 end;
 
 //==============================================================================

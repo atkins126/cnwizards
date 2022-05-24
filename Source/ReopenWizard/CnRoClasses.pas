@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -54,7 +54,23 @@ interface
 {$IFDEF CNWIZARDS_CNFILESSNAPSHOTWIZARD}
 
 uses
-  Windows, SysUtils, Classes, IniFiles, CnRoConst, CnRoInterfaces, CnWizIni;
+  Windows, SysUtils, Classes, IniFiles, CnRoInterfaces, CnWizIni;
+
+const
+  SProjectGroup = 'bpg';
+  SFavorite = 'fav';
+  SOther = 'oth';
+{$IFDEF DELPHI}
+  SCnRecentFile = 'RecentFiles.ini';
+  SProject = 'dpr';
+  SPackge = 'dpk';
+  SUnt = 'pas';
+{$ELSE}
+  SCnRecentFile = 'RecentFiles_BCB.ini';
+  SProject = 'bpr';
+  SPackge = 'bpk';
+  SUnt = 'cpp';
+{$ENDIF}
 
 type
   PCnRoFileEntry = ^TCnRoFileEntry;
@@ -64,13 +80,7 @@ type
     ClosingTime: string;
   end;
 
-function GetNodeManager(ANodeSize: Cardinal): ICnNodeManager;
-
-function GetStrIntfMap(): ICnStrIntfMap;
-
-function GetRoFiles(ADefaultCap: Integer = iDefaultFileQty): ICnRoFiles;
-
-function GetReopener(): ICnReopener;
+function CreateReopener: ICnReopener;
 
 {$ENDIF CNWIZARDS_CNFILESSNAPSHOTWIZARD}
 
@@ -81,13 +91,39 @@ implementation
 uses
   CnWizOptions, CnCommon;
 
+const
+  SSeparator = '|';
+  SFilePrefix = 'No';
+  SSection = '[%s]';
+  SCapacity = 'Capacity';
+  SDefaults = 'Defaults';
+  SPersistance = 'Persistance';
+
+  SIgnoreDefaultUnits = 'IgnoreDefaultUnits';
+  SDefaultPage = 'DefaultPage';
+  SFormPersistance = 'FormPersistance';
+  SSortPersistance = 'SortPersistance';
+  SColumnPersistance = 'ColumnPersistance';
+  SLocalDate = 'LocalDate';
+  SAutoSaveInterval = 'AutoSaveInterval';
+
+  SColumnSorting = 'ColumnSorting';
+  SDataFormat = 'yyyy-mm-dd hh:nn:ss';
+
+  PageSize = 1024;
+  iDefaultFileQty = 30;
+  LowFileType = 0;
+  HighFileType = 5;
+  FileType: array[LowFileType..HighFileType] of string =
+    (SProjectGroup, SProject, SPackge, SUnt, SFavorite, SOther);
+
 type
   PCnGenericNode = ^TCnGenericNode;
   TCnGenericNode = packed record
     gnNext: PCnGenericNode;
     gnData: record end;
   end;
-  
+
   TCnNodeManager = class(TInterfacedObject, ICnNodeManager)
   private
     FFreeList: Pointer;
@@ -101,10 +137,10 @@ type
     destructor Destroy; override;
     function AllocNode: Pointer;
     function AllocNodeClear: Pointer;
-    procedure FreeNode(aNode: Pointer);
+    procedure FreeNode(ANode: Pointer);
   end;
 
-  TCnBaseClass = class(TInterfacedObject)
+  TCnBaseNode = class(TInterfacedObject)
   private
     FNodeMgr: ICnNodeManager;
   protected
@@ -120,7 +156,7 @@ type
     Value: IUnknown;
   end;
 
-  TCnStrIntfMap = class(TCnBaseClass, ICnStrIntfMap)
+  TCnStrIntfMap = class(TCnBaseNode, ICnStrIntfMap)
   private
     FItems: TList;
   protected
@@ -135,7 +171,7 @@ type
     destructor Destroy; override;
   end;
 
-  TCnRoFiles = class(TCnBaseClass, ICnRoFiles)
+  TCnRoFiles = class(TCnBaseNode, ICnRoFiles)
   private
     FCapacity: Integer;
     FColumnSorting: string;
@@ -210,13 +246,13 @@ type
     constructor Create;
     destructor Destroy; override;
   end;
-  
+
 function GetCurrTime(ALocalData: Boolean): string;
 var
   S: string;
 begin
   if (ALocalData) then
-    S := {$IFDEF DelphiXE3_UP}FormatSettings.{$ENDIF}LongTimeFormat
+    S := {$IFDEF DELPHIXE3_UP}FormatSettings.{$ENDIF}LongTimeFormat
   else
     S := SDataFormat;
   Result := FormatDateTime(S, Now);
@@ -235,6 +271,11 @@ end;
 function CompareOpenedTime(Item1, Item2: Pointer): Integer;
 begin
   Result := AnsiCompareStr(PCnRoFileEntry(Item1)^.OpenedTime, PCnRoFileEntry(Item2)^.OpenedTime);
+end;
+
+function CreateReopener: ICnReopener;
+begin
+  Result := TCnIniContainer.Create;
 end;
 
 constructor TCnNodeManager.Create(aNodeSize: Cardinal);
@@ -296,26 +337,30 @@ end;
 
 function TCnNodeManager.AllocNodeClear: Pointer;
 begin
-  if (FFreeList = nil) then AllocNewPage;
+  if (FFreeList = nil) then
+    AllocNewPage;
+
   Result := FFreeList;
   FFreeList := PCnGenericNode(FFreeList)^.gnNext;
   FillChar(Result^, FNodeSize, 0);
 end;
 
-procedure TCnNodeManager.FreeNode(aNode: Pointer);
+procedure TCnNodeManager.FreeNode(ANode: Pointer);
 begin
-  if (aNode = nil) then Exit;
-  PCnGenericNode(aNode)^.gnNext := FFreeList;
-  FFreeList := aNode;
+  if ANode = nil then
+    Exit;
+
+  PCnGenericNode(ANode)^.gnNext := FFreeList;
+  FFreeList := ANode;
 end;
 
-constructor TCnBaseClass.Create(ANodeSize: Integer);
+constructor TCnBaseNode.Create(ANodeSize: Integer);
 begin
   inherited Create;
-  FNodeMgr := GetNodeManager(ANodeSize);
+  FNodeMgr := TCnNodeManager.Create(ANodeSize) as ICnNodeManager;
 end;
 
-destructor TCnBaseClass.Destroy;
+destructor TCnBaseNode.Destroy;
 begin
   FNodeMgr := nil;
   inherited Destroy;
@@ -324,7 +369,7 @@ end;
 constructor TCnStrIntfMap.Create(ANodeSize: Integer);
 begin
   inherited Create(ANodeSize);
-  FItems := TList.Create();
+  FItems := TList.Create;
 end;
 
 destructor TCnStrIntfMap.Destroy;
@@ -355,7 +400,7 @@ begin
     Temp.Key := '';
     Temp.Value := nil;
     NodeMgr.FreeNode(Temp);
-  end; //end for
+  end;
   FItems.Clear;
 end;
 
@@ -371,7 +416,7 @@ begin
       Result := PCnStrIntfMapEntry(FItems[I]).Value;
       Exit;
     end;
-  end; //end for
+  end;
 end;
 
 function TCnStrIntfMap.IsEmpty: Boolean;
@@ -390,7 +435,7 @@ begin
       Result := PCnStrIntfMapEntry(FItems[I]).Key;
       Exit;
     end;
-  end; //end for
+  end;
 end;
 
 procedure TCnStrIntfMap.Remove(const Key: string);
@@ -409,7 +454,7 @@ begin
       FItems.Delete(I);
       Exit;
     end;
-  end; //end for
+  end;
 end;
 
 constructor TCnRoFiles.Create(ADefaultCap: Integer);
@@ -452,7 +497,7 @@ begin
   for I := FItems.Count - 1 downto 0 do
   begin
     Delete(I);
-  end; //end for
+  end;
 end;
 
 function TCnRoFiles.Count: Integer;
@@ -495,13 +540,14 @@ begin
   with PCnRoFileEntry(FItems[Index])^ do
   begin
     Result := FileName + SSeparator + OpenedTime + SSeparator + ClosingTime + SSeparator;
-  end; //end with
+  end;
 end;
 
 function TCnRoFiles.IndexOf(AFileName: string): Integer;
 begin
   for Result := 0 to FItems.Count - 1 do
-    if (AnsiSameText(PCnRoFileEntry(GetNodes(Result))^.FileName, AFileName)) then Exit;
+    if (AnsiSameText(PCnRoFileEntry(GetNodes(Result))^.FileName, AFileName))
+      then Exit;
   Result := -1;
 end;
 
@@ -521,7 +567,8 @@ var
   AParam: array[0..2] of string;
   P, Start: PChar;
 begin
-  if (AnsiPos(SSeparator, AValue) = 0) then Exit;
+  if (AnsiPos(SSeparator, AValue) = 0) then
+    Exit;
   
   P := Pointer(AValue);
   I := 0;
@@ -532,14 +579,16 @@ begin
     System.SetString(AParam[I], Start, P - Start);
     Inc(I);
     if P^ = SSeparator then Inc(P);
-  end; //end while
+  end;
 
-  if (not FileExists(AParam[0])) then Exit;
+  if (not FileExists(AParam[0])) then
+    Exit;
   
   if (Index > Count - 1) or (Index < 0) then
   begin
     AddFileAndTime(AParam[0], AParam[1], AParam[2]);
-  end else
+  end
+  else
   begin
     PCnRoFileEntry(FItems[Index])^.FileName := AParam[0];
     PCnRoFileEntry(FItems[Index])^.OpenedTime:= AParam[1];
@@ -554,12 +603,14 @@ end;
 
 procedure TCnRoFiles.UpdateTime(AIndex: Integer; AOpenedTime, AClosingTime: string);
 begin
-  if (AIndex < 0) then Exit;
+  if (AIndex < 0) then
+    Exit;
+
   with PCnRoFileEntry(FItems[AIndex])^ do
   begin
     if (AOpenedTime <> '') then OpenedTime := AOpenedTime;
     if (AClosingTime <> '') then ClosingTime := AClosingTime;
-  end; //end with
+  end;
 end;
 
 constructor TCnIniContainer.Create;
@@ -594,7 +645,9 @@ var
   end;
   
 begin
-  if FileExists(GetIniFileName) then Exit;
+  if FileExists(GetIniFileName) then
+    Exit;
+
   Assign(F, GetIniFileName);
   Rewrite(F);
   Writeln(F, Format(SSection, [SCapacity]));
@@ -608,8 +661,7 @@ begin
   Writeln(F, Format(SSection, [SDefaults]));
   Writeln(F, AddBool(SIgnoreDefaultUnits, True));
   Writeln(F, AddNum(SDefaultPage, 2));
-  //  Writeln(F, AddBool(SFormPersistance, True));
-  //  Writeln(F, AddBool(SColumnPersistance, False));
+
   Writeln(F, AddBool(SSortPersistance, True));
   Writeln(F, AddBool(SLocalDate, False));
   
@@ -634,10 +686,10 @@ procedure TCnIniContainer.CreateRoFilesList;
 var
   I: Integer;
 begin
-  FRoFilesList := GetStrIntfMap;
+  FRoFilesList := TCnStrIntfMap.Create(SizeOf(TCnStrIntfMapEntry)) as ICnStrIntfMap;
   with FRoFilesList do
     for I := LowFileType to HighFileType do
-      Add(FileType[I], GetRoFiles(iDefaultFileQty));
+      Add(FileType[I], TCnRoFiles.Create(iDefaultFileQty) as ICnRoFiles);
 end;
 
 procedure TCnIniContainer.DestroyRoFilesList;
@@ -790,7 +842,9 @@ begin
     ASetTime(vFiles, I, GetLocalDate);
   end else
   begin
-    if (GetIgnoreDefaultUnits) and (IsDefaultUnit(AFileName)) then Exit;
+    if (GetIgnoreDefaultUnits) and (IsDefaultUnit(AFileName)) then
+      Exit;
+
     if vFiles.Count = vFiles.Capacity then
       vFiles.Delete(0)
     else if vFiles.Capacity < vFiles.Count then
@@ -818,8 +872,7 @@ begin
     SetLocalDate(ReadBool(SDefaults, SLocalDate, False));
     SetSortPersistance(ReadBool(SDefaults, SSortPersistance, False));
     SetAutoSaveInterval(ReadInteger(SDefaults, SAutoSaveInterval, 5));
-    //SetColumnPersistance(ReadBool(SDefaults, SColumnPersistance, False));
-    //SetFormPersistance(ReadBool(SDefaults, SFormPersistance, True));
+
     for I := LowFileType to HighFileType do
     begin
       Files[FileType[I]].Capacity := ReadInteger(SCapacity, FileType[I], iDefaultFileQty);
@@ -943,28 +996,6 @@ begin
       WriteString(ASection, SFilePrefix + IntToStr(I), GetString(I));
     end;
   end;
-end;
-
-{******************************************************************************}
-
-function GetNodeManager(ANodeSize: Cardinal): ICnNodeManager;
-begin
-  Result := TCnNodeManager.Create(ANodeSize);
-end;
-
-function GetStrIntfMap(): ICnStrIntfMap;
-begin
-  Result := TCnStrIntfMap.Create(SizeOf(TCnStrIntfMapEntry));
-end;
-
-function GetRoFiles(ADefaultCap: Integer = iDefaultFileQty): ICnRoFiles;
-begin
-  Result := TCnRoFiles.Create(ADefaultCap);
-end;
-
-function GetReopener(): ICnReopener;
-begin
-  Result := TCnIniContainer.Create;
 end;
 
 function TCnIniContainer.GetAutoSaveInterval: Cardinal;

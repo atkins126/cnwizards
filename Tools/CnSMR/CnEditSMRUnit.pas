@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -37,17 +37,12 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Grids, ADODB,
-  Dialogs, Menus, StdCtrls, Buttons, ExtCtrls, DB, DBCtrls, DBGrids, CnCommon,
-  CnMainUnit, CnSMRBplUtils, CnBaseUtils, CnSMRUtils, ActnList, AppEvnts;
+  Dialogs, Menus, StdCtrls, Buttons, ExtCtrls, DB, DBCtrls, DBGrids, ActnList,
+  AppEvnts, CnCommon, CnMainUnit, CnSMRBplUtils, CnBaseUtils, CnSMRUtils, CnWideCtrls;
 
 type
-{
-  TStringGrid = class(Grids.TStringGrid)
-  protected
-    function GetEditStyle(ACol, ARow: Longint): TEditStyle; override;
-    function CreateEditor: TInplaceEdit; override;
-  end;
-//}
+
+{$I WideCtrls.inc}
 
   TCnEditSMRForm = class(TForm, IUIInitializable)
     lblOpenedFile: TLabel;

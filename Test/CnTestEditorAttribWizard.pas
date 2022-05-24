@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -56,8 +56,14 @@ type
   private
     FIdAttrib: Integer;
     FIdLine: Integer;
+    FIdElide: Integer;
+    FIdLineElide: Integer;
+    FIdLineUnElide: Integer;
     procedure TestAttributeAtCursor;
     procedure TestAttributeLine;
+    procedure TestLinesElideInfo;
+    procedure TestElideLine;
+    procedure TestUnElideLine;
   protected
     function GetHasConfig: Boolean; override;
   public
@@ -82,8 +88,15 @@ uses
 const
   SCnAttribCommand = 'CnAttribCommand';
   SCnLineAttribCommand = 'CnLineAttribCommand';
+  SCnLineElideInfoCommand = 'CnLineElideInfoCommand';
+  SCnElideLineCommand = 'SCnElideLineCommand';
+  SCnUnElideLineCommand = 'SCnUnElideLineCommand';
+
   SCnAttribCaption = 'Show Attribute at Cursor';
   SCnLineAttribCaption = 'Show Attribute in Whole Line';
+  SCnLineElideInfoCaption = 'Show Lines Elide Info.';
+  SCnElideLineCaption = 'Elide a Line Number...';
+  SCnUnElideLineCaption = 'UnElide a Line Number...';
 
 //==============================================================================
 // 编辑器属性获取子菜单专家
@@ -95,6 +108,9 @@ procedure TCnTestEditorAttribWizard.AcquireSubActions;
 begin
   FIdAttrib := RegisterASubAction(SCnAttribCommand, SCnAttribCaption);
   FIdLine := RegisterASubAction(SCnLineAttribCommand, SCnLineAttribCaption);
+  FIdElide := RegisterASubAction(SCnLineElideInfoCommand, SCnLineElideInfoCaption);
+  FIdLineElide := RegisterASubAction(SCnElideLineCommand, SCnElideLineCaption);
+  FIdLineUnElide := RegisterASubAction(SCnUnElideLineCommand, SCnUnElideLineCaption);
 end;
 
 procedure TCnTestEditorAttribWizard.Config;
@@ -231,7 +247,13 @@ begin
   if Index = FIdAttrib then
     TestAttributeAtCursor
   else if Index = FIdLine then
-    TestAttributeLine;
+    TestAttributeLine
+  else if Index = FIdElide then
+    TestLinesElideInfo
+  else if Index = FIdLineElide then
+    TestElideLine
+  else if Index = FIdLineUnElide then
+    TestUnElideLine
 end;
 
 procedure TCnTestEditorAttribWizard.TestAttributeLine;
@@ -321,6 +343,56 @@ begin
     end;
   end;
   ShowMessage('Information Sent to CnDebugViewer for Current Line.');
+end;
+
+procedure TCnTestEditorAttribWizard.TestElideLine;
+var
+  L: Integer;
+  Control: TControl;
+begin
+  Control := CnOtaGetCurrentEditControl;
+  if Control = nil then
+    Exit;
+
+  L := StrToInt(CnInputBox('Hint', 'Enter a Line Number', '1'));
+  EditControlWrapper.ElideLine(Control, L);
+end;
+
+procedure TCnTestEditorAttribWizard.TestLinesElideInfo;
+var
+  List: TList;
+  S: string;
+  I: Integer;
+begin
+  List := TList.Create;
+  if CnOtaGetLinesElideInfo(List) then
+  begin
+    S := '';
+    for I := 0 to List.Count - 1 do
+    begin
+      if I = 0 then
+        S := IntToStr(Integer(List[I]))
+      else
+        S := S + ', ' + IntToStr(Integer(List[I]));
+    end;
+    ShowMessage(S);
+  end
+  else
+  ShowMessage('NO Elide Lines or NOT Support Elide.');
+  List.Free;
+end;
+
+procedure TCnTestEditorAttribWizard.TestUnElideLine;
+var
+  L: Integer;
+  Control: TControl;
+begin
+  Control := CnOtaGetCurrentEditControl;
+  if Control = nil then
+    Exit;
+
+  L := StrToInt(CnInputBox('Hint', 'Enter a Line Number', '1'));
+  EditControlWrapper.UnElideLine(Control, L);
 end;
 
 initialization

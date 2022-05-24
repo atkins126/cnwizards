@@ -1,4 +1,4 @@
-inherited CorPropRuleForm: TCorPropRuleForm
+inherited CnCorPropRuleForm: TCnCorPropRuleForm
   Left = 203
   Top = 252
   BorderStyle = bsDialog
@@ -93,6 +93,7 @@ inherited CorPropRuleForm: TCorPropRuleForm
     ItemHeight = 13
     Sorted = True
     TabOrder = 0
+    OnChange = cbbComponentChange
   end
   object cbbProperty: TComboBox
     Left = 144

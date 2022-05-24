@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -28,14 +28,16 @@ unit CnWizConfigFrm;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2012.11.30 V1.7
-*               去除使用FormScaler重新调整文字的机制
+* 修改记录：2021.05.23 V1.8
+*               加入检测快捷键是否冲突的机制
+*           2012.11.30 V1.7
+*               去除使用 FormScaler 重新调整文字的机制
 *           2012.09.19 by shenloqi
-*               移植到Delphi XE3
+*               移植到 Delphi XE3
 *           2012.06.21 V1.5
 *               加入搜索框，允许按首字母搜索专家与属性组件编辑器
 *           2004.11.18 V1.4
-*               修正listbox自画不适合120DPI的小问题 (shenloqi)
+*               修正 listbox 自画不适合 120DPI 的小问题 (shenloqi)
 *           2003.06.25 V1.3
 *               移除 IDE 扩展设置界面 (LiuXiao)
 *           2003.05.01 V1.2
@@ -53,8 +55,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  Menus, ExtCtrls, ComCtrls, ToolWin, StdCtrls, CnDesignEditor, CnWizMultiLang,
-  CnWizClasses, CnDesignEditorConsts, ImgList, Buttons;
+  Menus, ExtCtrls, ComCtrls, ToolWin, StdCtrls, ImgList, Buttons,
+  CnDesignEditor, CnWizMultiLang, CnWizClasses, CnDesignEditorConsts, CnWizMenuAction;
 
 type
 
@@ -139,6 +141,7 @@ type
     chkUseLargeIcon: TCheckBox;
     chkEnlarge: TCheckBox;
     cbbEnlarge: TComboBox;
+    chkDisableIcons: TCheckBox;
     procedure lbWizardsDrawItem(Control: TWinControl; Index: Integer;
       Rect: TRect; State: TOwnerDrawState);
     procedure FormCreate(Sender: TObject);
@@ -204,8 +207,12 @@ const
 
   csLastSelectedItem = 'LastSelectedItem';
 
+  CN_ITEM_DRAW_HEIGHT = 12;
+  CN_ITEM_ICON_WIDTH = 42;
+
 type
   TCnActionWizardHack = class(TCnActionWizard);
+  TControlHack = class(TControl);
 
 {$R *.DFM}
 
@@ -235,6 +242,7 @@ var
   I: Integer;
 begin
   PageControl.ActivePageIndex := 0;
+
   // 专家设置页面
   SetLength(FShortCuts, CnWizardMgr.WizardCount);
   SetLength(FActives, CnWizardMgr.WizardCount);
@@ -286,7 +294,7 @@ begin
   cbUpgradeReleaseOnly.Checked := WizOptions.UpgradeReleaseOnly;
 
   //自画高度调整
-  FDrawTextHeight := 12;
+  FDrawTextHeight := IdeGetScaledPixelsFromOrigin(CN_ITEM_DRAW_HEIGHT, lbWizards);
   if Enlarged then
   begin
     FDrawTextHeight := Round(FDrawTextHeight * GetFactorFromSizeEnlarge(Enlarge));
@@ -294,12 +302,9 @@ begin
     lbDesignEditors.ItemHeight := Round(lbDesignEditors.ItemHeight * GetFactorFromSizeEnlarge(Enlarge));
   end;
 
-//  if Scaled then
-//  begin
-//    FDrawTextHeight := FScaler.MultiPPI(FDrawTextHeight, Self);
-//    lbWizards.ItemHeight := FScaler.MultiPPI(lbWizards.ItemHeight, Self);
-//    lbDesignEditors.ItemHeight := FScaler.MultiPPI(lbDesignEditors.ItemHeight, Self);
-//  end;
+{$IFDEF IDE_SUPPORT_HDPI}
+  imgIcon.Stretch := True;
+{$ENDIF}
 
   chkUserDir.Checked := WizOptions.UseCustomUserDir;
   edtUserDir.Text := WizOptions.CustomUserDir;
@@ -308,6 +313,7 @@ begin
     cbbEnlarge.ItemIndex := Ord(WizOptions.SizeEnlarge) - 1
   else
     cbbEnlarge.ItemIndex := 0;
+  chkDisableIcons.Checked := WizOptions.DisableIcons;
 
   UpdateControls(nil);
 
@@ -319,6 +325,7 @@ procedure TCnWizConfigForm.FormDestroy(Sender: TObject);
 var
   I: Integer;
   Changes: DWORD;
+  OldUseLargeIcon: Boolean;
 begin
   if ModalResult = mrOK then
   begin
@@ -334,7 +341,8 @@ begin
       begin
         CnWizardMgr[I].Active := FActives[I];
         if CnWizardMgr[I] is TCnActionWizard then
-          TCnActionWizard(CnWizardMgr[I]).Action.ShortCut := FShortCuts[I];
+          if TCnActionWizard(CnWizardMgr[I]).Action <> nil then // 如果 Action 为 nil 就无法设置快捷键
+            TCnActionWizard(CnWizardMgr[I]).Action.ShortCut := FShortCuts[I];
       end;
     finally
       WizShortCutMgr.EndUpdate;
@@ -366,6 +374,8 @@ begin
     WizOptions.ShowWizComment := cbShowWizComment.Checked;
     WizOptions.UseOneCPUCore := chkUseOneCPUCore.Checked;
     WizOptions.FixThreadLocale := chkFixThreadLocale.Checked;
+
+    OldUseLargeIcon := WizOptions.UseLargeIcon;
     WizOptions.UseLargeIcon := chkUseLargeIcon.Checked;
 
     // 升级设置
@@ -381,10 +391,13 @@ begin
       WizOptions.SizeEnlarge := TCnWizSizeEnlarge(cbbEnlarge.ItemIndex + 1)
     else
       WizOptions.SizeEnlarge := wseOrigin;
+    WizOptions.DisableIcons := chkDisableIcons.Checked;
     
     WizOptions.WriteInteger(SCnOptionSection, csLastSelectedItem, lbWizards.ItemIndex);
 
-    WizOptions.SaveSettings;
+    WizOptions.SaveSettings(True);
+    WizOptions.UseLargeIcon := OldUseLargeIcon; // 保存后迅速恢复原值，确保下次启动才生效
+
     CnWizardMgr.SaveSettings;
 
     // 通知外界专家包的设置对话框关闭并且设置改变了
@@ -418,6 +431,9 @@ var
   Idx, x, y: Integer;
   Bmp: TBitmap;
   EnableIndex, EnableIconMargin: Integer;
+{$IFDEF IDE_SUPPORT_HDPI}
+  XIcon: TIcon;
+{$ENDIF}
 begin
   if not (Control is TListBox) then Exit;
   ListBox := TListBox(Control);
@@ -461,10 +477,24 @@ begin
       Canvas.Font.Color := clGray;
     end;
     Canvas.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 8, 8);
-    if Wizard.Icon <> nil then
-      Canvas.Draw(R.Left + 4, R.Top + (R.Bottom - R.Top - Wizard.Icon.Height) div 2, Wizard.Icon);
+    if Wizard.BigIcon <> nil then
+    begin
+{$IFDEF IDE_SUPPORT_HDPI}
+      ARect.Left := R.Left + 4;
+      ARect.Top := R.Top + (R.Bottom - R.Top - IdeGetScaledPixelsFromOrigin(Wizard.BigIcon.Height, lbWizards)) div 2;
+      ARect.Right := ARect.Left + IdeGetScaledPixelsFromOrigin(Wizard.BigIcon.Width, lbWizards);
+      ARect.Bottom := ARect.Top + IdeGetScaledPixelsFromOrigin(Wizard.BigIcon.Height, lbWizards);
 
-    x := R.Left + 42;
+      DrawIconEx(Canvas.Handle, ARect.Left, ARect.Top, Wizard.BigIcon.Handle,
+        ARect.Width, ARect.Height, 0, 0, DI_NORMAL);
+
+      // 把 32x32 没法拉伸的图标，原封不动绘制到 32x32 被 HDPI 拉伸过的控件的画板上
+{$ELSE}
+      Canvas.Draw(R.Left + 4, R.Top + (R.Bottom - R.Top - Wizard.BigIcon.Height) div 2, Wizard.BigIcon);
+{$ENDIF}
+    end;
+
+    x := R.Left + IdeGetScaledPixelsFromOrigin(CN_ITEM_ICON_WIDTH, Control);
     y := R.Top + 2;
     Canvas.TextOut(x, y, SCnWizardNameStr + Wizard.WizardName);
     Inc(y, FDrawTextHeight + 2);
@@ -484,11 +514,30 @@ begin
     else
       EnableIndex := 1;
 
+{$IFDEF IDE_SUPPORT_HDPI}
+    EnableIconMargin := (Rect.Bottom - Rect.Top
+      - IdeGetScaledPixelsFromOrigin(ilEnable.Height, lbWizards)) div 2;
+    if EnableIconMargin < 0 then
+      EnableIconMargin := 0;
+
+    XIcon := TIcon.Create;
+    try
+      ilEnable.GetIcon(EnableIndex, XIcon);
+      DrawIconEx(ListBox.Canvas.Handle, Rect.Right - EnableIconMargin
+        - IdeGetScaledPixelsFromOrigin(ilEnable.Width, lbWizards) - 6,
+        Rect.Top + EnableIconMargin + 1, XIcon.Handle,
+        IdeGetScaledPixelsFromOrigin(ilEnable.Width, lbWizards),
+        IdeGetScaledPixelsFromOrigin(ilEnable.Height, lbWizards), 0, 0, DI_NORMAL);
+    finally
+      XIcon.Free;
+    end;
+{$ELSE}
     EnableIconMargin := (Rect.Bottom - Rect.Top - ilEnable.Height) div 2;
     if EnableIconMargin < 0 then
       EnableIconMargin := 0;
     ilEnable.Draw(ListBox.Canvas, Rect.Right - EnableIconMargin - ilEnable.Width - 6,
       Rect.Top + EnableIconMargin + 1, EnableIndex);
+{$ENDIF}
   finally
     Bmp.Free;
   end;
@@ -516,7 +565,17 @@ begin
   Wizard := TCnBaseWizard(lbWizards.Items.Objects[lbWizards.ItemIndex]);
   Idx := CalcSelectedWizardIndex(Wizard);
 
-  imgIcon.Picture.Graphic := Wizard.Icon;
+{$IFDEF IDE_SUPPORT_HDPI}
+  imgIcon.Canvas.Brush.Style := bsSolid;
+  imgIcon.Canvas.Brush.Color := TControlHack(imgIcon.Parent).Color;
+  imgIcon.Canvas.FillRect(Rect(0, 0, imgIcon.Width, imgIcon.Height));
+  DrawIconEx(imgIcon.Canvas.Handle, 0, 0, Wizard.BigIcon.Handle,
+    imgIcon.Width, imgIcon.Height, 0, 0, DI_NORMAL);
+  // 把 32x32 没法拉伸的图标，原封不动绘制到 32x32 被 HDPI 拉伸过的控件的画板上
+{$ELSE}
+  imgIcon.Picture.Graphic := Wizard.BigIcon;
+{$ENDIF}
+
   Wizard.GetWizardInfo(AName, Author, Email, Comment);
   lblWizardName.Caption := AName;
   lblWizardAuthor.Caption := CnAuthorEmailToStr(Author, '');
@@ -544,10 +603,23 @@ end;
 procedure TCnWizConfigForm.HotKeyWizardExit(Sender: TObject);
 var
   Idx: Integer;
+  Wizard: TCnBaseWizard;
+  WizardAction: TCnWizAction;
 begin
   Idx := CalcSelectedWizardIndex();
+  WizardAction := nil;
+  if lbWizards.ItemIndex >= 0 then
+  begin
+    Wizard := TCnBaseWizard(lbWizards.Items.Objects[lbWizards.ItemIndex]);
+    if (Wizard <> nil) and (Wizard is TCnActionWizard) then
+      WizardAction := (Wizard as TCnActionWizard).Action;
+  end;
+
   if Idx >= 0 then
-    FShortCuts[Idx] := HotKeyWizard.HotKey;
+    if CheckQueryShortCutDuplicated(HotKeyWizard.HotKey, WizardAction) <> sdDuplicatedStop then
+      FShortCuts[Idx] := HotKeyWizard.HotKey
+    else
+      HotKeyWizard.SetFocus;
 end;
 
 // 设置专家活跃
@@ -932,7 +1004,8 @@ var
 
     if (Pos(FilterText, Wizard.WizardName) > 0)
       or (Pos(FilterText, Wizard.GetIDStr) > 0)
-      or (Pos(FilterText, Wizard.GetAuthor) > 0) then
+      or (Pos(FilterText, Wizard.GetAuthor) > 0)
+      or (Pos(FilterText, Wizard.GetSearchContent) > 0) then
       Result := True
     else // 查找拼音首字母
     begin

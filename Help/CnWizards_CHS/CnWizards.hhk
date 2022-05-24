@@ -233,6 +233,10 @@
 		<param name="Local" value="cnpack\about.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="复制当前单元工具">
+		<param name="Local" value="wizards\editors\editorduplicateunit.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="函数过程列表">
 		<param name="Local" value="wizards\cnproclistwizard.htm">
 		</OBJECT>
@@ -381,8 +385,8 @@
 		<param name="Local" value="wizards\projext\uselist.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
-		<param name="Name" value="引用单元清理专家">
-		<param name="Local" value="wizards\cnusescleaner.htm">
+		<param name="Name" value="引用单元工具">
+		<param name="Local" value="wizards\cnusestools.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="有贡献人员名单">

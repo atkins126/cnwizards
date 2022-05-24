@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -91,6 +91,7 @@ type
     function GetState: TWizardState; override;
     procedure AcquireSubActions; override;
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     function GetCaption: string; override;
     function GetHint: string; override;
     procedure LoadSettings(Ini: TCustomIniFile); override;
@@ -168,14 +169,14 @@ begin
   begin
     // 创建快照菜单项
     i := 0;
-    IdFilesSnapshotsFirst := RegisterASubAction(SCnProjExtFilesSnapshotsItem +
+    IdFilesSnapshotsFirst := RegisterASubAction(SCnFilesSnapshotsItem +
       IntToStr(i), FFilesSnapshots[i], 0, FFilesSnapshots[i],
-      SCnProjExtFilesSnapshotsItem + IntToStr(i));
+      SCnFilesSnapshotsItem + IntToStr(i));
     IdFilesSnapshotsLast := IdFilesSnapshotsFirst; // 避免下面被跳过而没赋值，LiuXiao
     for i := 1 to FFilesSnapshots.Count - 1 do
-      IdFilesSnapshotsLast := RegisterASubAction(SCnProjExtFilesSnapshotsItem +
+      IdFilesSnapshotsLast := RegisterASubAction(SCnFilesSnapshotsItem +
         IntToStr(i), FFilesSnapshots[i], 0, FFilesSnapshots[i],
-        SCnProjExtFilesSnapshotsItem + IntToStr(i));
+        SCnFilesSnapshotsItem + IntToStr(i));
 
     AddSepMenu;
   end
@@ -186,18 +187,18 @@ begin
   end;
 
   // 创建其余的子菜单项
-  IdFilesSnapshotAdd := RegisterASubAction(SCnProjExtFilesSnapshotAdd,
+  IdFilesSnapshotAdd := RegisterASubAction(SCnFilesSnapshotAdd,
     SCnFilesSnapshotAddCaption, ShortCut(Word('W'), [ssCtrl, ssShift]),
-    SCnFilesSnapshotAddHint, SCnProjExtFilesSnapshotAdd);
+    SCnFilesSnapshotAddHint, SCnFilesSnapshotAdd);
 
-  IdFilesSnapshotManage := RegisterASubAction(SCnProjExtFilesSnapshotManage,
+  IdFilesSnapshotManage := RegisterASubAction(SCnFilesSnapshotManage,
     SCnFilesSnapshotManageCaption, 0,
-    SCnFilesSnapshotManageHint, SCnProjExtFilesSnapshotManage);
+    SCnFilesSnapshotManageHint, SCnFilesSnapshotManage);
   AddSepMenu;
 
-  IdReopen := RegisterASubAction(SCnProjExtFileReopen,
-    SCnProjExtFileReopenCaption, FReOpener.GetDefShortCut,
-    SCnProjExtFileReopenHint, SCnProjExtFileReopen);
+  IdReopen := RegisterASubAction(SCnFilesSnapshotReopen,
+    SCnFilesSnapshotReopenCaption, FReOpener.GetDefShortCut,
+    SCnFilesSnapshotReopenHint, SCnFilesSnapshotReopen);
 end;
 
 function TCnFilesSnapshotWizard.GetCaption: string;
@@ -481,6 +482,11 @@ begin
       FormOpened := False;
     end;
   end;
+end;
+
+function TCnFilesSnapshotWizard.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '收藏,favorite';
 end;
 
 initialization

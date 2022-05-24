@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -40,9 +40,13 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Registry,
   Dialogs, ExtCtrls, StdCtrls, Buttons, CnAppBuilderInfo, ComCtrls, CheckLst,
   ImgList, ShellApi, CleanClass, CnCommon, CnWizCompilerConst, CnWizMultiLang, 
-  CnBHConst, CnLangMgr, CnLangStorage, CnHashLangStorage, CnClasses, CnWizLangID;
+  CnBHConst, CnLangMgr, CnLangStorage, CnHashLangStorage, CnClasses, CnWizLangID,
+  CnWideCtrls;
 
 type
+
+{$I WideCtrls.inc}
+
   TCnIdeBRMainForm = class(TCnTranslateForm)
     btnNext: TBitBtn;
     btnAbout: TBitBtn;
@@ -181,7 +185,7 @@ const
     ('Delphi\5.0', 'Delphi\6.0', 'Delphi\7.0', 'BDS\2.0', 'BDS\3.0', 'BDS\4.0',
     'BDS\5.0', 'BDS\6.0', 'BDS\7.0', 'BDS\8.0', 'BDS\9.0', 'BDS\10.0', 'BDS\11.0',
     'BDS\12.0', 'BDS\14.0', 'BDS\15.0', 'BDS\16.0', 'BDS\17.0', 'BDS\18.0', 'BDS\19.0',
-    'BDS\20.0', 'BDS\21.0', 'C++Builder\5.0', 'C++Builder\6.0');
+    'BDS\20.0', 'BDS\21.0', 'BDS\22.0', 'C++Builder\5.0', 'C++Builder\6.0');
   SCnRegHisProject = '\Closed Projects';
   SCnRegHisFiles = '\Closed Files';
 
@@ -1178,7 +1182,6 @@ begin
       begin
         CnLanguageManager.CurrentLanguageIndex := I;
         TranslateStrings;
-        CnLanguageManager.TranslateForm(Self);
         Break;
       end;
     end;

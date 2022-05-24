@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -58,6 +58,7 @@ type
   TModuleMode = (mmModule, mmFile);
 
   TCnEditFiler = class(TObject)
+  {* 只支持 Module 级别的编辑器文件，不支持 dfm 之类的}
   private
     FSourceInterfaceAllocated: Boolean;
     FModuleNotifier: IOTAModuleNotifier;
@@ -91,7 +92,7 @@ type
     procedure ShowForm;
 {$IFDEF UNICODE}
     procedure SaveToStreamW(Stream: TStream);
-    // 将文件内容存入流中，没 BOM 的 UTF16 格式，尾部 #0
+    // 将文件内容存入流中，如果是 TMemoryStream，存成没 BOM 的 UTF16 格式，否则 Utf8 格式，尾部 #0
 {$ENDIF}
     procedure SaveToStream(Stream: TStream; CheckUtf8: Boolean = False);
     // 读出均为无 BOM 的 Ansi 或 Utf8 格式，尾部 #0。
@@ -104,8 +105,9 @@ type
     procedure ReadFromStream(Stream: TStream; CheckUtf8: Boolean = False);
     // 从 Stream 整个写到文件或缓冲中，覆盖原有内容，与 Stream 的 Position 和光标位置无关，
     // 要求流中是 Ansi 或 Utf8，无 BOM，不要求 Stream 尾 #0
-    // 写文件时不进行转换。写缓冲时如果是 BDS 且 Stream 是 MemoryStream，
-    // 则可由 CheckUtf8 设为 True 来进行 Ansi 到 Utf8 的转换以适合编辑器缓冲
+    // 写文件时不进行转换。写缓冲时如果是 BDS 且 Stream 是 MemoryStream 时，
+    // Stream 内容如果是 Ansi，则  CheckUtf8 得设为 True
+    // 以进行 Ansi 到 Utf8 的转换以适合编辑器缓冲。以下两函数暂未做UTF8适配
     procedure ReadFromStreamInPos(Stream: TStream);
     procedure ReadFromStreamInsertToPos(Stream: TStream);
 
@@ -118,28 +120,33 @@ type
   end;
 
 procedure EditFilerSaveFileToStream(const FileName: string; Stream: TStream; CheckUtf8: Boolean = False);
-{* 封装的用 Filer 读出文件内容至流，流中均为无 BOM 的原始格式，尾部 #0。
-  原始格式：BDS 里，当 CheckUtf8 是 True 并且是 MemoryStream 时，Utf8 会转换成 Ansi，否则保持 Utf8
-  D5/6/7 中只支持 Ansi}
+{* 封装的用 Filer 读出文件内容至流，流中均为无 BOM 的原始格式（Ansi、Ansi/Utf8、Utf16），尾部 #0。
+  原始格式：BDS 2005 到 2007 里，当 CheckUtf8 是 True 并且是 MemoryStream 时，Utf8 会转换成 Ansi，否则保持 Utf8
+  Unicode 环境下会忽略 CheckUtf8，Stream 中固定为 Utf16，D5/6/7 中只支持 Ansi，都可以直接  PChar(Stream.Memory) 使用}
 
 procedure EditFilerReadStreamToFile(const FileName: string; Stream: TStream; CheckUtf8: Boolean = False);
 {* 封装的用流写入 Filer 的文件内容，要求流中无 BOM，尾部无需 #0。
-  写文件时不进行转换。写缓冲时如果是 BDS 且 Stream 是 MemoryStream，
-  则可由 CheckUtf8 设为 True 来进行 Ansi 到 Utf8 的转换以适合编辑器缓冲，D5/6/7 中不会转换}
+  内部写文件时不进行转换。写缓冲时如果是 BDS 且 Stream 是 MemoryStream，
+  则可由 CheckUtf8 设为 True 来进行 Ansi 到 Utf8 的转换以适合编辑器缓冲，D5/6/7 中不会转换，
+  也就是 Ansi、Utf8/Ansi、Utf8}
 
 implementation
 
 uses
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebug,
-{$ENDIF Debug}
+{$ENDIF}
   CnWizUtils;
 
 procedure EditFilerSaveFileToStream(const FileName: string; Stream: TStream; CheckUtf8: Boolean);
 begin
   with TCnEditFiler.Create(FileName) do
   try
+{$IFDEF UNICODE}
+    SaveToStreamW(Stream);
+{$ELSE}
     SaveToStream(Stream, CheckUtf8);
+{$ENDIF}
   finally
     Free;
   end;
@@ -599,6 +606,7 @@ begin
       end;
       Stream.Write(Buf^, Size);
     end;
+    Stream.Write(TheEnd, 1);  // Write UTF16 #$0000
     Stream.Write(TheEnd, 1);
 
     if Stream is TMemoryStream then

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,12 +29,14 @@ unit CnProjectExtWizard;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2012.09.19 by shenloqi
-*               移植到Delphi XE3
+* 修改记录：2021.09.09 by LiuXiao
+*               抽出获取工程输出目录的函数
+*           2012.09.19 by shenloqi
+*               移植到 Delphi XE3
 *           2005.05.10
 *               Alan 新增工程目录创建器
 *           2005.05.03
-*               hubdog 将大部分的ExploreDir调用改成ExploreFile调用
+*               hubdog 将大部分的 ExploreDir 调用改成 ExploreFile 调用
 *           2004.12.31 V3.0
 *               qsoft 新加项目备份向导
 *           2004.07.22 V2.0
@@ -75,7 +77,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, Dialogs, ActnList,
   ToolsAPI, IniFiles, ShellAPI, Menus, FileCtrl, {$IFDEF BDS} Variants, {$ENDIF}
-  {$IFDEF DelphiXE3_UP}Actions,{$ENDIF}
+  {$IFDEF DelphiXE3_UP} Actions,{$ENDIF}
   CnCommon, CnWizClasses, CnWizUtils, CnConsts, CnWizConsts, CnProjectViewUnitsFrm,
   CnProjectViewFormsFrm, CnProjectListUsedFrm, CnProjectDelTempFrm, CnIni,
   CnWizCompilerConst, CnProjectBackupFrm, CnProjectDirBuilderFrm, CnWizMethodHook,
@@ -106,7 +108,9 @@ type
     IdProjBackup: Integer;
     IdDelTemp: Integer;
     IdDirBuilder: Integer;
-
+  {$IFDEF SUPPORT_FMX}
+    IdConvertVclToFmx: Integer;
+  {$ENDIF}
     FUnitsListAction: TContainedAction;
     FFormsListAction: TContainedAction;
     FUseUnitAction: TContainedAction;
@@ -120,7 +124,6 @@ type
     FOldViewDialogExecute: Pointer;
     FPasUnitNameList: TUnitNameList;
     FCppUnitNameList: TUnitNameList;
-    function GetOutputDir: string;
   {$IFNDEF BDS}
     procedure RunSeparately;
   {$ENDIF}
@@ -173,10 +176,14 @@ uses
 {$IFDEF DEBUG}
   CnDebug,
 {$ENDIF}
+  {$IFDEF SUPPORT_FMX} CnVclToFmxIntf, {$ENDIF}
   CnWizIdeUtils, CnWizOptions, CnWizMenuAction, CnProjectUseUnitsFrm;
 
 const
   SCnViewDialogExecuteName = '@Viewdlg@TViewDialog@Execute$qqrv';
+{$IFDEF SUPPORT_FMX}
+  SCnVclToFmxDllName = 'CnVclToFmx.dll';
+{$ENDIF}
 
 //==============================================================================
 // 工程扩展专家
@@ -187,7 +194,7 @@ const
 constructor TCnProjectExtWizard.Create;
 begin
   inherited;
-  FCorIdeModule := LoadLibrary(CorIdeLibName);
+  FCorIdeModule := GetModuleHandle(CorIdeLibName);
   if FCorIdeModule <> 0 then
   begin
     FOldViewDialogExecute := GetProcAddress(FCorIdeModule, SCnViewDialogExecuteName);
@@ -212,8 +219,7 @@ begin
   FPasUnitNameList.Free;
   FCppUnitNameList.Free;
   FMethodHook.Free;
-  if FCorIdeModule <> 0 then
-    FreeLibrary(FCorIdeModule);
+
   inherited;
 end;
 
@@ -244,45 +250,11 @@ end;
 // 功能执行
 //------------------------------------------------------------------------------
 
-function TCnProjectExtWizard.GetOutputDir: string;
-var
-  ProjectDir: string;
-{$IFNDEF DELPHI2011_UP}
-  OutputDir: Variant;
-{$ENDIF}
-begin
-  ProjectDir := _CnExtractFileDir(CnOtaGetCurrentProjectFileName);
-{$IFDEF DELPHI2011_UP}
-  if CnOtaGetActiveProjectOptions <> nil then
-  begin
-    Result := _CnExtractFilePath(CnOtaGetActiveProjectOptions.TargetName);
-  end
-  else
-  begin
-    Result := ProjectDir;
-  end;
-{$ELSE}
-  if CnOtaGetActiveProjectOption('OutputDir', OutputDir) then
-  begin
-    // D2011 下 OutputDir 是 $(Config)/$(Platform) 的形式，Replace替换不到 Config，会出错
-    Result := LinkPath(ProjectDir, ReplaceToActualPath(OutputDir))
-  end
-  else
-  begin
-    Result := ProjectDir;
-  end;
-{$ENDIF}
-
-{$IFDEF DEBUG}
-  CnDebugger.LogMsg('OutputDir: ' + Result);
-{$ENDIF}
-end;
-
 procedure TCnProjectExtWizard.ExploreExe;
 var
   Project: IOTAProject;
   Dir, ProjectFileName, OutName: string;
-{$IFNDEF DELPHI2011_UP}
+{$IFNDEF DELPHIXE_UP}
   OutExt, IntermediaDir: string;
   Val: Variant;
 {$ENDIF}
@@ -294,10 +266,10 @@ begin
   ProjectFileName := Project.GetFileName;
   if ProjectFileName <> '' then
   begin
-    Dir := GetOutputDir;
+    Dir := CnOtaGetProjectOutputDirectory(Project);
     if Dir <> '' then
     begin
-{$IFDEF DELPHI2011_UP}
+{$IFDEF DELPHIXE_UP}
       if CnOtaGetActiveProjectOptions <> nil then
         OutName := CnOtaGetActiveProjectOptions.TargetName;
 {$ELSE}
@@ -392,6 +364,7 @@ begin
 end;
 
 {$IFNDEF BDS}
+
 procedure TCnProjectExtWizard.RunSeparately;
 var
   Project: IOTAProject;
@@ -433,7 +406,7 @@ begin
   // 无宿主程序
   if ExeName = '' then
   begin
-    OutputDir := GetOutputDir;
+    OutputDir := CnOtaGetProjectOutputDirectory(Project);
     ExeName := MakePath(OutputDir) + _CnChangeFileExt(_CnExtractFileName(ProjectFileName), '.exe');
   end;
 
@@ -446,6 +419,7 @@ begin
     ShellExecute(0, 'open', PChar(ExeName), PChar(Params),
       PChar(_CnExtractFileDir(ExeName)), SW_SHOWNORMAL);
 end;
+
 {$ENDIF}
 
 //------------------------------------------------------------------------------
@@ -507,11 +481,26 @@ begin
   IdDirBuilder := RegisterASubAction(SCnProjExtDirBuilder,
     SCnProjExtDirBuilderCaption, 0,
     SCnProjExtDirBuilderHint, SCnProjExtDirBuilder);
+
+{$IFDEF SUPPORT_FMX}
+  AddSepMenu;
+
+  IdConvertVclToFmx := RegisterASubAction(SCnProjExtVclToFmx,
+    SCnProjExtVclToFmxCaption, 0,
+    SCnProjExtVclToFmxHint, SCnProjExtVclToFmx);;
+{$ENDIF}
 end;
 
 procedure TCnProjectExtWizard.SubActionExecute(Index: Integer);
 var
   Ini: TCustomIniFile;
+{$IFDEF SUPPORT_FMX}
+  VFHandle: HModule;
+  VFProc: TCnGetVclToFmxConverter;
+  VFIntf: ICnVclToFmxIntf;
+  DlgOpen: TOpenDialog;
+  DlgSave: TSaveDialog;
+{$ENDIF}
 begin
   if not Active then
     Exit;
@@ -601,6 +590,62 @@ begin
     Ini := CreateIniFile;
     // 由内部释放，此处无需再 Free
     ShowProjectDirBuilder(Ini);
+  end
+  else
+  begin
+{$IFDEF SUPPORT_FMX}
+    if Index = IdConvertVclToFmx then
+    begin
+      VFHandle := Loadlibrary(PChar(MakePath(WizOptions.DllPath) + SCnVclToFmxDllName));
+      if VFHandle <> 0 then
+      begin
+        DlgOpen := nil;
+        DlgSave := nil;
+
+        try
+          VFProc := TCnGetVclToFmxConverter(GetProcAddress(VFHandle, 'GetVclToFmxConverter'));
+          if Assigned(VFProc) then
+          begin
+            VFIntf := VFProc();
+            if VFIntf <> nil then
+            begin
+              DlgOpen := TOpenDialog.Create(nil);
+              DlgOpen.Filter := '*.dfm|*.dfm';
+              DlgOpen.DefaultExt := '*.dfm';
+
+              if DlgOpen.Execute then
+              begin
+                try
+                  if VFIntf.OpenAndConvertFile(PChar(DlgOpen.FileName)) then
+                  begin
+                    DlgSave := TSaveDialog.Create(nil);
+                    DlgSave.Filter := '*.fmx|*.fmx';
+                    DlgSave.DefaultExt := '*.fmx';
+
+                    if DlgSave.Execute then
+                    begin
+                      if VFIntf.SaveNewFile(PChar(DlgSave.FileName)) then
+                        InfoDlg(SCnProjExtVclToFmxConvertOK)
+                      else
+                        ErrorDlg(SCnProjExtVclToFmxConvertError);
+                    end;
+                  end
+                  else
+                    ErrorDlg(SCnProjExtVclToFmxConvertError);
+                except
+                  ErrorDlg(SCnProjExtVclToFmxConvertError);
+                end;
+              end;
+            end;
+          end;
+        finally
+          DlgSave.Free;
+          DlgOpen.Free;
+          FreeLibrary(VFHandle);
+        end;
+      end;
+    end;
+{$ENDIF}
   end;
 end;
 

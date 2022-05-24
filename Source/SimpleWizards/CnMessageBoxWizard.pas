@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -164,7 +164,6 @@ type
     procedure btnExportClick(Sender: TObject);
     procedure btnImportClick(Sender: TObject);
   private
-    { Private declarations }
     FIni: TCustomIniFile;
     FPrjIni: TMemIniFile;
     FConfigOnly: Boolean;
@@ -222,7 +221,6 @@ type
     property Ini: TCustomIniFile read FIni;
     property ConfigOnly: Boolean read FConfigOnly;
   public
-    { Public declarations }
     constructor CreateEx(AOwner: TComponent; AIni: TCustomIniFile; AConfigOnly: Boolean);
     procedure LoadProject(Ini: TMemIniFile; const Section: string); virtual;
     procedure SaveProject(Ini: TMemIniFile; const Section: string); virtual;
@@ -273,6 +271,7 @@ type
     procedure Config; override;
     function GetState: TWizardState; override;
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     function GetCaption: string; override;
     function GetHint: string; override;
     function GetDefShortCut: TShortCut; override;
@@ -477,7 +476,7 @@ begin
     Inc(I);
   until cbbProjects.Items.IndexOf(Project) < 0;
 
-  if CnInputQuery(SCnMsgBoxProjectCaption, SCnMsgBoxProjectPrompt, Project) and
+  if CnWizInputQuery(SCnMsgBoxProjectCaption, SCnMsgBoxProjectPrompt, Project) and
     (Project <> '') then               // 要求用户输入模板名
   begin
     if (cbbProjects.Items.IndexOf(Project) < 0) or QueryDlg(SCnMsgBoxProjectExists) then
@@ -1656,6 +1655,12 @@ begin
         (gbResult.Controls[I] as TCheckBox).Caption := MsgBoxResultStrs[TCnMsgBoxResultKind(I)];
     end;
   end;
+end;
+
+function TCnMessageBoxWizard.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '弹窗,信息,提示框,' +
+    'messagedlg,info,query,warning,error,yesno,ok,cancel,abort,retry,ignore,';
 end;
 
 initialization

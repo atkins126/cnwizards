@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -44,12 +44,12 @@ unit CnWizUtils;
 * 修改记录：2015.04 by liuxiao
 *               加入一批 Unicode 版本的函数
 *           2012.10.01 by shenloqi
-*               修复CnOtaGetCurrLineText不能获取最后一行和未TrimRight的BUG
-*               修复CnOtaInsertSingleLine不能正确在第一行插入的BUG
+*               修复 CnOtaGetCurrLineText 不能获取最后一行和未 TrimRight 的 BUG
+*               修复 CnOtaInsertSingleLine 不能正确在第一行插入的 BUG
 *           2012.09.19 by shenloqi
-*               移植到Delphi XE3
+*               移植到 Delphi XE3
 *           2005.05.06 by hubdog
-*               追加设置项目属性值的函数，修改CnOtaGetActiveProjectOptions
+*               追加设置项目属性值的函数，修改 CnOtaGetActiveProjectOptions
 *           2005.05.04 by hubdog
 *               复制控件名称后，自动切换到代码模式
 *           2002.09.17 V1.0
@@ -63,13 +63,12 @@ interface
 
 uses
   Windows, Messages, Classes, Graphics, Controls, SysUtils, Menus, ActnList,
-  Forms, ImgList, ExtCtrls, ExptIntf, ToolsAPI, ComObj, IniFiles, FileCtrl,
-  {$IFDEF COMPILER6_UP}
-  DesignIntf, DesignEditors, ComponentDesigner, Variants, Types,
-  {$ELSE}
-  DsgnIntf, LibIntf,
-  {$ENDIF}
+  Forms, ImgList, ExtCtrls, ExptIntf, ToolsAPI, ComObj, IniFiles, FileCtrl, Buttons,
+  {$IFDEF COMPILER6_UP} DesignIntf, DesignEditors, ComponentDesigner, Variants, Types,
+  {$ELSE} DsgnIntf, LibIntf,{$ENDIF}
   {$IFDEF DELPHIXE3_UP} Actions,{$ENDIF}
+  {$IFDEF IDE_SUPPORT_HDPI} Vcl.VirtualImageList,
+  Vcl.BaseImageCollection, Vcl.ImageCollection, {$ENDIF}
   {$IFDEF IDE_SUPPORT_THEMING} CnIDEMirrorIntf, {$ENDIF}
   mPasLex, mwBCBTokenList, CnPasWideLex, CnBCBWideTokenList,
   Clipbrd, TypInfo, ComCtrls, StdCtrls, Imm, Contnrs, RegExpr, CnWizCompilerConst,
@@ -83,6 +82,8 @@ type
   ECnEmptyCommand = class(ECnWizardException);
 
   TFormType = (ftBinary, ftText, ftUnknown);
+  TShortCutDuplicated = (sdNoDuplicated, sdDuplicatedIgnore, sdDuplicatedStop);
+  // 快捷键冲突的三种状态
 
 {$IFNDEF COMPILER6_UP}
   IDesigner = IFormDesigner;
@@ -91,21 +92,39 @@ type
 {$IFDEF IDE_STRING_ANSI_UTF8}
   TCnIdeTokenString = WideString; // WideString for Utf8 Conversion
   PCnIdeTokenChar = PWideChar;
+  TCnIdeTokenChar = WideChar;
+  TCnIdeTokenInt = Word;
 {$ELSE}
   TCnIdeTokenString = string;     // Ansi/Utf16
   PCnIdeTokenChar = PChar;
+  TCnIdeTokenChar = Char;
+  {$IFDEF UNICODE}
+  TCnIdeTokenInt = Word;
+  {$ELSE}
+  TCnIdeTokenInt = Byte;
+  {$ENDIF}
 {$ENDIF}
+  PCnIdeTokenInt = ^TCnIdeTokenInt;
 
+  // Ansi/Utf16/Utf16，配合 CnGeneralSaveEditorToStream 系列使用，对应 Ansi/Utf16/Utf16
 {$IFDEF SUPPORT_WIDECHAR_IDENTIFIER}  // 2005 以上
   TCnGeneralPasToken = TCnWidePasToken;
   TCnGeneralCppToken = TCnWideCppToken;
   TCnGeneralPasStructParser = TCnWidePasStructParser;
   TCnGeneralCppStructParser = TCnWideCppStructParser;
+  TCnGeneralWidePasLex = TCnPasWideLex;
 {$ELSE}                               // 5 6 7
   TCnGeneralPasToken = TCnPasToken;
   TCnGeneralCppToken = TCnCppToken;
   TCnGeneralPasStructParser = TCnPasStructureParser;
   TCnGeneralCppStructParser = TCnCppStructureParser;
+  TCnGeneralWidePasLex = TmwPasLex;
+{$ENDIF}
+
+{$IFDEF UNICODE}
+  TCnGeneralPasLex = TCnPasWideLex; // TCnGeneralPasLex 在 2005~2007 下仍用 TmwPasLex
+{$ELSE}
+  TCnGeneralPasLex = TmwPasLex;     // 配合 EditFilerSaveFileToStream 系列使用，Ansi/Ansi/Utf16
 {$ENDIF}
 
   TCnBookmarkObject = class
@@ -134,7 +153,7 @@ const
 var
   CnNoIconList: TStrings;
   IdeClosing: Boolean;
-  CnLoadIconProc: TCnLoadIconProc = nil;
+  CnLoadIconProc: TCnLoadIconProc = nil; // 加载完每一个图标后调用，给外部一个机会修改图标内容
 
 //==============================================================================
 // 公共信息函数
@@ -158,16 +177,34 @@ function CnGetClassParentFromClass(AClass: Integer): Integer;
 {* 供 Pascal Script 使用的从整型的类信息获取父类信息的函数}
 
 function CnWizLoadIcon(AIcon: TIcon; ASmallIcon: TIcon; const ResName: string;
-  UseDefault: Boolean = False): Boolean;
+  UseDefault: Boolean = False; IgnoreDisabled: Boolean = False): Boolean;
 {* 从资源或文件中装载图标，执行时先从图标目录中查找，如果失败再从资源中查找，
    返回结果为 AIcon 图标装载成功标志。参数 ResName 请不要带 .ico 扩展名。
-   AIcon 加载系统默认尺寸一般是32*32，ASmallIcon 加载 16*16 如果有的话，否则为空}
+   AIcon 加载系统默认尺寸一般是 32*32，ASmallIcon 加载 16*16 如果有的话，否则为空
+   注意 ASmallIcon 本身的尺寸仍可能是 32*32，只是左上角 16*16 有内容}
 function CnWizLoadBitmap(ABitmap: TBitmap; const ResName: string): Boolean;
 {* 从资源或文件中装载位图，执行时先从图标目录中查找，如果失败再从资源中查找，
    返回结果为位图装载成功标志。参数 ResName 请不要带 .bmp 扩展名}
 function AddIconToImageList(AIcon: TIcon; ImageList: TCustomImageList;
   Stretch: Boolean = True): Integer;
 {* 增加图标到 ImageList 中，可使用平滑处理}
+
+{$IFDEF IDE_SUPPORT_HDPI}
+
+procedure CopyImageListToVirtual(SrcImageList: TCustomImageList;
+  DstVirtual: TVirtualImageList; const ANamePrefix: string = '';
+  Disabled: Boolean = False);
+{* 将传统的 ImageList 复制进 TVirtualImageList，内部会先往 ImageCollection 中塞}
+function AddGraphicToVirtualImageList(Graphic: TGraphic; DstVirtual: TVirtualImageList;
+  const ANamePrefix: string = ''; Disabled: Boolean = False): Integer;
+{* 将普通的 TGraphic 复制进 TVirtualImageList，内部会先往 ImageCollection 中塞}
+procedure CopyVirtualImageList(SrcVirtual, DstVirtual: TVirtualImageList;
+  Disabled: Boolean = False);
+{* 将 TVirtualImageList 复制进 TVirtualImageList，源和目标可以共用一个 ImageCollection
+  如不共用，则内部先复制 ImageCollection 内容。后面复制 ImageList 引用内容再内部绘图}
+
+{$ENDIF}
+
 function CreateDisabledBitmap(Glyph: TBitmap): TBitmap;
 {* 创建一个 Disabled 的位图，返回对象需要调用方释放}
 procedure AdjustButtonGlyph(Glyph: TBitmap);
@@ -188,6 +225,10 @@ function GetCaptionOrgStr(const Caption: string): string;
 {* 删除标题中热键信息}
 function GetIDEImageList: TCustomImageList;
 {* 取得 IDE 主 ImageList}
+{$IFDEF IDE_SUPPORT_HDPI}
+function GetIDEImagecollection: TCustomImageCollection;
+{* 取得 IDE 主 ImageList 且是 VirtualImageList 时对应的 ImageCollection}
+{$ENDIF}
 procedure SaveIDEImageListToPath(ImgList: TCustomImageList; const Path: string);
 {* 保存 IDE ImageList 中的图像到指定目录下}
 procedure SaveMenuNamesToFile(AMenu: TMenuItem; const FileName: string);
@@ -198,6 +239,8 @@ function GetIDEToolsMenu: TMenuItem;
 {* 取得 IDE 主菜单下的 Tools 菜单}
 function GetIDEActionList: TCustomActionList;
 {* 取得 IDE 主 ActionList}
+function GetIDEActionFromName(const AName: string): TCustomAction;
+{* 取得 IDE 主 ActionList 中指定名称的 Action}
 function GetIDEActionFromShortCut(ShortCut: TShortCut): TCustomAction;
 {* 取得 IDE 主 ActionList 中指定快捷键的 Action}
 function GetIdeRootDirectory: string;
@@ -212,6 +255,12 @@ procedure SaveProjectOptionsNameToFile(const FileName: string);
 {* 保存当前工程环境设置变量名到指定文件}
 function FindIDEAction(const ActionName: string): TContainedAction;
 {* 根据 IDE Action 名，返回对象}
+procedure FindIDEActionByShortCut(AShortCut: TShortCut; Actions: TObjectList);
+{* 根据快捷键返回 IDE 对应的 Action 对象，可能有多个}
+function CheckQueryShortCutDuplicated(AShortCut: TShortCut;
+  OriginalAction: TCustomAction): TShortCutDuplicated;
+{* 判断快捷键是否和现有其他 Action 冲突，排除 OriginalAction
+  有冲突则弹框询问，返回无冲突、有冲突但用户同意、有冲突用户停止}
 function ExecuteIDEAction(const ActionName: string): Boolean;
 {* 根据 IDE Action 名，执行它}
 function AddMenuItem(Menu: TMenuItem; const Caption: string;
@@ -398,9 +447,9 @@ function FindControlByClassName(AParent: TWinControl; const AClassName: string):
 function QuerySvcs(const Instance: IUnknown; const Intf: TGUID; out Inst): Boolean;
 {* 查询输入的服务接口并返回一个指定接口实例，如果失败，返回 False}
 function CnOtaGetEditBuffer: IOTAEditBuffer;
-{* 取IOTAEditBuffer接口}
+{* 取 IOTAEditBuffer 接口}
 function CnOtaGetEditPosition: IOTAEditPosition;
-{* 取IOTAEditPosition接口}
+{* 取 IOTAEditPosition 接口}
 function CnOtaGetTopOpenedEditViewFromFileName(const FileName: string; ForceOpen: Boolean = True): IOTAEditView;
 {* 根据文件名返回编辑器中打开的第一个 EditView，未打开时如 ForceOpen 为 True 则尝试打开，否则返回 nil}
 function CnOtaGetTopMostEditView: IOTAEditView; overload;
@@ -425,6 +474,8 @@ function CnOtaGetDesignContainerFromEditor(FormEditor: IOTAFormEditor): TWinCont
 {* 取得窗体编辑器的容器控件或 DataModule 的容器，注意 DataModule 容器不一定是顶层窗口}
 function CnOtaGetCurrentDesignContainer: TWinControl;
 {* 取得当前窗体编辑器的容器控件或 DataModule 的容器，注意 DataModule 容器不一定是顶层窗口}
+function CnOtaGetSelectedComponentFromCurrentForm(List: TList): Boolean;
+{* 取得当前窗体编辑器的已选择的组件}
 function CnOtaGetSelectedControlFromCurrentForm(List: TList): Boolean;
 {* 取得当前窗体编辑器的已选择的控件}
 function CnOtaShowFormForModule(const Module: IOTAModule): Boolean;
@@ -449,6 +500,8 @@ function CnOtaGetEditor(const FileName: string): IOTAEditor;
 {* 根据文件名返回编辑器接口}
 function CnOtaGetRootComponentFromEditor(Editor: IOTAFormEditor): TComponent;
 {* 返回窗体编辑器设计窗体组件，或 DataModule 设计器的实例}
+function CnOtaGetFormDesignerGridOffset: TPoint;
+{* 返回窗体设计器的格点也就是 Grid 的横竖步进像素数}
 function CnOtaGetCurrentEditWindow: TCustomForm;
 {* 取当前的 EditWindow}
 function CnOtaGetCurrentEditControl: TWinControl;
@@ -459,6 +512,8 @@ function CnOtaGetProjectGroup: IOTAProjectGroup;
 {* 取当前工程组}
 function CnOtaGetProjectGroupFileName: string;
 {* 取当前工程组文件名}
+function CnOtaGetProjectSourceFileName(Project: IOTAProject): string;
+{* 取工程的源码文件 dpr/dpk}
 function CnOtaGetProjectResource(Project: IOTAProject): IOTAProjectResource;
 {* 取工程资源}
 function CnOtaGetProjectVersion(Project: IOTAProject = nil): string;
@@ -495,12 +550,14 @@ procedure CnOtaGetPlatformsFromBuildConfiguration(BuildConfig: IOTABuildConfigur
 {* 获取 BuildConfiguration 的 Platforms 至 TStrings 中，以避免低版本与脚本不支持泛型的问题}
 {$ENDIF}
 
+function CnOtaGetProjectOutputDirectory(Project: IOTAProject): string;
+{* 获得项目的二进制文件输出目录}
 procedure CnOtaGetProjectList(const List: TInterfaceList);
 {* 取得所有工程列表}
 function CnOtaGetCurrentProjectName: string;
-{* 取当前工程名称}
+{* 取当前工程名称，无扩展名}
 function CnOtaGetCurrentProjectFileName: string;
-{* 取当前工程文件名称}
+{* 取当前工程文件名称，扩展名可能是 dpr/bdsproj/dproj}
 function CnOtaGetCurrentProjectFileNameEx: string;
 {* 取当前工程文件名称扩展}
 function CnOtaGetCurrentFormName: string;
@@ -645,6 +702,9 @@ function CnOtaIsEditPosOutOfLine(EditPos: TOTAEditPos; View: IOTAEditView = nil)
 procedure CnOtaGetCurrentBreakpoints(Results: TList);
 {* 使用 CnWizDebuggerNotifierServices 获取当前源文件内的断点，
    List 中返回 TCnBreakpointDescriptor 实例}
+function CnOtaSelectCurrentToken(FirstSet: TAnsiCharSet = [];
+  CharSet: TAnsiCharSet = []): Boolean;
+{* 选中当前光标下的标识符，如果光标下没有标识符则返回 False}
 
 {$ENDIF}
 
@@ -687,7 +747,7 @@ function CnOtaIsModuleModified(AModule: IOTAModule): Boolean;
 function CnOtaModuleIsShowingFormSource(Module: IOTAModule): Boolean;
 {* 指定模块是否以文本窗体方式显示, Lines 为转到指定行，<= 0 忽略}
 function CnOtaMakeSourceVisible(const FileName: string; Lines: Integer = 0): Boolean;
-{* 让指定文件可见}
+{* 让指定文件可见。如果 Lines 参数大于 0，则滚动到让第 Lines 行垂直居中}
 function CnOtaIsDebugging: Boolean;
 {* 当前是否在调试状态}
 function CnOtaGetBaseModuleFileName(const FileName: string): string;
@@ -756,8 +816,12 @@ function CnOtaGetCurrentSourceFile: string;
 function CnOtaGetCurrentSourceFileName: string;
 {* 取当前编辑的 Pascal 或 C 源文件，判断限制较多}
 
-// 在 EditPosition 中插入一段文本，支持 D2005 下使用 utf-8 格式
 procedure CnOtaPositionInsertText(EditPosition: IOTAEditPosition; const Text: string);
+{* 在 EditPosition 中插入一段文本，支持 D2005 下使用 utf-8 格式}
+
+function CnOtaGetLinesElideInfo(Infos: TList; EditControl: TControl = nil): Boolean;
+{* 拿一编辑器中的行折叠信息，Infos 这个 List 里顺序放入折叠的开始行和结束行
+  无折叠或不支持折叠时返回 False，注意暂时无法区分紧邻的两个折叠块}
 
 type
   TInsertPos = (ipCur, ipFileHead, ipFileEnd, ipLineHead, ipLineEnd);
@@ -815,17 +879,17 @@ function CnOtaGetCurrCharPos(SourceEditor: IOTASourceEditor = nil): TOTACharPos;
 {* 返回 SourceEditor 当前光标位置}
 
 function CnOtaEditPosToLinePos(EditPos: TOTAEditPos; EditView: IOTAEditView = nil): Integer;
-{* 编辑位置转换为线性位置，均为 0 开始的 Ansi/Utf8/Utf8混合Ansi
+{* 编辑位置转换为线性位置，均为 0 开始的 Ansi/Utf8/Utf8 混合 Ansi
    在 Unicode 环境下该位置之前有宽字符时其值不靠谱}
 
 function CnOtaLinePosToEditPos(LinePos: Integer; EditView: IOTAEditView = nil): TOTAEditPos;
-{* 线性位置转换为编辑位置，线性位置要求为 0 开始的 Ansi/Utf8/Utf8混合Ansi
+{* 线性位置转换为编辑位置，线性位置要求为 0 开始的 Ansi/Utf8/Utf8 混合 Ansi
    在 Unicode 环境下该位置之前有宽字符时传参没法靠谱}
 
 procedure CnOtaSaveReaderToStream(EditReader: IOTAEditReader; Stream:
   TMemoryStream; StartPos: Integer = 0; EndPos: Integer = 0;
   PreSize: Integer = 0; CheckUtf8: Boolean = True; AlternativeWideChar: Boolean = False);
-{* 保存 EditReader 内容到流中，流中的内容默认为 Ansi 格式，带末尾 #0 字符，
+{* 保存 EditReader 内容到流中，流中的内容 CheckUtf8 为默认 True 时为 Ansi 格式，否则为 Ansi/Utf8/Utf8，均带末尾 #0 字符，
    AlternativeWideChar 表示 CheckUtf8 为 True 时，在纯英文 OS 的 Unicode 环境下，
    是否将转换成的 Ansi 中的每个宽字符手动替换成两个空格。此选项用于躲过纯英文 OS
    的 Unicode 环境下 UnicodeString 直接转 Ansi 时的丢字符问题}
@@ -833,22 +897,23 @@ procedure CnOtaSaveReaderToStream(EditReader: IOTAEditReader; Stream:
 procedure CnOtaSaveEditorToStreamEx(Editor: IOTASourceEditor; Stream:
   TMemoryStream; StartPos: Integer = 0; EndPos: Integer = 0;
   PreSize: Integer = 0; CheckUtf8: Boolean = True; AlternativeWideChar: Boolean = False);
-{* 保存编辑器文本到流中}
+{* 保存编辑器文本到流中，CheckUtf8 为 True 时均为 Ansi 格式，否则为 Ansi/Utf8/Utf8}
 
 function CnOtaSaveEditorToStream(Editor: IOTASourceEditor; Stream: TMemoryStream;
   FromCurrPos: Boolean = False; CheckUtf8: Boolean = True; AlternativeWideChar: Boolean = False): Boolean;
-{* 保存编辑器文本到流中}
+{* 保存编辑器文本到流中，CheckUtf8 为 True 时均为 Ansi 格式，否则为 Ansi/Utf8/Utf8}
 
 function CnOtaSaveCurrentEditorToStream(Stream: TMemoryStream; FromCurrPos:
   Boolean; CheckUtf8: Boolean = True; AlternativeWideChar: Boolean = False): Boolean;
-{* 保存当前编辑器文本到流中}
+{* 保存当前编辑器文本到流中，CheckUtf8 为 True 时均为 Ansi 格式，否则为 Ansi/Utf8/Utf8}
 
 function CnOtaGetCurrentEditorSource(CheckUtf8: Boolean = True): string;
 {* 取得当前编辑器源代码}
 
 function CnGeneralSaveEditorToStream(Editor: IOTASourceEditor;
   Stream: TMemoryStream; FromCurrPos: Boolean = False): Boolean;
-{* 封装的一通用方法保存编辑器文本到流中，BDS 以上均使用 WideChar，D567 使用 AnsiChar，均不带 UTF8}
+{* 封装的一通用方法保存编辑器文本到流中，BDS 以上均使用 WideChar，D567 使用 AnsiChar，均不带 UTF8
+  也就是 Ansi/Utf16/Utf16}
 
 {$IFDEF IDE_STRING_ANSI_UTF8}
 
@@ -955,14 +1020,17 @@ procedure CnOtaGotoEditPosAndRepaint(EditView: IOTAEditView; EditPosLine: Intege
 
 procedure CnOtaGotoPosition(Position: Longint; EditView: IOTAEditView = nil;
   Middle: Boolean = True);
-{* 移动光标到指定位置，如果 EditView 为空使用当前值。}
+{* 移动光标到指定位置，如果 EditView 为空使用当前值。
+  Middle 为 True 时表示垂直方向上滚动至居中，False 表示仅滚动到最近可见，如本来可见就不滚动}
 
 function CnOtaGetEditPos(EditView: IOTAEditView): TOTAEditPos;
 {* 返回当前光标位置，如果 EditView 为空使用当前值。 }
 
 procedure CnOtaGotoEditPos(EditPos: TOTAEditPos; EditView: IOTAEditView = nil;
   Middle: Boolean = True);
-{* 移动光标到指定位置，BDS 以上的列使用 Utf8 的列值。如果 EditView 为空使用当前值。}
+{* 移动光标到指定位置，BDS 以上的列使用 Utf8 的列值。如果 EditView 为空使用当前值。
+  Middle 为 True 时表示垂直方向上滚动至居中，但似乎有问题
+  False 表示仅滚动到最近可见，如本来可见就不滚动}
 
 function CnOtaGetCharPosFromPos(Position: LongInt; EditView: IOTAEditView): TOTACharPos;
 {* 转换一个线性位置到 TOTACharPos，因为在 D5/D6 下 IOTAEditView.PosToCharPos
@@ -1020,6 +1088,9 @@ procedure ConvertGeneralTokenPos(EditView: Pointer; AToken: TCnGeneralPasToken);
 
 function GetTokenAnsiEditCol(AToken: TCnGeneralPasToken): Integer;
 {* 获取一个 GeneralPasToken 的 AnsiCol}
+
+procedure ParseUnitUsesFromFileName(const FileName: string; UsesList: TStrings);
+{* 分析源代码中引用的单元，FileName 是完整文件名}
 
 //==============================================================================
 // 窗体操作相关函数
@@ -1111,8 +1182,23 @@ procedure TranslateFormFromLangFile(AForm: TCustomForm; const ALangDir, ALangFil
 {* 加载指定的语言文件翻译窗体}
 {$ENDIF}
 
+procedure CnEnlargeButtonGlyphForHDPI(const Button: TControl);
+{* 根据 HDPI 设置，放大 Button 中的 Glyph，Button 只能是 SpeedButton 或 BitBtn}
+
+function CnWizInputQuery(const ACaption, APrompt: string;
+  var Value: string; Ini: TCustomIniFile = nil;
+  const Section: string = csDefComboBoxSection): Boolean;
+{* 封装的输入对话框，内部允许回调设置放大等}
+
+function CnWizInputBox(const ACaption, APrompt, ADefault: string;
+   Ini: TCustomIniFile = nil; const Section: string = csDefComboBoxSection): string;
+{* 封装的输入对话框，内部允许回调设置放大等}
+
 procedure CnWizAssert(Expr: Boolean; const Msg: string = '');
 {* 封装 Assert 判断}
+
+var
+  CnLoadedIconCount: Integer = 0; // 暗中记录加载的 Icon 数量
 
 implementation
 
@@ -1123,10 +1209,10 @@ uses
 {$IFDEF SUPPORT_FMX}
   CnFmxUtils,
 {$ENDIF}
-  Math, CnWizOptions, CnGraphUtils
+  Math, CnWizOptions, CnWizEditFiler, CnWizScaler, CnGraphUtils
 {$IFNDEF CNWIZARDS_MINIMUM}
   , CnWizMultiLang, CnLangMgr, CnWizIdeUtils, CnWizDebuggerNotifier, CnEditControlWrapper,
-  CnLangStorage, CnHashLangStorage, CnWizHelp
+  CnLangStorage, CnHashLangStorage, CnWizHelp, CnWizShortCut
 {$ENDIF}
   ;
 
@@ -1136,6 +1222,7 @@ const
 
 type
   TControlAccess = class(TControl);
+  TGraphicHack = class(TGraphic);
 
 var
 {$IFDEF COMPILER7_UP}
@@ -1150,13 +1237,13 @@ procedure CnRegisterNoIconProc(const ComponentClasses: array of TComponentClass)
 procedure CnRegisterNoIconProc(ComponentClasses: array of TComponentClass);
 {$ENDIF COMPILER7_UP}
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := Low(ComponentClasses) to High(ComponentClasses) do
+  for I := Low(ComponentClasses) to High(ComponentClasses) do
   begin
-    if CnNoIconList.IndexOf(ComponentClasses[i].ClassName) < 0 then
+    if CnNoIconList.IndexOf(ComponentClasses[I].ClassName) < 0 then
     begin
-      CnNoIconList.Add(ComponentClasses[i].ClassName);
+      CnNoIconList.Add(ComponentClasses[I].ClassName);
     end;
   end;
 
@@ -1230,21 +1317,21 @@ var
   FResInited: Boolean;
   HResModule: HMODULE;
 
-// 加载资源DLL文件
+// 加载资源 DLL 文件
 function LoadResDll: Boolean;
 begin
   if not FResInited then
   begin
     HResModule := LoadLibrary(PChar(WizOptions.DllPath + SCnWizResDllName));
-  {$IFDEF DEBUG}
+{$IFDEF DEBUG}
     CnDebugger.LogInteger(HResModule, 'HResModule');
-  {$ENDIF}
+{$ENDIF}
     FResInited := True;
   end;
   Result := HResModule <> 0;
 end;
 
-// 释放资源DLL文件
+// 释放资源 DLL 文件
 procedure FreeResDll;
 begin
   if HResModule <> 0 then
@@ -1254,10 +1341,10 @@ end;
 
 // 从资源或文件中装载图标
 function CnWizLoadIcon(AIcon: TIcon; ASmallIcon: TIcon; const ResName: string;
-  UseDefault: Boolean): Boolean;
+  UseDefault: Boolean; IgnoreDisabled: Boolean): Boolean;
 var
   FileName: string;
-  Handle: HICON;
+  AHandle: HICON;
 
   procedure AfterIconLoad;
   begin
@@ -1265,6 +1352,7 @@ var
       CnLoadIconProc(AIcon, ASmallIcon, ResName);
   end;
 
+  // 专门只加载 16x16 小图标
   procedure LoadAndCheckSmallIcon;
   begin
     // 指定小尺寸再加载图标
@@ -1283,6 +1371,8 @@ var
 
 begin
   Result := False;
+  if WizOptions.DisableIcons and not IgnoreDisabled then // 参数可强制忽略 WizOptions.DisableIcons
+    Exit;
 
   // 从文件中装载
   try
@@ -1299,6 +1389,8 @@ begin
         if not AIcon.Empty then
         begin
           Result := True;
+          Inc(CnLoadedIconCount);
+
           LoadAndCheckSmallIcon;
           AfterIconLoad;
           Exit;
@@ -1307,6 +1399,8 @@ begin
       else
       begin
         Result := True;
+        Inc(CnLoadedIconCount);
+
         LoadAndCheckSmallIcon;
         AfterIconLoad;
         Exit;
@@ -1322,55 +1416,67 @@ begin
     if AIcon <> nil then
     begin
       // 先装载最匹配尺寸 32 * 32
-      Handle := LoadImage(HResModule, PChar(UpperCase(ResName)), IMAGE_ICON, 32, 32, 0);
-      if Handle <> 0 then
+      AHandle := LoadImage(HResModule, PChar(UpperCase(ResName)), IMAGE_ICON, 32, 32, 0);
+      if AHandle <> 0 then
       begin
-        AIcon.Handle := Handle;
+        AIcon.Handle := AHandle;
+        Inc(CnLoadedIconCount);
         Result := True;
+
         // 再指定小尺寸加载
         if ASmallIcon <> nil then
         begin
-          Handle := LoadImage(HResModule, PChar(UpperCase(ResName)), IMAGE_ICON, 16, 16, 0);
-          if Handle <> 0 then
-            ASmallIcon.Handle := Handle;
+          AHandle := LoadImage(HResModule, PChar(UpperCase(ResName)), IMAGE_ICON, 16, 16, 0);
+          if AHandle <> 0 then
+          begin
+            ASmallIcon.Handle := AHandle;
+            Inc(CnLoadedIconCount);
+          end;
         end;
+
         AfterIconLoad;
         Exit;
       end;
     end
-    else if ASmallIcon <> nil then
+    else if ASmallIcon <> nil then // 只装载小尺寸的，对于只有 32x32 的图标文件来说可能不成功
     begin
-      Handle := LoadImage(HResModule, PChar(UpperCase(ResName)), IMAGE_ICON, 16, 16, 0);
-      if Handle <> 0 then
+      AHandle := LoadImage(HResModule, PChar(UpperCase(ResName)), IMAGE_ICON, 16, 16, 0);
+      if AHandle <> 0 then
       begin
-        ASmallIcon.Handle := Handle;
+        ASmallIcon.Handle := AHandle;
         Result := True;
+
+        Inc(CnLoadedIconCount);
         AfterIconLoad;
         Exit;
       end;
     end;
   end;
 
+  // 以上未加载成功才到这里
   if UseDefault then
   begin
     FileName := WizOptions.IconPath + CNWIZARDDEFAULT_ICO + SCnIcoFileExt;
-    if FileExists(FileName) then
+    if FileExists(FileName) then // 找默认的 ico 文件
     begin
       if AIcon <> nil then
       begin
-      AIcon.LoadFromFile(FileName);
-      if not AIcon.Empty then
-      begin
-        Result := True;
-        // 指定小尺寸再加载图标
-        if ASmallIcon <> nil then
+        AIcon.LoadFromFile(FileName);
+        if not AIcon.Empty then
         begin
-          ASmallIcon.Height := 16;
-          ASmallIcon.Width := 16;
-          ASmallIcon.LoadFromFile(FileName);
+          Result := True;
+          Inc(CnLoadedIconCount);
+
+          // 指定小尺寸再加载图标
+          if ASmallIcon <> nil then
+          begin
+            ASmallIcon.Height := 16;
+            ASmallIcon.Width := 16;
+            ASmallIcon.LoadFromFile(FileName);
+            Inc(CnLoadedIconCount);
+          end;
+          Exit;
         end;
-        Exit;
-      end;
       end
       else if ASmallIcon <> nil then
       begin
@@ -1378,37 +1484,47 @@ begin
         ASmallIcon.Width := 16;
         ASmallIcon.LoadFromFile(FileName);
         Result := True;
+
+        Inc(CnLoadedIconCount);
         Exit;
       end;
     end;
   end;
 
-  if UseDefault then
+  if UseDefault then // 再找默认图标资源
   begin
     if AIcon <> nil then
     begin
-    Handle := LoadImage(HResModule, PChar(UpperCase(CNWIZARDDEFAULT_ICO)), IMAGE_ICON, 0, 0, 0);
-    if Handle <> 0 then
-    begin
-      AIcon.Handle := Handle;
-      Result := True;
-      // 再指定小尺寸加载
-      if ASmallIcon <> nil then
+      AHandle := LoadImage(HResModule, PChar(UpperCase(CNWIZARDDEFAULT_ICO)), IMAGE_ICON, 0, 0, 0);
+      if AHandle <> 0 then
       begin
-        Handle := LoadImage(HResModule, PChar(UpperCase(ResName)), IMAGE_ICON, 16, 16, 0);
-        if Handle <> 0 then
-          ASmallIcon.Handle := Handle;
+        AIcon.Handle := AHandle;
+        Inc(CnLoadedIconCount);
+        Result := True;
+
+        // 再指定小尺寸加载
+        if ASmallIcon <> nil then
+        begin
+          AHandle := LoadImage(HResModule, PChar(UpperCase(CNWIZARDDEFAULT_ICO)), IMAGE_ICON, 16, 16, 0);
+          if AHandle <> 0 then
+          begin
+            ASmallIcon.Handle := AHandle;
+            Inc(CnLoadedIconCount);
+          end;
+        end;
+
+        Exit;
       end;
-      Exit;
-    end;
     end
     else if ASmallIcon <> nil then
     begin
-      Handle := LoadImage(HResModule, PChar(UpperCase(ResName)), IMAGE_ICON, 16, 16, 0);
-      if Handle <> 0 then
+      AHandle := LoadImage(HResModule, PChar(UpperCase(CNWIZARDDEFAULT_ICO)), IMAGE_ICON, 16, 16, 0);
+      if AHandle <> 0 then
       begin
-        ASmallIcon.Handle := Handle;
+        ASmallIcon.Handle := AHandle;
         Result := True;
+
+        Inc(CnLoadedIconCount);
         Exit;
       end;
     end;
@@ -1421,6 +1537,8 @@ var
   FileName: string;
 begin
   Result := False;
+  // if WizOptions.DisableIcons then // Bitmap 较少，不省略
+  //   Exit;
 
   // 从文件中装载
   try
@@ -1457,14 +1575,21 @@ const
 var
   SrcBmp, DstBmp: TBitmap;
   PSrc1, PSrc2, PDst: PRGBArray;
-  x, y: Integer;
+  X, Y: Integer;
 begin
   Assert(Assigned(AIcon));
   Assert(Assigned(ImageList));
+
+{$IFDEF DEBUG}
+  if not AIcon.Empty then
+    CnDebugger.LogFmt('AddIcon %dx%d To ImageList %dx%d', [AIcon.Width, AIcon.Height,
+      ImageList.Width, ImageList.Height]);
+{$ENDIF}
+
   if (ImageList.Width = 16) and (ImageList.Height = 16) and not AIcon.Empty and
     (AIcon.Width = 32) and (AIcon.Height = 32) then
   begin
-    if Stretch then // 指定拉伸的情况下，使用平滑处理
+    if Stretch then // ImageList 尺寸比图标大，指定拉伸的情况下，使用平滑处理
     begin
       SrcBmp := nil;
       DstBmp := nil;
@@ -1472,19 +1597,19 @@ begin
         SrcBmp := CreateEmptyBmp24(32, 32, MaskColor);
         DstBmp := CreateEmptyBmp24(16, 16, MaskColor);
         SrcBmp.Canvas.Draw(0, 0, AIcon);
-        for y := 0 to DstBmp.Height - 1 do
+        for Y := 0 to DstBmp.Height - 1 do
         begin
-          PSrc1 := SrcBmp.ScanLine[y * 2];
-          PSrc2 := SrcBmp.ScanLine[y * 2 + 1];
-          PDst := DstBmp.ScanLine[y];
-          for x := 0 to DstBmp.Width - 1 do
+          PSrc1 := SrcBmp.ScanLine[Y * 2];
+          PSrc2 := SrcBmp.ScanLine[Y * 2 + 1];
+          PDst := DstBmp.ScanLine[Y];
+          for X := 0 to DstBmp.Width - 1 do
           begin
-            PDst^[x].b := (PSrc1^[x * 2].b + PSrc1^[x * 2 + 1].b + PSrc2^[x * 2].b
-              + PSrc2^[x * 2 + 1].b) shr 2;
-            PDst^[x].g := (PSrc1^[x * 2].g + PSrc1^[x * 2 + 1].g + PSrc2^[x * 2].g
-              + PSrc2^[x * 2 + 1].g) shr 2;
-            PDst^[x].r := (PSrc1^[x * 2].r + PSrc1^[x * 2 + 1].r + PSrc2^[x * 2].r
-              + PSrc2^[x * 2 + 1].r) shr 2;
+            PDst^[X].b := (PSrc1^[X * 2].b + PSrc1^[X * 2 + 1].b + PSrc2^[X * 2].b
+              + PSrc2^[X * 2 + 1].b) shr 2;
+            PDst^[X].g := (PSrc1^[X * 2].g + PSrc1^[X * 2 + 1].g + PSrc2^[X * 2].g
+              + PSrc2^[X * 2 + 1].g) shr 2;
+            PDst^[X].r := (PSrc1^[X * 2].r + PSrc1^[X * 2 + 1].r + PSrc2^[X * 2].r
+              + PSrc2^[X * 2 + 1].r) shr 2;
           end;
         end;
         Result := ImageList.AddMasked(DstBmp, MaskColor);
@@ -1512,6 +1637,128 @@ begin
     Result := -1;
 end;
 
+{$IFDEF IDE_SUPPORT_HDPI}
+
+procedure CopyImageListToVirtual(SrcImageList: TCustomImageList;
+  DstVirtual: TVirtualImageList; const ANamePrefix: string; Disabled: Boolean);
+var
+  I, C1, C2: Integer;
+  Ico: TIcon;
+  Mem: TMemoryStream;
+  Collection: TImageCollection;
+begin
+  if (SrcImageList = nil) or (DstVirtual = nil) or
+    (DstVirtual.ImageCollection = nil) then
+    Exit;
+
+  if DstVirtual.ImageCollection is TImageCollection then
+    Collection := DstVirtual.ImageCollection as TImageCollection
+  else
+    Exit;
+
+  C1 := Collection.Count;
+  Mem := TMemoryStream.Create;
+  try
+    for I := 0 to SrcImageList.Count - 1 do
+    begin
+      Ico := TIcon.Create;
+      try
+        SrcImageList.GetIcon(I, Ico);
+        Mem.Clear;
+        Ico.SaveToStream(Mem);
+      finally
+        Ico.Free;
+      end;
+      Collection.Add(ANamePrefix + IntToStr(I), Mem);
+    end;
+  finally
+    Mem.Free;
+  end;
+  C2 := Collection.Count;
+
+  DstVirtual.Add('', C1, C2 - 1, Disabled);
+end;
+
+function AddGraphicToVirtualImageList(Graphic: TGraphic; DstVirtual: TVirtualImageList;
+  const ANamePrefix: string; Disabled: Boolean): Integer;
+var
+  C: Integer;
+  R: TRect;
+  Bmp: TBitmap;
+  Mem: TMemoryStream;
+  Collection: TImageCollection;
+begin
+  Result := -1;
+  if (Graphic = nil) or (DstVirtual = nil) then
+    Exit;
+
+  if DstVirtual.ImageCollection is TImageCollection then
+    Collection := DstVirtual.ImageCollection as TImageCollection
+  else
+    Exit;
+
+  C := Collection.Count;
+  Mem := TMemoryStream.Create;
+  try
+    if Graphic is TIcon then // 是 Icon 则直接存避免丢失透明度
+    begin
+      Mem.Clear;
+      (Graphic as TIcon).SaveToStream(Mem);
+    end
+    else if Graphic is TBitmap then
+    begin
+      Mem.Clear;
+      (Graphic as TBitmap).SaveToStream(Mem);
+    end
+    else
+    begin
+      Bmp := TBitmap.Create;
+      try
+        Bmp.PixelFormat := pf32bit;
+        Bmp.AlphaFormat := afIgnored;
+        Bmp.Width := Graphic.Width;
+        Bmp.Height := Graphic.Height;
+        R := Rect(0, 0, Bmp.Width, Bmp.Height);
+        TGraphicHack(Graphic).Draw(Bmp.Canvas, R);
+
+        Mem.Clear;
+        Bmp.SaveToStream(Mem);
+      finally
+        Bmp.Free;
+      end;
+    end;
+    Collection.Add(ANamePrefix + IntToStr(C), Mem);
+  finally
+    Mem.Free;
+  end;
+
+  DstVirtual.Add('', C, C, Disabled);
+  Result := DstVirtual.Count - 1;
+end;
+
+procedure CopyVirtualImageList(SrcVirtual, DstVirtual: TVirtualImageList;
+  Disabled: Boolean);
+begin
+  if (SrcVirtual = nil) or (DstVirtual = nil) then
+    Exit;
+
+  if SrcVirtual.ImageCollection = nil then
+    Exit;
+
+  // 如果目标没有，则共用源的
+  if DstVirtual.ImageCollection = nil then
+    DstVirtual.ImageCollection := SrcVirtual.ImageCollection;
+
+  // 如果目标有且不同于源，则复制
+  if SrcVirtual.ImageCollection <> DstVirtual.ImageCollection then
+    DstVirtual.ImageCollection.Assign(SrcVirtual.ImageCollection);
+
+  // 再复制内容，内部引用全 Assign 完成
+  DstVirtual.Images := SrcVirtual.Images;
+end;
+
+{$ENDIF}
+
 // 创建一个 Disabled 的位图，返回对象需要调用方释放
 function CreateDisabledBitmap(Glyph: TBitmap): TBitmap;
 const
@@ -1523,7 +1770,7 @@ var
   P, P1, P2, P3: PRGBArray;
   R: PRGBColor;
   C: array[0..3] of PRGBColor;
-  x, y, i: Integer;
+  x, y, I: Integer;
   IsEdge: Boolean;
 begin
   Result := TBitmap.Create;
@@ -1557,8 +1804,8 @@ begin
             C[1] := @P3^[x];
             C[2] := @P2^[Max(x - 1, 0)];
             C[3] := @P2^[Min(x + 1, Result.Width - 1)];
-            for i := 0 to 3 do
-              if (C[i]^.r = tr) and (C[i]^.g = tg) and (C[i]^.b = tb) then
+            for I := 0 to 3 do
+              if (C[I]^.r = tr) and (C[I]^.g = tg) and (C[I]^.b = tb) then
               begin
                 IsEdge := True;
                 Break;
@@ -1650,7 +1897,7 @@ end;
 // 压缩字符串中间的空白字符
 function CompressWhiteSpace(const Str: string): string;
 var
-  i: Integer;
+  I: Integer;
   Len: Integer;
   NextResultChar: Integer;
   CheckChar: Char;
@@ -1660,10 +1907,10 @@ begin
   NextResultChar := 1;
   SetLength(Result, Len);
 
-  for i := 1 to Len do
+  for I := 1 to Len do
   begin
-    CheckChar := Str[i];
-    NextChar := Str[i + 1];
+    CheckChar := Str[I];
+    NextChar := Str[I + 1];
     case CheckChar of
       #9, #10, #13, #32:
         begin
@@ -1677,7 +1924,7 @@ begin
         end;
       else
         begin
-          Result[NextResultChar] := Str[i];
+          Result[NextResultChar] := Str[I];
           Inc(NextResultChar);
         end;
     end;
@@ -1736,12 +1983,12 @@ end;
 // 删除标题中热键信息
 function GetCaptionOrgStr(const Caption: string): string;
 var
-  i, l: Integer;
+  I, l: Integer;
 begin
   Result := Caption;
-  for i := Length(Result) downto 1 do
-    if Result[i] = '.' then
-      Delete(Result, i, 1);
+  for I := Length(Result) downto 1 do
+    if Result[I] = '.' then
+      Delete(Result, I, 1);
 
   l := Length(Result);
   if l > 4 then
@@ -1760,6 +2007,20 @@ begin
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   Result := Svcs40.ImageList;
 end;
+
+{$IFDEF IDE_SUPPORT_HDPI}
+
+// 取得 IDE 主 ImageList 且是 VirtualImageList 时对应的 ImageCollection
+function GetIDEImagecollection: TCustomImageCollection;
+var
+  IL: TCustomImageList;
+begin
+  IL := GetIDEImageList;
+  if (IL <> nil) and (IL is TVirtualImageList) then
+    Result := (IL as TVirtualImageList).ImageCollection;
+end;
+
+{$ENDIF}
 
 // 保存 IDE ImageList 中的图像到指定目录下}
 procedure SaveIDEImageListToPath(ImgList: TCustomImageList; const Path: string);
@@ -1790,13 +2051,13 @@ end;
 // 保存菜单名称列表到文件
 procedure SaveMenuNamesToFile(AMenu: TMenuItem; const FileName: string);
 var
-  i: Integer;
+  I: Integer;
   List: TStrings;
 begin
   List := TStringList.Create;
   try
-    for i := 0 to AMenu.Count - 1 do
-      List.Add(AMenu.Items[i].Name + ' | ' + AMenu.Items[i].Caption);
+    for I := 0 to AMenu.Count - 1 do
+      List.Add(AMenu.Items[I].Name + ' | ' + AMenu.Items[I].Caption);
     List.SaveToFile(FileName);
   finally
     List.Free;
@@ -1816,15 +2077,15 @@ end;
 function GetIDEToolsMenu: TMenuItem;
 var
   MainMenu: TMainMenu;
-  i: Integer;
+  I: Integer;
 begin
   MainMenu := GetIDEMainMenu; // IDE主菜单
   if MainMenu <> nil then
   begin
-    for i := 0 to MainMenu.Items.Count - 1 do
-      if AnsiCompareText(SToolsMenuName, MainMenu.Items[i].Name) = 0 then
+    for I := 0 to MainMenu.Items.Count - 1 do
+      if AnsiCompareText(SToolsMenuName, MainMenu.Items[I].Name) = 0 then
       begin
-        Result := MainMenu.Items[i];
+        Result := MainMenu.Items[I];
         Exit;
       end
   end;
@@ -1838,6 +2099,24 @@ var
 begin
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   Result := Svcs40.ActionList;
+end;
+
+// 取得 IDE 主 ActionList 中指定名称的 Action
+function GetIDEActionFromName(const AName: string): TCustomAction;
+var
+  I: Integer;
+  ActionList: TCustomActionList;
+begin
+  Result := nil;
+  ActionList := GetIDEActionList;
+  if ActionList <> nil then
+    for I := 0 to ActionList.ActionCount - 1 do
+      if ActionList.Actions[I] is TCustomAction then
+        if TCustomAction(ActionList.Actions[I]).Name = AName then
+        begin
+          Result := TCustomAction(ActionList.Actions[I]);
+          Exit;
+        end;
 end;
 
 // 取得 IDE 主 ActionList 中指定快捷键的 Action
@@ -1935,18 +2214,18 @@ end;
 procedure SaveIDEActionListToFile(const FileName: string);
 var
   ActionList: TCustomActionList;
-  i: Integer;
+  I: Integer;
   List: TStrings;
 begin
   ActionList := GetIDEActionList;
   List := TStringList.Create;
   try
-    for i := 0 to ActionList.ActionCount - 1 do
-      if ActionList.Actions[i] is TCustomAction then
-        with ActionList.Actions[i] as TCustomAction do
+    for I := 0 to ActionList.ActionCount - 1 do
+      if ActionList.Actions[I] is TCustomAction then
+        with ActionList.Actions[I] as TCustomAction do
           List.Add(Name + ' | ' + Caption)
       else
-        List.Add(ActionList.Actions[i].Name);
+        List.Add(ActionList.Actions[I].Name);
     List.SaveToFile(FileName);
   finally
     List.Free;
@@ -1978,7 +2257,7 @@ function FindIDEAction(const ActionName: string): TContainedAction;
 var
   Svcs40: INTAServices40;
   ActionList: TCustomActionList;
-  i: Integer;
+  I: Integer;
 begin
   if ActionName = '' then
   begin
@@ -1988,11 +2267,11 @@ begin
 
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   ActionList := Svcs40.ActionList;
-  for i := 0 to ActionList.ActionCount - 1 do
+  for I := 0 to ActionList.ActionCount - 1 do
   begin
-    if SameText(ActionList.Actions[i].Name, ActionName) then
+    if SameText(ActionList.Actions[I].Name, ActionName) then
     begin
-      Result := ActionList.Actions[i];
+      Result := ActionList.Actions[I];
       Exit;
     end;
   end;
@@ -2000,6 +2279,90 @@ begin
 {$IFDEF DEBUG}
   CnDebugger.LogMsgError('FindIDEAction can NOT find ' + ActionName);
 {$ENDIF}
+end;
+
+// 根据快捷键返回 IDE 对应的 Action 对象，可能有多个
+procedure FindIDEActionByShortCut(AShortCut: TShortCut; Actions: TObjectList);
+var
+  ActionList: TCustomActionList;
+  I: Integer;
+begin
+  if AShortCut = 0 then
+    Exit;
+
+  ActionList := GetIDEActionList;
+  if ActionList = nil then
+    Exit;
+
+  Actions.Clear;
+  for I := 0 to ActionList.ActionCount - 1 do
+  begin
+    if (ActionList.Actions[I] is TCustomAction) and
+      ((ActionList.Actions[I] as TCustomAction).ShortCut = AShortCut) then
+      Actions.Add(ActionList.Actions[I]);
+  end;
+end;
+
+// 判断快捷键是否和现有 Action 冲突，有冲突则弹框询问，返回无冲突、有冲突但用户同意、有冲突用户停止
+function CheckQueryShortCutDuplicated(AShortCut: TShortCut;
+  OriginalAction: TCustomAction): TShortCutDuplicated;
+const
+  SCN_ACTION = 'Action: ';
+  SCN_MENU = 'Menu: ';
+var
+  Actions: TObjectList;
+  S: string;
+  Idx: Integer;
+  WS: TCnWizShortCut;
+begin
+  Result := sdNoDuplicated;
+  if AShortCut = 0 then  // 0 表示无快捷键，不判断，统统返回不重复
+    Exit;
+
+  Actions := TObjectList.Create(False);
+
+  try
+    FindIDEActionByShortCut(AShortCut, Actions);
+    Actions.Remove(OriginalAction); // 删除自身
+
+    if Actions.Count > 0 then // 有不同于自己的目标 Action
+    begin
+      S := TCustomAction(Actions[0]).Caption;
+      if S = '' then
+        S := TCustomAction(Actions[0]).Name;
+
+      if S <> '' then
+        S := SCN_ACTION + S;
+    end
+    else
+    begin
+      // 目标 Action 不存在，再去快捷键管理器里查单纯的 ShortCuts
+      Idx := WizShortCutMgr.IndexOfShortCut(AShortCut);
+      if Idx < 0 then    // 快捷键管理器里也没有
+        Exit;
+
+      WS := WizShortCutMgr.ShortCuts[Idx];
+      if WS.Action = OriginalAction then // 有但属于该 Action 也不算
+        Exit;
+
+      S := WS.MenuName;
+      if S = '' then
+        S := WS.Name;
+
+      if S <> '' then
+        S := SCN_MENU + S;
+    end;
+  finally
+    Actions.Free;
+  end;
+
+  if S = '' then
+    S := SCnNoName;
+
+  if QueryDlg(Format(SCnShortCutUsingByActionQuery, [ShortCutToText(AShortCut), S])) then
+    Result := sdDuplicatedIgnore
+  else
+    Result := sdDuplicatedStop;
 end;
 
 // 根据 IDE Action 名，执行它
@@ -2014,7 +2377,7 @@ begin
   begin
     Result := False;
 {$IFDEF DEBUG}
-    CnDebugger.LogMsgError('ExecuteIDEAction can NOT find ' + ActionName);
+    CnDebugger.LogMsgError('ExecuteIDEAction can NOT Find ' + ActionName);
 {$ENDIF}
   end;
 end;
@@ -2048,24 +2411,26 @@ end;
 // 根据 TCnMenuWizard 列表中的 MenuOrder 值进行由小到大的排序
 procedure SortListByMenuOrder(List: TList);
 var
-  i, j: Integer;
+  I, J: Integer;
   P: Pointer;
 begin
   // 冒泡排序
   if List.Count = 1 then
     Exit;
 
-  for i := List.Count - 2 downto 0 do
-    for j := 0 to i do
+  for I := List.Count - 2 downto 0 do
+  begin
+    for J := 0 to I do
     begin
-      if TCnMenuWizard(List.Items[j]).MenuOrder >
-        TCnMenuWizard(List.Items[j + 1]).MenuOrder then  // 大头在后边
+      if TCnMenuWizard(List.Items[J]).MenuOrder >
+        TCnMenuWizard(List.Items[J + 1]).MenuOrder then  // 大头在后边
         begin
-          P := List.Items[j];
-          List.Items[j] := List.Items[j + 1];
-          List.Items[j + 1] := P;
+          P := List.Items[J];
+          List.Items[J] := List.Items[J + 1];
+          List.Items[J + 1] := P;
         end;
     end;
+  end;
 end;
 
 // 返回 DFM 文件是否文本格式
@@ -2108,13 +2473,13 @@ end;
 function FindComponentByClass(AWinControl: TWinControl;
   AClass: TClass; const AComponentName: string = ''): TComponent;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to AWinControl.ComponentCount - 1 do
-    if (AWinControl.Components[i] is AClass) and ((AComponentName = '') or
-      (SameText(AComponentName, AWinControl.Components[i].Name))) then
+  for I := 0 to AWinControl.ComponentCount - 1 do
+    if (AWinControl.Components[I] is AClass) and ((AComponentName = '') or
+      (SameText(AComponentName, AWinControl.Components[I].Name))) then
     begin
-      Result := AWinControl.Components[i];
+      Result := AWinControl.Components[I];
       Exit;
     end;
   Result := nil;
@@ -2124,13 +2489,13 @@ end;
 function FindComponentByClassName(AWinControl: TWinControl;
   const AClassName: string; const AComponentName: string = ''): TComponent;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to AWinControl.ComponentCount - 1 do
-    if AWinControl.Components[i].ClassNameIs(AClassName) and ((AComponentName =
-      '') or (SameText(AComponentName, AWinControl.Components[i].Name))) then
+  for I := 0 to AWinControl.ComponentCount - 1 do
+    if AWinControl.Components[I].ClassNameIs(AClassName) and ((AComponentName =
+      '') or (SameText(AComponentName, AWinControl.Components[I].Name))) then
     begin
-      Result := AWinControl.Components[i];
+      Result := AWinControl.Components[I];
       Exit;
     end;
   Result := nil;
@@ -2139,10 +2504,10 @@ end;
 // 存在模式窗口
 function ScreenHasModalForm: Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to Screen.CustomFormCount - 1 do
-    if fsModal in Screen.CustomForms[i].FormState then
+  for I := 0 to Screen.CustomFormCount - 1 do
+    if fsModal in Screen.CustomForms[I].FormState then
     begin
       Result := True;
       Exit;
@@ -2337,13 +2702,13 @@ end;
 procedure RemoveListViewSubImages(ListView: TListView); overload;
 {$IFDEF BDS}
 var
-  i, j: Integer;
+  I, j: Integer;
 {$ENDIF}
 begin
 {$IFDEF BDS}
-  for i := 0 to ListView.Items.Count - 1 do
-    for j := 0 to ListView.Items[i].SubItems.Count - 1 do
-      ListView.Items[i].SubItemImages[j] := -1;
+  for I := 0 to ListView.Items.Count - 1 do
+    for j := 0 to ListView.Items[I].SubItems.Count - 1 do
+      ListView.Items[I].SubItemImages[j] := -1;
 {$ENDIF}
 end;
 
@@ -2410,11 +2775,11 @@ end;
 // ListView 当前选择项是否允许上移
 function ListViewSelectedItemsCanUp(AListView: TListView): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
-  for i := 1 to AListView.Items.Count - 1 do
-    if AListView.Items[i].Selected and not AListView.Items[i - 1].Selected then
+  for I := 1 to AListView.Items.Count - 1 do
+    if AListView.Items[I].Selected and not AListView.Items[I - 1].Selected then
     begin
       Result := True;
       Exit;
@@ -2424,11 +2789,11 @@ end;
 // ListView 当前选择项是否允许下移
 function ListViewSelectedItemsCanDown(AListView: TListView): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
-  for i := AListView.Items.Count - 2 downto 0 do
-    if AListView.Items[i].Selected and not AListView.Items[i + 1].Selected then
+  for I := AListView.Items.Count - 2 downto 0 do
+    if AListView.Items[I].Selected and not AListView.Items[I + 1].Selected then
     begin
       Result := True;
       Exit;
@@ -2438,15 +2803,15 @@ end;
 // 修改 ListView 当前选择项
 procedure ListViewSelectItems(AListView: TListView; Mode: TCnSelectMode);
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to AListView.Items.Count - 1 do
+  for I := 0 to AListView.Items.Count - 1 do
     if Mode = smAll then
-      AListView.Items[i].Selected := True
+      AListView.Items[I].Selected := True
     else if Mode = smNothing then
-      AListView.Items[i].Selected := False
+      AListView.Items[I].Selected := False
     else
-      AListView.Items[i].Selected := not AListView.Items[i].Selected;
+      AListView.Items[I].Selected := not AListView.Items[I].Selected;
 end;
 
 //==============================================================================
@@ -2821,7 +3186,7 @@ begin
 {$ENDIF Debug}
 end;
 
-// 取IOTAEditBuffer接口
+// 取 IOTAEditBuffer 接口
 function CnOtaGetEditBuffer: IOTAEditBuffer;
 var
   iEditorServices: IOTAEditorServices;
@@ -2835,7 +3200,7 @@ begin
   Result := nil;
 end;
 
-// 取IOTAEditPosition接口
+// 取 IOTAEditPosition 接口
 function CnOtaGetEditPosition: IOTAEditPosition;
 var
   iEditBuffer: IOTAEditBuffer;
@@ -2993,15 +3358,15 @@ end;
 // 取窗体编辑器 (来自 GExperts Src 1.12)
 function CnOtaGetFormEditorFromModule(const Module: IOTAModule): IOTAFormEditor;
 var
-  i: Integer;
+  I: Integer;
   Editor: IOTAEditor;
   FormEditor: IOTAFormEditor;
 begin
   if Assigned(Module) then
   begin
-      for i := 0 to Module.GetModuleFileCount - 1 do
+      for I := 0 to Module.GetModuleFileCount - 1 do
       begin
-        Editor := CnOtaGetFileEditorForModule(Module, i);
+        Editor := CnOtaGetFileEditorForModule(Module, I);
         if Supports(Editor, IOTAFormEditor, FormEditor) then
         begin
           Result := FormEditor;
@@ -3056,13 +3421,13 @@ begin
     Result := nil;
 end;
 
-// 取得当前窗体编辑器的已选择的控件
-function CnOtaGetSelectedControlFromCurrentForm(List: TList): Boolean;
+// 取得当前窗体编辑器的已选择的组件
+function CnOtaGetSelectedComponentFromCurrentForm(List: TList): Boolean;
 var
   FormEditor: IOTAFormEditor;
   IComponent: IOTAComponent;
   Component: TComponent;
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
   if List = nil then
@@ -3072,9 +3437,40 @@ begin
   FormEditor := CnOtaGetFormEditorFromModule(CnOtaGetCurrentModule);
   if not Assigned(FormEditor) then Exit;
 
-  for i := 0 to FormEditor.GetSelCount - 1 do
+  for I := 0 to FormEditor.GetSelCount - 1 do
   begin
-    IComponent := FormEditor.GetSelComponent(i);
+    IComponent := FormEditor.GetSelComponent(I);
+    if Assigned(IComponent) and Assigned(IComponent.GetComponentHandle) and
+      (TObject(IComponent.GetComponentHandle) is TComponent) then
+    begin
+      Component := TObject(IComponent.GetComponentHandle) as TComponent;
+      if Assigned(Component) then
+          List.Add(Component);
+    end;
+  end;
+
+  Result := List.Count > 0;
+end;
+
+// 取得当前窗体编辑器的已选择的控件
+function CnOtaGetSelectedControlFromCurrentForm(List: TList): Boolean;
+var
+  FormEditor: IOTAFormEditor;
+  IComponent: IOTAComponent;
+  Component: TComponent;
+  I: Integer;
+begin
+  Result := False;
+  if List = nil then
+    Exit;
+  List.Clear;
+
+  FormEditor := CnOtaGetFormEditorFromModule(CnOtaGetCurrentModule);
+  if not Assigned(FormEditor) then Exit;
+
+  for I := 0 to FormEditor.GetSelCount - 1 do
+  begin
+    IComponent := FormEditor.GetSelComponent(I);
     if Assigned(IComponent) and Assigned(IComponent.GetComponentHandle) and
       (TObject(IComponent.GetComponentHandle) is TComponent) then
     begin
@@ -3300,6 +3696,25 @@ begin
   Result := nil;
 end;
 
+// 返回窗体设计器的格点也就是 Grid 的横竖步进像素数
+function CnOtaGetFormDesignerGridOffset: TPoint;
+var
+  Svcs: IOTAServices;
+begin
+  Result.x := 0;
+  Result.y := 0;
+  try
+    QuerySvcs(BorlandIDEServices, IOTAServices, Svcs);
+    if Assigned(Svcs) then
+    begin
+      Result.x := Svcs.GetEnvironmentOptions.GetOptionValue('GridSizeX');
+      Result.y := Svcs.GetEnvironmentOptions.GetOptionValue('GridSizeY');
+    end;
+  except
+    ;
+  end;
+end;
+
 // 取当前的 EditWindow
 function CnOtaGetCurrentEditWindow: TCustomForm;
 var
@@ -3350,7 +3765,7 @@ var
   IModuleServices: IOTAModuleServices;
 {$IFNDEF BDS}
   IModule: IOTAModule;
-  i: Integer;
+  I: Integer;
 {$ENDIF}
 begin
   QuerySvcs(BorlandIDEServices, IOTAModuleServices, IModuleServices);
@@ -3358,9 +3773,9 @@ begin
   Result := IModuleServices.MainProjectGroup;
 {$ELSE}
   if IModuleServices <> nil then
-    for i := 0 to IModuleServices.ModuleCount - 1 do
+    for I := 0 to IModuleServices.ModuleCount - 1 do
     begin
-      IModule := IModuleServices.Modules[i];
+      IModule := IModuleServices.Modules[I];
       if Supports(IModule, IOTAProjectGroup, Result) then
         Exit;
     end;
@@ -3374,16 +3789,16 @@ var
   IModuleServices: IOTAModuleServices;
   IModule: IOTAModule;
   IProjectGroup: IOTAProjectGroup;
-  i: Integer;
+  I: Integer;
 begin
   Result := '';
   IModuleServices := BorlandIDEServices as IOTAModuleServices;
   if IModuleServices = nil then Exit;
 
   IProjectGroup := nil;
-  for i := 0 to IModuleServices.ModuleCount - 1 do
+  for I := 0 to IModuleServices.ModuleCount - 1 do
   begin
-    IModule := IModuleServices.Modules[i];
+    IModule := IModuleServices.Modules[I];
     if IModule.QueryInterface(IOTAProjectGroup, IProjectGroup) = S_OK then
       Break;
   end;
@@ -3392,15 +3807,46 @@ begin
     Result := IModule.FileName;
 end;
 
+// 取工程的源码文件 dpr/dpk
+function CnOtaGetProjectSourceFileName(Project: IOTAProject): string;
+{$IFNDEF PROJECT_FILENAME_DPR}
+var
+  I: Integer;
+{$ENDIF}
+begin
+  Result := '';
+  if Project = nil then
+    Project := CnOtaGetCurrentProject;
+  if Project = nil then
+    Exit;
+
+{$IFDEF PROJECT_FILENAME_DPR}
+  // D567 下 Project 的 FileName 就是 dpr/dpk
+  if IsDpr(Project.FileName) or IsDpk(Project.FileName) then
+    Result := Project.FileName;
+{$ELSE}
+  // 跳过 bdsproj/dproj，找 dpr/dpk
+  for I := 0 to Project.GetModuleFileCount - 1 do
+  begin
+    if IsDpr(Project.GetModuleFileEditor(I).FileName) or
+      IsDpk(Project.GetModuleFileEditor(I).FileName) then
+    begin
+      Result := Project.GetModuleFileEditor(I).FileName;
+      Exit;
+    end;
+  end;
+{$ENDIF}
+end;
+
 // 取工程资源
 function CnOtaGetProjectResource(Project: IOTAProject): IOTAProjectResource;
 var
-  i: Integer;
+  I: Integer;
   IEditor: IOTAEditor;
 begin
-  for i:= 0 to (Project.GetModuleFileCount - 1) do
+  for I:= 0 to Project.GetModuleFileCount - 1 do
   begin
-    IEditor := Project.GetModuleFileEditor(i);
+    IEditor := Project.GetModuleFileEditor(I);
     if Supports(IEditor, IOTAProjectResource, Result) then
       Exit;
   end;
@@ -3641,7 +4087,7 @@ procedure CnOtaGetOptionsNames(Options: IOTAOptions; List: TStrings;
   IncludeType: Boolean = True);
 var
   Names: TOTAOptionNameArray;
-  i: Integer;
+  I: Integer;
 begin
   List.Clear;
   Names := nil;
@@ -3649,12 +4095,12 @@ begin
 
   Names := Options.GetOptionNames;
   try
-    for i := Low(Names) to High(Names) do
+    for I := Low(Names) to High(Names) do
       if IncludeType then
-        List.Add(Names[i].Name + ': ' + GetEnumName(TypeInfo(TTypeKind),
-          Ord(Names[i].Kind)))
+        List.Add(Names[I].Name + ': ' + GetEnumName(TypeInfo(TTypeKind),
+          Ord(Names[I].Kind)))
       else
-        List.Add(Names[i].Name);
+        List.Add(Names[I].Name);
   finally
     Names := nil;
   end;
@@ -3680,13 +4126,13 @@ function CnOtaGetProject: IOTAProject;
 var
   IModuleServices: IOTAModuleServices;
   IModule: IOTAModule;
-  i: Integer;
+  I: Integer;
 begin
   QuerySvcs(BorlandIDEServices, IOTAModuleServices, IModuleServices);
   if IModuleServices <> nil then
-    for i := 0 to IModuleServices.ModuleCount - 1 do
+    for I := 0 to IModuleServices.ModuleCount - 1 do
     begin
-      IModule := IModuleServices.Modules[i];
+      IModule := IModuleServices.Modules[I];
       if Supports(IModule, IOTAProject, Result) then
         Exit;
     end;
@@ -3710,28 +4156,67 @@ begin
     Result := nil;
 end;
 
+// 获得项目的二进制文件输出目录
+function CnOtaGetProjectOutputDirectory(Project: IOTAProject): string;
+var
+  Options: IOTAProjectOptions;
+  ProjectDir: string;
+{$IFNDEF DELPHIXE_UP}
+  Dir: Variant;
+  OutputDir: string;
+{$ENDIF}
+begin
+  Result := '';
+  if Project = nil then
+    Project := CnOtaGetCurrentProject;
+  if Project = nil then
+    Exit;
+
+  ProjectDir := _CnExtractFileDir(Project.FileName);
+  Options := Project.ProjectOptions;
+
+{$IFDEF DELPHIXE_UP}  // XE 以上直接走 TargetName，要验证是否和当前 Configuration 的目录一致
+  if Options <> nil then
+    Result := _CnExtractFilePath(Options.TargetName)
+  else
+    Result := ProjectDir;
+{$ELSE}
+  if Options <> nil then
+  begin
+    Dir := Options.GetOptionValue('OutputDir');
+    OutputDir := VarToStr(Dir);
+
+    if OutputDir <> '' then // $(Config)/$(Platform) 的形式，需要替换
+      Result := LinkPath(ProjectDir, ReplaceToActualPath(OutputDir));
+  end;
+
+  if Result = '' then
+    Result := ProjectDir;
+{$ENDIF}
+end;
+
 // 取得所有工程列表
 procedure CnOtaGetProjectList(const List: TInterfaceList);
 var
   IModuleServices: IOTAModuleServices;
   IModule: IOTAModule;
   IProject: IOTAProject;
-  i: Integer;
+  I: Integer;
 begin
   if not Assigned(List) then
     Exit;
 
   QuerySvcs(BorlandIDEServices, IOTAModuleServices, IModuleServices);
   if IModuleServices <> nil then
-    for i := 0 to IModuleServices.ModuleCount - 1 do
+    for I := 0 to IModuleServices.ModuleCount - 1 do
     begin
-      IModule := IModuleServices.Modules[i];
+      IModule := IModuleServices.Modules[I];
       if Supports(IModule, IOTAProject, IProject) then
         List.Add(IProject);
     end;
 end;
 
-// 取当前工程名称
+// 取当前工程名称，无扩展名
 function CnOtaGetCurrentProjectName: string;
 var
   IProject: IOTAProject;
@@ -3746,7 +4231,7 @@ begin
   end;
 end;
 
-// 取当前工程文件名称
+// 取当前工程文件名称，扩展名可能是 dpr/bdsproj/dproj
 function CnOtaGetCurrentProjectFileName: string;
 var
   CurrentProject: IOTAProject;
@@ -3832,7 +4317,7 @@ end;
 function CnOtaGetFileNameOfModule(Module: IOTAModule;
   GetSourceEditorFileName: Boolean): string;
 var
-  i: Integer;
+  I: Integer;
   Editor: IOTAEditor;
   SourceEditor: IOTASourceEditor;
 begin
@@ -3841,9 +4326,9 @@ begin
     if not GetSourceEditorFileName then
       Result := Module.FileName
     else
-      for i := 0 to Module.GetModuleFileCount - 1 do
+      for I := 0 to Module.GetModuleFileCount - 1 do
       begin
-        Editor := Module.GetModuleFileEditor(i);
+        Editor := Module.GetModuleFileEditor(I);
         if Supports(Editor, IOTASourceEditor, SourceEditor) then
         begin
           Result := Editor.FileName;
@@ -4020,13 +4505,13 @@ end;
 // 返回指定模块指定文件名的编辑器
 function CnOtaGetEditorFromModule(Module: IOTAModule; const FileName: string): IOTAEditor;
 var
-  i: Integer;
+  I: Integer;
   Editor: IOTAEditor;
 begin
   Assert(Assigned(Module));
-  for i := 0 to Module.GetModuleFileCount - 1 do
+  for I := 0 to Module.GetModuleFileCount - 1 do
   begin
-    Editor := CnOtaGetFileEditorForModule(Module, i);
+    Editor := CnOtaGetFileEditorForModule(Module, I);
     if SameFileName(Editor.FileName, FileName) then
     begin
       Result := Editor;
@@ -4472,7 +4957,6 @@ begin
   {$ENDIF}
   Result := True;
 end;
-
 
 // 使用 NTA 方法取当前行源代码。速度快，但取回的文本是将 Tab 扩展成空格的。
 // 如果使用 ConvertPos 来转换成 EditPos 可能会有问题。直接将 CharIndex + 1
@@ -4944,7 +5428,6 @@ begin
 {$ENDIF}
 end;
 
-
 // 取当前光标下的字符，允许偏移量
 function CnOtaGetCurrChar(OffsetX: Integer = 0; View: IOTAEditView = nil): Char;
 var
@@ -4992,7 +5475,7 @@ begin
     // 2005 以上的，包括 2009，移动光标都要求 UTF8 偏移量，删除字符都要求 WideChar 偏移量
     MoveToRightCount := CalcUtf8LengthFromWideString(PWideChar(Copy(Token, CurrIndex + 1, MaxInt)));
 {$ELSE}
-    // D567下标识符无双字节字符，直接运算就行
+    // D567 下标识符无双字节字符，直接运算就行
     MoveToRightCount := Length(Token) - CurrIndex;
 {$ENDIF}
     BkspDelLeftCount := CurrIndex;
@@ -5104,6 +5587,58 @@ procedure CnOtaGetCurrentBreakpoints(Results: TList);
 begin
   if Results <> nil then
     CnWizDebuggerNotifierServices.RetrieveBreakpoints(Results, CnOtaGetCurrentSourceFileName);
+end;
+
+// 选中当前光标下的标识符，如果光标下没有标识符则返回 False
+function CnOtaSelectCurrentToken(FirstSet: TAnsiCharSet = [];
+  CharSet: TAnsiCharSet = []): Boolean;
+var
+  View: IOTAEditView;
+  Token: TCnIdeTokenString; // Ansi/Wide/Wide
+  CurrIndex: Integer;       // Ansi/Wide/Wide
+  EditPos: IOTAEditPosition;
+  Block: IOTAEditBlock;
+  MoveToRightCount: Integer;    // 从光标处移至右端所需的 Col，不用移到左
+begin
+  Result := False;
+  if CnOtaGeneralGetCurrPosToken(Token, CurrIndex, True, FirstSet, CharSet, nil) then
+  begin
+    View := CnOtaGetTopMostEditView;
+    if View = nil then
+      Exit;
+
+    Block := View.Block;
+    if Block = nil then
+      Exit;
+
+    EditPos := CnOtaGetEditPosition;
+    if not Assigned(EditPos) then
+      Exit;
+
+{$IFDEF BDS}
+    // CurrIndex 是 0 开始的 Ansi/Wide/Wide，用来移动光标时需要转成 0 开始的 Ansi/Utf8/Utf8
+    CurrIndex := CalcUtf8LengthFromWideString(PWideChar(Copy(Token, 1, CurrIndex)));
+    // MoveToRightCount 用来移动光标到标识符尾，是 0 开始的 Ansi/Utf8/Utf8
+    MoveToRightCount := CalcUtf8LengthFromWideString(PWideChar(Token));
+{$ELSE}
+    // D567 下标识符无双字节字符，直接计算 Token 长度
+    MoveToRightCount := Length(Token);
+{$ENDIF}
+
+    // 往前移动 CurrIndex，开始选中并朝后移动 MoveToRightCount，再结束选择
+    // MoveRelative: 0  Ansi/Utf8/Utf8
+
+    EditPos.MoveRelative(0, -CurrIndex);
+
+    Block.Reset;
+    Block.Style := btNonInclusive;
+    Block.BeginBlock;
+
+    EditPos.MoveRelative(0, MoveToRightCount);
+
+    Block.EndBlock;
+    Result := True;
+  end;
 end;
 
 {$ENDIF}
@@ -5335,7 +5870,20 @@ begin
   try
     ActionServices := BorlandIDEServices as IOTAActionServices;
     if ActionServices <> nil then
-      Result := ActionServices.OpenFile(FileName);
+    begin
+      try
+{$IFNDEF CNWIZARDS_MINIMUM}
+        DisableWaitDialogShow;
+{$ENDIF}
+        // 10.4.2 下打开文件时可能 IDE 会被莫名其妙塞到后台
+        // 需要通过 Hook 掉 WaitDialogService 的方式去掉
+        Result := ActionServices.OpenFile(FileName);
+      finally
+{$IFNDEF CNWIZARDS_MINIMUM}
+        EnableWaitDialogShow; // 恢复 WaitDialogService
+{$ENDIF}
+      end;
+    end;
   except
     ;
   end;
@@ -5388,19 +5936,20 @@ var
   ModuleServices: IOTAModuleServices;
   Module: IOTAModule;
   FileEditor: IOTAEditor;
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
 
   ModuleServices := BorlandIDEServices as IOTAModuleServices;
-  if ModuleServices = nil then Exit;
+  if ModuleServices = nil then
+    Exit;
 
   Module := ModuleServices.FindModule(FileName);
   if Assigned(Module) then
   begin
-    for i := 0 to Module.GetModuleFileCount-1 do
+    for I := 0 to Module.GetModuleFileCount-1 do
     begin
-      FileEditor := CnOtaGetFileEditorForModule(Module, i);
+      FileEditor := CnOtaGetFileEditorForModule(Module, I);
       Assert(Assigned(FileEditor));
 
       Result := CompareText(FileName, FileEditor.FileName) = 0;
@@ -5417,7 +5966,8 @@ var
   Module: IOTAModule;
 begin
   ModuleServices := BorlandIDEServices as IOTAModuleServices;
-  if ModuleServices = nil then Exit;
+  if ModuleServices = nil then
+    Exit;
 
   Module := ModuleServices.FindModule(FileName);
   if Assigned(Module) then
@@ -5431,7 +5981,8 @@ var
   Module: IOTAModule;
 begin
   ModuleServices := BorlandIDEServices as IOTAModuleServices;
-  if ModuleServices = nil then Exit;
+  if ModuleServices = nil then
+    Exit;
 
   Module := ModuleServices.FindModule(FileName);
   if Assigned(Module) then
@@ -5444,35 +5995,29 @@ var
   ModuleServices: IOTAModuleServices;
   Module: IOTAModule;
   FormEditor: IOTAFormEditor;
-  i: Integer;
 begin
   Result := False;
 
   ModuleServices := BorlandIDEServices as IOTAModuleServices;
-  if ModuleServices = nil then Exit;
+  if ModuleServices = nil then
+    Exit;
 
   Module := ModuleServices.FindFormModule(FormName);
   if Assigned(Module) then
   begin
-    for i := 0 to Module.GetModuleFileCount-1 do
-    begin
-      FormEditor := CnOtaGetFormEditorFromModule(Module);
-
-      Result := Assigned(FormEditor);
-      if Result then
-        Exit;
-    end;
+    FormEditor := CnOtaGetFormEditorFromModule(Module);
+    Result := Assigned(FormEditor);
   end;
 end;
 
 // 判断模块是否已被修改
 function CnOtaIsModuleModified(AModule: IOTAModule): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
-  for i := 0 to AModule.GetModuleFileCount - 1 do
-    if AModule.GetModuleFileEditor(i).Modified then
+  for I := 0 to AModule.GetModuleFileCount - 1 do
+    if AModule.GetModuleFileEditor(I).Modified then
     begin
       Result := True;
       Exit;
@@ -5517,7 +6062,7 @@ var
   FormEditor: IOTAFormEditor;
   SourceEditor: IOTASourceEditor;
   FileEditor: IOTAEditor;
-  i: Integer;
+  I: Integer;
   BaseFileName: string;
 begin
   Result := False;
@@ -5576,9 +6121,9 @@ begin
     Module := CnOtaGetModule(BaseFileName);
     if Module <> nil then
     begin
-      for i := 0 to Module.GetModuleFileCount-1 do
+      for I := 0 to Module.GetModuleFileCount-1 do
       begin
-        FileEditor := Module.GetModuleFileEditor(i);
+        FileEditor := Module.GetModuleFileEditor(I);
         Assert(Assigned(FileEditor));
 
         if CompareText(FileEditor.FileName, FileName) = 0 then
@@ -5664,7 +6209,7 @@ function StrToSourceCode(const Str, ADelphiReturn, ACReturn: string;
   Wrap: Boolean; MaxLen: Integer): string;
 var
   Strings: TStrings;
-  i, J: Integer;
+  I, J: Integer;
   s, Line, SingleLine: string;
 {$IFDEF UNICODE}
   TmpLine: string;
@@ -5692,9 +6237,9 @@ begin
       s := '';
         
     Strings.Text := Str;
-    for i := 0 to Strings.Count - 1 do
+    for I := 0 to Strings.Count - 1 do
     begin
-      Line := Strings[i];
+      Line := Strings[I];
 
       if MaxLen <= 1 then
       begin
@@ -5743,7 +6288,7 @@ begin
 
       if IsDelphi then
       begin
-        if i = Strings.Count - 1 then  // 最后一行不加换行符
+        if I = Strings.Count - 1 then  // 最后一行不加换行符
         begin
           if Line <> '' then
             Result := Format('%s''%s''', [Result, Line])
@@ -5771,7 +6316,7 @@ begin
       end
       else
       begin
-        if i = Strings.Count - 1 then
+        if I = Strings.Count - 1 then
           Result := Format('%s"%s"', [Result, Line])
         else
           Result := Format('%s"%s%s" %s', [Result , Line, ACReturn, s]);
@@ -5787,7 +6332,7 @@ function CodeAutoWrap(Code: string; Width, Indent: Integer;
   IndentOnceOnly: Boolean): string;
 var
   Strings: TStrings;
-  i: Integer;
+  I: Integer;
 begin
   if Length(Code) <= Width then
   begin
@@ -5802,11 +6347,11 @@ begin
   try
     Strings.Text := WrapText(Code, #13#10, [' '], Width - Indent);
     Result := Result + Strings[0] + #13#10;
-    for i := 1 to Strings.Count - 1 do
-      if (i = 1) or not IndentOnceOnly then
-        Result := Result + Spc(Indent) + Trim(Strings[i]) + #13#10  // 考虑缩进
+    for I := 1 to Strings.Count - 1 do
+      if (I = 1) or not IndentOnceOnly then
+        Result := Result + Spc(Indent) + Trim(Strings[I]) + #13#10  // 考虑缩进
       else
-        Result := Result + Strings[i] + #13#10;
+        Result := Result + Strings[I] + #13#10;
     Delete(Result, Length(Result) - 1, 2); // 删除后面的换行符
   finally
     Strings.Free;
@@ -5817,7 +6362,7 @@ end;
 // 快速转换Utf8到Ansi字符串，适用于长度短且主要是Ansi字符的字符串
 function FastUtf8ToAnsi(const Text: AnsiString): AnsiString;
 var
-  i, l, Len: Cardinal;
+  I, l, Len: Cardinal;
   IsMultiBytes: Boolean;
   P: PDWORD;
 begin
@@ -5827,7 +6372,7 @@ begin
     l := Len and $FFFFFFFC;
     P := PDWORD(@Text[1]);
     IsMultiBytes := False;
-    for i := 0 to l div 4 do
+    for I := 0 to l div 4 do
     begin
       if P^ and $80808080 <> 0 then
       begin
@@ -5839,9 +6384,9 @@ begin
     
     if not IsMultiBytes then
     begin
-      for i := l + 1 to Len do
+      for I := l + 1 to Len do
       begin
-        if Ord(Text[i]) and $80 <> 0 then
+        if Ord(Text[I]) and $80 <> 0 then
         begin
           IsMultiBytes := True;
           Break;
@@ -5931,7 +6476,9 @@ function CnOtaGetCurrentSourceFile: string;
 var
   iModule: IOTAModule;
   iEditor: IOTAEditor;
+{$ENDIF}
 begin
+{$IFDEF COMPILER6_UP}
   iModule := CnOtaGetCurrentModule;
   if iModule <> nil then
   begin
@@ -5944,17 +6491,15 @@ begin
     end;
   end;
   Result := '';
-{$IFDEF BCB}  // BCB 下可能存在无法获得当前工程的cpp文件的问题，特此加上此功能
+  {$IFDEF BCB}  // BCB 下可能存在无法获得当前工程的cpp文件的问题，特此加上此功能
   if (Result = '') and (CnOtaGetEditBuffer <> nil) then
     Result := CnOtaGetEditBuffer.FileName;
-{$ENDIF}
-end;
+  {$ENDIF}
 {$ELSE}
-begin
   // Delphi5/BCB5/K1 下仍然要采用旧的方式
   Result := ToolServices.GetCurrentFile;
-end;
 {$ENDIF}
+end;
 
 // 取当前编辑的 Pascal 或 C 源文件，判断限制较多
 function CnOtaGetCurrentSourceFileName: string;
@@ -6011,6 +6556,44 @@ begin
 {$ELSE}
   EditPosition.InsertText(ConvertTextToEditorText(Text));
 {$ENDIF}
+end;
+
+// 拿一编辑器中的行折叠信息，Infos 这个 List 里顺序放入折叠的开始行和结束行，无折叠或不支持折叠时返回 False
+function CnOtaGetLinesElideInfo(Infos: TList; EditControl: TControl): Boolean;
+{$IFDEF IDE_EDITOR_ELIDE}
+var
+  I: Integer;
+  Obj: TEditorObject;
+  Old, B: Boolean;
+{$ENDIF}
+begin
+  Result := False;
+  if EditControl = nil then
+    EditControl := CnOtaGetCurrentEditControl;
+
+  Infos.Clear;
+  if EditControl = nil then
+    Exit;
+
+{$IFDEF IDE_EDITOR_ELIDE}
+  Obj := EditControlWrapper.GetEditorObject(EditControl);
+  Old := False;
+
+  for I := 1 to Obj.Context.LineCount do
+  begin
+    B := EditControlWrapper.GetLineIsElided(EditControl, I);
+    if B <> Old then
+    begin
+      Infos.Add(Pointer(I - 1));
+      Old := B;
+    end;
+  end;
+
+  if (Infos.Count mod 2) <> 0 then
+    Infos.Add(Pointer(Obj.Context.LineCount));
+{$ENDIF}
+
+  Result := Infos.Count > 0;
 end;
 
 // 插入一段文本到当前正在编辑的源文件中，返回成功标志
@@ -6143,12 +6726,16 @@ begin
     Assert(IEditView <> nil);
     EditPos := IEditView.CursorPos;
 {$IFDEF UNICODE}
-    // Unicode 环境下有宽字符时 ConvertPos 与 CharPosToPos 都不靠谱，只能手工转换
-    // 先将当前行首的内容求线性地址，是正确的 Utf8，再加上本行行首到当前列这段的 Utf8 长度
     CharPos.Line := EditPos.Line;
     CharPos.CharIndex := 0;
 
     Result := IEditView.CharPosToPos(CharPos); // 得到行首的线性位置，以 Utf8 计算
+
+  {$IFDEF CNWIZARDS_MINIMUM}
+    Inc(Result, EditPos.Col - 1);
+  {$ELSE}
+    // Unicode 环境下有宽字符时 ConvertPos 与 CharPosToPos 都不靠谱，只能手工转换
+    // 先将当前行首的内容求线性地址，是正确的 Utf8，再加上本行行首到当前列这段的 Utf8 长度
     EditControl := EditControlWrapper.GetEditControl(IEditView);
     if EditControl = nil then
     begin
@@ -6160,6 +6747,7 @@ begin
     Text := Copy(Text, 1, CharIdx); // 拿到光标前的 UTF16 字符串
     // 转换成 Utf8 并求长度，加到至行首长度上
     Inc(Result, Length(UTF8Encode(Text)));
+  {$ENDIF}
 {$ELSE}
     IEditView.ConvertPos(True, EditPos, CharPos);
     Result := IEditView.CharPosToPos(CharPos);
@@ -6290,6 +6878,8 @@ begin
   finally
     FreeMem(Buffer);
   end;
+
+  // 此时读到的内容是 Ansi/Utf8/Utf8，CheckUtf8 如果是 True，则全转 Ansi
 
 {$IFDEF IDE_WIDECONTROL}
   if CheckUtf8 then
@@ -6965,15 +7555,31 @@ begin
 
   if EditPos.Line < 1 then
     EditPos.Line := 1;
-  TopRow := EditPos;
-  if Middle then
-    TopRow.Line := TopRow.Line - (EditView.ViewSize.cy div 2) + 1;
-  if TopRow.Line < 1 then
-    TopRow.Line := 1;
+
   TopRow.Col := 1;
-  EditView.TopPos := TopRow;
+  if Middle then
+  begin
+    TopRow.Line := TopRow.Line - (EditView.ViewSize.cy div 2) + 1;
+    if TopRow.Line < 1 then
+      TopRow.Line := 1;
+    EditView.TopPos := TopRow;
+  end
+  else
+  begin
+    if EditView.TopPos.Line > EditPos.Line then
+    begin
+      TopRow.Line := EditPos.Line;
+      EditView.TopPos := TopRow;
+    end
+    else if (EditView.TopPos.Line + EditView.ViewSize.cy) < EditPos.Line then
+    begin
+      TopRow.Line := EditPos.Line - EditView.ViewSize.cy;
+      EditView.TopPos := TopRow;
+    end;
+  end;
 
   EditView.CursorPos := EditPos;
+  EditView.MoveViewToCursor; // FIXME: TopPos 赋值似乎有问题？
   Application.ProcessMessages;
   EditView.Paint;
 end;
@@ -7277,7 +7883,8 @@ begin
   AToken.EditCol := EditPos.Col;
   AToken.EditLine := EditPos.Line;
 {$IFDEF IDE_STRING_ANSI_UTF8}
-  // D2005~2007下EditPos的Col是Utf8的，但绘制需要Ansi的，所以额外开个属性使用其AnsiIndex
+  // D2005~2007 下 EditPos 的 Col 是 Utf8 的，但绘制需要 Ansi 的，
+  // 所以额外开个属性使用其 AnsiIndex
   AToken.EditAnsiCol := AToken.AnsiIndex + 1;
 {$ENDIF}
 end;
@@ -7292,6 +7899,24 @@ begin
 {$ENDIF}
 end;
 
+// 分析源代码中引用的单元，FileName 是完整文件名
+procedure ParseUnitUsesFromFileName(const FileName: string; UsesList: TStrings);
+var
+  Stream: TMemoryStream;
+begin
+  Stream := TMemoryStream.Create;
+  try
+    EditFilerSaveFileToStream(FileName, Stream);
+{$IFDEF UNICODE}
+    ParseUnitUsesW(PChar(Stream.Memory), UsesList);
+{$ELSE}
+    ParseUnitUses(PAnsiChar(Stream.Memory), UsesList);
+{$ENDIF}
+  finally
+    Stream.Free;
+  end;
+end;
+
 //==============================================================================
 // 窗体操作相关函数
 //==============================================================================
@@ -7300,7 +7925,7 @@ end;
 function CnOtaGetCurrDesignedForm(var AForm: TCustomForm; Selections: TList;
   ExcludeForm: Boolean): Boolean;
 var
-  i: Integer;
+  I: Integer;
   AObj: TPersistent;
   FormDesigner: IDesigner;
   AList: IDesignerSelections;
@@ -7321,12 +7946,12 @@ begin
       Selections.Clear;
       AList := CreateSelectionList;
       FormDesigner.GetSelections(AList);
-      for i := 0 to AList.Count - 1 do
+      for I := 0 to AList.Count - 1 do
       begin
       {$IFDEF COMPILER6_UP}
-        AObj := TPersistent(AList[i]);
+        AObj := TPersistent(AList[I]);
       {$ELSE}
-        AObj := TryExtractPersistent(AList[i]);
+        AObj := TryExtractPersistent(AList[I]);
       {$ENDIF}
         if AObj <> nil then // perhaps is nil when disabling packages in the IDE
           Selections.Add(AObj);
@@ -7401,13 +8026,13 @@ end;
 // 判断设计期控件的指定属性是否存在
 function CnOtaPropertyExists(const Component: IOTAComponent; const PropertyName: string): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
   Assert(Assigned(Component));
-  for i := 0 to Component.GetPropCount - 1 do
+  for I := 0 to Component.GetPropCount - 1 do
   begin
-    Result := SameText(Component.GetPropName(i), PropertyName);
+    Result := SameText(Component.GetPropName(I), PropertyName);
     if Result then
       Break;
   end;
@@ -7839,6 +8464,76 @@ begin
 end;
 {$ENDIF}
 
+// 根据 HDPI 设置，放大 Button 中的 Glyph，Button 只能是 SpeedButton 或 BitBtn
+procedure CnEnlargeButtonGlyphForHDPI(const Button: TControl);
+var
+  SB: TSpeedButton;
+  BB: TBitBtn;
+  N: Integer;
+  Bmp: TBitmap;
+  S: Single;
+begin
+  if Button = nil then
+    Exit;
+
+  S := IdeGetScaledFactor(Button);
+  if S < 1.2 then // 太小了不缩放
+    Exit;
+
+  Bmp := nil;
+  try
+    if Button is TSpeedButton then
+    begin
+      SB := Button as TSpeedButton;
+      N := SB.NumGlyphs;
+      if SB.Glyph.Empty then
+        Exit;
+
+      Bmp := TBitmap.Create;
+      Bmp.Width := Trunc(N * SB.Glyph.Width * S);
+      Bmp.Height := Trunc(SB.Glyph.Height * S);
+
+      Bmp.Canvas.StretchDraw(Rect(0, 0, Bmp.Width, Bmp.Height), SB.Glyph);
+      SB.Glyph.Assign(Bmp);
+    end
+    else if Button is TBitBtn then
+    begin
+      BB := Button as TBitBtn;
+      N := BB.NumGlyphs;
+
+      if BB.Glyph.Empty then
+        Exit;
+
+      Bmp := TBitmap.Create;
+      Bmp.Width := Trunc(N * BB.Glyph.Width * S);
+      Bmp.Height := Trunc(BB.Glyph.Height * S);
+
+      Bmp.Canvas.StretchDraw(Rect(0, 0, Bmp.Width, Bmp.Height), BB.Glyph);
+      BB.Glyph.Assign(Bmp);
+    end;
+  finally
+    Bmp.Free;
+  end;
+end;
+
+procedure FormCallBack(Sender: TObject);
+begin
+  if Sender is TForm then
+    ScaleForm(Sender as TForm, IdeGetScaledFactor);
+end;
+
+function CnWizInputQuery(const ACaption, APrompt: string;
+  var Value: string; Ini: TCustomIniFile; const Section: string): Boolean;
+begin
+  Result := CnCommon.CnInputQuery(ACaption, APrompt, Value, Ini, Section, False, FormCallBack);
+end;
+
+function CnWizInputBox(const ACaption, APrompt, ADefault: string;
+   Ini: TCustomIniFile; const Section: string): string;
+begin
+  Result := CnInputBox(ACaption, APrompt, ADefault, Ini, Section, FormCallBack);
+end;
+
 // 封装 Assert 判断
 procedure CnWizAssert(Expr: Boolean; const Msg: string = '');
 begin
@@ -7864,21 +8559,23 @@ initialization
 {$ENDIF}
 
 finalization
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogEnter('CnWizUtils finalization.');
-{$ENDIF Debug}
+{$ENDIF}
 
+{$IFNDEF CNWIZARDS_MINIMUM}
 {$IFDEF UNICODE}
   VirtualEditControlBitmap.Free;
+{$ENDIF}
 {$ENDIF}
 
   RegisterNoIconProc := OldRegisterNoIconProc;
   FreeAndNil(CnNoIconList);
   
   FreeResDll;
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogLeave('CnWizUtils finalization.');
-{$ENDIF Debug}
+{$ENDIF}
 
 end.
 

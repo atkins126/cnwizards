@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -46,7 +46,7 @@ uses
   ToolsAPI, IniFiles, ComCtrls, ExtCtrls, StdCtrls, ToolWin, ActnList, CheckLst,
   OmniXML, OmniXMLPersistent, CnClasses, CnConsts, CnWizMultiLang, CnWizClasses,
   TypInfo, CnWizUtils, CnWizConsts, CnCommon, CnWizShareImages, CnScriptClasses,
-  CnWizOptions, CnWizShortCut, Buttons, CnScriptFrm, CnWizNotifier,
+  CnWizOptions, CnWizShortCut, Buttons, CnScriptFrm, CnWizNotifier, CnWizManager,
   CnCheckTreeView;
 
 type
@@ -139,8 +139,9 @@ type
     btnClose: TToolButton;
     dlgOpen: TOpenDialog;
     dlgSave: TSaveDialog;
-    lvList: TListView;
     dlgOpenIcon: TOpenDialog;
+    dlgOpenFile: TOpenDialog;
+    pnl1: TPanel;
     grp1: TGroupBox;
     lbl2: TLabel;
     lbl3: TLabel;
@@ -156,11 +157,11 @@ type
     hkShortCut: THotKey;
     chkExecConfirm: TCheckBox;
     edtFileName: TEdit;
+    chktvMode: TCnCheckTreeView;
     grp2: TGroupBox;
     lbl6: TLabel;
     mmoSearchPath: TMemo;
-    dlgOpenFile: TOpenDialog;
-    chktvMode: TCnCheckTreeView;
+    lvList: TListView;
     procedure actAddExecute(Sender: TObject);
     procedure actDeleteExecute(Sender: TObject);
     procedure actClearExecute(Sender: TObject);
@@ -184,18 +185,20 @@ type
     procedure FormKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure FormDestroy(Sender: TObject);
+    procedure hkShortCutExit(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
-    { Private declarations }
     FUpdating: Boolean;
     procedure UpdateList;
     procedure UpdateControls;
     procedure SetItemToControls(Item: TCnScriptItem);
     procedure GetItemFromControls(Item: TCnScriptItem);
+    function CheckCurrentShortCutContinue: Boolean;
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     TempScripts: TCnScriptCollection;
+    // 用于真正控制显示与编辑的，内容可能比 Wizard 里头的少，因为后者有 Internal 项目
     procedure AddNewScript(const Script: string);
   end;
 
@@ -280,7 +283,8 @@ const
     @SCnScriptModeFileNotify, @SCnScriptModeBeforeCompile,
     @SCnScriptModeAfterCompile, @SCnScriptModeSourceEditorNotify,
     @SCnScriptModeFormEditorNotify, @SCnScriptModeApplicationEvent,
-    @SCnScriptModeActiveFormChanged, @SCnScriptModeEditorFlatButton);
+    @SCnScriptModeActiveFormChanged, @SCnScriptModeEditorFlatButton,
+    @SCnScriptModeDesignerContextMenu);
 
 { TCnScriptItem }
 
@@ -411,6 +415,8 @@ var
   AppEventType: TCnWizAppEventType;
 begin
   inherited;
+  WizOptions.ResetToolbarWithLargeIcons(tlb1);
+
   TempScripts := TCnScriptCollection.Create;
   EnlargeListViewColumns(lvList);
 
@@ -458,6 +464,7 @@ procedure TCnScriptWizardForm.FormClose(Sender: TObject;
   var Action: TCloseAction);
 begin
   OnControlChanged(nil);
+
   if ModalResult = mrNone then
     ModalResult := mrOk;
   Action := caHide;
@@ -813,6 +820,50 @@ begin
   dlgOpenIcon.FileName := _CnExtractFileName(edtIcon.Text);
   if dlgOpenIcon.Execute then
     edtIcon.Text := dlgOpenIcon.FileName;
+end;
+
+function TCnScriptWizardForm.CheckCurrentShortCutContinue: Boolean;
+var
+  I, Idx: Integer;
+  Wizard: TCnScriptWizard;
+  ScriptAction: TCustomAction;
+  AScript, BScript: TCnScriptItem;
+begin
+  // 判断快捷键是否重复，不重复或允许之后，再更新条目
+  // 如果是手动运行类型的就找其 Action（可能是 nil），如果是其他，也以 nil 找
+  Result := True;
+  Wizard := nil;
+  if CnWizardMgr.WizardByClass(TCnScriptWizard) <> nil then
+    if CnWizardMgr.WizardByClass(TCnScriptWizard) is TCnScriptWizard then
+      Wizard := TCnScriptWizard(CnWizardMgr.WizardByClass(TCnScriptWizard));
+
+  if Wizard = nil then
+    Exit;
+
+  Idx := 2; // 脚本专家菜单的脚本列表前面有仨菜单项，0 1 2
+  ScriptAction := nil;
+
+  // 要寻找 lvList 中的选中项有无对应的下拉菜单的 Action
+  if lvList.Selected <> nil then
+  begin
+    AScript := TempScripts[lvList.Selected.Index];
+
+    if AScript.Enabled and not AScript.IsInternal and (smManual in AScript.Mode) then
+    begin
+      // 被选中项应有对应菜单项，需要找 Action
+      for I := 0 to TempScripts.Count - 1 do
+      begin
+        BScript := TempScripts[I];
+        if BScript.Enabled and not BScript.IsInternal and (smManual in BScript.Mode) then
+          Inc(Idx);
+
+        if BScript = AScript then
+          ScriptAction := Wizard.SubActions[Idx];
+      end;
+    end;
+  end;
+
+  Result := CheckQueryShortCutDuplicated(hkShortCut.HotKey, ScriptAction) <> sdDuplicatedStop;
 end;
 
 { TCnScriptWizard }
@@ -1289,6 +1340,18 @@ end;
 procedure TCnScriptWizardForm.FormDestroy(Sender: TObject);
 begin
   TempScripts.Free;
+end;
+
+procedure TCnScriptWizardForm.hkShortCutExit(Sender: TObject);
+begin
+  if CheckCurrentShortCutContinue then
+    OnControlChanged(Sender);
+end;
+
+procedure TCnScriptWizardForm.FormCloseQuery(Sender: TObject;
+  var CanClose: Boolean);
+begin
+  CanClose := CheckCurrentShortCutContinue;
 end;
 
 initialization

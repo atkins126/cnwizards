@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -39,9 +39,12 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ExtCtrls, CheckLst, Buttons, ImgList, CnCommon, CnWizLangID,
   CnLangTranslator, CnLangMgr, CnClasses, CnLangStorage, CnHashLangStorage,
-  System.ImageList;
+  CnWideCtrls;
 
 type
+
+{$I WideCtrls.inc}
+
   TCnCustBuildForm = class(TForm)
     pnlTop: TPanel;
     bvlLineTop: TBevel;
@@ -78,7 +81,6 @@ type
     procedure btnInvertClick(Sender: TObject);
     procedure btnHelpClick(Sender: TObject);
   private
-    { Private declarations }
     FLangDir: string;
     FSaved: Boolean;
     FLangId: Cardinal;
@@ -99,7 +101,6 @@ type
     procedure DoCreate; override;
     procedure TranslateStrings;
   public
-    { Public declarations }
     procedure LoadWizards;
   end;
 
@@ -131,7 +132,7 @@ var
   SCnWizardGenerateOK: string = 'cnwizards\Source\CnWizards.inc 写入成功。';
   SCnCustBuildAbout: string = 'CnPack IDE 专家包自定义构建工具' + #13#10#13#10 +
     '软件作者 刘啸 (LiuXiao)  liuxiao@cnpack.org' + #13#10 +
-    '版权所有 (C) 2001-2021 CnPack 开发组';
+    '版权所有 (C) 2001-2022 CnPack 开发组';
 
   SCnCustBuildHelp: string =
     'CnPack IDE 专家包支持自定义构建。它的各个专家是否参与编译都统一由源码中的' + #13#10 +
@@ -428,7 +429,7 @@ begin
     lm.CurrentLanguageIndex := hfs.Languages.Find(FLangId)
   else
     lm.CurrentLanguageIndex := hfs.Languages.Find(1033);
-  CnLanguageManager.TranslateForm(Self);
+
   TranslateStrings;
   inherited;  
 end;

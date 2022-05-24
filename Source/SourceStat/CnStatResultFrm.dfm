@@ -1,8 +1,9 @@
 inherited CnStatResultForm: TCnStatResultForm
   Top = 85
-  Width = 791
-  Height = 513
+  AutoScroll = False
   Caption = 'Source Code Statistic Wizard'
+  ClientHeight = 467
+  ClientWidth = 783
   Constraints.MinHeight = 450
   Constraints.MinWidth = 600
   Menu = MainMenu
@@ -214,7 +215,7 @@ inherited CnStatResultForm: TCnStatResultForm
     object GroupBoxDPR: TGroupBox
       Left = 16
       Top = 219
-      Width = 161
+      Width = 241
       Height = 180
       Anchors = [akLeft, akBottom]
       Caption = 'Files or Project Statistic Result'
@@ -251,9 +252,9 @@ inherited CnStatResultForm: TCnStatResultForm
       end
     end
     object GroupBoxBPG: TGroupBox
-      Left = 256
+      Left = 272
       Top = 216
-      Width = 173
+      Width = 249
       Height = 179
       Caption = 'Project Group Statistic Result'
       TabOrder = 2

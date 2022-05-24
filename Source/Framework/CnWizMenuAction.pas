@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -34,7 +34,7 @@ unit CnWizMenuAction;
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
 * 修改记录：2012.09.19 by shenloqi
-*               移植到Delphi XE3
+*               移植到 Delphi XE3
 *           2002.09.17 V1.0
 *               创建单元，实现功能
 ================================================================================
@@ -46,7 +46,9 @@ interface
 
 uses
   Windows, Messages, Classes, SysUtils, Graphics, Menus, Forms, ActnList, ToolsAPI, 
-  {$IFDEF DELPHIXE3_UP} Actions,{$ENDIF} CnCommon, CnWizConsts, CnWizShortCut;
+  {$IFDEF DELPHIXE3_UP} Actions,{$ENDIF}
+  {$IFDEF IDE_SUPPORT_HDPI} Vcl.VirtualImageList, {$ENDIF}
+  CnCommon, CnWizConsts, CnWizShortCut;
 
 type
 //==============================================================================
@@ -64,13 +66,12 @@ type
     FCommand: string;
     FWizShortCut: TCnWizShortCut;
     FIcon: TIcon;
-    FSmallIcon: TIcon;
     FUpdating: Boolean;
     FLastUpdateTick: Cardinal;
     procedure SetInheritedShortCut;
     function GetShortCut: TShortCut;
     procedure {$IFDEF DelphiXE3_UP}_CnSetShortCut{$ELSE}SetShortCut{$ENDIF}(const Value: TShortCut);
-    {* Delphi XE3引入了SetShortCut基方法，为避免同名带入的问题，故将此方法改名}
+    {* Delphi XE3 引入了 SetShortCut 基方法，为避免同名带入的问题，故将此方法改名}
     procedure OnShortCut(Sender: TObject);
   protected
     procedure Change; override;
@@ -87,9 +88,7 @@ type
     property Command: string read FCommand;
     {* Action 命令字符串，用来唯一标识一个 Action，同时也是快捷键对象的名字}
     property Icon: TIcon read FIcon;
-    {* Action 关联的图标，可在其它地方使用，但请不要更改图标内容}
-    property SmallIcon: TIcon read FSmallIcon;
-    {* Action 关联的小尺寸图标 16*16，可能为空。可在其它地方使用，但请不要更改图标内容}
+    {* Action 关联的图标，加载时 16x16，可在其它地方使用，但请不要更改图标内容}
     property ShortCut: TShortCut read GetShortCut write {$IFDEF DelphiXE3_UP}_CnSetShortCut{$ELSE}SetShortCut{$ENDIF};
     {* Action 关联的快捷键}
   end;
@@ -244,7 +243,6 @@ begin
   inherited Create(AOwner);
   FCommand := '';
   FIcon := TIcon.Create;
-  FSmallIcon := TIcon.Create;
   FWizShortCut := nil;
   FUpdating := False;
 end;
@@ -254,7 +252,6 @@ destructor TCnWizAction.Destroy;
 begin
   if Assigned(FWizShortCut) then
     WizShortCutMgr.DeleteShortCut(FWizShortCut);
-  FSmallIcon.Free;
   FIcon.Free;
   inherited Destroy;
 end;
@@ -277,12 +274,15 @@ var
   NotifyEvent: TNotifyEvent;
 begin
   if FUpdating then Exit;
-  
-  // 防止继承来的快捷键被修改
-  if inherited ShortCut <> ShortCut then
+
+  if Assigned(FWizShortCut) then
   begin
-    SetInheritedShortCut;
-    Exit;
+    // 防止继承来的快捷键被修改
+    if inherited ShortCut <> ShortCut then
+    begin
+      SetInheritedShortCut;
+      Exit;
+    end;
   end;
 
   inherited Change;
@@ -466,12 +466,18 @@ begin
   AWizAction.OnUpdate := OnUpdate;
   
   AWizAction.ActionList := Svcs40.ActionList;
-  if CnWizLoadIcon(AWizAction.FIcon, AWizAction.FSmallIcon, IcoName, UseDefaultIcon) then
+  if CnWizLoadIcon(nil, AWizAction.FIcon, IcoName, UseDefaultIcon) then
   begin
-    if AWizAction.FSmallIcon.Empty then // IDE 主 ImageList 尽量使用 16*16 的图标
-      AWizAction.ImageIndex := AddIconToImageList(AWizAction.FIcon, Svcs40.ImageList)
-    else
-      AWizAction.ImageIndex := AddIconToImageList(AWizAction.FSmallIcon, Svcs40.ImageList, False);
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('Load Icon %s OK with %dx%d', [IcoName, AWizAction.FIcon.Width,
+      AWizAction.FIcon.Height]);
+{$ENDIF}
+
+{$IFDEF IDE_SUPPORT_HDPI}
+    AWizAction.ImageIndex := AddGraphicToVirtualImageList(AWizAction.FIcon, Svcs40.ImageList as TVirtualImageList)
+{$ELSE}
+    AWizAction.ImageIndex := AddIconToImageList(AWizAction.FIcon, Svcs40.ImageList, False)
+{$ENDIF}
   end
   else
     AWizAction.ImageIndex := -1;
@@ -494,6 +500,7 @@ begin
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   Result := TCnWizMenuAction.Create(Svcs40.ActionList);
   Result.FreeNotification(Self);
+
   Result.FUpdating := True;         // 开始更新
   try
     InitAction(Result, ACommand, ACaption, OnExecute, nil, IcoName, AHint, UseDefaultIcon);
@@ -503,7 +510,8 @@ begin
     Result.FMenu.Action := Result;
     Result.FMenu.AutoHotkeys := maManual;
     Result.FWizShortCut := WizShortCutMgr.Add(ACommand, AShortCut, Result.OnShortCut,
-      AMenuName);
+      AMenuName, 0, Result);
+
     Result.SetInheritedShortCut;
     FWizMenuActions.Add(Result);
   finally
@@ -530,10 +538,11 @@ begin
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   Result := TCnWizAction.Create(Svcs40.ActionList);
   Result.FreeNotification(Self);
+
   Result.FUpdating := True;         // 开始更新
   try
     InitAction(Result, ACommand, ACaption, OnExecute, nil, IcoName, AHint, UseDefaultIcon);
-    Result.FWizShortCut := WizShortCutMgr.Add(ACommand, AShortCut, Result.OnShortCut);
+    Result.FWizShortCut := WizShortCutMgr.Add(ACommand, AShortCut, Result.OnShortCut, '', 0, Result);
     Result.SetInheritedShortCut;
     FWizActions.Add(Result);
   finally

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -665,10 +665,21 @@ begin
   FRegExpr := TRegExpr.Create;
   FRegExpr.ModifierI := True;
   FMatchButtonFrame := TCnMatchButtonFrame.Create(Self);
+  FMatchButtonFrame.Anchors := FMatchButtonFrame.Anchors + [akBottom];
   FMatchButtonFrame.Parent := pnlHdr;
   FMatchButtonFrame.Left := 8;
   InitButtonFrame;
   FMatchButtonFrame.OnModeChange := MatchModeChange;
+
+  WizOptions.ResetToolbarWithLargeIcons(ToolBar1);
+  WizOptions.ResetToolbarWithLargeIcons(FMatchButtonFrame.tlb1);
+  if WizOptions.UseLargeIcon then
+  begin
+    FMatchButtonFrame.Width := FMatchButtonFrame.Width + csLargeToolbarHeightDelta;
+    FMatchButtonFrame.tlb1.Width := FMatchButtonFrame.tlb1.Width + csLargeToolbarHeightDelta;
+    edtSearch.Font.Size := csLargeComboFontSize;
+    pnlHdr.Height := pnlHdr.Height + csLargeToolbarHeightDelta;
+  end;
 
   CnWizNotifierServices.AddFileNotifier(FileNotify);
   CnWizNotifierServices.AddFormEditorNotifier(FormEditorNotify);

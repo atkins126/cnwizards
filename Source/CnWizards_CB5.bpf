@@ -20,10 +20,12 @@ USEFORMNS("Config\CnWizConfigFrm.pas", Cnwizconfigfrm, CnWizConfigForm);
 USEFORMNS("Config\CnWizSubActionShortCutFrm.pas", Cnwizsubactionshortcutfrm, CnWizSubActionShortCutForm);
 USEFORMNS("Config\CnWizMenuSortFrm.pas", Cnwizmenusortfrm, CnMenuSortFrm);
 USEUNIT("Utils\CnWizUtils.pas");
-USEFORMNS("SimpleWizards\CnAlignSizeWizard.pas", Cnalignsizewizard, CnNonArrangeForm);
-USEFORMNS("CodingToolset\CnEditorWizard.pas", Cneditorwizard, CnEditorToolsForm);
-USEFORMNS("SimpleWizards\CnListCompFrm.pas", Cnlistcompfrm, CnListCompForm);
-USEFORMNS("SimpleWizards\CnCompToCodeFrm.pas", Cncomptocodefrm, CnCompToCodeForm);
+USEFORMNS("DesignWizard\CnAlignSizeWizard.pas", Cnalignsizewizard, CnNonArrangeForm);
+USEFORMNS("CodingToolset\CnEditorToolsetWizard.pas", Cneditortoolsetwizard, CnEditorToolsForm);
+USEFORMNS("DesignWizard\CnListCompFrm.pas", Cnlistcompfrm, CnListCompForm);
+USEFORMNS("DesignWizard\CnPropertyCompareFrm.pas", Cnpropertycomparefrm, CnPropertyCompareForm);
+USEFORMNS("DesignWizard\CnPropertyCompConfigFrm.pas", Cnpropertycompconfigfrm, CnPropertyCompConfigForm);
+USEFORMNS("DesignWizard\CnCompToCodeFrm.pas", Cncomptocodefrm, CnCompToCodeForm);
 USEFORMNS("SimpleWizards\CnMessageBoxWizard.pas", Cnmessageboxwizard, CnMessageBoxForm);
 USEFORMNS("SimpleWizards\CnComponentSelector.pas", Cncomponentselector, CnComponentSelectorForm);
 USEFORMNS("SimpleWizards\CnTabOrderWizard.pas", Cntaborderwizard, CnTabOrderForm);
@@ -86,7 +88,7 @@ USEFORMNS("ScriptWizard\CnScriptWizard.pas", Cnscriptwizard, CnScriptWizardForm)
 USEFORMNS("IdeEnhancements\CnCompFilterFrm.pas", Cncompfilterfrm, CnCompFilterForm);
 USEFORMNS("CorProperty\CnCorPropCfgFrm.pas", Cncorpropcfgfrm, CnCorPropCfgForm);
 USEFORMNS("CorProperty\CnCorPropFrm.pas", Cncorpropfrm, CnCorPropForm);
-USEFORMNS("CorProperty\CnCorPropRulesFrm.pas", Cncorproprulesfrm, CorPropRuleForm);
+USEFORMNS("CorProperty\CnCorPropRulesFrm.pas", Cncorproprulesfrm, CnCorPropRuleForm);
 USEUNIT("CorProperty\CnCorPropWizard.pas");
 USEUNIT("ProjectExtWizard\CnProjectExtWizard.pas");
 USEFORMNS("ProjectExtWizard\CnProjectViewFormsFrm.pas", Cnprojectviewformsfrm, CnProjectViewFormsForm);
@@ -94,7 +96,7 @@ USEFORMNS("ProjectExtWizard\CnProjectViewUnitsFrm.pas", Cnprojectviewunitsfrm, C
 USEFORMNS("ProjectExtWizard\CnProjectUseUnitsFrm.pas", Cnprojectuseunitsfrm, CnProjectUseUnitsForm);
 USEFORMNS("ProjectExtWizard\CnProjectFramesFrm.pas", Cnprojectframesfrm, CnProjectFramesForm);
 USEFORMNS("ProjectExtWizard\CnProjectListUsedFrm.pas", Cnprojectlistusedfrm, CnProjectListUsedForm);
-USEFORMNS("SimpleWizards\CnCommentCropper.pas", Cncommentcropper, CommentCropFrm);
+USEFORMNS("SimpleWizards\CnCommentCropper.pas", Cncommentcropper, CnCommentCropFrm);
 USEUNIT("Utils\CnSourceCropper.pas");
 USEUNIT("IdeEnhancements\CnCpuWinEnhancements.pas");
 USEUNIT("IdeEnhancements\CnCpuWinEnhanceFrm.pas");
@@ -118,7 +120,6 @@ USEFORMNS("ProjectExtWizard\CnProjectViewBaseFrm.pas", Cnprojectviewbasefrm, CnP
 USEUNIT("ReopenWizard\CnFilesSnapshot.pas");
 USEFORMNS("ReopenWizard\CnFilesSnapshotManageFrm.pas", Cnfilessnapshotmanagefrm, CnProjectFilesSnapshotManageForm);
 USEUNIT("ReopenWizard\CnRoClasses.pas");
-USEUNIT("ReopenWizard\CnRoConst.pas");
 USEUNIT("ReopenWizard\CnRoFilesList.pas");
 USEFORMNS("ReopenWizard\CnRoFrmFileList.pas", Cnrofrmfilelist, RecentFilesFrame); /* TFrame: File Type */
 USEUNIT("ReopenWizard\CnRoInterfaces.pas");
@@ -161,6 +162,8 @@ USEFORMNS("SrcEditorEnhance\CnSrcEditorReplaceInBlock.pas", Cnsrceditorreplacein
 USEUNIT("CodingToolset\CnEditorSortLines.pas");
 USEUNIT("CodingToolset\CnEditorToggleUses.pas");
 USEUNIT("CodingToolset\CnEditorJumpMessage.pas");
+USEUNIT("CodingToolset\CnEditorFontZoom.pas");
+USEUNIT("CodingToolset\CnEditorDuplicateUnit.pas");
 USEUNIT("SrcEditorEnhance\CnSrcEditorKey.pas");
 USEFORMNS("SrcEditorEnhance\CnIdentRenameFrm.pas", Cnidentrenamefrm, CnIdentRenameForm);
 USEUNIT("IdeEnhancements\CnIdeEnhanceMenu.pas");
@@ -184,6 +187,7 @@ USEUNIT("Utils\CnImageProviderMgr.pas");
 USEUNIT("Utils\CnImageProvider_FindIcons.pas");
 USEUNIT("Utils\CnImageProvider_LocalCache.pas");
 USEUNIT("CodeFormatter\CnFormatterIntf.pas");
+USEFORMNS("CodeFormatter\CnCodeFormatterWizard.pas", Cncodeformatterwizard, CnCodeFormatterForm);
 //---------------------------------------------------------------------------
 This file is used by the project manager only and should be treated like the project file
 

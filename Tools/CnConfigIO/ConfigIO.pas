@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -41,7 +41,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   Registry, ExtCtrls, StdCtrls, FileCtrl, CnCommon, CnConsts, CnWizLangID,
   CnLangTranslator, CnLangStorage, CnHashLangStorage, CnLangMgr, CnClasses,
-  CnWizCfgUtils;
+  CnWizCfgUtils, CnWideCtrls;
 
 const
   SCnWizardsReg = 'CnWizards.reg';
@@ -76,9 +76,12 @@ var
     'This tool can be used to Import and Export CnPack IDE Wizards Config Information ' + #13#10 +
     'for Config backup or migration.' + #13#10#13#10 +
     'Author: Liu Xiao (liuxiao@cnpack.org)' + #13#10 +
-    'Copyright (C) 2001-2021 CnPack Team';
+    'Copyright (C) 2001-2022 CnPack Team';
 
 type
+
+{$I WideCtrls.inc}
+
   TFrmConfigIO = class(TForm)
     Label1: TLabel;
     Bevel1: TBevel;
@@ -101,7 +104,6 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
-    { Private declarations }
     FDone: Boolean;
     FRegPath: string;
     FRegFile: string;
@@ -122,7 +124,6 @@ type
     procedure DoCreate; override;
     procedure TranslateStrings;
   public
-    { Public declarations }
     procedure BackupToFile(const FileName: string);
     procedure RestoreFromFile(const FileName: string);
     procedure RestoreDef;
@@ -488,7 +489,6 @@ begin
       begin
         CnLanguageManager.CurrentLanguageIndex := I;
         TranslateStrings;
-        CnLanguageManager.TranslateForm(Self);
         Break;
       end;
     end;

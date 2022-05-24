@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -179,14 +179,9 @@ begin
     Height := ReadInteger(csHintEditor, csHeight, Height);
     Width := ReadInteger(csHintEditor, csWidth, Width);
 
-    // 读入旧值进行放大
+    // 读入旧值，基类会自动进行放大，此处无需再次调用 CalcIntEnlargedValue 放大
     Memos[0].Font := ReadFont(csHintEditor, csFontShort, Memos[0].Font);
     Memos[1].Font := ReadFont(csHintEditor, csFontLong, Memos[1].Font);
-    if Enlarged then
-    begin
-      Memos[0].Font.Size := CalcIntEnlargedValue(Memos[0].Font.Size);
-      Memos[1].Font.Size := CalcIntEnlargedValue(Memos[1].Font.Size);
-    end;
   finally
     Free;
   end;

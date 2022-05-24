@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -225,7 +225,8 @@ implementation
 
 {$R *.DFM}
 
-uses CnProjectDirImportFrm;
+uses
+  CnWizUtils, CnWizIdeUtils, CnProjectDirImportFrm;
 
 var
   CnProjectDirBuilderForm: TCnProjectDirBuilderForm = nil;
@@ -655,7 +656,7 @@ begin
     NeedConfirm := True;     // 覆盖的话也需要确认
   end;
 
-  if NeedInput and not CnInputQuery(SCnProjExtSaveTempletCaption, SCnProjExtInputTempletName,
+  if NeedInput and not CnWizInputQuery(SCnProjExtSaveTempletCaption, SCnProjExtInputTempletName,
     TempletName) then
     Exit;
 
@@ -694,6 +695,8 @@ end;
 
 procedure TCnProjectDirBuilderForm.FormCreate(Sender: TObject);
 begin
+  WizOptions.ResetToolbarWithLargeIcons(ToolBar);
+  IdeScaleToolbarComboFontSize(cbbDirList);
   FDataFilePath := MakePath(WizOptions.DataPath) + csTempletFileName;
   FUserFilePath := MakePath(WizOptions.UserPath) + csTempletFileName;
   FCnDirTree := TCnDirTree.Create(TCnDirLeaf);

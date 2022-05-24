@@ -21,71 +21,61 @@ inherited CnExploreForm: TCnExploreForm
     SimplePanel = False
     UseSystemFont = False
   end
-  object pnlToolBar: TPanel
+  object ToolBar: TToolBar
     Left = 0
     Top = 0
-    Width = 255
+    Width = 115
     Height = 23
     Align = alTop
     AutoSize = True
-    BevelOuter = bvNone
-    TabOrder = 1
-    object ToolBar: TToolBar
+    ButtonHeight = 23
+    EdgeInner = esNone
+    EdgeOuter = esNone
+    Flat = True
+    Images = il
+    ParentShowHint = False
+    ShowHint = True
+    TabOrder = 0
+    object btnUp: TToolButton
       Left = 0
       Top = 0
-      Width = 115
-      Height = 23
-      Align = alLeft
-      AutoSize = True
-      ButtonHeight = 23
-      EdgeInner = esNone
-      EdgeOuter = esNone
-      Flat = True
-      Images = il
+      Hint = 'Go to Up Folder'
+      Caption = 'btnUp'
+      ImageIndex = 0
+      OnClick = btnUpClick
+    end
+    object btnListIcon: TToolButton
+      Tag = 3
+      Left = 23
+      Top = 0
+      Hint = 'Arrange Icons'
+      Caption = 'Arrange Icons'
+      ImageIndex = 1
       ParentShowHint = False
+      PopupMenu = pmViewStyle
       ShowHint = True
-      TabOrder = 0
-      object btnUp: TToolButton
-        Left = 0
-        Top = 0
-        Hint = 'Go to Up Folder'
-        Caption = 'btnUp'
-        ImageIndex = 0
-        OnClick = btnUpClick
-      end
-      object btnListIcon: TToolButton
-        Tag = 3
-        Left = 23
-        Top = 0
-        Hint = 'Arrange Icons'
-        Caption = 'Arrange Icons'
-        ImageIndex = 1
-        ParentShowHint = False
-        PopupMenu = pmViewStyle
-        ShowHint = True
-        OnClick = btnListIconClick
-      end
-      object btnFilter: TToolButton
-        Left = 46
-        Top = 0
-        Hint = 'Filter'
-        Caption = 'Filter'
-        ImageIndex = 2
-        OnClick = btnFilterClick
-      end
-      object btnCurrProj: TToolButton
-        Left = 69
-        Top = 0
-        Hint = 'Current Project'
-        Caption = 'Current Project'
-        ImageIndex = 3
-        OnClick = btnCurrProjClick
-      end
-      object btnCreateDir: TToolButton
-        Left = 92
-        Top = 0
-        Action = actCreateDir
-      end
+      OnClick = btnListIconClick
+    end
+    object btnFilter: TToolButton
+      Left = 46
+      Top = 0
+      Hint = 'Filter'
+      Caption = 'Filter'
+      ImageIndex = 2
+      OnClick = btnFilterClick
+    end
+    object btnCurrProj: TToolButton
+      Left = 69
+      Top = 0
+      Hint = 'Current Project'
+      Caption = 'Current Project'
+      ImageIndex = 3
+      OnClick = btnCurrProjClick
+    end
+    object btnCreateDir: TToolButton
+      Left = 92
+      Top = 0
+      Action = actCreateDir
     end
   end
   object pnlClient: TPanel
@@ -157,8 +147,8 @@ inherited CnExploreForm: TCnExploreForm
     end
   end
   object il: TImageList
-    Left = 192
-    Top = 6
+    Left = 200
+    Top = 38
     Bitmap = {
       494C010105000900040010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000003000000001002000000000000030
@@ -795,5 +785,11 @@ inherited CnExploreForm: TCnExploreForm
       ImageIndex = 4
       OnExecute = actCreateDirExecute
     end
+  end
+  object ilLarge: TImageList
+    Height = 24
+    Width = 24
+    Left = 200
+    Top = 78
   end
 end

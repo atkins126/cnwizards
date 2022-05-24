@@ -169,16 +169,22 @@
         </DCCReference>
         <DCCReference Include="DesignEditors\CnAlignPropEditor.pas"/>
         <DCCReference Include="IdeEnhancements\CnFastCodeWizard.pas"/>
-        <DCCReference Include="SimpleWizards\CnAlignSizeWizard.pas">
+        <DCCReference Include="DesignWizard\CnAlignSizeWizard.pas">
             <Form>CnNonArrangeForm</Form>
         </DCCReference>
-        <DCCReference Include="CodingToolset\CnEditorWizard.pas">
+        <DCCReference Include="CodingToolset\CnEditorToolsetWizard.pas">
             <Form>CnEditorToolsForm</Form>
         </DCCReference>
-        <DCCReference Include="SimpleWizards\CnListCompFrm.pas">
+        <DCCReference Include="DesignWizard\CnListCompFrm.pas">
             <Form>CnListCompForm</Form>
         </DCCReference>
-        <DCCReference Include="SimpleWizards\CnCompToCodeFrm.pas">
+        <DCCReference Include="DesignWizard\CnPropertyCompareFrm.pas">
+            <Form>CnPropertyCompareForm</Form>
+        </DCCReference>
+        <DCCReference Include="DesignWizard\CnPropertyCompConfigFrm.pas">
+            <Form>CnPropertyCompConfigForm</Form>
+        </DCCReference>
+        <DCCReference Include="DesignWizard\CnCompToCodeFrm.pas">
             <Form>CnCompToCodeForm</Form>
         </DCCReference>
         <DCCReference Include="SimpleWizards\CnMessageBoxWizard.pas">
@@ -242,6 +248,7 @@
         <DCCReference Include="CodingToolset\CnEditorToggleVar.pas"/>
         <DCCReference Include="CodingToolset\CnEditorJumpMessage.pas"/>
         <DCCReference Include="CodingToolset\CnEditorFontZoom.pas"/>
+        <DCCReference Include="CodingToolset\CnEditorDuplicateUnit.pas"/>
         <DCCReference Include="SimpleWizards\CnMsdnWizard.pas">
             <Form>CnMsdnConfigForm</Form>
         </DCCReference>
@@ -317,7 +324,7 @@
             <Form>CnCorPropCfgForm</Form>
         </DCCReference>
         <DCCReference Include="CorProperty\CnCorPropRulesFrm.pas">
-            <Form>CorPropRuleForm</Form>
+            <Form>CnCorPropRuleForm</Form>
         </DCCReference>
         <DCCReference Include="ProjectExtWizard\CnProjectExtWizard.pas"/>
         <DCCReference Include="ProjectExtWizard\CnProjectViewBaseFrm.pas">
@@ -338,9 +345,10 @@
         <DCCReference Include="ProjectExtWizard\CnProjectListUsedFrm.pas">
             <Form>CnProjectListUsedForm</Form>
         </DCCReference>
+        <DCCReference Include="VclToFmx\CnVclToFmxIntf.pas"/>
         <DCCReference Include="Utils\CnWizDfmParser.pas"/>
         <DCCReference Include="SimpleWizards\CnCommentCropper.pas">
-            <Form>CommentCropForm</Form>
+            <Form>CnCommentCropForm</Form>
         </DCCReference>
         <DCCReference Include="Utils\CnSourceCropper.pas"/>
         <DCCReference Include="IdeEnhancements\CnCpuWinEnhancements.pas"/>
@@ -383,7 +391,6 @@
             <Form>CnProjectDelTempForm</Form>
         </DCCReference>
         <DCCReference Include="ReopenWizard\CnRoClasses.pas"/>
-        <DCCReference Include="ReopenWizard\CnRoConst.pas"/>
         <DCCReference Include="ReopenWizard\CnRoFrmFileList.pas">
             <Form>RecentFilesFrame</Form>
             <DesignClass>TFrame</DesignClass>
@@ -472,11 +479,17 @@
             <Form>CnImportDirForm</Form>
         </DCCReference>
         <DCCReference Include="Utils\CnDCU32.pas"/>
-        <DCCReference Include="SimpleWizards\CnUsesCleaner.pas">
+        <DCCReference Include="UsesWizard\CnUsesToolsWizard.pas">
             <Form>CnUsesCleanerForm</Form>
         </DCCReference>
-        <DCCReference Include="SimpleWizards\CnUsesCleanResultFrm.pas">
+        <DCCReference Include="UsesWizard\CnUsesCleanResultFrm.pas">
             <Form>CnUsesCleanResultForm</Form>
+        </DCCReference>
+        <DCCReference Include="UsesWizard\CnUsesInitTreeFrm.pas">
+            <Form>CnUsesInitTreeForm</Form>
+        </DCCReference>
+        <DCCReference Include="UsesWizard\CnUsesIdentFrm.pas">
+			      <Form>CnUsesIdentForm</Form>
         </DCCReference>
         <DCCReference Include="IdeEnhancements\CnIdeEnhanceMenu.pas"/>
         <DCCReference Include="SimpleWizards\CnIdeBRWizard.pas"/>

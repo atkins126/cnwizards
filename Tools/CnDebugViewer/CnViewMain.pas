@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -284,8 +284,8 @@ type
     procedure OnSetCaptionGlobalLocal(var Message: TMessage); message WM_USER_SET_CAPTION;
   protected
     procedure DoCreate; override;
+    procedure ThreadTerminated(Sender: TObject);
   public
-    { Public declarations }
     procedure LaunchThread;
     procedure PauseThread;
     procedure TerminateThread;  
@@ -520,19 +520,7 @@ end;
 
 procedure TCnMainViewer.DestroyThread;
 begin
-  if FThread <> nil then
-  begin
-    FThread.Terminate;
-    FThread.WaitFor;
-    FThread := nil;
-  end;
-
-  if FDbgThread <> nil then
-  begin
-    FDbgThread.Terminate;
-    FDbgThread.WaitFor;
-    FDbgThread := nil;
-  end;
+  TerminateThread;
 
   FRunningState := rsStopped;
   UpdateStatusBar;
@@ -548,6 +536,8 @@ begin
   if FThread = nil then
   begin
     FThread := TGetDebugThread.Create(True);
+    FThread.FreeOnTerminate := True;
+    FThread.OnTerminate := ThreadTerminated;
     FThread.Resume;
   end
   else
@@ -558,6 +548,8 @@ begin
   if FDbgThread = nil then
   begin
     FDbgThread := TDbgGetDebugThread.Create(True);
+    FDbgThread.FreeOnTerminate := True;
+    FDbgThread.OnTerminate := ThreadTerminated;
     FDbgThread.Resume;
   end
   else
@@ -920,7 +912,6 @@ begin
       begin
         CnLanguageManager.CurrentLanguageIndex := I;
         TranslateStrings;
-        CnLanguageManager.TranslateForm(Self);
         Break;
       end;
     end;
@@ -1477,15 +1468,23 @@ begin
   if FThread <> nil then
   begin
     FThread.Terminate;
-    FThread.WaitFor;
-    FThread := nil;
+    try
+      FThread.WaitFor;
+    except
+      ;
+    end;
+    // FThread := nil;
   end;
 
   if FDbgThread <> nil then
   begin
     FDbgThread.Terminate;
-    FDbgThread.WaitFor;
-    FDbgThread := nil;
+    try
+      FDbgThread.WaitFor;
+    except
+      ;
+    end;
+    // FDbgThread := nil;
   end;
 end;
 
@@ -1507,6 +1506,14 @@ begin
       pnlChildContainer.Controls[I].Visible := False;
     end;
   end;
+end;
+
+procedure TCnMainViewer.ThreadTerminated(Sender: TObject);
+begin
+  if Sender = FThread then
+    FThread := nil
+  else if Sender = FDbgThread then
+    FDbgThread := nil;
 end;
 
 end.

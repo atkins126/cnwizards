@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -61,11 +61,17 @@ function IsIdeVersionLatest: Boolean;
 {* 返回当前是否最新 IDE 版本}
 
 function IsDelphi10Dot2GEDot2: Boolean;
-{* 返回是否 Delphi 10.2.2 或更高的子版本，用于主题判断}
+{* 返回是否 Delphi 10.2.2 或 10.2 的更高的子版本，用于主题判断}
+
+function IsDelphi10Dot4GEDot2: Boolean;
+{* 返回是否 Delphi 10.4.2 或 10.4 的更高的子版本，用于某些古怪判断}
 
 var
   CnIdeVersionDetected: Boolean = False;
   CnIdeVersionIsLatest: Boolean = False;
+
+  CnIsDelphi10Dot2GEDot2: Boolean = False;
+  CnIsDelphi10Dot4GEDot2: Boolean = False;
 
 implementation
 
@@ -382,6 +388,34 @@ begin
   Result := CompareVersionNumber(ReadFileVersion, CoreIdeLatest) >= 0;
 end;
 
+function IsDelphi10Dot4GEDot2: Boolean;
+{$IFDEF DELPHI104_SYDNEY}
+const
+  CoreIdeLatest: TVersionNumber =
+    (Major: 27; Minor: 0; Release: 40680; Build: 4203); // 10.4.2
+var
+  ReadFileVersion: TVersionNumber;
+{$ENDIF}
+begin
+{$IFDEF DELPHI104_SYDNEY}
+  ReadFileVersion := GetFileVersionNumber(GetIdeRootDirectory + 'Bin\coreide270.bpl');
+  Result := CompareVersionNumber(ReadFileVersion, CoreIdeLatest) >= 0;
+{$ELSE}
+  Result := False;
+{$ENDIF}
+end;
+
+function IsDelphi110AIdeVersionLatest: Boolean;
+const
+  CoreIdeLatest: TVersionNumber =
+    (Major: 28; Minor: 0; Release: 44500; Build: 8973); // 11.1
+var
+  ReadFileVersion: TVersionNumber;
+begin
+  ReadFileVersion := GetFileVersionNumber(GetIdeRootDirectory + 'Bin\coreide280.bpl');
+  Result := CompareVersionNumber(ReadFileVersion, CoreIdeLatest) >= 0;
+end;
+
 function IsIdeVersionLatest: Boolean;
 begin
   if CnIdeVersionDetected then
@@ -389,6 +423,7 @@ begin
     Result := CnIdeVersionIsLatest;
     Exit;
   end;
+
   // 碰上不支持的 IDE，返回 True
   CnIdeVersionIsLatest := True;
 
@@ -488,8 +523,16 @@ begin
   CnIdeVersionIsLatest := IsDelphi104SIdeVersionLatest;
 {$ENDIF}
 
+{$IFDEF DELPHI110_ALEXANDRIA}
+  CnIdeVersionIsLatest := IsDelphi110AIdeVersionLatest;
+{$ENDIF}
+
   Result := CnIdeVersionIsLatest;
   CnIdeVersionDetected := True;
+
+  // 初始化一些额外的变量
+  CnIsDelphi10Dot2GEDot2 := IsDelphi10Dot2GEDot2;
+  CnIsDelphi10Dot4GEDot2 := IsDelphi10Dot4GEDot2;
 end;
 
 function GetIdeExeVersion: string;

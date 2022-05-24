@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -58,6 +58,7 @@ type
   protected
     procedure DoModeChange; virtual;
   public
+    constructor Create(AOwner: TComponent); override;
     procedure SyncButtonHint;
 
     property MatchMode: TCnMatchMode read GetMatchMode write SetMatchMode;
@@ -68,10 +69,8 @@ implementation
 
 {$R *.DFM}
 
-{$IFDEF DEBUG}
 uses
-  CnDebug;
-{$ENDIF}
+  {$IFDEF DEBUG} CnDebug, {$ENDIF} CnWizShareImages;
 
 { TCnMatchButtonFrame }
 
@@ -144,6 +143,20 @@ begin
   Idx := Ord(MatchMode);
   if (Idx >= 0) and (Idx < pmMatchMode.Items.Count) then
     btnMatchMode.Hint := pmMatchMode.Items.Items[Idx].Hint;
+end;
+
+constructor TCnMatchButtonFrame.Create(AOwner: TComponent);
+begin
+  inherited;
+{$IFDEF IDE_SUPPORT_HDPI}
+  if WizOptions.UseLargeIcon then
+    pmMatchMode.Images := dmCnSharedImages.LargeVirtualImages
+  else
+    pmMatchMode.Images := dmCnSharedImages.VirtualImages;
+{$ELSE}
+  if WizOptions.UseLargeIcon then
+    pmMatchMode.Images := dmCnSharedImages.LargeImages;
+{$ENDIF}
 end;
 
 end.

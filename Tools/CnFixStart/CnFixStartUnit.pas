@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ExtCtrls, ComCtrls, Buttons, Contnrs, Registry, CnCommon,
   CnWizCompilerConst, ImgList, CnLangStorage, CnHashLangStorage, CnClasses,
-  CnLangMgr, CnWizLangID;
+  CnLangMgr, CnWizLangID, CnWideCtrls;
 
 const
   KEY_MAPPING_DELPHI_START: TCnCompiler = cnDelphiXE8;  // 从 XE8 起就可能有 KeyMapping 的毛病
@@ -14,6 +14,9 @@ const
     2); // 去掉 BCB5/6
 
 type
+
+{$I WideCtrls.inc}
+
   TCnKeyMappingCheckResult = class
   {* 一个 IDE 的 KeyMapping 优先级结果}
   private
@@ -96,7 +99,7 @@ var
     'CnPack IDE Wizards Starting-Up Fix Tool 1.0' + #13#10#13#10 +
     'This Tool is Used to Try to Fix Delphi Starting-Up Problem when Installed CnPack.' + #13#10#13#10 +
     'Author: Liu Xiao (liuxiao@cnpack.org)' + #13#10 +
-    'Copyright (C) 2001-2021 CnPack Team';
+    'Copyright (C) 2001-2022 CnPack Team';
 
 procedure TFormStartFix.btnCloseClick(Sender: TObject);
 begin
@@ -360,7 +363,6 @@ begin
       begin
         CnLanguageManager.CurrentLanguageIndex := I;
         TranslateStrings;
-        CnLanguageManager.TranslateForm(Self);
         Break;
       end;
     end;

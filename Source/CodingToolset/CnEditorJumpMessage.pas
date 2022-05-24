@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -52,7 +52,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, Menus, ToolsAPI, CnWizUtils, CnConsts, CnCommon, CnWizManager,
-  CnWizEditFiler, CnEditorWizard, CnWizConsts, CnEditorCodeTool, CnWizIdeUtils,
+  CnWizEditFiler, CnEditorToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizIdeUtils,
   CnSourceHighlight, CnPasCodeParser, CnEditControlWrapper, mPasLex,
   CnCppCodeParser, mwBCBTokenList, CnFastList {$IFDEF BDS}, CnWizMethodHook {$ENDIF};
 
@@ -556,9 +556,9 @@ end;
 
 procedure TCnEditorJumpMatchedKeyword.Execute;
 var
-  BlockMatchInfo: TBlockMatchInfo;
-  LineInfo: TBlockLineInfo;
-  CompDirectiveInfo: TCompDirectiveInfo;
+  BlockMatchInfo: TCnBlockMatchInfo;
+  LineInfo: TCnBlockLineInfo;
+  CompDirectiveInfo: TCnCompDirectiveInfo;
   EditControl: TControl;
   EditView: IOTAEditView;
   PasParser: TCnGeneralPasStructParser;
@@ -634,9 +634,9 @@ begin
   end;
 
   try
-    BlockMatchInfo := TBlockMatchInfo.Create(EditControl);
-    LineInfo := TBlockLineInfo.Create(EditControl);
-    CompDirectiveInfo := TCompDirectiveInfo.Create(EditControl);
+    BlockMatchInfo := TCnBlockMatchInfo.Create(EditControl);
+    LineInfo := TCnBlockLineInfo.Create(EditControl);
+    CompDirectiveInfo := TCnCompDirectiveInfo.Create(EditControl);
     BlockMatchInfo.LineInfo := LineInfo;
     BlockMatchInfo.CompDirectiveInfo := CompDirectiveInfo;
 
@@ -818,7 +818,7 @@ var
   CharPos: TOTACharPos;
   I: Integer;
   CurrentToken: TCnGeneralPasToken;
-  CurrentTokenName: AnsiString;
+  CurrentTokenName: TCnIdeTokenString;
   CurIsPas, CurIsCpp: Boolean;
   CurrentTokenIndex, StartIdx, EndIdx: Integer;
 
@@ -834,16 +834,6 @@ var
       StartIdx := CurrentTokenIndex + 1;
       EndIdx := MaxCount;
     end;
-  end;
-
-  function _IsCurrentToken(AView: Pointer; AControl: TControl;
-    Token: TCnGeneralPasToken): Boolean;
-  begin
-{$IFDEF SUPPORT_WIDECHAR_IDENTIFIER}
-    Result := IsCurrentTokenW(AView, AControl, Token);
-{$ELSE}
-    Result := IsCurrentToken(AView, AControl, Token);
-{$ENDIF}
   end;
 
 begin
@@ -908,7 +898,7 @@ begin
         PasParser.Tokens[I].EditLine := EditPos.Line;
 
         if (PasParser.Tokens[I].TokenID = tkIdentifier) and // 此处判断不支持双字节字符
-          _IsCurrentToken(Pointer(EditView), EditControl, PasParser.Tokens[I]) then
+          IsGeneralCurrentToken(Pointer(EditView), EditControl, PasParser.Tokens[I]) then
         begin
           if CurrentToken = nil then
           begin
@@ -928,7 +918,7 @@ begin
           for I := StartIdx downto EndIdx do // Search for previous
           begin
             if (PasParser.Tokens[I].TokenID = tkIdentifier) and
-              CheckTokenMatch(PasParser.Tokens[I].Token, CurrentTokenName, False) then
+              CheckTokenMatch(PasParser.Tokens[I].Token, PCnIdeTokenChar(CurrentTokenName), False) then
             begin
               // Found. Jump here and Exit;
               CnOtaGotoEditPosAndRepaint(EditView, PasParser.Tokens[I].EditLine, PasParser.Tokens[I].EditCol);
@@ -941,7 +931,7 @@ begin
           for I := StartIdx to EndIdx do // Search for Next
           begin
             if (PasParser.Tokens[I].TokenID = tkIdentifier) and
-              CheckTokenMatch(PasParser.Tokens[I].Token, CurrentTokenName, False) then
+              CheckTokenMatch(PasParser.Tokens[I].Token, PCnIdeTokenChar(CurrentTokenName), False) then
             begin
               // Found. Jump here and Exit;
               CnOtaGotoEditPosAndRepaint(EditView, PasParser.Tokens[I].EditLine, PasParser.Tokens[I].EditCol);
@@ -971,7 +961,7 @@ begin
         CppParser.Tokens[I].EditLine := EditPos.Line;
 
         if (CppParser.Tokens[I].CppTokenKind = ctkidentifier) and
-          _IsCurrentToken(Pointer(EditView), EditControl, CppParser.Tokens[I]) then
+          IsGeneralCurrentToken(Pointer(EditView), EditControl, CppParser.Tokens[I]) then
         begin
           if CurrentToken = nil then
           begin
@@ -991,7 +981,7 @@ begin
           for I := StartIdx downto EndIdx do // Search for previous
           begin
             if (CppParser.Tokens[I].CppTokenKind = ctkidentifier) and
-              CheckTokenMatch(CppParser.Tokens[I].Token, CurrentTokenName, True) then
+              CheckTokenMatch(CppParser.Tokens[I].Token, PCnIdeTokenChar(CurrentTokenName), True) then
             begin
               // Found. Jump here and Exit;
               CnOtaGotoEditPosAndRepaint(EditView, CppParser.Tokens[I].EditLine, CppParser.Tokens[I].EditCol);
@@ -1004,7 +994,7 @@ begin
           for I := StartIdx to EndIdx do // Search for Next
           begin
             if (CppParser.Tokens[I].CppTokenKind = ctkidentifier) and
-              CheckTokenMatch(CppParser.Tokens[I].Token, CurrentTokenName, True) then
+              CheckTokenMatch(CppParser.Tokens[I].Token, PCnIdeTokenChar(CurrentTokenName), True) then
             begin
               // Found. Jump here and Exit;
               CnOtaGotoEditPosAndRepaint(EditView, CppParser.Tokens[I].EditLine, CppParser.Tokens[I].EditCol);

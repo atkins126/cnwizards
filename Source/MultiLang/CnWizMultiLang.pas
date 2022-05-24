@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -24,7 +24,9 @@ unit CnWizMultiLang;
 * 软件名称：CnPack IDE 专家包
 * 单元名称：专家包多语控制单元
 * 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
-* 备    注：
+* 备    注：OldCreateOrder 必须为 False，才能正常调整边距
+*           AutoScroll 必须为 False，才能正常缩放
+*           所以要检查凡是 Sizable 的 Form，AutoScroll自动为 True，要手工改回来。
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
@@ -53,12 +55,12 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF TEST_APP}
+{$IFDEF TEST_APP}           // 是独立测试程序，必然是独立应用，本单元这里补一个
   {$DEFINE STAND_ALONE}
 {$ENDIF}
 
 // TEST_APP    表示编译成独立应用的测试程序
-// STAND_ALONE 表示编译成独立应用
+// STAND_ALONE 表示编译成独立应用，应该包含测试程序的情况，工程选项里应该注意
 
 uses
   Windows, Messages, SysUtils, Classes, Forms, ActnList, Controls, Menus, Contnrs,
@@ -66,17 +68,18 @@ uses
 {$IFNDEF STAND_ALONE}
   CnConsts, CnWizClasses, CnWizManager, CnWizUtils, CnWizOptions, CnDesignEditor,
   CnWizTranslate, CnLangUtils, CnWizScaler,
+  {$IFDEF IDE_SUPPORT_THEMING} ToolsAPI, CnIDEMirrorIntf, {$ENDIF}
 {$ELSE}
   CnWizLangID,
 {$ENDIF}
   CnWizConsts, CnCommon, CnLangMgr, CnHashLangStorage, CnLangStorage, CnWizHelp,
   CnFormScaler, CnWizIni, CnLangCollection,
 {$ENDIF}
-  StdCtrls, ComCtrls, IniFiles {$IFDEF IDE_SUPPORT_THEMING}, ToolsAPI, CnIDEMirrorIntf {$ENDIF};
+  StdCtrls, ComCtrls, IniFiles;
 
 type
 
-{$IFNDEF STAND_ALONE}
+{$IFNDEF STAND_ALONE}  // 非独立模式才定义 TCnWizMultiLang
 
 { TCnWizMultiLang }
 
@@ -117,10 +120,11 @@ type
     procedure AdjustRightBottomMargin;
 
     procedure ProcessSizeEnlarge;
+    procedure ProcessGlyphForHDPI(AControl: TControl);
 {$IFNDEF STAND_ALONE}
     function GetEnlarged: Boolean;
 {$ENDIF}
-{$ENDIF TEST_APP}
+{$ENDIF}
   protected
 {$IFNDEF TEST_APP}
     FScaler: TCnFormScaler;
@@ -129,7 +133,7 @@ type
     procedure DoCreate; override;
     procedure DoDestroy; override;
     procedure ReadState(Reader: TReader); override;
-{$ENDIF TEST_APP}
+{$ENDIF}
 
 {$IFDEF CREATE_PARAMS_BUG}
     procedure CreateParams(var Params: TCreateParams); override;
@@ -183,9 +187,14 @@ implementation
 
 {$R *.DFM}
 
+{$IFNDEF STAND_ALONE}
+uses
+  CnWizShareImages {$IFDEF DEBUG}, CnDebug {$ENDIF};
+{$ELSE}
 {$IFDEF DEBUG}
 uses
   CnDebug;
+{$ENDIF}
 {$ENDIF}
 
 type
@@ -273,7 +282,7 @@ begin
   end;
 end;
 
-// CnLanguageManager 的简略封装，保证返回的管理器不为nil且能进行翻译
+// CnLanguageManager 的简略封装，保证返回的管理器不为 nil 且能进行翻译
 function CnLangMgr: TCnCustomLangManager;
 begin
   if CnLanguageManager = nil then
@@ -444,7 +453,18 @@ begin
   end;
 {$ENDIF}
 
+{$IFNDEF STAND_ALONE}
+{$IFDEF IDE_SUPPORT_HDPI}
+  if Menu <> nil then
+  begin
+    if Menu.Images = dmCnSharedImages.Images then
+      Menu.Images := dmCnSharedImages.VirtualImages;
+  end;
+{$ENDIF}
+{$ENDIF}
+
   ProcessSizeEnlarge;
+  ProcessGlyphForHDPI(Self);
   AdjustRightBottomMargin;   // inherited 中会调用 FormCreate 事件，有可能改变了 Width/Height
 end;
 
@@ -486,6 +506,10 @@ var
   I: Integer;
 {$ENDIF}
 begin
+{$IFDEF IDE_SUPPORT_HDPI}
+  Scaled := True;
+{$ENDIF}
+
   inherited;
   FScaler := TCnFormScaler.Create(Self);
 {$IFNDEF STAND_ALONE}
@@ -522,7 +546,9 @@ end;
 procedure TCnTranslateForm.ReadState(Reader: TReader);
 begin
   inherited;
+  {$IFNDEF NO_OLDCREATEORDER}
   OldCreateOrder := False;
+  {$ENDIF}
 end;
 
 {$IFDEF CREATE_PARAMS_BUG}
@@ -556,6 +582,7 @@ begin
 end;
 
 {$ENDIF CREATE_PARAMS_BUG}
+
 procedure TCnTranslateForm.OnHelp(Sender: TObject);
 var
   Topic: string;
@@ -777,7 +804,7 @@ procedure TCnTranslateForm.Translate;
 begin
 {$IFNDEF TEST_APP}
 {$IFDEF DEBUG}
-  CnDebugger.LogEnter('TCnTranslateForm.Translate');
+  CnDebugger.LogEnter(ClassName + '|TCnTranslateForm.Translate');
 {$ENDIF DEBUG}
   if (CnLanguageManager <> nil) and (CnLanguageManager.LanguageStorage <> nil)
     and (CnLanguageManager.LanguageStorage.LanguageCount > 0) then
@@ -799,7 +826,7 @@ begin
     Font.Charset := DEFAULT_CHARSET;
   end;
 {$IFDEF DEBUG}
-  CnDebugger.LogLeave('TCnTranslateForm.Translate');
+  CnDebugger.LogLeave(ClassName + '|TCnTranslateForm.Translate');
 {$ENDIF DEBUG}
 {$ENDIF TEST_APP}
 end;
@@ -807,6 +834,15 @@ end;
 function TCnTranslateForm.GetNeedPersistentPosition: Boolean;
 begin
   Result := False;
+end;
+
+constructor TCnTranslateForm.Create(AOwner: TComponent);
+begin
+{$IFNDEF STAND_ALONE}
+  FEnlarge := WizOptions.SizeEnlarge;
+{$ENDIF}
+  inherited;
+  // 避免 Loaded 时还未获得 FEnlarge 值
 end;
 
 {$IFNDEF TEST_APP}
@@ -873,15 +909,6 @@ end;
 
 {$ENDIF}
 
-constructor TCnTranslateForm.Create(AOwner: TComponent);
-begin
-{$IFNDEF STAND_ALONE}
-  FEnlarge := WizOptions.SizeEnlarge;
-{$ENDIF}
-  inherited;
-  // 避免 Loaded 时还未获得 FEnlarge 值
-end;
-
 {$IFNDEF STAND_ALONE}
 
 function TCnTranslateForm.GetEnlarged: Boolean;
@@ -890,6 +917,26 @@ begin
 end;
 
 {$ENDIF}
+
+procedure TCnTranslateForm.ProcessGlyphForHDPI(AControl: TControl);
+{$IFDEF IDE_SUPPORT_HDPI}
+var
+  I: Integer;
+  W: TWinControl;
+{$ENDIF}
+begin
+{$IFDEF IDE_SUPPORT_HDPI}
+  if AControl.ClassNameIs('TSpeedButton') or AControl.ClassNameIs('TBitBtn') then
+    CnEnlargeButtonGlyphForHDPI(AControl);
+
+  if AControl is TWinControl then
+  begin
+    W := AControl as TWinControl;
+    for I := 0 to W.ControlCount - 1 do
+      ProcessGlyphForHDPI(W.Controls[I]);
+  end;
+{$ENDIF}
+end;
 
 initialization
 {$IFDEF STAND_ALONE}

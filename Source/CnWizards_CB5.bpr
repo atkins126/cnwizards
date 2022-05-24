@@ -13,8 +13,9 @@
       ..\Dcu\CnWizAbout.obj ..\Dcu\CnIDEVersion.obj ..\Dcu\CnWizMultiLang.obj 
       ..\Dcu\CnWizConfigFrm.obj ..\Dcu\CnWizSubActionShortCutFrm.obj 
       ..\Dcu\CnWizMenuSortFrm.obj ..\Dcu\CnWizUtils.obj 
-      ..\Dcu\CnAlignSizeWizard.obj ..\Dcu\CnEditorWizard.obj 
-      ..\Dcu\CnListCompFrm.obj ..\Dcu\CnCompToCodeFrm.obj 
+      ..\Dcu\CnAlignSizeWizard.obj ..\Dcu\CnEditorToolsetWizard.obj 
+      ..\Dcu\CnListCompFrm.obj ..\Dcu\CnPropertyCompareFrm.obj 
+      ..\Dcu\CnPropertyCompConfigFrm.obj ..\Dcu\CnCompToCodeFrm.obj 
       ..\Dcu\CnMessageBoxWizard.obj ..\Dcu\CnComponentSelector.obj 
       ..\Dcu\CnTabOrderWizard.obj ..\Dcu\CnWizDfm6To5.obj 
       ..\Dcu\CnDfm6To5Wizard.obj ..\Dcu\CnBookmarkWizard.obj 
@@ -61,7 +62,7 @@
       ..\Dcu\CnExploreFilter.obj ..\Dcu\CnExploreFilterEditor.obj 
       ..\Dcu\CnProjectViewBaseFrm.obj ..\Dcu\CnFilesSnapshot.obj 
       ..\Dcu\CnFilesSnapshotManageFrm.obj ..\Dcu\CnRoClasses.obj 
-      ..\Dcu\CnRoConst.obj ..\Dcu\CnRoFilesList.obj ..\Dcu\CnRoFrmFileList.obj 
+      ..\Dcu\CnRoFilesList.obj ..\Dcu\CnRoFrmFileList.obj 
       ..\Dcu\CnRoInterfaces.obj ..\Dcu\CnRoOptions.obj ..\Dcu\CnRoWizard.obj 
       ..\Dcu\CnWinTopRoller.obj ..\Dcu\CnAlignPropEditor.obj 
       ..\Dcu\CnPasCodeParser.obj ..\Dcu\CnCppCodeParser.obj 
@@ -80,6 +81,7 @@
       ..\Dcu\CnEditorInsertTime.obj ..\Dcu\CnEditorCollector.obj 
       ..\Dcu\CnGroupReplace.obj ..\Dcu\CnSrcEditorReplaceInBlock.obj ..\Dcu\CnEditorSortLines.obj 
       ..\Dcu\CnEditorToggleUses.obj ..\Dcu\CnEditorJumpMessage.obj 
+      ..\Dcu\CnEditorFontZoom.obj ..\Dcu\CnEditorDuplicateUnit.obj 
       ..\Dcu\CnSrcEditorKey.obj ..\Dcu\CnIdentRenameFrm.obj 
       ..\Dcu\CnIdeEnhanceMenu.obj ..\Dcu\CnIdeBRWizard.obj 
       ..\Dcu\CnSourceHighlightFrm.obj ..\Dcu\CnHighlightLineFrm.obj 
@@ -91,7 +93,8 @@
       ..\Dcu\CnImageListEditor.obj ..\Dcu\CnImageListEditorFrm.obj 
       ..\Dcu\CnImageProvider_IconFinder.obj ..\Dcu\CnImageProviderMgr.obj 
       ..\Dcu\CnImageProvider_FindIcons.obj ..\Dcu\CnImageProvider_LocalCache.obj 
-      ..\Dcu\CnFormatterIntf.obj ..\Dcu\CnWizards_CB5.obj"/>
+      ..\Dcu\CnFormatterIntf.obj ..\Dcu\CnCodeFormatterWizard.obj 
+      ..\Dcu\CnWizards_CB5.obj"/>
     <RESFILES value="CnWizards_CB5.res"/>
     <IDLFILES value=""/>
     <IDLGENFILES value=""/>
@@ -100,8 +103,9 @@
       Misc\CnWizUpgradeFrm.dfm Misc\CnWizShareImages.dfm 
       MultiLang\CnWizMultiLang.dfm Config\CnWizConfigFrm.dfm 
       Config\CnWizSubActionShortCutFrm.dfm Config\CnWizMenuSortFrm.dfm 
-      SimpleWizards\CnAlignSizeWizard.dfm CodingToolset\CnEditorWizard.dfm 
-      SimpleWizards\CnListCompFrm.dfm SimpleWizards\CnCompToCodeFrm.dfm 
+      DesignWizard\CnAlignSizeWizard.dfm CodingToolset\CnEditorToolsetWizard.dfm 
+      DesignWizard\CnListCompFrm.dfm DesignWizard\CnPropertyCompareFrm.dfm 
+      DesignWizard\CnPropertyCompConfigFrm.dfm DesignWizard\CnCompToCodeFrm.dfm 
       SimpleWizards\CnMessageBoxWizard.dfm SimpleWizards\CnComponentSelector.dfm 
       SimpleWizards\CnTabOrderWizard.dfm SimpleWizards\CnBookmarkWizard.dfm 
       SimpleWizards\CnBookmarkConfigFrm.dfm SrcTemplate\CnSrcTemplate.dfm 
@@ -155,14 +159,15 @@
       DesignEditors\CnPropEditorCustomizeFrm.dfm 
       IdeEnhancements\CnInputHelperEditFrm.dfm 
       IdeEnhancements\CnInputHelperFrm.dfm 
-      DesignEditors\CnImageListEditorFrm.dfm"/>
+      DesignEditors\CnImageListEditorFrm.dfm
+      CodeFormatter\CnCodeFormatterWizard.dfm"/>
     <LIBFILES value=""/>
     <LIBRARIES value="Inet50.lib vclie50.lib wininet.lib"/>
     <SPARELIBS value="vcl50.lib vclx50.lib wininet.lib dsnide50.lib vclie50.lib Inet50.lib"/>
     <PACKAGES value="vcl50.bpi vclx50.bpi vcldb50.bpi vcldbx50.bpi vclbde50.bpi dsnide50.bpi 
       vclmid50.bpi"/>
     <PATHCPP value=".;"/>
-    <PATHPAS value=".;Framework;Misc;MultiLang;Config;Utils;SimpleWizards;CodingToolset;SrcTemplate;SourceDiff;DesignEditors;SourceStat;PrefixWizard;IdeEnhancements;ScriptWizard;CorProperty;ProjectExtWizard;RepositoryWiz;ExplorerWizard;ReopenWizard;SrcEditorEnhance;CodeFormatter"/>
+    <PATHPAS value=".;Framework;Misc;MultiLang;Config;Utils;SimpleWizards;CodingToolset;SrcTemplate;SourceDiff;DesignEditors;DesignWizard;SourceStat;PrefixWizard;IdeEnhancements;ScriptWizard;CorProperty;ProjectExtWizard;RepositoryWiz;ExplorerWizard;ReopenWizard;SrcEditorEnhance;CodeFormatter"/>
     <PATHRC value=".;"/>
     <PATHASM value=".;"/>
     <DEBUGLIBPATH value="$(BCB)\lib\debug"/>
@@ -171,17 +176,17 @@
     <USERDEFINES value="${define.add}"/>
     <SYSDEFINES value="NO_STRICT;USEPACKAGES"/>
     <MAINSOURCE value="CnWizards_CB5.bpf"/>
-    <INCLUDEPATH value="CodeFormatter;ScriptWizard;SrcTemplate;ReopenWizard;SimpleWizards;Config;MultiLang;Misc;SrcEditorEnhance;ExplorerWizard;RepositoryWiz;ProjectExtWizard;CorProperty;IdeEnhancements;PrefixWizard;SourceStat;DesignEditors;SourceDiff;CodingToolset;Utils;Framework;$(BCB)\include;$(BCB)\include\vcl;$(BCB)\source\toolsapi;thirdparty;thirdparty\tpabbrevia;thirdparty\ddetours;thirdparty\pascalscript;thirdparty\jcl;..\dcu;..\..\cnvcl\source\common;..\..\cnvcl\source\crypto;..\..\cnvcl\source\nonvisual;..\..\cnvcl\source\graphics;..\..\cnvcl\source\netcomm;..\..\cnvcl\source\multilang;..\..\cnvcl\source\objrep"/>
-    <LIBPATH value="CodeFormatter;ScriptWizard;SrcTemplate;SrcEditorEnhance;ReopenWizard;SimpleWizards;Config;MultiLang;Misc;ExplorerWizard;RepositoryWiz;ProjectExtWizard;CorProperty;IdeEnhancements;PrefixWizard;SourceStat;DesignEditors;SourceDiff;CodingToolset;Utils;Framework;$(BCB)\lib;$(BCB)\lib\obj;$(BCB)\source\toolsapi;thirdparty;thirdparty\tpabbrevia;thirdparty\ddetours;thirdparty\pascalscript;thirdparty\jcl;..\dcu;..\..\cnvcl\source\common;..\..\cnvcl\source\crypto;..\..\cnvcl\source\nonvisual;..\..\cnvcl\source\graphics;..\..\cnvcl\source\netcomm;..\..\cnvcl\source\multilang;..\..\cnvcl\source\objrep"/>
+    <INCLUDEPATH value="CodeFormatter;ScriptWizard;SrcTemplate;ReopenWizard;SimpleWizards;Config;MultiLang;Misc;SrcEditorEnhance;ExplorerWizard;RepositoryWiz;ProjectExtWizard;CorProperty;IdeEnhancements;PrefixWizard;SourceStat;DesignEditors;DesignWizard;SourceDiff;CodingToolset;Utils;Framework;$(BCB)\include;$(BCB)\include\vcl;$(BCB)\source\toolsapi;thirdparty;thirdparty\ddetours;thirdparty\pascalscript;thirdparty\jcl;..\dcu;..\..\cnvcl\source\common;..\..\cnvcl\source\crypto;..\..\cnvcl\source\nonvisual;..\..\cnvcl\source\graphics;..\..\cnvcl\source\netcomm;..\..\cnvcl\source\multilang;..\..\cnvcl\source\objrep"/>
+    <LIBPATH value="CodeFormatter;ScriptWizard;SrcTemplate;SrcEditorEnhance;ReopenWizard;SimpleWizards;Config;MultiLang;Misc;ExplorerWizard;RepositoryWiz;ProjectExtWizard;CorProperty;IdeEnhancements;PrefixWizard;SourceStat;DesignEditors;DesignWizard;SourceDiff;CodingToolset;Utils;Framework;$(BCB)\lib;$(BCB)\lib\obj;$(BCB)\source\toolsapi;thirdparty;thirdparty\ddetours;thirdparty\pascalscript;thirdparty\jcl;..\dcu;..\..\cnvcl\source\common;..\..\cnvcl\source\crypto;..\..\cnvcl\source\nonvisual;..\..\cnvcl\source\graphics;..\..\cnvcl\source\netcomm;..\..\cnvcl\source\multilang;..\..\cnvcl\source\objrep"/>
     <WARNINGS value="-w-par"/>
   </MACROS>
   <OPTIONS>
     <IDLCFLAGS value="-ICodeFormatter -IScriptWizard -ISrcTemplate -IReopenWizard 
       -ISimpleWizards -IConfig -IMultiLang -IMisc -ISrcEditorEnhance 
       -IExplorerWizard -IRepositoryWiz -IProjectExtWizard -ICorProperty 
-      -IIdeEnhancements -IPrefixWizard -ISourceStat -IDesignEditors -ISourceDiff 
+      -IIdeEnhancements -IPrefixWizard -ISourceStat -IDesignEditors -IDesignWizard -ISourceDiff 
       -ICodingToolset -IUtils -IFramework -I$(BCB)\include -I$(BCB)\include\vcl 
-      -I$(BCB)\source\toolsapi -Ithirdparty -Ithirdparty\tpabbrevia 
+      -I$(BCB)\source\toolsapi -Ithirdparty 
       -Ithirdparty\ddetours -Ithirdparty\pascalscript -Ithirdparty\jcl -I..\dcu 
       -I..\..\cnvcl\source\common -I..\..\cnvcl\source\crypto -I..\..\cnvcl\source\nonvisual 
       -I..\..\cnvcl\source\graphics -I..\..\cnvcl\source\netcomm 
@@ -219,7 +224,7 @@ CompanyName=CnPack Team
 FileDescription=CnWizards For C++Builder 5
 FileVersion=1.0.0.0
 InternalName=CnWizards_CB5
-LegalCopyright=(C)Copyright 2001-2021 CnPack Team
+LegalCopyright=(C)Copyright 2001-2022 CnPack Team
 LegalTrademarks=CnPack
 OriginalFilename=CnWizards_CB5.DLL
 ProductName=CnWizards

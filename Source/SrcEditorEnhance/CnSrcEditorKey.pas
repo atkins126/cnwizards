@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -323,7 +323,6 @@ end;
 procedure GetherSearchPanelOptions(AOwner: TComponent);
 var
   Comp: TComponent;
-  Box: TCustomCheckBox;
   I: Integer;
   F1, F2, F3: Boolean;
 begin
@@ -767,7 +766,7 @@ const
 var
   Text, Tmp, Prev, FirstLine, LastToken: string;
   EditControl: TControl;
-  I, Idx, LineNo, CharIndex, PasteCol, Indent: Integer;
+  I, LineNo, CharIndex, PasteCol, Indent: Integer;
   List: TStrings;
   EndIsCRLF, IsSingleLine, IsCppFile: Boolean;
   FirstLineSpaceCount, LineSpaceCount, MinLineSpaceCount: Integer;
@@ -2818,7 +2817,7 @@ begin
         Rit := ritUnit;
 
 {$IFDEF DEBUG}
-      CnDebugger.LogMsg('Cpp F2 Rename. Calc Rit to ' + IntToStr(Ord(Rit)));
+      CnDebugger.LogMsg('Cpp F2 RenameW. Calc Rit to ' + IntToStr(Ord(Rit)));
 {$ENDIF}
 
       // 弹出对话框
@@ -3218,6 +3217,7 @@ begin
   Position.SearchOptions.CaseSensitive := FCaseSense;
   Position.SearchOptions.WordBoundary := FWholeWords;
   Position.SearchOptions.RegularExpression := FRegExp;
+  Position.SearchOptions.FromCursor := True; // 补上这一句以弥补 SearchAgain 失败的问题
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('F3 Search: Set Options: Case %d, Word %d, Reg %d.',
     [Integer(FCaseSense), Integer(FWholeWords), Integer(FRegExp)]);
@@ -3228,56 +3228,75 @@ begin
 {$ENDIF}
   Found := False;
   FOldSearchText := Position.SearchOptions.SearchText;
+
   if Shift = [] then
   begin
     Position.SearchOptions.Direction := sdForward;
-    Found := Position.SearchAgain;
+    Found := Position.SearchAgain; // 这句经常返回 False，原因未知
+{$IFDEF DEBUG}
+    CnDebugger.LogBoolean(Found, 'F3 Search Forward. Found Value?');
+{$ENDIF}
+
     if not Found and FSearchWrap then // 是否回绕查找
     begin
       Found := Position.Move(1, 1);
       if not Found then
       begin
 {$IFDEF DEBUG}
-        CnDebugger.LogBoolean(Found, 'F3 Search Move to BOF.');
+        CnDebugger.LogBoolean(Found, 'F3 Search Forward. Move to BOF?');
 {$ENDIF}
         Exit;
       end;
 
-      Found := Position.SearchAgain;
+      Found := Position.SearchAgain; // 这句经常返回 False，原因未知
 {$IFDEF DEBUG}
-      CnDebugger.LogBoolean(Found, 'F3 Search Found Value after Move to BOF.');
+      CnDebugger.LogBoolean(Found, 'F3 Search Forward Found Value after Move to BOF?');
 {$ENDIF}
+
       if not Found then
+      begin
         Position.Move(ARow, ACol);
+{$IFDEF DEBUG}
+        CnDebugger.LogMsg('F3 Search Forward NOT Found Anything. Return to Old Place.');
+{$ENDIF}
+      end;
     end;
   end
   else if Shift = [ssShift] then
   begin
     Position.SearchOptions.Direction := sdBackward;
-    Found := Position.SearchAgain;
+    Found := Position.SearchAgain; // 这句经常返回 False，原因未知
+{$IFDEF DEBUG}
+    CnDebugger.LogBoolean(Found, 'F3 Search Backward. Found Value?');
+{$ENDIF}
     if not Found and FSearchWrap then // 是否回绕查找
     begin
       Found := Position.MoveEOF;
       if not Found then
       begin
 {$IFDEF DEBUG}
-        CnDebugger.LogBoolean(Found, 'F3 Search Move to EOF.');
+        CnDebugger.LogBoolean(Found, 'F3 Search Backward. Move to EOF?');
 {$ENDIF}
         Exit;
       end;
 
-      Found := Position.SearchAgain;
+      Found := Position.SearchAgain; // 这句经常返回 False，原因未知
 {$IFDEF DEBUG}
-      CnDebugger.LogBoolean(Found, 'F3 Search Found Value after Move to EOF.');
+      CnDebugger.LogBoolean(Found, 'F3 Search Backword Found Value after Move to EOF?');
 {$ENDIF}
       if not Found then
+      begin
         Position.Move(ARow, ACol);
+{$IFDEF DEBUG}
+        CnDebugger.LogMsg('F3 Search Backward NOT Found Anything. Return to Old Place.');
+{$ENDIF}
+      end;
     end;
   end;
 
-  {$IFDEF DEBUG}
-     CnDebugger.LogBoolean(Found, 'F3 Search Found Value at Last.');
-  {$ENDIF}
+{$IFDEF DEBUG}
+  CnDebugger.LogBoolean(Found, 'F3 Search Found Value at Last?');
+{$ENDIF}
 
   if Found then
   begin
@@ -3285,11 +3304,17 @@ begin
     begin
       Position.MoveRelative(0, - Len);
       Block.ExtendRelative(0, Len);
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('F3 Search Move Left %d and Select to Right %d.', [Len, Len]);
+{$ENDIF}
     end
     else
     begin
       Position.MoveRelative(0, Len);
       Block.ExtendRelative(0, - Len);
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('F3 Search Move Right %d and Select to Left %d.', [Len, Len]);
+{$ENDIF}
     end;
   end;
 
@@ -3413,7 +3438,9 @@ begin
   SearchWrap := Ini.ReadBool(csEditorKey, csSearchWrap, True);
   FHomeExt := Ini.ReadBool(csEditorKey, csHomeExt, True);
   FHomeFirstChar := Ini.ReadBool(csEditorKey, csHomeFirstChar, False);
+{$IFNDEF DELPHI104_SYDNEY_UP}  // 10.4 无法支持光标行尾
   FCursorBeforeEOL := Ini.ReadBool(csEditorKey, csCursorBeforeEOL, False);
+{$ENDIF}
   FLeftLineWrap := Ini.ReadBool(csEditorKey, csLeftLineWrap, False);
   FRightLineWrap := Ini.ReadBool(csEditorKey, csRightLineWrap, False);
   FAutoBracket := Ini.ReadBool(csEditorKey, csAutoBracket, False);

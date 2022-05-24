@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -103,7 +103,7 @@ type
     procedure Assign(Source: TCnList); virtual;
   end;
 
-  TCnObjectList = class(TCnBaseList)
+  TCnFastObjectList = class(TCnBaseList)
   public
     constructor Create;
   end;
@@ -333,7 +333,7 @@ end;
 
 { TCnObjectList }
 
-constructor TCnObjectList.Create;
+constructor TCnFastObjectList.Create;
 begin
   inherited Create(True);
 end;

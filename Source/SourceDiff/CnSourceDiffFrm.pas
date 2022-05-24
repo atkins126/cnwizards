@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -54,7 +54,7 @@ uses
 
 type
 
-  TFileKind = (fkDiskFile, fkEditorBuff, fkBakFile);
+  TFileKind = (fkDiskFile, fkEditorBuff, fkBackupFile);
   TFileKinds = set of TFileKind;
 
   TCnSourceDiffForm = class(TCnTranslateForm)
@@ -146,11 +146,11 @@ type
     pmHistory2: TPopupMenu;
     pmiDiskFile1: TMenuItem;
     pmiEditorBuff1: TMenuItem;
-    pmiBakFile1: TMenuItem;
+    pmiBackupFile1: TMenuItem;
     pmFileKind2: TPopupMenu;
     pmiDiskFile2: TMenuItem;
     pmiEditorBuff2: TMenuItem;
-    pmiBakFile2: TMenuItem;
+    pmiBackupFile2: TMenuItem;
     ToolButton1: TToolButton;
     tbCancel: TToolButton;
     tbHelp: TToolButton;
@@ -309,7 +309,7 @@ implementation
 {$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
 
 uses
-  CnWizShareImages{$IFDEF DEBUG}, CnDebug{$ENDIF};
+  CnWizShareImages, CnWizOptions {$IFDEF DEBUG}, CnDebug{$ENDIF};
 
 {$R *.DFM}
 
@@ -424,6 +424,7 @@ begin
   btnFileKind2.Caption := csFileKinds[Low(TFileKind)];
   
   LoadOptions;
+  WizOptions.ResetToolbarWithLargeIcons(ToolBar);
 end;
 
 procedure TCnSourceDiffForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -647,14 +648,14 @@ begin
     DiffControl := DiffControl1;
     if Kind = fkDiskFile then           // 存盘文件
       Lines1.LoadFromFile(FileName)
-    else if Kind = fkBakFile then       // 备份文件
+    else if Kind = fkBackupFile then       // 备份文件
       Lines1.LoadFromFile(GetBakFileName(FileName))
     else
     begin                               // 编辑器缓冲区
       Stream := TMemoryStream.Create;
       try
-        EditFilerSaveFileToStream(FileName, Stream, True);
-        Lines1.Text := string(PAnsiChar(Stream.Memory));
+        EditFilerSaveFileToStream(FileName, Stream, True); // Ansi/Ansi/Utf16
+        Lines1.Text := string(PChar(Stream.Memory));
       finally
         Stream.Free;
       end;
@@ -666,14 +667,14 @@ begin
     DiffControl := DiffControl2;
     if Kind = fkDiskFile then           // 存盘文件
       Lines2.LoadFromFile(FileName)
-    else if Kind = fkBakFile then       // 备份文件
+    else if Kind = fkBackupFile then       // 备份文件
       Lines2.LoadFromFile(GetBakFileName(FileName))
     else
     begin                               // 编辑器缓冲区
       Stream := TMemoryStream.Create;
       try
-        EditFilerSaveFileToStream(FileName, Stream, True);
-        Lines2.Text := string(PAnsiChar(Stream.Memory));
+        EditFilerSaveFileToStream(FileName, Stream, True); // Ansi/Ansi/Utf16
+        Lines2.Text := string(PChar(Stream.Memory));
       finally
         Stream.Free;
       end;
@@ -1383,7 +1384,7 @@ begin
   if FileExists(FileName) then Include(Result, fkDiskFile);
 
   // 备份文件存在
-  if FileExists(GetBakFileName(FileName)) then Include(Result, fkBakFile);
+  if FileExists(GetBakFileName(FileName)) then Include(Result, fkBackupFile);
 
   // 文件在IDE中打开
   FModIntf := CnOtaGetModule(FileName);
@@ -1443,8 +1444,8 @@ begin
   pmiDiskFile1.Enabled := (fkDiskFile in Kinds) or (FileName1 = '');
   pmiEditorBuff1.Checked := FileKind1 = fkEditorBuff;
   pmiEditorBuff1.Enabled := (fkEditorBuff in Kinds) or (FileName1 = '');
-  pmiBakFile1.Checked := FileKind1 = fkBakFile;
-  pmiBakFile1.Enabled := (fkBakFile in Kinds) or (FileName1 = '');
+  pmiBackupFile1.Checked := FileKind1 = fkBackupFile;
+  pmiBackupFile1.Enabled := (fkBackupFile in Kinds) or (FileName1 = '');
 end;
 
 procedure TCnSourceDiffForm.pmFileKind2Popup(Sender: TObject);
@@ -1456,8 +1457,8 @@ begin
   pmiDiskFile2.Enabled := (fkDiskFile in Kinds) or (FileName2 = '');
   pmiEditorBuff2.Checked := FileKind2 = fkEditorBuff;
   pmiEditorBuff2.Enabled := (fkEditorBuff in Kinds) or (FileName2 = '');
-  pmiBakFile2.Checked := FileKind2 = fkBakFile;
-  pmiBakFile2.Enabled := (fkBakFile in Kinds) or (FileName2 = '');
+  pmiBackUpFile2.Checked := FileKind2 = fkBackupFile;
+  pmiBackUpFile2.Enabled := (fkBackupFile in Kinds) or (FileName2 = '');
 end;
 
 procedure TCnSourceDiffForm.pmiDiskFile1Click(Sender: TObject);
@@ -1696,14 +1697,14 @@ procedure TCnSourceDiffForm.actGotoExecute(Sender: TObject);
 begin
   if (ActiveControl = DiffControl1) and (FileName1 <> '') then
   begin
-    if FileKind1 = fkBakFile then
+    if FileKind1 = fkBackupFile then
       GotoSourceEditor(DiffControl1, GetBakFileName(FileName1))
     else
       GotoSourceEditor(DiffControl1, FileName1);
   end
   else if (ActiveControl = DiffControl2) and (FileName2 <> '') then
   begin
-    if FileKind1 = fkBakFile then
+    if FileKind1 = fkBackupFile then
       GotoSourceEditor(DiffControl2, GetBakFileName(FileName2))
     else
       GotoSourceEditor(DiffControl2, FileName2);
@@ -1714,7 +1715,7 @@ procedure TCnSourceDiffForm.DoLanguageChanged(Sender: TObject);
 begin
   csFileKinds[fkDiskFile] := SCnDiskFile;
   csFileKinds[fkEditorBuff] := SCnEditorBuff;
-  csFileKinds[fkBakFile] := SCnBakFile;
+  csFileKinds[fkBackupFile] := SCnBackupFile;
 
   // 用 Caption 变化来修补工具栏按钮可能错乱的问题
   ToolBar.ShowCaptions := True;

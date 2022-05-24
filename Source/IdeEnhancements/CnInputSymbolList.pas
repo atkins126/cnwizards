@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,12 +29,14 @@ unit CnInputSymbolList;
 * 开发平台：PWin2000Pro + Delphi 7.1
 * 兼容测试：
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2016.03.15 by liuxiao
+* 修改记录：2022.02.13 by liuxiao
+*               模板输出允许用两个连续的 || 代表一个 | 号，而单个 | 号仍代表光标位置
+*           2016.03.15 by liuxiao
 *               TUnitNameList 增加路径机制与 h/hpp 支持供外部使用
 *           2012.09.19 by shenloqi
 *               移植到 Delphi XE3
 *           2012.03.26
-*               增加对XE/XE2独有的XML格式的模板的支持，有部分内容兼容问题
+*               增加对 XE/XE2 独有的 XML 格式的模板的支持，有部分内容兼容问题
 *           2004.11.05
 *               移植而来
 ================================================================================
@@ -45,6 +47,10 @@ interface
 {$I CnWizards.inc}
 
 {$IFDEF CNWIZARDS_CNINPUTHELPER}
+
+{$IFDEF BDS}
+  {$DEFINE IDE_SYMBOL_HAS_SYSTEM} // 2005 或以上，符号列表中有 System 单元
+{$ENDIF}
 
 uses
   Windows, SysUtils, Classes, Controls, IniFiles, ToolsApi, Psapi, Math,
@@ -101,6 +107,8 @@ type
     procedure SetScopeRate(const Value: Integer);
     function GetAllowMultiLine: Boolean;
     function GetDescription: string;
+    function PipesCursorPosition(var S: string): Integer;
+    {* 处理输入文本中的 | 号，返回第一个单独 | 号的偏移量，无则返回 -1。并将 S 中的连续 || 替换成单独 |}
   protected
     procedure CalcHashCode; virtual;
     procedure OutputLines(Editor: IOTAEditBuffer; Lines: TStrings);
@@ -164,7 +172,7 @@ type
 
   TSymbolList = class(TObject)
   private
-    FList: TObjectList;
+    FList: TObjectList; // 持有符号对象的实例们
     FActive: Boolean;
     function GetCount: Integer;
     function GetItem(Index: Integer): TSymbolItem;
@@ -182,12 +190,12 @@ type
       TCodePosInfo): Boolean; virtual;
     procedure GetValidCharSet(var FirstSet, CharSet: TAnsiCharSet; 
       PosInfo: TCodePosInfo); virtual;
-    function Add(AItem: TSymbolItem): Integer; overload;
-    function Add(const AName: string; AKind: TSymbolKind; AScope: Integer; const 
+    function Add(AItem: TSymbolItem): Integer; overload; virtual;
+    function Add(const AName: string; AKind: TSymbolKind; AScope: Integer; const
       ADescription: string = ''; const AText: string = ''; AAutoIndent: Boolean = 
       True; AMatchFirstOnly: Boolean = False; AAlwaysDisp: Boolean = False;
-      ADescIsUtf8: Boolean = False): Integer; overload;
-    procedure Clear;
+      ADescIsUtf8: Boolean = False): Integer; overload; virtual;
+    procedure Clear; virtual;
     procedure Delete(Index: Integer);
     procedure Remove(AItem: TSymbolItem);
     function IndexOf(const AName: string; AKind: TSymbolKind): Integer;
@@ -343,7 +351,6 @@ type
     procedure LoadFromSysPath;
     procedure LoadFromProjectPath;
     procedure LoadFromCurrProject;
-    procedure UpdateCaseFromModules(AList: TStringList);
     procedure UpdatePathsSequence(Names, Paths: TStringList);
   public
     constructor Create; overload; override;
@@ -481,11 +488,11 @@ const
   csCompD5 = 'D5';
   csCompD6 = 'D6';
   csCompD7 = 'D7';
-  csCompD8 = 'D8';
-  csCompD9 = 'D9';
-  csCompD10 = 'D10';
-  csCompD11 = 'D11';
-  csCompD12 = 'D12';
+
+  csCompD2005 = 'D2005';
+  csCompD2006 = 'D2006';
+  csCompD2007 = 'D2007';
+  csCompD2009 = 'D2009';
   csCompD2010 = 'D2010';
   csCompDXE = 'DXE';
   csCompDXE2 = 'DXE2';
@@ -500,6 +507,7 @@ const
   csCompD102T = 'D102T';
   csCompD103R = 'D103R';
   csCompD104S = 'D104S';
+  csCompD110A = 'D110A';
 
   csCompBCB = 'BCB';
   csCompUser = 'User';
@@ -630,9 +638,9 @@ var
   OrgPos: TOTAEditPos;
   EditPos: TOTAEditPos;
   Relocate: Boolean;
-  OffsetX: Integer;
+  OffsetX, Idx: Integer;
   OffsetY: Integer;
-  i: Integer;
+  I: Integer;
 begin
   if not AutoIndent then
   begin
@@ -644,25 +652,25 @@ begin
     OffsetY := 0;
     Relocate := False;
     OrgPos := Editor.TopView.CursorPos;
-    for i := 0 to Lines.Count - 1 do
+    for I := 0 to Lines.Count - 1 do
     begin
-      if i > 0 then
+      if I > 0 then
       begin
         EditPos.Col := OrgPos.Col;
-        EditPos.Line := OrgPos.Line + i;
+        EditPos.Line := OrgPos.Line + I;
         Editor.TopView.CursorPos := EditPos;
       end;
 
-      Line := Lines[i];
-      if not Relocate and (Pos('|', Line) > 0) then
+      Line := Lines[I];
+      Idx := PipesCursorPosition(Line); // 处理该行中的双 || 与单 |，返回的 Idx 是最开始一个单 | 的位置
+      if not Relocate and (Idx > 0) then
       begin
-        OffsetX := Pos('|', Line) - 1;
-        OffsetY := i;
+        OffsetX := Idx - 1;
+        OffsetY := I;
         Relocate := True;
       end;
 
-      Line := StringReplace(Line, '|', '', [rfReplaceAll]);
-      if i < Lines.Count - 1 then
+      if I < Lines.Count - 1 then
         Line := Line + #13#10;
       CnOtaInsertTextToCurSource(Line);
     end;
@@ -688,7 +696,7 @@ begin
   OutText := Text;
   if (OutText <> '') and Assigned(Editor) and Assigned(Editor.TopView) then
   begin
-    OutText := StringReplace(OutText, GetMacroEx(cwmCursor), '|', [rfReplaceAll]);
+    // OutText := StringReplace(OutText, GetMacroEx(cwmCursor), '|', [rfReplaceAll]);
     MacroText := TCnWizMacroText.Create(OutText);
     try
       if MacroText.Macros.Count > 0 then
@@ -711,7 +719,7 @@ begin
   end;
 end;
 
-procedure TSymbolItem.Output(Editor: IOTAEditBuffer; Icon: TIcon; KeywordStyle: 
+procedure TSymbolItem.Output(Editor: IOTAEditBuffer; Icon: TIcon; KeywordStyle:
   TCnKeywordStyle);
 var
   S: string;
@@ -722,13 +730,13 @@ begin
     if not AllowMultiLine then
     begin
       S := GetKeywordText(KeywordStyle);
-      Idx := Pos('|', S);
-      S := StringReplace(S, '|', '', [rfReplaceAll]);
-    {$IFDEF UNICODE}
+      Idx := PipesCursorPosition(S);
+      // || means an actual | and first single | means cursor position
+{$IFDEF UNICODE}
       Editor.EditPosition.InsertText(ConvertTextToEditorUnicodeText(S));
-    {$ELSE}
+{$ELSE}
       Editor.EditPosition.InsertText(ConvertTextToEditorText(S));
-    {$ENDIF}
+{$ENDIF}
       Editor.TopView.Paint;
       if Idx > 0 then
         Editor.EditPosition.MoveRelative(0, -(Length(S) - Idx + 1));
@@ -741,15 +749,86 @@ begin
   end;
 end;
 
-//==============================================================================
-// 符号列表基类
-//==============================================================================
-
 destructor TSymbolItem.Destroy;
 begin
   FFuzzyMatchIndexes.Free;
   inherited;
 end;
+
+function TSymbolItem.PipesCursorPosition(var S: string): Integer;
+const
+  RPC = #0;
+var
+  I, Dif: Integer;
+begin
+  Result := -1;
+  if  Pos('|', S) <= 0 then
+    Exit;
+
+  if Length(S) <= 0 then
+    Exit
+  else if (Length(S) = 1) and (S[1] = '|') then // 单 | 表示插入位置
+  begin
+    S := '';
+    Result := 1;
+    Exit;
+  end;
+
+  // 预处理双 ||，把第二个 | 替换成 #0
+  for I := 1 to Length(S) - 1 do
+  begin
+    if S[I] = '|' then
+    begin
+      if S[I + 1] = '|' then
+      begin
+        // 是双 |，先替换第二个成 #0
+        S[I + 1] := RPC;
+      end;
+    end;
+  end;
+
+  // 然后记录第一个单 | 出现的位置并替换成 #0
+  for I := 1 to Length(S) do
+  begin
+    if S[I] = '|' then
+    begin
+      if ((I = 1) or (S[I - 1] <> '|')) and         // 无前或前非 |，并且
+        ((I = Length(S)) or ((S[I + 1] <> '|') and (S[I + 1] <> RPC))) then  // 无后或后非 | 且非 #0
+      begin
+        Result := I;  // 都表示是第一个单 |，先替换成 #0
+        S[I] := RPC;
+        Break;
+      end;
+    end;
+  end;
+
+  Dif := 0;
+  for I := 1 to Length(S) - 1 do
+  begin
+    if S[I] = '|' then
+    begin
+      if S[I + 1] = RPC then
+      begin
+        // 是已经处理后的双 |
+        if I < Result then // 如果双 || 的位置在单 | 前，则替换双 | 为单 | 时要减去相应的字符数
+          Inc(Dif);
+      end
+      else
+      begin
+        // 还有后续的单个 |，不记录位置，只替换成 #0
+        S[I] := RPC;
+      end;
+    end;
+  end;
+
+  S := ReplaceAllInString(S, RPC, ''); // 替换掉所有的 #0
+  if (Result > 0) and (Dif > 0) then
+    Dec(Result, Dif);
+end;
+
+//==============================================================================
+// 符号列表基类
+//==============================================================================
 
 { TSymbolList }
 
@@ -1122,11 +1201,11 @@ begin
   {$IFDEF DELPHI5_UP} AddSection(Ini, csCompD5); {$ENDIF}
   {$IFDEF DELPHI6_UP} AddSection(Ini, csCompD6); {$ENDIF}
   {$IFDEF DELPHI7_UP} AddSection(Ini, csCompD7); {$ENDIF}
-  {$IFDEF DELPHI8_UP} AddSection(Ini, csCompD8); {$ENDIF}
-  {$IFDEF DELPHI9_UP} AddSection(Ini, csCompD9); {$ENDIF}
-  {$IFDEF DELPHI10_UP} AddSection(Ini, csCompD10); {$ENDIF}
-  {$IFDEF DELPHI11_UP} AddSection(Ini, csCompD11); {$ENDIF}
-  {$IFDEF DELPHI12_UP} AddSection(Ini, csCompD12); {$ENDIF}
+
+  {$IFDEF DELPHI2005_UP} AddSection(Ini, csCompD2005); {$ENDIF}
+  {$IFDEF DELPHI2006_UP} AddSection(Ini, csCompD2006); {$ENDIF}
+  {$IFDEF DELPHI2007_UP} AddSection(Ini, csCompD2007); {$ENDIF}
+  {$IFDEF DELPHI2009_UP} AddSection(Ini, csCompD2009); {$ENDIF}
   {$IFDEF DELPHI2010_UP} AddSection(Ini, csCompD2010); {$ENDIF}
   {$IFDEF DELPHIXE_UP} AddSection(Ini, csCompDXE); {$ENDIF}
   {$IFDEF DELPHIXE2_UP} AddSection(Ini, csCompDXE2); {$ENDIF}
@@ -1141,6 +1220,7 @@ begin
   {$IFDEF DELPHI102_TOKYO_UP} AddSection(Ini, csCompD102T); {$ENDIF}
   {$IFDEF DELPHI103_RIO_UP} AddSection(Ini, csCompD103R); {$ENDIF}
   {$IFDEF DELPHI104_SYDNEY_UP} AddSection(Ini, csCompD104S); {$ENDIF}
+  {$IFDEF DELPHI110_ALEXANDRIA_UP} AddSection(Ini, csCompD110A); {$ENDIF}
 
    AddSection(Ini, csCompBCB); // 加进来并设为C/C++专用的再说
   finally
@@ -1443,7 +1523,7 @@ begin
           False, False);
       end;
 
-      UpdateCaseFromModules(FSysUnitsName);
+      CorrectCaseFromIdeModules(FSysUnitsName, FCppMode);
       UpdatePathsSequence(FSysUnitsName, FSysUnitsPath);
       FSysPath := Paths.Text;
 
@@ -1493,7 +1573,7 @@ begin
         for I := 0 to Paths.Count - 1 do
           FindFile(Paths[I], '*.pas', DoFindFile, nil, False, False);
 
-      UpdateCaseFromModules(FProjectUnitsName);
+      CorrectCaseFromIdeModules(FProjectUnitsName, FCppMode);
       UpdatePathsSequence(FProjectUnitsName, FProjectUnitsPath);
       FProjectPath := Paths.Text;
 
@@ -1511,82 +1591,6 @@ begin
     Added := AddUnit(FProjectUnitsName[I]);
     if FUseFullPath and Added then
       AddUnitFullNameWithPath(FProjectUnitsPath[I]);
-  end;
-end;
-
-type
-  PUnitsInfoRec = ^TUnitsInfoRec;
-  TUnitsInfoRec = record
-    IsCppMode: Boolean;
-    Sorted: TStringList;
-    Unsorted: TStringList;
-  end;
-
-procedure GetInfoProc(const Name: string; NameType: TNameType; Flags: Byte;
-  Param: Pointer);
-var
-  Idx: Integer;
-  Cpp: Boolean;
-begin
-  // 将单元名或头文件名替换成正确的大小写格式
-  if NameType = ntContainsUnit then
-  begin
-    Cpp := PUnitsInfoRec(Param).IsCppMode;
-    if not Cpp then
-    begin
-      Idx := PUnitsInfoRec(Param).Sorted.IndexOf(Name);
-      if Idx >= 0 then
-        PUnitsInfoRec(Param).Unsorted[Idx] := Name;
-    end
-    else
-    begin
-      Idx := PUnitsInfoRec(Param).Sorted.IndexOf(Name + '.hpp');
-      if Idx >= 0 then
-        PUnitsInfoRec(Param).Unsorted[Idx] := Name + '.hpp'
-      else
-      begin
-        Idx := PUnitsInfoRec(Param).Sorted.IndexOf(Name + '.h');
-        if Idx >= 0 then
-          PUnitsInfoRec(Param).Unsorted[Idx] := Name + '.h'
-      end;
-    end;
-  end;
-end;
-
-function GetModuleProc(HInstance: THandle; Data: Pointer): Boolean;
-var
-  Flags: Integer;
-begin
-  Result := True;
-  try
-    if FindResource(HInstance, 'PACKAGEINFO', RT_RCDATA) <> 0 then
-      GetPackageInfo(HInstance, Data, Flags, GetInfoProc);
-  except
-    ;
-  end;
-end;
-
-// 根据文件名获得的单元名大小写可能不正确，此处通过遍历 IDE 模块来更新
-procedure TUnitNameList.UpdateCaseFromModules(AList: TStringList);
-var
-  Data: TUnitsInfoRec;
-begin
-  { Use a sorted StringList for searching and copy this list to an unsorted list
-    which is manipulated in GetInfoProc(). After that the unsorted list is
-    copied back to the original sorted list. BinSearch is a lot faster than
-    linear search. (by AHUser) }
-  Data.IsCppMode := FCppMode;
-  Data.Sorted := AList;
-  Data.Unsorted := TStringList.Create;
-  try
-    Data.Unsorted.Assign(AList);
-    Data.Unsorted.Sorted := False; // added to avoid exception
-    EnumModules(GetModuleProc, @Data);
-  finally
-    AList.Sorted := False;
-    AList.Assign(Data.Unsorted);
-    AList.Sorted := True;
-    Data.Unsorted.Free;
   end;
 end;
 
@@ -1617,7 +1621,7 @@ function TUnitNameList.Reload(Editor: IOTAEditBuffer; const InputText: string;
 begin
   Result := False;
   try
-    if PosInfo.IsPascal and (PosInfo.PosKind in [pkIntfUses, pkImplUses]) then
+    if PosInfo.IsPascal and (PosInfo.PosKind in [pkIntfUses, pkImplUses, pkVar, pkField]) then
     begin
       DoInternalLoad;
       AdjustSymbolListScope(Self);
@@ -1664,12 +1668,15 @@ end;
 function TUnitUsesList.Reload(Editor: IOTAEditBuffer; const InputText: string;
   PosInfo: TCodePosInfo): Boolean;
 const
-  csMaxProcessLines = 2048;
+  csMaxProcessLines = 30000;
 var
   View: IOTAEditView;
   Stream: TMemoryStream;
   UsesList: TStringList;
-  i: Integer;
+  I: Integer;
+{$IFNDEF IDE_SYMBOL_HAS_SYSTEM}
+  SysAdded: Boolean;
+{$ENDIF}
 begin
   Result := False;
   try
@@ -1685,8 +1692,22 @@ begin
         UsesList := TStringList.Create;
         try
           ParseUnitUses(PAnsiChar(Stream.Memory), UsesList);
-          for i := 0 to UsesList.Count - 1 do
-            Add(UsesList[i], skUnit, csUsesScope);
+
+{$IFNDEF IDE_SYMBOL_HAS_SYSTEM}
+          SysAdded := False;
+{$ENDIF}
+          for I := 0 to UsesList.Count - 1 do
+          begin
+            Add(UsesList[I], skUnit, csUsesScope);
+
+{$IFNDEF IDE_SYMBOL_HAS_SYSTEM}
+            if not SysAdded and (UsesList[I] = 'SysUtils') then
+            begin
+              Add('System', skUnit, csUsesScope, '');
+              SysAdded := True;
+            end;
+{$ENDIF}
+          end;
           AdjustSymbolListScope(Self);
         finally
           UsesList.Free;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2021 CnPack 开发组                       }
+{                   (C)Copyright 2001-2022 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -32,17 +32,17 @@ unit CnExplore;
 *           2003.12.03 by QSoft
 *               移植到 D5
 *           2003.11.17
-*               修正了历史信息保存功能中的Bug
+*               修正了历史信息保存功能中的 Bug
 *           2003.11.08
-*               整理了部分程序和注释，修正了初始化的Bug
+*               整理了部分程序和注释，修正了初始化的 Bug
 *           2003.10.30
 *               完成初始化，历史信息保存功能
 *           2003.10.28
 *               增加了清除临时文件时的类型的选项
 *           2003.10.09
-*               完成了资源管理器ListView的过滤功能
-*               其中:CopyCharDB,GetCharsUpToNextCharDB,ExtensionsToTStrings
-*               函数从Scp 1.7中移植
+*               完成了资源管理器 ListView 的过滤功能
+*               其中:CopyCharDB, GetCharsUpToNextCharDB, ExtensionsToTStrings
+*               函数从 Scp 1.7 中移植
 *               完善了文件过滤条件的加载和初始化定位功能,以及文件夹\文件\隐藏
 *               条件的设置
 *           2003.10.08
@@ -51,9 +51,9 @@ unit CnExplore;
 *               2.增加"文件过滤"功能的菜单选择方式
 *               3.增加"文件夹"功能的菜单选择方式
 *           2003.10.05
-*               使用Delphi的Demo中的资源管理器控件替换了SCP1.7
+*               使用 Delphi的 Demo 中的资源管理器控件替换了 SCP1.7
 *               其中文件夹的创建,文件(夹)的删除和过滤功能有待于进一步开发
-*               修正了窗口Dock后的控件Resize文件
+*               修正了窗口Dock后的控件 Resize 文件
 *               修改了窗口的加载方式
 *           2003.09.29
 *               创建文件.初步实现资源管理器,过滤和删除临时文件
@@ -73,8 +73,9 @@ interface
 
 uses
   Forms, SysUtils, Messages, Windows, Classes, Controls, ExtCtrls, ComCtrls,
-  IniFiles, StdCtrls, Menus, ToolWin, ActnList, ImgList, CnWizIdeDock, CnShellCtrls,
-  CnWizClasses, ToolsAPI, CnConsts, CnWizConsts, CnPopupMenu;
+  IniFiles, StdCtrls, Menus, ToolWin, ActnList, ImgList,
+  {$IFDEF IDE_SUPPORT_HDPI} Vcl.VirtualImageList, Vcl.ImageCollection, {$ENDIF}
+  CnWizIdeDock, CnShellCtrls, CnWizClasses, ToolsAPI, CnConsts, CnWizConsts, CnPopupMenu;
 
 //==============================================================================
 // Explore 工具窗体
@@ -96,7 +97,6 @@ type
     stat: TStatusBar;
     btnCurrProj: TToolButton;
     spl: TSplitter;
-    pnlToolBar: TPanel;
     pnlClient: TPanel;
     shltv: TCnShellTreeView;
     shlst: TCnShellListView;
@@ -153,6 +153,7 @@ type
     mnuitmFCurFile: TMenuItem;
     btnCreateDir: TToolButton;
     actCreateDir: TAction;
+    ilLarge: TImageList;
     procedure btnUpClick(Sender: TObject);
     procedure btnFilterClick(Sender: TObject);
     procedure btnListIconClick(Sender: TObject);
@@ -182,25 +183,24 @@ type
   private
     FWizard: TCnExplorerWizard;
 
-    FDockState: TDockState; //窗口Dock状态
-    FFileFilterKey: string; //过滤字符Key
-    FFileFilterVal: string; //过滤字符Value
-    FFileFilterList: TStringList; //文件过滤类型列表,数据处理使用
-    FDirectoryList: TStringList; //收藏文件夹列表，保存使用
-    FFileFilterMenu: TStringList; //文件过滤类型列表,菜单使用
-    FDirectoryMenu: TStringList; //收藏文件夹列表，菜单使用
-
+    FDockState: TDockState; // 窗口 Dock 状态
+    FFileFilterKey: string; // 过滤字符 Key
+    FFileFilterVal: string; // 过滤字符 Value
+    FFileFilterList: TStringList; // 文件过滤类型列表,数据处理使用
+    FDirectoryList: TStringList;  // 收藏文件夹列表，保存使用
+    FFileFilterMenu: TStringList; // 文件过滤类型列表,菜单使用
+    FDirectoryMenu: TStringList;  // 收藏文件夹列表，菜单使用
     function GetBoolean(const Index: Integer): Boolean;
     procedure SetBoolean(const Index: Integer; const Value: Boolean);
 
-    procedure ChangeListViewStyle(Index: Integer); //改变ListView的ViewStype
-    function GetListViewStyle(): Integer; //得到ListView的ViewStype
+    procedure ChangeListViewStyle(Index: Integer); // 改变 ListView 的 ViewStype
+    function GetListViewStyle(): Integer; // 得到 ListView 的 ViewStype
     function ChangeMenu(aValue: string; aStrList: TStringList): Boolean;
     procedure PopupMenu(Sender: TObject; PopMenu: TPopupMenu);
-    procedure SetFilter(aValue, aKey: string);  //设置文件过滤
-    procedure LoadFileFilterState;              //加载FileFilter菜单
-    procedure LoadFolderState;                  //加载Folder过滤菜单
-    procedure ChangeShlstSet;  //改变Shlsh的ObjectTypes设置
+    procedure SetFilter(aValue, aKey: string);  // 设置文件过滤
+    procedure LoadFileFilterState;              // 加载 FileFilter 菜单
+    procedure LoadFolderState;                  // 加载 Folder 过滤菜单
+    procedure ChangeShlstSet;  //改变 Shlsh 的 ObjectTypes 设置
   protected
     function GetHelpTopic: string; override;
   public
@@ -254,8 +254,8 @@ type
     procedure LoadSettings(Ini: TCustomIniFile); override;
     procedure SaveSettings(Ini: TCustomIniFile); override;
     function GetState: TWizardState; override;
-    class procedure GetWizardInfo(var Name, Author, Email, Comment: string);
-      override;
+    class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
+    function GetSearchContent: string; override;
     function GetCaption: string; override;
     function GetHint: string; override;
     function GetDefShortCut: TShortCut; override;
@@ -272,7 +272,7 @@ uses
 {$IFDEF DEBUG}
   CnDebug,
 {$ENDIF}
-  CnCommon, CnIni, CnWizUtils, CnWizOptions, {StrUtils,}
+  CnCommon, CnIni, CnWizUtils, CnWizIdeUtils, CnWizOptions, CnWizShareImages,
   CnExploreDirectory, CnExploreFilter;
 
 {$R *.dfm}
@@ -335,7 +335,7 @@ end; {ExtensionsToTStrings}
 function TCnExploreForm.ChangeMenu(aValue: string; aStrList: TStringList):
   Boolean;
 var
-  i, Loca: Integer;
+  I, Loca: Integer;
 begin
   Loca := aStrList.IndexOf(aValue);
   if Loca < 0 then
@@ -352,8 +352,8 @@ begin
     end
     else
     Begin
-      for i := Loca - 1 downto 0 do
-        aStrList.Strings[i + 1] := aStrList.Strings[i];
+      for I := Loca - 1 downto 0 do
+        aStrList.Strings[I + 1] := aStrList.Strings[I];
       aStrList.Strings[0] := aValue;
     end;
   Result := True;
@@ -590,15 +590,15 @@ procedure TCnExploreForm.shlstAddFolder(Sender: TObject;
 
   function FileinExtList(const aFile: string): Boolean;
   var
-    i: Integer;
+    I: Integer;
     XExt: string;
   begin
     Result := False;
     if FFileFilterList.Count > 0 then
-      for i := 0 to FFileFilterList.Count - 1 do
+      for I := 0 to FFileFilterList.Count - 1 do
       begin
         XExt := _CnExtractFileExt(aFile);
-        if UpperCase('*' + XExt) = UpperCase(FFileFilterList.Strings[i]) then
+        if UpperCase('*' + XExt) = UpperCase(FFileFilterList.Strings[I]) then
         begin
           Result := True;
           Break;
@@ -738,10 +738,20 @@ begin
   FFileFilterMenu := TStringList.Create;
   FDirectoryMenu := TStringList.Create;
 
-  //设置路径为当前工程的路径
+  // 设置路径为当前工程的路径
   CurPath := _CnExtractFilePath(CnOtaGetCurrentProjectFileName);
   if CurPath <> '' then
     shltv.Path := CurPath;
+
+  WizOptions.ResetToolbarWithLargeIcons(ToolBar);
+{$IFNDEF IDE_SUPPORT_HDPI}
+  if WizOptions.UseLargeIcon then
+  begin
+    dmCnSharedImages.StretchCopyToLarge(il, ilLarge);
+    ToolBar.Images := ilLarge;
+  end;
+{$ENDIF}
+  WizOptions.ResetToolbarWithLargeIcons(ToolBar);
 end;
 
 destructor TCnExploreForm.Destroy;
@@ -759,8 +769,6 @@ begin
   CnExploreForm := nil;
 end;
 
-////////////////////////////
-
 constructor TCnExplorerWizard.Create;
 begin
   inherited;
@@ -769,7 +777,7 @@ begin
   FFilter := TStringList.Create;
   FFolder := TStringList.Create;
   FFolderList := TStringList.Create;
-end; {TCnExplore.Create}
+end;
 
 destructor TCnExplorerWizard.Destroy;
 begin
@@ -784,12 +792,12 @@ begin
   Folder.Free;
   FolderList.Free;
   inherited;
-end; {TCnExplore.Destroy}
+end;
 
 procedure TCnExplorerWizard.LoadSettings(Ini: TCustomIniFile);
 var
-  i: Integer;
-  tmp: string;
+  I: Integer;
+  T: string;
 begin
   with TCnIniFile.Create(Ini) do
   try
@@ -803,17 +811,17 @@ begin
     FHideCheck := Ini.ReadBool('', 'FHideCheck', True);
     FFolderList.CommaText := Ini.ReadString('', 'FFolderList', '');
 
-    for i := 0 to 4 do
+    for I := 0 to 4 do
     begin
-      tmp := ini.ReadString('FFilter', IntToStr(i + 1), '');
-      if tmp <> '' then
-        FFilter.Add(tmp);
+      T := ini.ReadString('FFilter', IntToStr(I + 1), '');
+      if T <> '' then
+        FFilter.Add(T);
     end;
-    for i := 0 to 4 do
+    for I := 0 to 4 do
     begin
-      tmp := ini.ReadString('FFolder', IntToStr(i + 1), '');
-      if tmp <> '' then
-        FFolder.Add(tmp);
+      T := ini.ReadString('FFolder', IntToStr(I + 1), '');
+      if T <> '' then
+        FFolder.Add(T);
     end;
   finally
     Free;
@@ -822,7 +830,7 @@ end;
 
 procedure TCnExplorerWizard.SaveSettings(Ini: TCustomIniFile);
 var
-  i: Integer;
+  I: Integer;
 begin
   if CnExploreForm <> nil then
   begin
@@ -851,10 +859,10 @@ begin
     Ini.WriteBool('', 'FFilesCheck', FFilesCheck);
     Ini.WriteBool('', 'FHideCheck', FHideCheck);
     Ini.WriteString('', 'FFolderList', FFolderList.CommaText);
-    for i := 0 to FFilter.Count - 1 do
-      Ini.WriteString('FFilter', IntToStr(i + 1), FFilter.Strings[i]);
-    for i := 0 to FFolder.Count - 1 do
-      Ini.WriteString('FFolder', IntToStr(i + 1), FFolder.Strings[i]);
+    for I := 0 to FFilter.Count - 1 do
+      Ini.WriteString('FFilter', IntToStr(I + 1), FFilter.Strings[I]);
+    for I := 0 to FFolder.Count - 1 do
+      Ini.WriteString('FFolder', IntToStr(I + 1), FFolder.Strings[I]);
   finally
     Free;
   end;
@@ -912,7 +920,7 @@ end;
 function TCnExplorerWizard.GetDefShortCut: TShortCut;
 begin
   Result := 0;
-end; {TCnExplore.GetDefShortCut}
+end;
 
 procedure TCnExploreForm.FormDestroy(Sender: TObject);
 begin
@@ -959,7 +967,7 @@ var
   aPath: string;
 begin
   aPath := SCnNewFolderDefault;
-  if CnInputQuery(SCnNewFolder, SCnNewFolderHint, aPath) then
+  if CnWizInputQuery(SCnNewFolder, SCnNewFolderHint, aPath) then
   begin
     if aPath <> '' then
     begin
@@ -974,7 +982,9 @@ end;
 
 procedure TCnExplorerWizard.SetActive(Value: Boolean);
 begin
-  if Value = Active then Exit;
+  if Value = Active then
+    Exit;
+
   inherited;
   if Active then
   begin
@@ -987,6 +997,11 @@ begin
     if CnExploreForm <> nil then
       FreeAndNil(CnExploreForm);
   end;
+end;
+
+function TCnExplorerWizard.GetSearchContent: string;
+begin
+  Result := inherited GetSearchContent + '资源,文件,file,resource,explorer,';
 end;
 
 initialization
