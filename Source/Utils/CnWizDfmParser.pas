@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -338,6 +338,7 @@ end;
 function ParseTextPropertyValue(Parser: TParser; out BinStream: TObject): string;
 var
   Stream: TStream;
+  QS: string;
 
   function GetQuotedStr: string;
   begin
@@ -394,14 +395,17 @@ begin
           end;
           Result := Result + ']';
         end;
-      '(':  // 字符串列表，缩进由输出时控制，这里不放缩进
+      '(':  // 字符串列表或 DesignSize 的整数列表，缩进由输出时控制，这里不放缩进
         begin
           Result := Parser.TokenString;
           Parser.NextToken;
           while Parser.Token <> ')' do
           begin
-            Result := Result + #13#10 + '  ' + GetQuotedStr;
-            // Parser.NextToken; // GetQuotedStr 内部已经 NextToken 了
+            QS := GetQuotedStr;
+            if QS <> '' then
+              Result := Result + #13#10 + '  ' + QS
+            else
+              Parser.NextToken; // GetQuotedStr 内部已经 NextToken 了，整数则先行忽略
           end;
           Result := Result + ')';
         end;

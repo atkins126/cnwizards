@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -48,7 +48,7 @@ uses
   StrUtils,
 {$ENDIF COMPILER6_UP}
   ComCtrls, StdCtrls, ExtCtrls, Math, ToolWin, Clipbrd, IniFiles,
-{$IFNDEF STAND_ALONE} ToolsAPI, CnWizUtils, CnWizIdeUtils, CnWizNotifier, {$ENDIF}
+{$IFNDEF STAND_ALONE} ToolsAPI, CnWizUtils, CnWizIdeUtils, CnWizNotifier, CnIDEVersion, {$ENDIF}
   CnCommon, CnConsts, CnWizConsts, CnWizOptions, CnIni, CnWizMultiLang,
   CnWizShareImages, CnIniStrUtils, RegExpr, CnStrings;
 
@@ -197,6 +197,8 @@ type
     FListViewWidthStr: string;
     FListViewWidthOldStr: string;
 {$ENDIF}
+    FColumnWidthManuallyChanged: Boolean;
+    FOldListViewWndProc: TWndMethod;
     function GetMatchAny: Boolean;
     procedure SetMatchAny(const Value: Boolean);
 
@@ -210,6 +212,7 @@ type
     procedure FirstUpdate(Sender: TObject);
     procedure ChangeIconToIDEImageList;
 {$ENDIF}
+    procedure ListViewWindowProc(var Message: TMessage);
   protected
     FRegExpr: TRegExpr;
     NeedInitProjectControls: Boolean;
@@ -344,6 +347,26 @@ end;
 
 { TCnProjectViewBaseForm }
 
+procedure TCnProjectViewBaseForm.ListViewWindowProc(var Message: TMessage);
+var
+  NM: TWMNotify;
+begin
+  FOldListViewWndProc(Message);
+  if Message.Msg = WM_NOTIFY then
+  begin
+    NM := TWMNotify(Message);
+    case NM.NMHdr^.code of
+      HDN_ENDTRACK, HDN_BEGINTRACK, HDN_TRACK:
+      begin
+        FColumnWidthManuallyChanged := True;
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('%s ListView Column Width Manually Changed.', [ClassName]);
+{$ENDIF}
+      end;
+    end;
+  end;
+end;
+
 procedure TCnProjectViewBaseForm.FormCreate(Sender: TObject);
 var
   OldC: TCursor;
@@ -351,6 +374,14 @@ begin
   OldC := Screen.Cursor;
   Screen.Cursor := crHourGlass;
   try
+{$IFNDEF STAND_ALONE}
+    if CnIsDelphi11GEDot3 then
+    begin
+      FOldListViewWndProc := lvList.WindowProc;
+      lvList.WindowProc := ListViewWindowProc;
+    end;
+{$ENDIF}
+
     FRegExpr := TRegExpr.Create;
     FRegExpr.ModifierI := True;
     FUpArrow := TBitmap.Create;
@@ -382,10 +413,10 @@ procedure TCnProjectViewBaseForm.FormShow(Sender: TObject);
 begin
   UpdateListView;
   SelectOpenedItem;
-{$IFDEF BDS}
-  SetListViewWidthString(lvList, FListViewWidthStr, GetFactorFromSizeEnlarge(Enlarge));
-{$ENDIF}
 {$IFNDEF STAND_ALONE}
+  {$IFDEF BDS}
+  SetListViewWidthString(lvList, FListViewWidthStr, GetFactorFromSizeEnlarge(Enlarge));
+  {$ENDIF}
   CnWizNotifierServices.ExecuteOnApplicationIdle(FirstUpdate);
 {$ENDIF}
 end;
@@ -728,9 +759,19 @@ begin
     WriteInteger(aSection, csWidth, Width);
     WriteInteger(aSection, csHeight, Height);
 {$IFNDEF STAND_ALONE}
-    S := GetListViewWidthString(lvList, GetFactorFromSizeEnlarge(Enlarge));
-    if S <> FListViewWidthOldStr then // 只变化了才保存
-      WriteString(aSection, csListViewWidth, S);
+    if CnIsDelphi11GEDot3 then
+    begin
+      S := GetListViewWidthString2(lvList, GetFactorFromSizeEnlarge(Enlarge)); // 获取正确的宽度值
+      if FColumnWidthManuallyChanged and (S <> FListViewWidthOldStr) then // 有宽度 Bug 存在的情况下，只手工更改过且变化了才保存
+        WriteString(aSection, csListViewWidth, S);
+    end
+    else
+    begin
+      S := GetListViewWidthString(lvList, GetFactorFromSizeEnlarge(Enlarge));
+
+      if S <> FListViewWidthOldStr then // 只变化了才保存
+        WriteString(aSection, csListViewWidth, S);
+    end;
 {$ENDIF}
   finally
     Free;
@@ -1334,19 +1375,32 @@ begin
     if (Item.ImageIndex >= 0) and (LV.SmallImages <> nil) then
     begin
 {$IFDEF IDE_SUPPORT_HDPI}
+  {$IFDEF STAND_ALONE}
+      // TODO: 拉伸绘制
+      LV.SmallImages.Draw(Bmp.Canvas, csDrawIconMargin,
+        (Bmp.Height - LV.SmallImages.Height) div 2, Item.ImageIndex);
+  {$ELSE}
       // TODO: 拉伸绘制
       LV.SmallImages.Draw(Bmp.Canvas, IdeGetScaledPixelsFromOrigin(csDrawIconMargin, LV),
         (Bmp.Height - LV.SmallImages.Height) div 2, Item.ImageIndex);
+  {$ENDIF}
 {$ELSE}
       // 图标在竖直方向上在 Bmp 中居中
       LV.SmallImages.Draw(Bmp.Canvas, csDrawIconMargin, (Bmp.Height - LV.SmallImages.Height) div 2, Item.ImageIndex);
 {$ENDIF}
     end;
 
+{$IFDEF STAND_ALONE}
+    if LV.SmallImages <> nil then
+      X := LV.SmallImages.Width + 2
+    else
+      X := Bmp.Height + 2;
+{$ELSE}
     if LV.SmallImages <> nil then
       X := IdeGetScaledPixelsFromOrigin(LV.SmallImages.Width, LV) + 2
     else
       X := Bmp.Height + 2;
+{$ENDIF}
 
     Y := (Bmp.Height - Bmp.Canvas.TextHeight(Item.Caption)) div 2;
 

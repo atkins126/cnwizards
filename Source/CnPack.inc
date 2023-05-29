@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -33,18 +33,56 @@
   // Free Pascal Compiler 3.x Up Definitions
   {$DEFINE SUPPORT_PASCAL}    // Pascal
   {$DEFINE SUPPORT_UINT64}    // UInt64
+  {$DEFINE SUPPORT_32_AND_64} // 支持 32 和 64 位，可用 NativeInt 等
+  {$DEFINE SUPPORT_ENCODING}  // Unicode 字符串支持 Encoding 转换
   {$IFDEF SYSTEMINLINE}
     {$DEFINE SUPPORT_INLINE}  // inline
   {$ENDIF}
-  {$IFDEF WIN64}
-    {$DEFINE CPUX64}  // x64
-  {$ENDIF}
-  {$IFDEF WINDOWS}
-    {$DEFINE MSWINDOWS}  // MS Windows
-  {$ENDIF}
+
   {$DEFINE OBJECT_HAS_TOSTRING} // TObject.ToString
-  {$asmMode intel}
-  {$mode Delphi}         // Delphi Compatibility, not DelphiUnicode
+  {$DEFINE TBYTES_DEFINED}
+
+  // 以下是 CPU 定义从 FPC 映射到 Delphi
+  {$IFDEF CPU386}     // Intel 32 CPU
+    {$DEFINE CPU32BITS}
+    {$DEFINE CPUX86}
+    {$asmMode intel}
+  {$ENDIF}
+  {$IFDEF CPUi386}
+    {$DEFINE CPU32BITS}
+    {$DEFINE CPUX86}
+    {$asmMode intel}
+  {$ENDIF}
+
+  {$IFDEF CPUAMD64}   // Intel 64 CPU
+    {$DEFINE CPU64BITS}
+    {$DEFINE CPUX64}
+    {$asmMode intel}
+  {$ENDIF}
+  {$IFDEF CPUX86_64}
+    {$DEFINE CPU64BITS}
+    {$DEFINE CPUX64}
+    {$asmMode intel}
+  {$ENDIF}
+  {$IFDEF CPUIA64}
+    {$DEFINE CPU64BITS}
+    {$DEFINE CPUX64}
+    {$asmMode intel}
+  {$ENDIF}
+
+  {$IFDEF CPUARM}      // ARM 32 bit processor
+    {$DEFINE CPU32BITS}
+    {$DEFINE CPUARM}
+    {$DEFINE CPUARM32}
+  {$ENDIF}
+
+  {$IFDEF CPUAARCH64}  // ARM 64 bit processor
+    {$DEFINE CPU64BITS}
+    {$DEFINE CPUARM}
+    {$DEFINE CPUARM64}
+  {$ENDIF}
+
+  {$mode Delphi}       // Delphi Compatibility, not DelphiUnicode。注意源码中勿重复声明
 {$ELSE FPC} // Below is for Delphi Compiler
 
 //{$DEFINE PERSONAL_EDITION}
@@ -3084,12 +3122,25 @@
   {$DEFINE IDE_SWITCH_BUG}              // Sydney 10.4.2 存在打开文件时莫名其妙切换到后台的 Bug
 {$ENDIF}
 
+{$IFDEF DELPHI103_RIO_UP}
+  {$DEFINE SUPPORT_MACOS64}             // Rio 10.3.2 或以上支持 64 位 MacOS
+{$ENDIF}
+
 {$IFDEF DELPHI102_TOKYO_UP}
   {$DEFINE SUPPORT_LINUX64}             // Tokyo 10.2 或以上支持 Linux 64 位 Server
   {$DEFINE IDE_SUPPORT_THEMING}         // Tokyo 10.2.2 或以上支持 IDE 主题切换
 {$ENDIF}
 
+{$IFDEF DELPHIXE8_UP}
+  {$DEFINE INIFILE_READWRITE_INTEGER}   // XE8 的 IniFile 的 ReadInteger 和 WriteInteger 参数开始由 LongInt 改为 Integer
+{$ENDIF}
+
+{$IFDEF DELPHIXE8_UP}
+  {$DEFINE SUPPORT_TBYTES_OPERATION}    // XE7 的 TBytes 开始支持相加、插入等操作
+{$ENDIF}
+
 {$IFDEF DELPHIXE5_UP}
+  {$DEFINE SUPPORT_MOBILE}              // XE5 开始支持移动开发
   {$DEFINE IDE_HAS_INSIGHT}             // XE5 has IDE Insight Bar
 {$ENDIF}
 
@@ -3115,7 +3166,8 @@
 {$ENDIF}
 
 {$IFDEF DELPHIXE_UP}
-  {$DEFINE TSTRINGS_HAS_WRITEBOM} // XE TStrings has WriteBOM property.
+  {$DEFINE TSTRINGS_HAS_WRITEBOM}              // XE TStrings has WriteBOM property.
+  {$DEFINE IDE_HAS_DEBUGGERVISUALIZER}         // XE ToolsAPI has Debugger Visualizer Interfaces.
 {$ENDIF}
 
 {$IFDEF BDS2012_UP}               // 2012 = XE2
@@ -3147,13 +3199,17 @@
 
 {$IFDEF BDS2009_UP}
   {$DEFINE UNICODE_STRING}
+  {$DEFINE SUPPORT_ENCODING}        // Unicode with TEncoding
   {$DEFINE SUPPORT_PUINT64}         // Has Pointer of UInt64
   {$DEFINE OBJECT_HAS_TOSTRING}     // TObject.ToString Function
   {$DEFINE OBJECT_HAS_EQUAL}        // TObject.Equal Function
   {$DEFINE OBJECT_HAS_GETHASHCODE}  // TObject.GetHashCode Function
   {$DEFINE TGRAPHIC_SUPPORT_PARTIALTRANSPARENCY} // TGraphic 类支持 Alpha 通道透明
   {$DEFINE SUPPORT_OTA_PROJECT_CONFIGURATION}
-  {$DEFINE SUPPORT_GENERIC}      // 支持泛型
+  {$DEFINE SUPPORT_GENERIC}         // 支持泛型
+  {$DEFINE SUPPORT_ANSISTRING_CODEPAGE}
+  // AnsiString 的声明支持指定代码页
+
   {$DEFINE IDE_MAINFORM_EAT_MOUSEWHEEL}
   // MainForm of 2009 or Above will eat Message in MouseWheelHandler
   {$DEFINE IDE_CODEINSIGHT_AUTOINVOKE}
@@ -3254,6 +3310,26 @@
 
 {$IFDEF DELPHI6}
   {$DEFINE DELPHI5OR6}
+{$ENDIF}
+
+{$IFDEF WIN64}
+  {$DEFINE EXTENDED_SIZE_8}      // Win64 下 Extended 类型长度 8 字节
+{$ENDIF}
+
+{$IFDEF CPUARM}
+  {$DEFINE EXTENDED_SIZE_8}      // ARM 平台 Extended 类型长度 8 字节
+{$ENDIF}
+
+{$IFDEF WIN32}
+  {$DEFINE EXTENDED_SIZE_10}     // Win32 下 Extended 类型长度 10 字节
+{$ENDIF}
+
+{$IFDEF MACOS64}
+  {$DEFINE EXTENDED_SIZE_16}     // MacOS64 下 Extended 类型长度 16 字节
+{$ENDIF}
+
+{$IFDEF LINUX64}
+  {$DEFINE EXTENDED_SIZE_16}     // Linux64 下 Extended 类型长度 16 字节
 {$ENDIF}
 
 //==============================================================================

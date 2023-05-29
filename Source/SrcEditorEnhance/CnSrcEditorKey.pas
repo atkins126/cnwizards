@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -540,7 +540,7 @@ var
   LineNo, CharIndex, ACount, LeftBracketIndex, MaxLen: Integer;
   NeedAutoMatch: Boolean;
   EditControl: TControl;
-  I, Element, LineFlag: Integer;
+  I, Element, LineFlag, C: Integer;
   KeyIsLeft: Boolean;
   ACharSet: TAnsiCharSet;
 begin
@@ -564,8 +564,19 @@ begin
         if ((AChar = '''') and (Char1 = '''')) or
           ((AChar = '"') and (Char1 = '"')) then
           KeyIsLeft := False
-        else
-          KeyIsLeft := True;
+        else // 判断本行的单引号数是否 0 或偶数个，是则 KeyIsLeft 为 True
+        begin
+          C := 0;
+          for I := 1 to CharIndex do
+          begin
+            if Char(AnsiLine[I]) = '''' then
+              Inc(C);
+          end;
+          KeyIsLeft := (C and 1) = 0;
+{$IFDEF DEBUG}
+          CnDebugger.LogFmt('DoAutoMatch Quota Count %d. IsLeft %d', [C, Integer(KeyIsLeft)]);
+{$ENDIF}
+        end;
       end
       else
         KeyIsLeft := True;
@@ -1549,9 +1560,9 @@ var
       Result := True;
       View.Paint;
     end
-    else // TODO: 找最后一个不是注释的地方
+    else // 找最后一个不是注释且不是空白的地方
     begin
-      while (Element in [atComment]) and (EditPos.Col > 0) do
+      while (Element in [atComment, atWhiteSpace]) and (EditPos.Col > 0) do
       begin
         Dec(EditPos.Col);
         EditControlWrapper.GetAttributeAtPos(EditControl, EditPos, False, Element, LineFlag);
@@ -1560,6 +1571,7 @@ var
       if EditPos.Col > 0 then
       begin
         // 找到了最后一个不是注释的地方
+        Inc(EditPos.Col);
 {$IFDEF UNICODE}
         // 从 UTF8 的 Pos，转换回 Ansi 的
         EditPos.Col := Length(CnUtf8ToAnsi({$IFDEF UNICODE}AnsiString{$ENDIF}(Copy(Text, 1, EditPos.Col))));
@@ -1590,6 +1602,9 @@ begin
 
   if (AChar = ';') and (Shift = []) then
   begin
+    if (View.Block <> nil) and (View.Block.IsValid) then // 有选择区则不动
+      Exit;
+
     EditPos := View.CursorPos;
 {$IFDEF UNICODE}
     // GetAttributeAtPos 需要的是 UTF8 的Pos，因此 D2009 下进行 Col 的 UTF8 转换

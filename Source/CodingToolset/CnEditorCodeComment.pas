@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -39,12 +39,12 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizClasses, CnWizUtils, CnConsts, CnCommon,
-  Menus, CnEditorToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizMultiLang,
+  Menus, CnCodingToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizMultiLang,
   ExtCtrls;
 
 type
@@ -91,19 +91,19 @@ type
 
   TCnEditorCodeToggleComment = class(TCnEditorCodeTool)
   private
-    Inited: Boolean;
-    FirstIsCommented: Boolean;
+    FAllIsCommented: Boolean;
     FMoveToNextLine: Boolean;
     FIndentMode: TCnIndentMode;
     procedure SetIndentMode(const Value: TCnIndentMode);
   protected
     function GetHasConfig: Boolean; override;
+    procedure PrePreocessLine(const Str: string); override;
     function ProcessLine(const Str: string): string; override;
     function GetStyle: TCnCodeToolStyle; override;
     function GetDefShortCut: TShortCut; override;
     procedure GetNewPos(var ARow: Integer; var ACol: Integer); override;
   public
-    constructor Create(AOwner: TCnEditorToolsetWizard); override;
+    constructor Create(AOwner: TCnCodingToolsetWizard); override;
     function GetCaption: string; override;
     function GetHint: string; override;
     procedure GetEditorInfo(var Name, Author, Email: string); override;
@@ -119,19 +119,20 @@ type
     chkMoveToNextLine: TCheckBox;
     btnOK: TButton;
     btnCancel: TButton;
-    rgIndentMode: TRadioGroup;private
-    { Private declarations }
+    rgIndentMode: TRadioGroup;
+  private
+
   public
-    { Public declarations }
+
   end;
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 implementation
 
-{$R *.dfm}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$R *.dfm}
 
 var
   InternalIndentMode: TCnIndentMode = imInsertToHead;
@@ -261,7 +262,7 @@ end;
 
 { TCnEditorCodeToggleComment }
 
-constructor TCnEditorCodeToggleComment.Create(AOwner: TCnEditorToolsetWizard);
+constructor TCnEditorCodeToggleComment.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   FMoveToNextLine := True;
@@ -269,27 +270,16 @@ end;
 
 procedure TCnEditorCodeToggleComment.Execute;
 begin
-  Inited := False;
-  FirstIsCommented := False;
+  FAllIsCommented := True;
   inherited;
 end;
 
 function TCnEditorCodeToggleComment.ProcessLine(const Str: string): string;
 begin
-  // 判断首行是否已注释
-  if not Inited then
-  begin
-    FirstIsCommented := IsCommentStr(Str);
-    Inited := True;
-  end;
-
-  // 使用 BDS 2005 的规则处理
-  if not FirstIsCommented then
-    Result := GetCommentStr(Str)    // 首行未注释时全部增加注释
-  else if IsCommentStr(Str) then
-    Result := GetUnCommentStr(Str)  // 注释过的取消注释
+  if FAllIsCommented then
+    Result := GetUnCommentStr(Str)  // 全注释过的才都取消注释
   else
-    Result := GetCommentStr(Str);   // 未注释的增加注释
+    Result := GetCommentStr(Str);   // 只要不是全注释的，就统统增加注释
 end;
 
 function TCnEditorCodeToggleComment.GetStyle: TCnCodeToolStyle;
@@ -358,12 +348,16 @@ begin
   InternalIndentMode := Value;
 end;
 
+procedure TCnEditorCodeToggleComment.PrePreocessLine(const Str: string);
+begin
+  if not IsCommentStr(Str) then  // 判断所有行是否全是注释 // 开头
+    FAllIsCommented := False;
+end;
+
 initialization
   RegisterCnCodingToolset(TCnEditorCodeComment);
   RegisterCnCodingToolset(TCnEditorCodeUnComment);
-//{$IFNDEF COMPILER9_UP}
   RegisterCnCodingToolset(TCnEditorCodeToggleComment);
-//{$ENDIF}
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 end.

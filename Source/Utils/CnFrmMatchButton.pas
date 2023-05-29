@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -39,7 +39,7 @@ interface
 
 uses 
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  Menus, ComCtrls, ToolWin, CnWizOptions;
+  Menus, ComCtrls, ToolWin, CnStrings, CnWizOptions;
 
 type
   TCnMatchButtonFrame = class(TFrame)
@@ -148,6 +148,7 @@ end;
 constructor TCnMatchButtonFrame.Create(AOwner: TComponent);
 begin
   inherited;
+{$IFNDEF STAND_ALONE}
 {$IFDEF IDE_SUPPORT_HDPI}
   if WizOptions.UseLargeIcon then
     pmMatchMode.Images := dmCnSharedImages.LargeVirtualImages
@@ -156,6 +157,7 @@ begin
 {$ELSE}
   if WizOptions.UseLargeIcon then
     pmMatchMode.Images := dmCnSharedImages.LargeImages;
+{$ENDIF}
 {$ENDIF}
 end;
 

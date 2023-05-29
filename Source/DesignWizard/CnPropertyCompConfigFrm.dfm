@@ -5,12 +5,10 @@ inherited CnPropertyCompConfigForm: TCnPropertyCompConfigForm
   Caption = 'Property Compare Settings'
   ClientHeight = 337
   ClientWidth = 322
-  Color = clBtnFace
-  Position = poScreenCenter
   PixelsPerInch = 96
   TextHeight = 13
   object btnOK: TButton
-    Left = 83
+    Left = 79
     Top = 308
     Width = 75
     Height = 21
@@ -21,7 +19,7 @@ inherited CnPropertyCompConfigForm: TCnPropertyCompConfigForm
     TabOrder = 0
   end
   object btnCancel: TButton
-    Left = 163
+    Left = 159
     Top = 308
     Width = 75
     Height = 21
@@ -72,6 +70,14 @@ inherited CnPropertyCompConfigForm: TCnPropertyCompConfigForm
         Width = 281
         Height = 137
         TabOrder = 1
+      end
+      object chkShowMenu: TCheckBox
+        Left = 8
+        Top = 208
+        Width = 281
+        Height = 17
+        Caption = 'Show Context Menu in Designer'
+        TabOrder = 2
       end
     end
   end

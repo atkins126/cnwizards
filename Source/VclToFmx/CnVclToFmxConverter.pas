@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -163,14 +163,15 @@ const
     'Graphics', 'Controls', 'Forms', 'Dialogs', 'StdCtrls', 'ExtCtrls'
   );
 
-  UNIT_NAMES_DELETE: array[0..1] of string = (
-    'ComCtrls', 'Buttons'
+  UNIT_NAMES_DELETE: array[0..4] of string = (
+    'ComCtrls', 'Buttons', 'CheckLst', 'FileCtrl', 'Vcl.Imaging.pngimage'
   );
 
-  FMX_PURE_UNIT_PAIRS: array[0..2] of string = (
+  FMX_PURE_UNIT_PAIRS: array[0..3] of string = (
     'Clipbrd:FMX.Clipboard',
     'Sample.Spin:FMX.SpinBox',
-    'Spin:FMX.SpinBox'
+    'Spin:FMX.SpinBox',
+    'Grids:FMX.Grid'
     // 'Vcl.Clipbrd:FMX.Clipboard' // 无需 Vcl 前缀，已先替换过了
   );
 
@@ -225,10 +226,8 @@ begin
   // 删除，用于 FMX 中无同名单元的场合。如果对应有新的不同名单元，则由后面的组件映射而新增。
   for I := Low(UNIT_NAMES_DELETE) to High(UNIT_NAMES_DELETE) do
   begin
-    Result := StringReplace(Result, ', ' + UNIT_NAMES_DELETE[I], '', [rfIgnoreCase, rfReplaceAll]);
-    Result := StringReplace(Result, ',' + UNIT_NAMES_DELETE[I], '', [rfIgnoreCase, rfReplaceAll]);
-    Result := StringReplace(Result, UNIT_NAMES_DELETE[I] + ', ', '', [rfIgnoreCase, rfReplaceAll]);
-    Result := StringReplace(Result, UNIT_NAMES_DELETE[I] + ',', '', [rfIgnoreCase, rfReplaceAll]);
+    Result := CnStringReplace(Result, UNIT_NAMES_DELETE[I] + ',', '', [crfIgnoreCase, crfReplaceAll, crfWholeWord]);
+    Result := CnStringReplace(Result, UNIT_NAMES_DELETE[I], '', [crfIgnoreCase, crfReplaceAll, crfWholeWord]);
   end;
 
   // 先把有 Vcl 前缀的统统替换成带 FMX 前缀的
@@ -253,6 +252,15 @@ begin
       if (OS <> '') and (NS <> '') then
         Result := CnStringReplace(Result, OS, NS, [crfReplaceAll, crfIgnoreCase, crfWholeWord]);
     end;
+  end;
+
+  // 如果 Result 末尾是逗号或者逗号加空格，则需要去除
+  if Length(Result) > 1 then
+  begin
+    if Result[Length(Result)] = ',' then
+      Delete(Result, Length(Result), 1)
+    else if (Result[Length(Result)] = ' ') and (Result[Length(Result) - 1] = ',') then
+      Delete(Result, Length(Result) - 1, 2);
   end;
 
   // 再把新增的合并进去
@@ -748,33 +756,33 @@ class procedure TCnGridConverter.ProcessComponents(SourceLeaf,
   DestLeaf: TCnDfmLeaf; Tab: Integer);
 var
   I, Count: Integer;
-  OptionString, Value: string;
+  OptionStr, WidthStr, Value: string;
   Options: TStringList;
   Leaf: TCnDfmLeaf;
 begin
   I := IndexOfHead('Options = ', SourceLeaf.Properties);
   if I >= 0 then
-    OptionString := SourceLeaf.Properties[I]
+    OptionStr := SourceLeaf.Properties[I]
   else // 默认属性
-    OptionString := '[goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect]';
+    OptionStr := '[goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect]';
 
-  Delete(OptionString, 1, Length('Options = '));
+  Delete(OptionStr, 1, Length('Options = '));
   Options := TStringList.Create;
   try
-    ConvertSetStringToElements(OptionString, Options);
+    ConvertSetStringToElements(OptionStr, Options);
 
     // 转换集合元素，不存在对应关系的则删除
     for I := Options.Count - 1 downto 0 do
     begin
-      OptionString := CnConvertEnumValueIfExists(Options[I]);
-      if OptionString <> '' then
-        Options[I] := OptionString
+      OptionStr := CnConvertEnumValueIfExists(Options[I]);
+      if OptionStr <> '' then
+        Options[I] := OptionStr
       else
         Options.Delete(I);
     end;
 
-    OptionString := ConvertSetElementsToString(Options);
-    DestLeaf.Properties.Add('Options = ' + OptionString);
+    OptionStr := ConvertSetElementsToString(Options);
+    DestLeaf.Properties.Add('Options = ' + OptionStr);
   finally
     Options.Free;
   end;
@@ -788,12 +796,27 @@ begin
     Count := StrToIntDef(Value ,0);
     if Count > 0 then
     begin
+      I := IndexOfHead('DefaultColWidth = ', SourceLeaf.Properties);
+      if I >= 0 then
+      begin
+        Value := SourceLeaf.Properties[I];
+        Delete(Value, 1, Length('DefaultColWidth = '));
+
+        WidthStr := GetFloatStringFromInteger(StrToIntDef(Value ,64));
+      end
+      else
+        WidthStr := '';
+
       for I := 1 to Count do
       begin
         // 给 DestLeaf 添加一个子节点，没其他属性
         Leaf := DestLeaf.Tree.AddChild(DestLeaf) as TCnDfmLeaf;
         Leaf.ElementClass := 'TStringColumn';
         Leaf.ElementKind := dkObject;
+
+        // 有指定宽度就写出
+        if WidthStr <> '' then
+          Leaf.Properties.Add('Size.Width = ' + WidthStr);
         Leaf.Text := 'StringColumn' + IntToStr(Leaf.Tree.GetSameClassIndex(Leaf) + 1);
       end;
     end;

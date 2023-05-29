@@ -1,13 +1,13 @@
 ﻿**********************************************************************
                      CnPack For Delphi/C++Builder
                 A Free, Open Source Project from China
-                 (C)Copyright 2001-2022 CnPack Team
+                 (C)Copyright 2001-2023 CnPack Team
 **********************************************************************
 
                          CnPack IDE Wizards
-                           Version 1.2.3
+                           Version 1.2.6
                        =======================
-                         CnPack Team 2022.04
+                         CnPack Team 2023.04
 
 
 =====================================================
@@ -24,8 +24,8 @@ XE3, XE4, XE5, XE6, XE7, XE8, 10 Seattle, 10.1 Berlin, 10.2 Tokyo,
 10.3 Rio, 10.4 Sydney, 11 Alexandria.
 
     The offical version of CnWizards includes follow languages: 
-Simplified Chinese, Traditional Chinese, English, Russian, German
-and French.
+Simplified Chinese, Traditional Chinese, English, Russian, German,
+French and Portuguese.
 
 =====================================================
 2. Software Copyright Statement

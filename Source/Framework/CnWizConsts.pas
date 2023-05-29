@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -58,7 +58,7 @@ const
   SCnWizardDesc = 'CnPack IDE Wizards for Delphi/C++Builder/BDS/Rad Studio' + #13#10 +
                   '' + #13#10 +
                   'Version: ' + SCnWizardFullVersion + #13#10 +
-                  'Copyright: 2001-2022 CnPack Team' + #13#10 +
+                  'Copyright: 2001-2023 CnPack Team' + #13#10 +
                   '' + #13#10 +
                   'This is a freeware, you can use it freely without any fee. ' +
                   'You can copy or distribute it in any form, without any fee. ' +
@@ -191,13 +191,14 @@ resourcestring
   // CnFormEnhancements
   SCnFlatToolBarDataExt = 'ini';
 
-  // CnEditorToolsetWizard
-  SCnEditorToolsetWizardConfigName = 'CnEditorToolsetWizardConfig';
+  // CnCodingToolsetWizard
+  SCnCodingToolsetWizardConfigName = 'CnCodingToolsetWizardConfig';
   SCnEditorToolsetCollectorDir = 'Collector';
   SCnEditorToolsetCollectorData = 'Collector.dat';
 
   // CnSrcTemplate
   SCnSrcTemplateConfigName = 'CnSrcTemplateConfig';
+  SCnSrcTemplateInsertToProcName = 'CnSrcTemplateInsertToProc';
   SCnSrcTemplateIconName = 'TCnSrcTemplate';
   SCnSrcTemplateItem = 'CnEditorItem';
 
@@ -623,13 +624,13 @@ var
   SCnBookmarkCurrentUnit: string = '<Current Unit>';
   SCnBookmarkFileCount: string = 'Units Count: %d';
 
-  // CnEditorToolsetWizard
-  SCnEditorToolsetWizardMenuCaption: string = 'Coding Tools&et';
-  SCnEditorToolsetWizardMenuHint: string = 'Code Editor Toolset';
-  SCnEditorToolsetWizardName: string = 'Coding Toolset';
-  SCnEditorToolsetWizardComment: string = 'Code Editor Toolset.';
-  SCnEditorToolsetWizardConfigCaption: string = '&Options...';
-  SCnEditorToolsetWizardConfigHint: string = 'Configurate the Coding Toolset';
+  // CnCodingToolsetWizard
+  SCnCodingToolsetWizardMenuCaption: string = 'Coding Tools&et';
+  SCnCodingToolsetWizardMenuHint: string = 'Code Editor Toolset';
+  SCnCodingToolsetWizardName: string = 'Coding Toolset';
+  SCnCodingToolsetWizardComment: string = 'Code Editor Toolset.';
+  SCnCodingToolsetWizardConfigCaption: string = '&Options...';
+  SCnCodingToolsetWizardConfigHint: string = 'Configurate the Coding Toolset';
 
   // CnEditorCodeTool
   SCnEditorCodeToolSelIsEmpty: string = 'Please Select the Code Block to Process.';
@@ -645,6 +646,18 @@ var
   SCnEditorCodeToStringName: string = 'Code to String Converter';
   SCnEditorCodeToStringMenuHint: string = 'Convert Code Block Selected to String';
 
+  // CnEditorExtractString
+  SCnEditorExtractStringMenuCaption: string = '&Extract Strings...';
+  SCnEditorExtractStringName: string = 'Extract String Tool';
+  SCnEditorExtractStringMenuHint: string = 'Search and Extract Strings in Source.';
+  SCnEditorExtractStringNotFound: string = 'NO String Found in Source!';
+  SCnEditorExtractStringCopiedFmt: string = '%d %s(s) Copied.';
+  SCnEditorExtractStringAskReplace: string = 'Sure to Replace Strings with New Names?';
+  SCnEditorExtractStringChangeName: string = 'Change Name';
+  SCnEditorExtractStringEnterNewName: string = 'Enter New Name:';
+  SCnEditorExtractStringDuplicatedName: string = 'Same Name Found, Please Retry.';
+  SCnEditorExtractStringReplacedFmt: string = 'Replace %d String(s) with %d Name(s).';
+
   // CnEditorCodeDelBlank
   SCnEditorCodeDelBlankMenuCaption: string = '&Delete Blank Lines...';
   SCnEditorCodeDelBlankName: string = 'Delete Blank Lines Tool';
@@ -656,7 +669,7 @@ var
   SCnEditorOpenFileMenuHint: string = 'Search and Open File in Search Path.';
   SCnEditorOpenFileDlgCaption: string = 'Open File';
   SCnEditorOpenFileDlgHint: string = 'Enter Filename:';
-  SCnEditorOpenFileNotFind: string = 'File not Found in Search Path!';
+  SCnEditorOpenFileNotFound: string = 'File not Found in Search Path!';
 
   // CnEditorZoomFullScreen
   SCnEditorZoomFullScreenMenuCaption: string = 'Editor &FullScreen Switch';
@@ -792,13 +805,19 @@ var
   SCnSrcTemplateComment: string = 'Source and Comment Templates.';
   SCnSrcTemplateConfigCaption: string = '&Options...';
   SCnSrcTemplateConfigHint: string = 'Source Templates Options';
+  SCnSrcTemplateInsertToProcCaption: string = '&Insert Code to Procedures...';
+  SCnSrcTemplateInsertToProcHint: string = 'Insert Code to All Procedures/Functions in Current Unit';
+  SCnSrcTemplateInsertToProcPrompt: string = 'Insert Below Code to All Procedures/Functions in Current Unit:';
+  SCnSrcTemplateInsertToProcCountFmt: string = '%d Inserted.';
   SCnSrcTemplateCaptionIsEmpty: string = 'Template''s Menu Caption can''t be Empty!';
   SCnSrcTemplateContentIsEmpty: string = 'Template''s Content can''t be Empty!';
+  SCnSrcTemplateSourceTypeNotSupport: string = 'Current Source Type NOT Supported!';
   SCnSrcTemplateReadDataError: string = 'Error Reading Data Files.';
   SCnSrcTemplateWriteDataError: string = 'Error Saving Data Files.';
   SCnSrcTemplateImportAppend: string = 'Append the Data to Templates?';
   SCnSrcTemplateWizardDelete: string = 'Sure to Delete the Template?';
   SCnSrcTemplateWizardClear: string = 'Sure to Delete All the Templates?';
+
   SCnSrcTemplateDataDefName: string = 'Editor_ENU.cdt';
   SCnSrcTemplateDataDefName_CB: string = 'Editor_CB_ENU.cdt';
   SCnEIPCurrPos: string = 'Current Position';
@@ -1126,7 +1145,7 @@ var
   SCnFloatPropBarRenameCaption: string = 'Rename Component';
   SCnEmbeddedDesignerNotSupport: string = 'Sorry. VCL Embedded Designer NOT Supported.';
 
-  // CnAlignSizeWizard
+  // CnDesignWizard
   SCnAlignSizeMenuCaption: string = 'Form Design Wi&zard';
   SCnAlignSizeMenuHint: string = 'Adjust Align or Size of Selected Components';
   SCnAlignSizeName: string = 'Form Design Wizard';
@@ -1217,6 +1236,8 @@ var
   SCnComparePropertyHint: string = 'Compare Properties for Selected Components';
   SCnCompToCodeCaption: string = 'Convert to Code...';
   SCnCompToCodeHint: string = 'Convert Selected Components to Creating Code';
+  SCnChangeCompClassCaption: string = 'Change Component Class...';
+  SCnChangeCompClassHint: string = 'Change Selected Component Class';
   SCnHideComponentCaption: string = 'Hide Non-visual';
   SCnHideComponentHint: string = 'Hide / Display the Non-visual Component';
   SCnShowFlatFormCaption: string = 'Float Toolbar Options...';
@@ -1225,6 +1246,11 @@ var
   SCnCompToCodeEnvNotSupport: string = 'Only VCL Designer Supported.';
   SCnCompToCodeProcCopiedFmt: string = '%s' + #13#10 + 'Copied to Clipboard. ';
   SCnCompToCodeConvertedFmt: string = '%d Items Converted';
+  SCnChangeCompClassErrorNoSelection: string = 'NO Selection in Current Designer.';
+  SCnChangeCompClassErrorDiffType: string = 'Selected Components Must Be the Same Type.';
+  SCnChangeCompClassNewHint: string = 'Enter a New Class Name:';
+  SCnChangeCompClassErrorNew: string = 'Invalid Class Name or Class Unchanged.';
+  SCnChangeCompClassErrorCreateFmt: string = 'Create %s Error!';
   SCnMustGreaterThanZero: string = 'Numbers Entered Must Greater than Zero';
   SCnHideNonVisualNotSupport: string = 'Only VCL Designer Supported.';
   SCnNonNonVisualFound: string = 'No Non-visual Components Found!';
@@ -1302,6 +1328,8 @@ var
   SCnProjExtBackupErrorCompressor: string = 'External Compressor NOT Exists. Please Select One.';
   SCnProjExtBackupSuccFmt: string = 'File Saved to %s';
   SCnProjExtBackupFail: string = 'Backup Files Failed!';
+  SCnProjExtBackupLastFmt: string = 'Last Backup: %s - %s';
+
   SCnProjExtDelTempCaption: string = '&Clean Temporary Files...';
   SCnProjExtDelTempHint: string = 'Clean Temporary Files in Project';
   SCnProjExtProjectAll: string = '<All>';

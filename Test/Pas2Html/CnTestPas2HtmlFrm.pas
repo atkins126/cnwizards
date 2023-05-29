@@ -7,16 +7,16 @@ uses
   Dialogs, StdCtrls, Clipbrd;
 
 type
-  TForm1 = class(TForm)
-    Button1: TButton;
+  TFormPasConvert = class(TForm)
+    btnPas2Html: TButton;
     dlgOpen1: TOpenDialog;
-    Button2: TButton;
+    btnPas2Rtf: TButton;
     lbl1: TLabel;
-    Button3: TButton;
+    btnHtmlClipboard: TButton;
     btn1: TButton;
-    procedure Button1Click(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
-    procedure Button3Click(Sender: TObject);
+    procedure btnPas2HtmlClick(Sender: TObject);
+    procedure btnPas2RtfClick(Sender: TObject);
+    procedure btnHtmlClipboardClick(Sender: TObject);
     procedure btn1Click(Sender: TObject);
   private
     { Private declarations }
@@ -25,7 +25,7 @@ type
   end;
 
 var
-  Form1: TForm1;
+  FormPasConvert: TFormPasConvert;
 
 implementation
 
@@ -33,17 +33,35 @@ uses CnCommon, CnPasConvert;
 
 {$R *.dfm}
 
-procedure TForm1.Button1Click(Sender: TObject);
+procedure TFormPasConvert.btnPas2HtmlClick(Sender: TObject);
 var
   Con: TCnSourceConversion;
   InStream: TStream;
   OutStream: TMemoryStream;
+{$IFDEF UNICODE}
+  Strs: TStringList;
+  S: string;
+{$ENDIF}
 begin
   // 测试转 HTML
   if dlgOpen1.Execute then
   begin
     Con := TCnSourceToHtmlConversion.Create;
+{$IFDEF UNICODE}
+    // Unicode 环境，读入成 UTF16
+    Strs := TStringList.Create;
+    Strs.LoadFromFile(dlgOpen1.FileName);
+    S := Strs.Text;
+    InStream := TMemoryStream.Create;
+    InStream.Write(S[1], (Length(S) + 1) * SizeOf(Char));
+
+    Strs.Free;
+
+    (Con as TCnSourceToHtmlConversion).HTMLEncode := 'utf-8';
+{$ELSE}
+    // 非 Unicode 环境，只支持 Ansi 的文件格式
     InStream := TFileStream.Create(dlgOpen1.FileName, fmOpenRead);
+{$ENDIF}
     OutStream := TMemoryStream.Create;
 
     Con.InStream := InStream;
@@ -59,17 +77,34 @@ begin
   end;
 end;
 
-procedure TForm1.Button2Click(Sender: TObject);
+procedure TFormPasConvert.btnPas2RtfClick(Sender: TObject);
 var
   Con: TCnSourceConversion;
   InStream: TStream;
   OutStream: TMemoryStream;
+{$IFDEF UNICODE}
+  Strs: TStringList;
+  S: string;
+{$ENDIF}
 begin
   // 测试转 RTF
   if dlgOpen1.Execute then
   begin
     Con := TCnSourceToRtfConversion.Create;
+{$IFDEF UNICODE}
+    // Unicode 环境，读入成 UTF16
+    Strs := TStringList.Create;
+    Strs.LoadFromFile(dlgOpen1.FileName);
+    S := Strs.Text;
+    InStream := TMemoryStream.Create;
+    InStream.Write(S[1], (Length(S) + 1) * SizeOf(Char));
+
+    Strs.Free;
+{$ELSE}
+    // 非 Unicode 环境，只支持 Ansi 的文件格式
     InStream := TFileStream.Create(dlgOpen1.FileName, fmOpenRead);
+{$ENDIF}
+
     OutStream := TMemoryStream.Create;
 
     Con.InStream := InStream;
@@ -85,7 +120,7 @@ begin
   end;
 end;
 
-procedure TForm1.Button3Click(Sender: TObject);
+procedure TFormPasConvert.btnHtmlClipboardClick(Sender: TObject);
 var
   Con: TCnSourceConversion;
   InStream: TStream;
@@ -93,12 +128,29 @@ var
   Fmt: UINT;
   DataH: THandle;
   DataHPtr: Pointer;
+{$IFDEF UNICODE}
+  Strs: TStringList;
+  S: string;
+{$ENDIF}
 begin
   // 测试转 HTML
   if dlgOpen1.Execute then
   begin
     Con := TCnSourceToHtmlConversion.Create;
+
+{$IFDEF UNICODE}
+    // Unicode 环境，读入成 UTF16
+    Strs := TStringList.Create;
+    Strs.LoadFromFile(dlgOpen1.FileName);
+    S := Strs.Text;
+    InStream := TMemoryStream.Create;
+    InStream.Write(S[1], (Length(S) + 1) * SizeOf(Char));
+
+    Strs.Free;
+{$ELSE}
+    // 非 Unicode 环境，只支持 Ansi 的文件格式
     InStream := TFileStream.Create(dlgOpen1.FileName, fmOpenRead);
+{$ENDIF}
     OutStream1 := TMemoryStream.Create;
     OutStream2 := TMemoryStream.Create;
 
@@ -137,7 +189,7 @@ begin
   end;
 end;
 
-procedure TForm1.btn1Click(Sender: TObject);
+procedure TFormPasConvert.btn1Click(Sender: TObject);
 var
   InStream: TMemoryStream;
   tmpoutStream: TMemoryStream;
@@ -148,7 +200,7 @@ begin
     InStream.LoadFromFile(dlgOpen1.FileName);
 
     tmpoutStream := TMemoryStream.Create;
-    WideStringToUTF8(PChar(InStream.Memory), InStream.Size, tmpoutStream);
+    //WideStringToUTF8(PChar(InStream.Memory), InStream.Size, tmpoutStream);
     //WideStringToUTF8(PChar('a啊'), 2, tmpoutStream);
     InStream.Free;
     tmpoutStream.Free;

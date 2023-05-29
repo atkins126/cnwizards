@@ -1,9 +1,10 @@
 inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
   Left = 369
   Top = 86
-  Width = 404
-  Height = 436
+  AutoScroll = False
   Caption = 'Compress and Save Settings'
+  ClientHeight = 439
+  ClientWidth = 416
   Constraints.MinHeight = 436
   Constraints.MinWidth = 396
   Icon.Data = {
@@ -127,8 +128,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
   PixelsPerInch = 96
   TextHeight = 13
   object btnOK: TButton
-    Left = 156
-    Top = 378
+    Left = 176
+    Top = 408
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
@@ -138,8 +139,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
     TabOrder = 1
   end
   object btnCancel: TButton
-    Left = 234
-    Top = 378
+    Left = 254
+    Top = 408
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
@@ -149,8 +150,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
     TabOrder = 2
   end
   object btnHelp: TButton
-    Left = 312
-    Top = 378
+    Left = 332
+    Top = 408
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
@@ -161,8 +162,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
   object pgc1: TPageControl
     Left = 8
     Top = 8
-    Width = 379
-    Height = 358
+    Width = 399
+    Height = 388
     ActivePage = ts1
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
@@ -171,8 +172,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
       object grpSave: TGroupBox
         Left = 8
         Top = 8
-        Width = 355
-        Height = 89
+        Width = 375
+        Height = 119
         Anchors = [akLeft, akTop, akRight]
         Caption = '&Save Settings'
         TabOrder = 0
@@ -191,7 +192,7 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
           Caption = 'File Timestamp Format:'
         end
         object btnSelect: TButton
-          Left = 319
+          Left = 339
           Top = 23
           Width = 21
           Height = 21
@@ -206,7 +207,7 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object edtFile: TEdit
           Left = 64
           Top = 23
-          Width = 251
+          Width = 271
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           TabOrder = 0
@@ -215,7 +216,7 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object cbbTimeFormat: TComboBox
           Left = 144
           Top = 54
-          Width = 197
+          Width = 217
           Height = 21
           Style = csDropDownList
           Anchors = [akLeft, akTop, akRight]
@@ -228,11 +229,20 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
             'yyyy-mm-dd_hh-mm'
             'yyyy-mm-dd_hh')
         end
+        object chkIncludeVer: TCheckBox
+          Left = 16
+          Top = 87
+          Width = 321
+          Height = 17
+          Caption = 'Include Project Version'
+          TabOrder = 3
+          OnClick = cbbTimeFormatChange
+        end
       end
       object grp1: TGroupBox
         Left = 8
-        Top = 109
-        Width = 355
+        Top = 139
+        Width = 375
         Height = 209
         Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'C&ompress Settings'
@@ -246,7 +256,7 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         end
         object lblComments: TLabel
           Left = 16
-          Top = 121
+          Top = 117
           Width = 54
           Height = 13
           Caption = 'Comments:'
@@ -263,7 +273,7 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object edtPass: TEdit
           Left = 88
           Top = 73
-          Width = 251
+          Width = 271
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           PasswordChar = '*'
@@ -281,7 +291,7 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object chkRemovePath: TCheckBox
           Left = 16
           Top = 26
-          Width = 331
+          Width = 351
           Height = 17
           Anchors = [akLeft, akTop, akRight]
           Caption = 'Remove Path (May Cause Error when File Names are Equal).'
@@ -298,8 +308,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         end
         object mmoComments: TMemo
           Left = 16
-          Top = 140
-          Width = 323
+          Top = 135
+          Width = 343
           Height = 58
           Anchors = [akLeft, akTop, akRight, akBottom]
           TabOrder = 5
@@ -312,8 +322,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
       object grp2: TGroupBox
         Left = 8
         Top = 8
-        Width = 355
-        Height = 310
+        Width = 375
+        Height = 340
         Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'External C&ompressor'
         TabOrder = 0
@@ -350,7 +360,7 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object cbbPredefine: TComboBox
           Left = 156
           Top = 86
-          Width = 185
+          Width = 205
           Height = 21
           Style = csDropDownList
           Anchors = [akLeft, akTop, akRight]
@@ -366,14 +376,14 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object edtCompressor: TEdit
           Left = 96
           Top = 55
-          Width = 219
+          Width = 239
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           TabOrder = 1
           OnChange = edtFileChange
         end
         object btnCompressor: TButton
-          Left = 319
+          Left = 339
           Top = 55
           Width = 21
           Height = 21
@@ -385,8 +395,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object mmoCmd: TMemo
           Left = 16
           Top = 144
-          Width = 323
-          Height = 150
+          Width = 343
+          Height = 180
           Anchors = [akLeft, akTop, akRight, akBottom]
           TabOrder = 4
         end
@@ -398,8 +408,8 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
       object grpAfter: TGroupBox
         Left = 8
         Top = 8
-        Width = 355
-        Height = 310
+        Width = 375
+        Height = 340
         Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'After &Backup'
         TabOrder = 0
@@ -436,7 +446,7 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object cbbParams: TComboBox
           Left = 156
           Top = 86
-          Width = 185
+          Width = 205
           Height = 21
           Style = csDropDownList
           Anchors = [akLeft, akTop, akRight]
@@ -450,14 +460,14 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
         object edtAfterCmd: TEdit
           Left = 96
           Top = 55
-          Width = 219
+          Width = 239
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           TabOrder = 1
           OnChange = edtFileChange
         end
         object btnAfterCmd: TButton
-          Left = 319
+          Left = 339
           Top = 55
           Width = 21
           Height = 21
@@ -469,11 +479,29 @@ inherited CnProjectBackupSaveForm: TCnProjectBackupSaveForm
           TabOrder = 2
           OnClick = btnAfterCmdClick
         end
+        object chkSendMailTo: TCheckBox
+          Left = 16
+          Top = 306
+          Width = 129
+          Height = 17
+          Caption = 'Send by Email To:'
+          TabOrder = 5
+          Visible = False
+          OnClick = chkSendMailToClick
+        end
+        object edtMailAddress: TEdit
+          Left = 150
+          Top = 304
+          Width = 209
+          Height = 21
+          TabOrder = 6
+          Visible = False
+        end
         object mmoAfterCmd: TMemo
           Left = 16
           Top = 144
-          Width = 323
-          Height = 150
+          Width = 343
+          Height = 180
           Anchors = [akLeft, akTop, akRight, akBottom]
           TabOrder = 4
         end

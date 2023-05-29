@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                      中国人自己的开放源码第三方开发包
-;                    (C)Copyright 2001-2022 CnPack 开发组
+;                    (C)Copyright 2001-2023 CnPack 开发组
 ;******************************************************************************
 
 ; 以下脚本用以生成 CnPack IDE 专家包安装程序
@@ -654,6 +654,8 @@ InitOk:
   File "..\..\Bin\Lang\1031\*.*"
   SetOutPath $INSTDIR\Lang\1036
   File "..\..\Bin\Lang\1036\*.*"
+  SetOutPath $INSTDIR\Lang\1046
+  File "..\..\Bin\Lang\1046\*.*"
 !endif
 
 !ifndef LITE_VERSION
@@ -1027,6 +1029,7 @@ Section "$(OTHERTOOLS)" SecTools
 !endif
   File "..\..\Bin\CnConfigIO.exe"
   File "..\..\Bin\CnDebugViewer.exe"
+  File "..\..\Bin\CnDebugViewer64.exe"
 
 !ifndef LITE_VERSION
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SASCIICHART).lnk" "$INSTDIR\AsciiChart.exe"

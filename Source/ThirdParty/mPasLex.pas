@@ -82,37 +82,76 @@ uses
   SysUtils, Classes, Controls;
 
 var
-  Identifiers: array[#0..#255]of ByteBool;
-  mHashTable: array[#0..#255]of Integer;
+  Identifiers: array[#0..#255] of ByteBool;
+  mHashTable: array[#0..#255] of Integer;
 
 type
   TTokenKind=(tkAbsolute, tkAbstract, tkAddressOp, tkAmpersand, tkAnd, tkAnsiComment,
     tkArray, tkAs, tkAt, tkAsciiChar, tkAsm, tkAssembler, tkAssign, tkAutomated,
     tkBegin, tkBadString, tkBorComment, tkCase, tkCdecl, tkClass, tkColon,
     tkComma, tkCompDirect, tkContains, tkConst, tkConstructor, tkCRLF, tkCRLFCo, tkDefault,
-    tkDestructor, tkDispid, tkDispinterface, tkDiv, tkDo, tkDoubleAddressOp,
+    tkDeprecated, tkDestructor, tkDispid, tkDispinterface, tkDiv, tkDo, tkDoubleAddressOp,
     tkDotDot, tkDownto, tkDynamic, tkElse, tkEnd, tkEqual, tkError, tkExcept,
-    tkExport, tkExports, tkExternal, tkFar, tkFile, tkFinalization, tkFinally,
+    tkExport, tkExports, tkExternal, tkFar, tkFile, tkFinalization, tkFinal, tkFinally,
     tkFloat, tkFor, tkForward, tkFunction, tkGoto, tkGreater, tkGreaterEqual,
-    tkIdentifier, tkIf, tkImplementation, tkImplements, tkIn, tkIndex,
+    tkHelper, tkIdentifier, tkIf, tkImplementation, tkImplements, tkIn, tkIndex,
     tkInherited, tkInitialization, tkInline, tkInteger, tkInterface, tkIs,
     tkKeyString, tkLabel, tkLibrary, tkLower, tkLowerEqual, tkMessage, tkMinus,
     tkMod, tkName, tkNear, tkNil, tkNodefault, tkNone, tkNot, tkNotEqual, tkNull,
-    tkNumber, tkObject, tkOf, tkOn, tkOr, tkOut, tkOverload, tkOverride,
-    tkPacked, tkPascal, tkPlus, tkPoint, tkPointerSymbol, tkPrivate, tkProcedure,
+    tkNumber, tkObject, tkOf, tkOn, tkOperator, tkOr, tkOut, tkOverload, tkOverride,
+    tkPacked, tkPascal, tkPlatform, tkPlus, tkPoint, tkPointerSymbol, tkPrivate, tkProcedure,
     tkProgram, tkProperty, tkProtected, tkPublic, tkPublished, tkRaise, tkRead,
     tkReadonly, tkRecord, tkRegister, tkReintroduce, tkRepeat, tkRequires, tkResident,
     tkResourcestring, tkRoundClose, tkRoundOpen, tkSafecall, tkSealed, tkSemiColon, tkSet,
-    tkShl, tkShr, tkSlash, tkSlashesComment, tkSquareClose, tkSquareOpen,
+    tkShl, tkShr, tkSlash, tkSlashesComment, tkStatic, tkStrict, tkSquareClose, tkSquareOpen,
     tkSpace, tkStar, tkStdcall, tkStored, tkString, tkStringresource, tkSymbol,
     tkThen, tkThreadvar, tkTo, tkTry, tkType, tkUnit, tkUnknown, tkUntil, tkUses,
     tkVar, tkVirtual, tkWhile, tkWith, tkWrite, tkWriteonly, tkXor);
+
+  {***
+    原有问题一：Pascal 字符串和 string 关键字混为一谈了，都是 tkString，
+      解决方案：已将后者修改成 tkKeyString
+    原有问题二：字符串不支持内部的单引号，会错误拆分解析成连续字符串
+      解决方案：已修复 StringProc 中的问题
+    原有问题三：#$0A 这种本应是 tkAsciiChar 的会被解析成一个井号的 tkAsciiChar 加上 $0A 的 tkInteger
+      解决方案：已修复 AsciiCharProc 中的问题
+    原有问题四：不支持 tkStrict，tkOperator, tkPlatform, tkDeprecated, tkFinal, tkStatic, tkSealed, tkHelper
+      解决方案：都加上了
+    原有问题五：IsClass 的判断用 class 后的标识符是否是合法标识符来判断，对于 class sealed/helper 等判断有误
+      解决方案：暂无
+  ***}
+
+  TTokenKinds = set of TTokenKind;
 
   TCommentState=(csAnsi, csBor, csNo);
 
 {$IFDEF BCB5}
   PAnsiChar = PChar;
 {$ENDIF}
+
+  TmwPasLexBookmark = packed record
+  {* 书签，保存 Lex 的临时状态供恢复，为了简便起见使用 record，Added by LiuXiao}
+    SupportWideCharIdentBookmark: Boolean;
+    CommentBookmark: TCommentState;
+    OriginBookmark: PAnsiChar;
+    RunBookmark: LongInt;
+    TempBookmark: PAnsiChar;
+    RoundCountBookmark: Integer;
+    SquareCountBookmark: Integer;
+    StringLenBookmark: Integer;
+    ToIdentBookmark: PAnsiChar;
+    TokenPosBookmark: Integer;
+    LineNumberBookmark: Integer;
+    TokenIDBookmark: TTokenKind;
+    LastIdentPosBookmark: Integer;
+    LastNoSpaceBookmark: TTokenKind;
+    LastNoSpacePosBookmark: Integer;
+    LastNoSpaceCRLFBookmark: TTokenKind;
+    LastNoSpaceCRLFPosBookmark: Integer;
+    LinePosBookmark: Integer;
+    IsInterfaceBookmark: Boolean;
+    IsClassBookmark: Boolean;
+  end;
 
   TmwPasLex=class(TObject)
   private
@@ -157,6 +196,7 @@ type
     function Func39: TTokenKind;
     function Func40: TTokenKind;
     function Func41: TTokenKind;
+    function Func42: TTokenKind;
     function Func44: TTokenKind;
     function Func45: TTokenKind;
     function Func46: TTokenKind;
@@ -176,6 +216,7 @@ type
     function Func66: TTokenKind;
     function Func69: TTokenKind;
     function Func71: TTokenKind;
+    function Func72: TTokenKind;
     function Func73: TTokenKind;
     function Func75: TTokenKind;
     function Func76: TTokenKind;
@@ -185,6 +226,7 @@ type
     function Func85: TTokenKind;
     function Func87: TTokenKind;
     function Func88: TTokenKind;
+    function Func89: TTokenKind;
     function Func91: TTokenKind;
     function Func92: TTokenKind;
     function Func94: TTokenKind;
@@ -199,6 +241,7 @@ type
     function Func103: TTokenKind;
     function Func105: TTokenKind;
     function Func106: TTokenKind;
+    function Func108: TTokenKind; // Added by LiuXiao
     function Func112: TTokenKind; // Added by LiuXiao
     function Func117: TTokenKind;
     function Func126: TTokenKind;
@@ -264,6 +307,10 @@ type
     procedure NextID(ID: TTokenKind);
     procedure NextNoJunk;
     procedure NextClass;
+
+    procedure SaveToBookmark(var Bookmark: TmwPasLexBookmark);
+    procedure LoadFromBookmark(var Bookmark: TmwPasLexBookmark);
+
     property IsClass: Boolean read fIsClass;
     property IsInterface: Boolean read fIsInterface;
     property LastIdentPos: Integer read fLastIdentPos;
@@ -276,11 +323,12 @@ type
     property LineNumber: Integer read fLineNumber write fLineNumber;
     {* 当前行号，从 0 开始}
     property LinePos: Integer read fLinePos write fLinePos;
-    {* 当前行行首所在的线性位置}
+    {* 当前行行首所在的线性位置，0 开始，单位是字节}
     property Origin: PAnsiChar read fOrigin write SetOrigin;
     property RunPos: Integer read Run write SetRunPos;
     property TokenPos: Integer read fTokenPos;
-    {* 当前 Token 所在的线性位置，减去 LinePos 即是当前列位置}
+    {* 当前 Token 所在的线性位置，0 开始，单位是字节，减去 LinePos 即是当前列位置
+      注意：和 IDE 中的编辑器线性位置有 Tab 键以及 Utf8（高版本 Delphi）的区别，不能随意通用}
     property Token: AnsiString read GetToken;
     {* 此俩属性为 PAnsiChar 方式使用，以避免 D2010 下性能问题}
     property TokenAddr: PAnsiChar read GetTokenAddr;
@@ -288,9 +336,6 @@ type
 
     property TokenID: TTokenKind read FTokenID;
   end;
-
-var
-  mwPasLex: TmwPasLex;
 
 implementation
 
@@ -339,6 +384,7 @@ begin
       39: fIdentFuncTable[I]:=Func39;
       40: fIdentFuncTable[I]:=Func40;
       41: fIdentFuncTable[I]:=Func41;
+      42: fIdentFuncTable[I]:=Func42;
       44: fIdentFuncTable[I]:=Func44;
       45: fIdentFuncTable[I]:=Func45;
       46: fIdentFuncTable[I]:=Func46;
@@ -358,6 +404,7 @@ begin
       66: fIdentFuncTable[I]:=Func66;
       69: fIdentFuncTable[I]:=Func69;
       71: fIdentFuncTable[I]:=Func71;
+      72: fIdentFuncTable[I]:=Func72;
       73: fIdentFuncTable[I]:=Func73;
       75: fIdentFuncTable[I]:=Func75;
       76: fIdentFuncTable[I]:=Func76;
@@ -367,6 +414,7 @@ begin
       85: fIdentFuncTable[I]:=Func85;
       87: fIdentFuncTable[I]:=Func87;
       88: fIdentFuncTable[I]:=Func88;
+      89: fIdentFuncTable[I]:=Func89;
       91: fIdentFuncTable[I]:=Func91;
       92: fIdentFuncTable[I]:=Func92;
       94: fIdentFuncTable[I]:=Func94;
@@ -381,6 +429,7 @@ begin
       103: fIdentFuncTable[I]:=Func103;
       105: fIdentFuncTable[I]:=Func105;
       106: fIdentFuncTable[I]:=Func106;
+      108: fIdentFuncTable[I]:=Func108;
       112: fIdentFuncTable[I]:=Func112;
       117: fIdentFuncTable[I]:=Func117;
       126: fIdentFuncTable[I]:=Func126;
@@ -535,6 +584,11 @@ begin
     if KeyComp('Var')then Result:=tkVar else Result:=tkIdentifier;
 end;
 
+function TmwPasLex.Func42: TTokenKind;
+begin
+  if KeyComp('Final')then Result:=tkFinal else Result:=tkIdentifier;
+end;
+
 function TmwPasLex.Func44: TTokenKind;
 begin
   if KeyComp('Set')then Result:=tkSet else Result:=tkIdentifier;
@@ -632,7 +686,8 @@ end;
 function TmwPasLex.Func64: TTokenKind;
 begin
   if KeyComp('Uses')then Result:=tkUses else
-    if KeyComp('Unit')then Result:=tkUnit else Result:=tkIdentifier;
+    if KeyComp('Unit')then Result:=tkUnit else
+      if KeyComp('Helper')then Result:=tkHelper else Result:=tkIdentifier;
 end;
 
 function TmwPasLex.Func65: TTokenKind;
@@ -656,6 +711,11 @@ function TmwPasLex.Func71: TTokenKind;
 begin
   if KeyComp('Stdcall')then Result:=tkStdcall else
     if KeyComp('Const')then Result:=tkConst else Result:=tkIdentifier;
+end;
+
+function TmwPasLex.Func72: TTokenKind;
+begin
+  if KeyComp('Static')then Result:=tkStatic else Result:=tkIdentifier;
 end;
 
 function TmwPasLex.Func73: TTokenKind;
@@ -690,7 +750,8 @@ begin
     if fLastNoSpace=tkEqual then
       fIsInterface:=True else fIsInterface:=False;
   end else
-    if KeyComp('Stored')then Result:=tkStored else Result:=tkIdentifier;
+    if KeyComp('Stored')then Result:=tkStored
+      else if KeyComp('Deprecated')then Result:=tkDeprecated else Result:=tkIdentifier;
 end;
 
 function TmwPasLex.Func84: TTokenKind;
@@ -706,12 +767,17 @@ end;
 
 function TmwPasLex.Func87: TTokenKind;
 begin
-  if KeyComp('String')then Result:=tkString else Result:=tkIdentifier;
+  if KeyComp('String')then Result:=tkKeyString else Result:=tkIdentifier;
 end;
 
 function TmwPasLex.Func88: TTokenKind;
 begin
   if KeyComp('Program')then Result:=tkProgram else Result:=tkIdentifier;
+end;
+
+function TmwPasLex.Func89: TTokenKind;
+begin
+  if KeyComp('Strict')then Result:=tkStrict else Result:=tkIdentifier;
 end;
 
 function TmwPasLex.Func91: TTokenKind;
@@ -785,7 +851,9 @@ end;
 
 function TmwPasLex.Func101: TTokenKind;
 begin
-  if KeyComp('Register')then Result:=tkRegister else Result:=tkIdentifier;
+  if KeyComp('Register')then Result:=tkRegister
+  else if KeyComp('Platform')then Result:=tkPlatform
+  else Result:=tkIdentifier;
 end;
 
 function TmwPasLex.Func102: TTokenKind;
@@ -813,6 +881,11 @@ begin
 end;
 
 // Added by LiuXiao
+function TmwPasLex.Func108: TTokenKind;
+begin
+  if KeyComp('Operator')then Result:=tkOperator else Result:=tkIdentifier;
+end;
+
 function TmwPasLex.Func112: TTokenKind;
 begin
   if KeyComp('Requires')then Result:=tkRequires else Result:=tkIdentifier;
@@ -992,7 +1065,13 @@ procedure TmwPasLex.AsciiCharProc;
 begin
   fTokenID:=tkAsciiChar;
   inc(Run);
-  while FOrigin[Run]in ['0'..'9']do inc(Run);
+  if FOrigin[Run] = '$' then
+  begin
+    inc(Run);
+    while FOrigin[Run]in ['0'..'9', 'A'..'F', 'a'..'f']do inc(Run);
+  end
+  else
+    while FOrigin[Run]in ['0'..'9']do inc(Run);
 end;
 
 procedure TmwPasLex.BraceCloseProc;
@@ -1402,8 +1481,8 @@ end;
 procedure TmwPasLex.StringProc;
 begin
   fTokenID:=tkString;
-  if(FOrigin[Run+1]=#39)and(FOrigin[Run+2]=#39)then inc(Run, 2);
   repeat
+    if(FOrigin[Run+1]=#39)and(FOrigin[Run+2]=#39)then inc(Run, 2); // Moved by Liu Xiao
     case FOrigin[Run]of
       #0, #10, #13: break;
     end;
@@ -1531,6 +1610,54 @@ end;
 function TmwPasLex.GetTokenLength: Integer;
 begin
   Result := Run - fTokenPos;
+end;
+
+procedure TmwPasLex.LoadFromBookmark(var Bookmark: TmwPasLexBookmark);
+begin
+  FSupportWideCharIdent := Bookmark.SupportWideCharIdentBookmark;
+  FComment := Bookmark.CommentBookmark;
+  FOrigin := Bookmark.OriginBookmark;
+  Run := Bookmark.RunBookmark;
+  Temp := Bookmark.TempBookmark;
+  FRoundCount := Bookmark.RoundCountBookmark;
+  FSquareCount := Bookmark.SquareCountBookmark;
+  FStringLen := Bookmark.StringLenBookmark;
+  FToIdent := Bookmark.ToIdentBookmark;
+  FTokenPos := Bookmark.TokenPosBookmark;
+  FLineNumber := Bookmark.LineNumberBookmark;
+  FTokenID := Bookmark.TokenIDBookmark;
+  FLastIdentPos := Bookmark.LastIdentPosBookmark;
+  FLastNoSpace := Bookmark.LastNoSpaceBookmark;
+  FLastNoSpacePos := Bookmark.LastNoSpacePosBookmark;
+  FLastNoSpaceCRLF := Bookmark.LastNoSpaceCRLFBookmark;
+  FLastNoSpaceCRLFPos := Bookmark.LastNoSpaceCRLFPosBookmark;
+  FLinePos := Bookmark.LinePosBookmark;
+  FIsInterface := Bookmark.IsInterfaceBookmark;
+  FIsClass := Bookmark.IsClassBookmark;
+end;
+
+procedure TmwPasLex.SaveToBookmark(var Bookmark: TmwPasLexBookmark);
+begin
+  Bookmark.SupportWideCharIdentBookmark := FSupportWideCharIdent;
+  Bookmark.CommentBookmark := FComment;
+  Bookmark.OriginBookmark := FOrigin;
+  Bookmark.RunBookmark := Run;
+  Bookmark.TempBookmark := Temp;
+  Bookmark.RoundCountBookmark := FRoundCount;
+  Bookmark.SquareCountBookmark := FSquareCount;
+  Bookmark.StringLenBookmark := FStringLen;
+  Bookmark.ToIdentBookmark := FToIdent;
+  Bookmark.TokenPosBookmark := FTokenPos;
+  Bookmark.LineNumberBookmark := FLineNumber;
+  Bookmark.TokenIDBookmark := FTokenID;
+  Bookmark.LastIdentPosBookmark := FLastIdentPos;
+  Bookmark.LastNoSpaceBookmark := FLastNoSpace;
+  Bookmark.LastNoSpacePosBookmark := FLastNoSpacePos;
+  Bookmark.LastNoSpaceCRLFBookmark := FLastNoSpaceCRLF;
+  Bookmark.LastNoSpaceCRLFPosBookmark := FLastNoSpaceCRLFPos;
+  Bookmark.LinePosBookmark := FLinePos;
+  Bookmark.IsInterfaceBookmark := FIsInterface;
+  Bookmark.IsClassBookmark := FIsClass;
 end;
 
 initialization

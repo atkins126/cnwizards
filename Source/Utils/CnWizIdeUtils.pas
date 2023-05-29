@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -693,6 +693,12 @@ function IdeGetScaledPixelsFromOrigin(APixels: Integer; AControl: TControl = nil
   支持 Windows 中的缩放比，支持 IDE 运行在 DPI Ware/Unware 下
   也就是说：Windows 缩放比是 100% 也就是原始大小时，无论 IDE 运行模式如何都返回原始数据
   缩放比不为 100% 时，DPI Ware 才返回 APixels * HDPI 比例，Unware 无论啥设置仍返回原始数据}
+
+function IdeGetOriginPixelsFromScaled(APixels: Integer; AControl: TControl = nil): Integer;
+{* IDE 中根据 DPI 与缩放设置，计算真实像素数所对应的原始像素数用于设计或存储
+  支持 Windows 中的缩放比，支持 IDE 运行在 DPI Ware/Unware 下
+  也就是说：Windows 缩放比是 100% 也就是原始大小时，无论 IDE 运行模式如何都返回原始数据
+  缩放比不为 100% 时，DPI Ware 才返回 APixels / HDPI 比例，Unware 无论啥设置仍返回原始数据}
 
 function IdeGetScaledFactor(AControl: TControl = nil): Single;
 {* 获得 IDE 中某控件的应该放大的比例}
@@ -3654,6 +3660,23 @@ begin
 {$ENDIF}
 end;
 
+function IdeGetOriginPixelsFromScaled(APixels: Integer; AControl: TControl = nil): Integer;
+begin
+{$IFDEF IDE_SUPPORT_HDPI}
+  if AControl = nil then
+    AControl := Application.MainForm;
+
+  if AControl = nil then
+    Result := APixels
+  else
+  begin
+    Result := MulDiv(APixels, Windows.USER_DEFAULT_SCREEN_DPI, AControl.CurrentPPI);
+  end;
+{$ELSE}
+  Result := APixels; // IDE 不支持 HDPI 时原封不动地返回
+{$ENDIF}
+end;
+
 function IdeGetScaledFactor(AControl: TControl = nil): Single;
 begin
 {$IFDEF IDE_SUPPORT_HDPI}
@@ -3750,12 +3773,11 @@ function SearchUsesInsertPosInCurrentPas(IsIntf: Boolean; out HasUses: Boolean;
   out CharPos: TOTACharPos): Boolean;
 var
   Stream: TMemoryStream;
+  Lex: TCnGeneralPasLex;
 {$IFDEF UNICODE}
-  Lex: TCnPasWideLex;
   LineText: string;
   S: AnsiString;
 {$ELSE}
-  Lex: TmwPasLex;
   {$IFDEF IDE_STRING_ANSI_UTF8}
   LineText: string;
   S: AnsiString;
@@ -3839,7 +3861,7 @@ begin
             end;
           end;
         end;
-      tkInterface:
+      tkInterface, tkProgram:
         begin
           MeetIntf := True;
           InIntf := True;

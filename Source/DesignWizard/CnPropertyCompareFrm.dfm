@@ -1,10 +1,10 @@
 inherited CnPropertyCompareForm: TCnPropertyCompareForm
-  Left = 227
-  Top = 150
+  Left = 174
+  Top = 116
   AutoScroll = False
   Caption = 'Compare Properties'
-  ClientHeight = 606
-  ClientWidth = 954
+  ClientHeight = 640
+  ClientWidth = 1044
   Icon.Data = {
     0000010001002020000001000800A80800001600000028000000200000004000
     0000010008000000000080040000000000000000000000010000000000000000
@@ -85,7 +85,7 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
   object tlbMain: TToolBar
     Left = 0
     Top = 0
-    Width = 954
+    Width = 1044
     Height = 29
     BorderWidth = 1
     Caption = 'tlbMain'
@@ -184,13 +184,26 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
       Top = 0
       Action = actNextDiff
     end
-    object btnOnlyDiff: TToolButton
+    object btn4: TToolButton
       Left = 323
+      Top = 0
+      Width = 8
+      Caption = 'btn4'
+      ImageIndex = 1
+      Style = tbsSeparator
+    end
+    object btnOnlyDiff: TToolButton
+      Left = 331
       Top = 0
       Action = actOnlyDiff
     end
+    object btnShowEvents: TToolButton
+      Left = 354
+      Top = 0
+      Action = actShowEvents
+    end
     object btn3: TToolButton
-      Left = 346
+      Left = 377
       Top = 0
       Width = 8
       Caption = 'btn3'
@@ -198,12 +211,12 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
       Style = tbsSeparator
     end
     object btnHelp: TToolButton
-      Left = 354
+      Left = 385
       Top = 0
       Action = actHelp
     end
     object btnExit: TToolButton
-      Left = 377
+      Left = 408
       Top = 0
       Action = actExit
     end
@@ -211,33 +224,33 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
   object pnlMain: TPanel
     Left = 0
     Top = 29
-    Width = 954
-    Height = 577
+    Width = 1044
+    Height = 611
     Align = alClient
     BevelOuter = bvNone
     Caption = 'pnlMain'
     TabOrder = 0
     object spl2: TSplitter
-      Left = 465
+      Left = 497
       Top = 0
       Width = 3
-      Height = 577
+      Height = 611
       Cursor = crHSplit
     end
     object pnlLeft: TPanel
       Left = 0
       Top = 0
-      Width = 465
-      Height = 577
+      Width = 497
+      Height = 611
       Align = alLeft
       BevelOuter = bvNone
       TabOrder = 0
       OnResize = pnlResize
       object gridLeft: TStringGrid
         Left = 0
-        Top = 0
-        Width = 465
-        Height = 577
+        Top = 21
+        Width = 497
+        Height = 590
         Align = alClient
         ColCount = 2
         DefaultRowHeight = 18
@@ -253,21 +266,31 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
         OnSelectCell = gridSelectCell
         OnTopLeftChanged = gridTopLeftChanged
       end
+      object pnlLeftName: TPanel
+        Left = 0
+        Top = 0
+        Width = 497
+        Height = 21
+        Align = alTop
+        BevelOuter = bvNone
+        Color = clInfoBk
+        TabOrder = 1
+      end
     end
     object pnlRight: TPanel
-      Left = 468
+      Left = 500
       Top = 0
-      Width = 467
-      Height = 577
+      Width = 525
+      Height = 611
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 1
       OnResize = pnlResize
       object gridRight: TStringGrid
         Left = 0
-        Top = 0
-        Width = 467
-        Height = 577
+        Top = 21
+        Width = 525
+        Height = 590
         Align = alClient
         ColCount = 2
         DefaultRowHeight = 18
@@ -283,12 +306,22 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
         OnSelectCell = gridSelectCell
         OnTopLeftChanged = gridTopLeftChanged
       end
+      object pnlRightName: TPanel
+        Left = 0
+        Top = 0
+        Width = 525
+        Height = 21
+        Align = alTop
+        BevelOuter = bvNone
+        Color = clInfoBk
+        TabOrder = 1
+      end
     end
     object pnlDisplay: TPanel
-      Left = 935
+      Left = 1025
       Top = 0
       Width = 19
-      Height = 577
+      Height = 611
       Align = alRight
       BevelInner = bvRaised
       BevelOuter = bvLowered
@@ -297,7 +330,7 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
         Left = 8
         Top = 2
         Width = 9
-        Height = 573
+        Height = 607
         Align = alClient
         Color = clBtnFace
         ParentColor = False
@@ -308,7 +341,7 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
         Left = 2
         Top = 2
         Width = 6
-        Height = 573
+        Height = 607
         Align = alLeft
         Color = clBtnFace
         ParentColor = False
@@ -384,6 +417,9 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
       end
       object OnlyShowDifferentProperties1: TMenuItem
         Action = actOnlyDiff
+      end
+      object ShowEvents1: TMenuItem
+        Action = actShowEvents
       end
     end
     object Help1: TMenuItem
@@ -504,6 +540,12 @@ inherited CnPropertyCompareForm: TCnPropertyCompareForm
       Hint = 'Only Show Different Properties'
       ImageIndex = 105
       OnExecute = actOnlyDiffExecute
+    end
+    object actShowEvents: TAction
+      Caption = 'Show &Events'
+      Hint = 'Show Events to Compare'
+      ImageIndex = 106
+      OnExecute = actShowEventsExecute
     end
   end
   object pmGrid: TPopupMenu

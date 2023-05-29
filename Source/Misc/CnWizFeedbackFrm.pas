@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -54,7 +54,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   ExtCtrls, CnWizardImage, StdCtrls, ComCtrls, ToolsAPI, CnConsts, CnWizConsts,
   CnWizOptions, CnWizUtils, CnWizCompilerConst, Clipbrd, ActnList, ShellAPI,
-  Registry, Math, TypInfo, CnCommon, GetIdeVersion, CnWizIdeUtils, CnLangMgr,
+  Registry, Math, TypInfo, CnCommon, CnWizIdeUtils, CnLangMgr,
   CnWizMultiLang, CnWizManager, CnEditControlWrapper;
 
 type
@@ -152,7 +152,6 @@ type
   protected
     procedure DoLanguageChanged(Sender: TObject); override;
   public
-    { Public declarations }
     property FeedbackType: TFeedbackType read GetFeedbackType;
   end;
 
@@ -812,8 +811,7 @@ begin
   Result := SOutConfig + SCRLF;
   Result := Result + '  OS: ' + GetOSString + SCRLF;
   Result := Result + '  CnWizards: ' + GetCnPackVersionString;
-  Result := Result + '  IDE: ' + TypInfo.GetEnumName(TypeInfo(TBorlandIdeVersion),
-    Ord(GetBorlandIdeVersion)) + ' ' + GetIdeEdition + ' - ' + GetIdeExeVersion + SCRLF;
+  Result := Result + '  IDE: ' + GetIdeExeVersion + SCRLF;
   Result := Result + '  ComCtl32: ' + GetFileVersionStr(MakePath(GetSystemDir)
     + 'comctl32.dll') + SCRLF + SCRLF;
 

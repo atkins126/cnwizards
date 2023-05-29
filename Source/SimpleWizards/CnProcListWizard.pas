@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -79,10 +79,11 @@ type
   TCnSourceLanguageType = (ltUnknown, ltPas, ltCpp);
 
   TCnElementType = (etUnknown, etClassFunc, etSingleFunction, etConstructor, etDestructor,
-    etIntfMember, etRecord, etClass, etInterface, etProperty, etIntfProperty, etNamespace);
+    etIntfMember, etRecord, etClass, etInterface, etProperty, etIntfProperty, etNamespace,
+    etOperator);
 
   TCnElementInfo = class(TCnBaseElementInfo)
-  {* 一元素包含的信息，从过程扩展而来 }
+  {* 一元素包含的信息，从过程扩展而来}
   private
     FElementType: TCnElementType;
     FLineNo: Integer;
@@ -99,18 +100,31 @@ type
     FIsForward: Boolean;
   public
     property LineNo: Integer read FLineNo write FLineNo;
+    {* 元素开始所在行号，1 开始}
     property Name: string read FName write FName;
+    {* 记录函数的完整声明，其他类型记录名字，以备状态栏上显示}
     property ElementTypeStr: string read FElementTypeStr write FElementTypeStr;
+    {* 额外的类型修饰用的说明性字符串}
     property ProcArgs: string read FProcArgs write FProcArgs;
+    {* 函数参数列表}
     property ProcName: string read FProcName write FProcName;
+    {* 单纯的函数名}
     property OwnerClass: string read FOwnerClass write FOwnerClass;
+    {* 元素所属的类或接口}
     property ProcReturnType: string read FProcReturnType write FProcReturnType;
+    {* 函数返回值}
     property FileName: string read FFileName write FFileName;
+    {* 文件名，不包括路径}
     property AllName: string read FAllName write FAllName;
+    {* 完整的路径文件名}
     property BeginIndex: Integer read FBeginIndex write FBeginIndex;
+    {* 起始行}
     property EndIndex: Integer read FEndIndex write FEndIndex;
+    {* 结束行}
     property IsForward: Boolean read FIsForward write FIsForward;
+    {* 是否前向声明}
     property ElementType: TCnElementType read FElementType write FElementType;
+    {* 元素类型}
   end;
 
   TCnProcListWizard = class;
@@ -208,6 +222,7 @@ type
     function DisableLargeIcons: Boolean; override;
     procedure RestorePreviewWidth;
     procedure RestorePreviewHeight;
+
     procedure PrepareSearchRange; override;
     function CanMatchDataByIndex(const AMatchStr: string; AMatchMode: TCnMatchMode;
       DataListIndex: Integer; var StartOffset: Integer; MatchedIndexes: TList): Boolean; override;
@@ -411,11 +426,11 @@ type
     procedure ProcComboDropDown(Sender: TObject);
     procedure DoIdleComboChange(Sender: TObject);
     procedure AfterThemeChange(Sender: TObject);
-{$ENDIF}
-    procedure ClearObjectStrings(ObjectList: TStringList);
 {$IFDEF IDE_SUPPORT_THEMING}
     procedure DoThemeChange(Sender: TObject);
 {$ENDIF}
+{$ENDIF}
+    procedure ClearObjectStrings(ObjectList: TStringList);
   protected
 {$IFNDEF STAND_ALONE}
     procedure SetActive(Value: Boolean); override;
@@ -873,14 +888,14 @@ begin
       begin
         AClassCombo := AComp as TCnProcListComboBox;
         if AClassCombo.Parent <> nil then
-          FToolbarClassComboWidth := AClassCombo.Width;
+          FToolbarClassComboWidth := IdeGetOriginPixelsFromScaled(AClassCombo.Width, AClassCombo);
       end;
       AComp := AToolbar.FindComponent(csProcComboName);
       if (AComp <> nil) and (AComp is TCnProcListComboBox) then
       begin
         AProcCombo := AComp as TCnProcListComboBox;
         if AProcCombo.Parent <> nil then
-          FToolbarProcComboWidth := AProcCombo.Width;
+          FToolbarProcComboWidth := IdeGetOriginPixelsFromScaled(AProcCombo.Width, AProcCombo);
       end;
     end;
   end;
@@ -981,8 +996,8 @@ begin
     Parent := ToolBar;
     Left := 108;
     Top := 0;
-    if FToolbarClassComboWidth > 50 then
-      Width := FToolbarClassComboWidth
+    if IdeGetScaledPixelsFromOrigin(FToolbarClassComboWidth, Obj.ClassCombo) > 50 then
+      Width := IdeGetScaledPixelsFromOrigin(FToolbarClassComboWidth, Obj.ClassCombo)
     else
       Width := IdeGetScaledPixelsFromOrigin(CN_INIT_CLASSCOMBO_WIDTH, Obj.ClassCombo);
     Height := 21;
@@ -1010,8 +1025,8 @@ begin
     Parent := ToolBar;
     Left := Obj.FSplitter1.Left + Obj.FSplitter1.Width + 1;
     Top := 0;
-    if FToolbarProcComboWidth > 50 then
-      Width := FToolbarProcComboWidth
+    if IdeGetScaledPixelsFromOrigin(FToolbarProcComboWidth, Obj.ProcCombo) > 50 then
+      Width := IdeGetScaledPixelsFromOrigin(FToolbarProcComboWidth, Obj.ProcCombo)
     else
       Width := IdeGetScaledPixelsFromOrigin(CN_INIT_CLASSCOMBO_WIDTH, Obj.ProcCombo);
     Height := 21;
@@ -1601,7 +1616,7 @@ begin
   begin
     Info := TCnElementInfo(FElementList.Objects[I]);
     if (Info <> nil) and (Info.ElementType in [etClassFunc, etSingleFunction,
-      etConstructor, etDestructor]) then
+      etConstructor, etDestructor, etOperator]) then
       ProcCombo.DropDownList.InfoItems.AddObject(Info.Text, Info);
   end;
 
@@ -1822,7 +1837,9 @@ var
       if ProcType = tkFunction then
         Result := 'class function' // Do not localize.
       else if ProcType = tkProcedure then
-        Result := 'class procedure'; // Do not localize.
+        Result := 'class procedure' // Do not localize.
+      else if ProcType = tkOperator then
+        Result := 'class operator'; // Do not localize.
     end
     else
     begin
@@ -1832,6 +1849,7 @@ var
         tkProcedure: Result := 'procedure';
         tkConstructor: Result := 'constructor';
         tkDestructor: Result := 'destructor';
+        tkOperator: Result := 'operator';
       end;
     end;
   end;
@@ -1842,7 +1860,9 @@ var
     if IsClass then
     begin
       if ProcType in [tkFunction, tkProcedure] then
-        Result := etClassFunc;
+        Result := etClassFunc
+      else if ProcType = tkOperator then
+        Result := etOperator
     end
     else
     begin
@@ -1850,6 +1870,7 @@ var
         tkFunction, tkProcedure: Result := etSingleFunction;
         tkConstructor: Result := etConstructor;
         tkDestructor: Result := etDestructor;
+        tkOperator: Result := etOperator;
       end;
     end;
   end;
@@ -2213,7 +2234,7 @@ var
                 FImplLine := GetPasParserLineNumber;
 
               if ((not InTypeDeclaration and InImplementation) or InIntfDeclaration) and
-                (PasParser.TokenID in [tkFunction, tkProcedure, tkConstructor, tkDestructor]) then
+                (PasParser.TokenID in [tkFunction, tkProcedure, tkConstructor, tkDestructor, tkOperator]) then
               begin
                 IdentifierNeeded := not (PrevTokenID in [tkAssign, tkRoundOpen, tkComma]);
                 // 暂时认为 procedure 前面是 := ( 以及 , 的是匿名函数
@@ -2409,6 +2430,7 @@ var
 
                   ElementInfo.Text := CurClassForNotKnown;
                   ElementInfo.OwnerClass := CurClassForNotKnown;
+                  ElementInfo.Name := ElementInfo.Text;
                   AddElement(ElementList, ElementInfo);
 
                   IsClassForForward := True; // 以备后面判断是否是 class; 的前向声明
@@ -2431,6 +2453,7 @@ var
                 ElementInfo.ElementTypeStr := 'class';
                 ElementInfo.Text := CurClass;
                 ElementInfo.OwnerClass := CurClass;
+                ElementInfo.Name := ElementInfo.Text;
                 AddElement(ElementList, ElementInfo);
 
                 IsClassForForward := True; // 以备后面判断是否是 class; 的前向声明
@@ -2458,6 +2481,7 @@ var
                 ElementInfo.ElementTypeStr := 'interface';
                 ElementInfo.Text := CurIntf;
                 ElementInfo.OwnerClass := CurIntf;
+                ElementInfo.Name := ElementInfo.Text;
                 AddElement(ElementList, ElementInfo);
               end
               else if (PasParser.TokenID = tkRecord) or
@@ -2478,6 +2502,7 @@ var
                 else
                   ElementInfo.ElementTypeStr := 'record object';
                 ElementInfo.Text := CurIdent;
+                ElementInfo.Name := ElementInfo.Text;
                 // ElementInfo.OwnerClass := CurIntf;
                 AddElement(ElementList, ElementInfo);
               end
@@ -2512,6 +2537,7 @@ var
                     ElementInfo.OwnerClass := CurClass;
                     ElementInfo.Text := CurClass + '.' + string(PasParser.Token);
                   end;
+                  ElementInfo.Name := ElementInfo.Text;
                   AddElement(ElementList, ElementInfo);
                 end;
               end
@@ -3894,7 +3920,9 @@ var
 begin
   if FPreviewIsRight then
   begin
+{$IFNDEF STAND_ALONE}
     RestorePreviewWidth;
+{$ENDIF}
   end
   else
   begin
@@ -3910,6 +3938,23 @@ begin
           mmoContent.Height := mmoContent.Height + csStep;
     end;
   end;
+end;
+
+procedure TCnProcListForm.RestorePreviewHeight;
+begin
+  if FPreviewHeight > 0 then
+    mmoContent.Height := FPreviewHeight;
+end;
+
+procedure TCnProcListForm.RestorePreviewWidth;
+begin
+  if FPreviewWidth > 0 then
+    mmoContent.Width := FPreviewWidth;
+end;
+
+function TCnProcListForm.DisableLargeIcons: Boolean;
+begin
+  Result := True; // 大图标会引发工具栏按钮混乱
 end;
 
 { TCnProcListWizard }
@@ -4103,6 +4148,12 @@ begin
   EditorToolBarEnable(Active and FUseEditorToolBar);
 end;
 
+//==============================================================================
+// 查找下拉列表框
+//==============================================================================
+
+{ TCnProcDrowDownBox }
+
 procedure TCnProcDropDownBox.ListDrawItem(Control: TWinControl;
   Index: Integer; Rect: TRect; State: TOwnerDrawState);
 var
@@ -4176,12 +4227,6 @@ begin
   end;
 end;
 
-//==============================================================================
-// 查找下拉列表框
-//==============================================================================
-
-{ TCnProcDrowDownBox }
-
 procedure TCnProcDropDownBox.CloseUp;
 begin
   if Visible then
@@ -4196,13 +4241,13 @@ begin
   begin
     if Owner.Name = csProcComboName then
     begin
-      FWizard.ProcComboHeight := Height;
-      FWizard.ProcComboWidth := Width;
+      FWizard.ProcComboHeight := IdeGetOriginPixelsFromScaled(Height, Self);
+      FWizard.ProcComboWidth := IdeGetOriginPixelsFromScaled(Width, Self);
     end
     else if Owner.Name = csClassComboName then
     begin
-      FWizard.ClassComboHeight := Height;
-      FWizard.ClassComboWidth := Width;
+      FWizard.ClassComboHeight := IdeGetOriginPixelsFromScaled(Height, Self);
+      FWizard.ClassComboWidth := IdeGetOriginPixelsFromScaled(Width, Self);
     end;
   end;
 end;
@@ -4370,8 +4415,6 @@ begin
 {$ENDIF}
 end;
 
-{$ENDIF}
-
 {$IFDEF IDE_SUPPORT_THEMING}
 
 procedure TCnProcListWizard.DoThemeChange(Sender: TObject);
@@ -4402,6 +4445,8 @@ begin
     end;
   end;
 end;
+
+{$ENDIF}
 
 {$ENDIF}
 
@@ -4596,21 +4641,21 @@ begin
   begin
     if Owner.Name = csProcComboName then
     begin
-      if FWizard.ProcComboWidth > 100 then
-        Width := FWizard.ProcComboWidth;
-      if FWizard.ProcComboHeight > AHeight then
+      if IdeGetScaledPixelsFromOrigin(FWizard.ProcComboWidth, Self) > 100 then
+        Width := IdeGetScaledPixelsFromOrigin(FWizard.ProcComboWidth, Self);
+      if IdeGetScaledPixelsFromOrigin(FWizard.ProcComboHeight, Self) > AHeight then
       begin
-        Height := FWizard.ProcComboHeight;
+        Height := IdeGetScaledPixelsFromOrigin(FWizard.ProcComboHeight, Self);
         HeightSet := True;
       end;
     end
     else if Owner.Name = csClassComboName then
     begin
-      if FWizard.ClassComboWidth > 100 then
-        Width := FWizard.ClassComboWidth;
-      if FWizard.ClassComboHeight > AHeight then
+      if IdeGetScaledPixelsFromOrigin(FWizard.ClassComboWidth, Self) > 100 then
+        Width := IdeGetScaledPixelsFromOrigin(FWizard.ClassComboWidth, Self);
+      if IdeGetScaledPixelsFromOrigin(FWizard.ClassComboHeight, Self) > AHeight then
       begin
-        Height := FWizard.ClassComboHeight;
+        Height := IdeGetScaledPixelsFromOrigin(FWizard.ClassComboHeight, Self);
         HeightSet := True;
       end;
     end;
@@ -4711,23 +4756,6 @@ begin
     FProcCombo.Text := '';
   if FClassCombo <> nil then
     FClassCombo.Text := '';
-end;
-
-procedure TCnProcListForm.RestorePreviewHeight;
-begin
-  if FPreviewHeight > 0 then
-    mmoContent.Height := FPreviewHeight;
-end;
-
-procedure TCnProcListForm.RestorePreviewWidth;
-begin
-  if FPreviewWidth > 0 then
-    mmoContent.Width := FPreviewWidth;
-end;
-
-function TCnProcListForm.DisableLargeIcons: Boolean;
-begin
-  Result := True; // 大图标会引发工具栏按钮混乱
 end;
 
 initialization

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -39,12 +39,12 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, Menus,
-  CnWizUtils, CnConsts, CnCommon, CnEditorToolsetWizard,
+  CnWizUtils, CnConsts, CnCommon, CnCodingToolsetWizard,
   CnWizConsts, CnEditorCodeTool, CnIni, mPasLex;
 
 type
@@ -64,12 +64,12 @@ type
     FParser: TCnGeneralWidePasLex;
     FUsesAdded: Boolean;
     FColumn: Integer;
-    FSkipImplementUses: Boolean;
+    FSkipImplementUses: Boolean; // 该设置暂不开放，默认 False
     procedure CursorReturnBack;
   protected
     procedure EditorKeyDown(Key, ScanCode: Word; Shift: TShiftState; var Handled: Boolean);
   public
-    constructor Create(AOwner: TCnEditorToolsetWizard); override;
+    constructor Create(AOwner: TCnCodingToolsetWizard); override;
     destructor Destroy; override;
     procedure LoadSettings(Ini: TCustomIniFile); override;
     procedure SaveSettings(Ini: TCustomIniFile); override;
@@ -81,11 +81,11 @@ type
     procedure Execute; override;
   end;
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   CnEditControlWrapper;
@@ -115,7 +115,7 @@ begin
   Email := SCnPack_LiuXiaoEmail;
 end;
 
-constructor TCnEditorToggleUses.Create(AOwner: TCnEditorToolsetWizard);
+constructor TCnEditorToggleUses.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   EditControlWrapper.AddKeyDownNotifier(EditorKeyDown);
@@ -172,7 +172,7 @@ begin
       Use2Line := 0;
       IntfLine := 0;
       ImplLine := 0;
-      Uses1 := False;
+      Uses1 := False;    // Use1 和 Use2 分别表示 interface 部分和 implementation 部分是否有 uses 关键字
       Uses2 := False;
       InImplement := False;
       CursorInImplement := False;
@@ -419,5 +419,5 @@ end;
 initialization
   RegisterCnCodingToolset(TCnEditorToggleUses);
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 end.

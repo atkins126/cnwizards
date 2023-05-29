@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -519,10 +519,13 @@ const
     csUnitSymbolKind,          // implementation 的 uses 内部
     csDeclareSymbolKind,       // class 声明内部
     csDeclareSymbolKind,       // interface 声明内部
-    csDefineSymbolKind,        // type 定义区
-    csDefineSymbolKind,        // const 定义区
+    [],                        // type 定义区等号前部分
+    csDefineSymbolKind,        // type 定义区等号后部分
+    [],                        // const 定义区冒号等号前部分
+    csDefineSymbolKind,        // const 定义区冒号等号后部分
     csDefineSymbolKind,        // resourcestring 定义区
-    csDefineSymbolKind,        // var 定义区
+    [],                        // var 定义区冒号前部分
+    csDefineSymbolKind,        // var 定义区冒号后部分
     csCompDirectSymbolKind,    // 编译指令内部
     csNoneSymbolKind,          // 字符串内部
     csFieldSymbolKind,         // 标识符. 后面的域内部，属性、方法、事件、记录项等，C/C++源文件大部分都在此
@@ -543,8 +546,11 @@ const
     csDeclareSymbolKind,       // class 声明内部
     csDeclareSymbolKind,       // interface 声明内部
     csDefineSymbolKind,        // type 定义区
+    csDefineSymbolKind,        // type 定义区
+    csDefineSymbolKind,        // const 定义区
     csDefineSymbolKind,        // const 定义区
     csDefineSymbolKind,        // resourcestring 定义区
+    csDefineSymbolKind,        // var 定义区
     csDefineSymbolKind,        // var 定义区
     csCompDirectSymbolKind,    // 编译指令内部
     csNoneSymbolKind,          // 字符串内部
@@ -1769,7 +1775,7 @@ begin
 
   Stream := TMemoryStream.Create;
   try
-    CurrPos := CnOtaGetCurrPos(View.Buffer); // 得到较为准确的线性偏移 Ansi/Utf8/Utf8
+    CurrPos := CnOtaGetCurrLinePos(View.Buffer); // 得到较为准确的线性偏移 Ansi/Utf8/Utf8
     if View.CursorPos.Line > csMaxProcessLines then
     begin
       // CnOtaEditPosToLinePos 在大文件时会很慢，此处直接使用线性位置来计算
@@ -2112,7 +2118,8 @@ procedure TCnInputHelper.AdjustCodeParamWindowPos;
 var
   ParaComp: TComponent;
   ParaWnd: TWinControl;
-  R1, R2, R3: TRect;
+  RectPara, RectList, RectInter: TRect;
+  D, OldTop: Integer;
 begin
   // BDS 下函数参数提示窗口在当前行的下方，挡住了助手窗口，需要移到当前行上方去
   if IsShowing then
@@ -2124,19 +2131,36 @@ begin
       ParaWnd := TWinControl(ParaComp);
       // Hook 参数窗口，阻止其自动恢复位置
       HookCodeParamWindow(ParaWnd);
+
       // 判断并调整参数窗口的位置
-      GetWindowRect(ParaWnd.Handle, R1);
-      GetWindowRect(List.Handle, R2);
-      if IntersectRect(R3, R1, R2) and not IsRectEmpty(R3) then
+      GetWindowRect(ParaWnd.Handle, RectPara);
+      GetWindowRect(List.Handle, RectList);
+      if IntersectRect(RectInter, RectPara, RectList) and not IsRectEmpty(RectInter) then
       begin
-        ParaWnd.Top := List.Top - ParaWnd.Height - EditControlWrapper.GetCharHeight;
-        OffsetRect(R1, 0, - EditControlWrapper.GetCharHeight * 2);
-        SetWindowPos(ParaWnd.Handle, 0, R1.Left, R1.Top, 0, 0,
+        D := EditControlWrapper.GetCharHeight;
+{$IFDEF IDE_SUPPORT_HDPI}
+        // 加边框高度，免得边框占位置，注意此处和 ShowList 中调整位置对应
+        if (List.Height - List.ClientHeight > 8) and (List.Height - List.ClientHeight < 64) then
+          D := D + (List.Height - List.ClientHeight) div 2;
+        if D < 25 then
+          D := 25; // 太小，扩大一点点
+{$ENDIF}
+{$IFDEF DEBUG}
+        CnDebugger.LogRect(ParaWnd.BoundsRect, 'Code Param Window Rect');
+        CnDebugger.LogInteger(EditControlWrapper.GetCharHeight, 'Code Param Window CharHeight');
+        CnDebugger.LogInteger(D, 'Code Param Window Top Offset');
+{$ENDIF}
+        OldTop := ParaWnd.Top;
+        ParaWnd.Top := List.Top - ParaWnd.Height - D;
+        OffsetRect(RectPara, 0, ParaWnd.Top - OldTop);
+
+        SetWindowPos(ParaWnd.Handle, 0, RectPara.Left, RectPara.Top, 0, 0,
           SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE);
       end;
     end;
   end;
 end;
+
 {$ENDIF}
 
 //------------------------------------------------------------------------------

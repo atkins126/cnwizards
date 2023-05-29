@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -37,13 +37,13 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, Menus,
   StdCtrls, IniFiles, ToolsAPI, {$IFDEF COMPILER6_UP}
   DesignIntf, {$ELSE} DsgnIntf, {$ENDIF}
-  CnConsts, CnWizUtils, CnEditorToolsetWizard, CnWizConsts, CnCommon, CnWizOptions;
+  CnConsts, CnWizUtils, CnCodingToolsetWizard, CnWizConsts, CnCommon, CnWizOptions;
 
 type
 
@@ -69,11 +69,11 @@ type
     function GetState: TWizardState; override;
   end;
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   CnWizIdeUtils, CnOTACreators, CnWizEditFiler, RegExpr {$IFDEF DEBUG}, CnDebug {$ENDIF};
@@ -472,5 +472,5 @@ end;
 initialization
   RegisterCnCodingToolset(TCnEditorDuplicateUnit); // 注册编码工具
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 end.

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -37,12 +37,12 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, Menus,
-  CnWizUtils, CnConsts, CnCommon, CnEditorToolsetWizard,
+  CnWizUtils, CnConsts, CnCommon, CnCodingToolsetWizard,
   CnWizConsts, CnEditorCodeTool, CnIni, mPasLex;
 
 type
@@ -69,7 +69,7 @@ type
   protected
     procedure EditorKeyDown(Key, ScanCode: Word; Shift: TShiftState; var Handled: Boolean);
   public
-    constructor Create(AOwner: TCnEditorToolsetWizard); override;
+    constructor Create(AOwner: TCnCodingToolsetWizard); override;
     destructor Destroy; override;
     function GetCaption: string; override;
     function GetHint: string; override;
@@ -84,11 +84,11 @@ type
     property DelBlankVar: Boolean read FDelBlankVar write FDelBlankVar default True;
   end;
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   CnEditControlWrapper;
@@ -136,7 +136,7 @@ begin
   Email := SCnPack_LiuXiaoEmail;
 end;
 
-constructor TCnEditorToggleVar.Create(AOwner: TCnEditorToolsetWizard);
+constructor TCnEditorToggleVar.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   EditControlWrapper.AddKeyDownNotifier(EditorKeyDown);
@@ -494,5 +494,5 @@ end;
 initialization
   RegisterCnCodingToolset(TCnEditorToggleVar);
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 end.

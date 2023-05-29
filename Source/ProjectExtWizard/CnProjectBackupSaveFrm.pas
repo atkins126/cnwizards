@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -89,6 +89,9 @@ type
     chkShowPass: TCheckBox;
     lblComments: TLabel;
     mmoComments: TMemo;
+    chkIncludeVer: TCheckBox;
+    chkSendMailTo: TCheckBox;
+    edtMailAddress: TEdit;
     procedure btnSelectClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -103,10 +106,12 @@ type
     procedure btnAfterCmdClick(Sender: TObject);
     procedure cbbParamsChange(Sender: TObject);
     procedure chkShowPassClick(Sender: TObject);
+    procedure chkSendMailToClick(Sender: TObject);
   private
     FConfirmed: Boolean;
     FSavePath: string;
     FCurrentName: string;
+    FVersion: string;
     FExt: string;
     function GetPassword: string;
     function GetRemovePath: Boolean;
@@ -134,14 +139,20 @@ type
     procedure SetShowPass(const Value: Boolean);
     function GetComments: string;
     procedure SetComments(const Value: string);
+    function GetIncludeVer: Boolean;
+    procedure SetIncludeVer(const Value: Boolean);
+    function GetMailAddr: string;
+    function GetSendMail: Boolean;
+    procedure SetMailAddr(const Value: string);
+    procedure SetSendMail(const Value: Boolean);
   protected
     function GetHelpTopic: string; override;
     procedure UpdateContent;
     procedure CheckShowPass;
   public
-    { Public declarations }
     function GetExtFromCompressor(Compressor: string): string;
 
+    property IncludeVer: Boolean read GetIncludeVer write SetIncludeVer;
     property UsePassword: Boolean read GetUsePassword write SetUsePassword;
     property Password: string read GetPassword write SetPassword;
     property RemovePath: Boolean read GetRemovePath write SetRemovePath;
@@ -158,8 +169,12 @@ type
     property ExecAfterFile: string read GetExecAfterFile write SetExecAfterFile;
     property AfterCmd: string read GetAfterCmd write SetAfterCmd;
 
+    property SendMail: Boolean read GetSendMail write SetSendMail;
+    property MailAddr: string read GetMailAddr write SetMailAddr;
+
     property SavePath: string read FSavePath write FSavePath;
     property CurrentName: string read FCurrentName write FCurrentName;
+    property Version: string read FVersion write FVersion;
   end;
 
 {$ENDIF CNWIZARDS_CNPROJECTEXTWIZARD}
@@ -280,14 +295,6 @@ begin
       CanClose := QueryDlg(SCnProjExtBackupMustZip);
       Exit;
     end;
-
-//    if chkPassword.Checked and (edtPass.Text = '') or (edtPass.Text <> edtSecond.Text) then
-//    begin
-//      ErrorDlg(SCnDoublePasswordError);
-//      CanClose := False;
-//      edtPass.SetFocus;
-//      Exit;
-//    end;
   end;
 end;
 
@@ -316,8 +323,12 @@ begin
   if FExt = '' then
     FExt := '.zip';
 
-  edtFile.Text := SavePath + CurrentName
-    + FormatDateTime('_' + Trim(cbbTimeFormat.Items[cbbTimeFormat.ItemIndex]), Date + Time) + FExt;
+  if IncludeVer and (FVersion <> '') then
+    edtFile.Text := SavePath + CurrentName + '_' + FVersion
+      + FormatDateTime('_' + Trim(cbbTimeFormat.Items[cbbTimeFormat.ItemIndex]), Date + Time) + FExt
+  else
+    edtFile.Text := SavePath + CurrentName
+      + FormatDateTime('_' + Trim(cbbTimeFormat.Items[cbbTimeFormat.ItemIndex]), Date + Time) + FExt;
 
   FConfirmed := False;
 end;
@@ -390,8 +401,10 @@ begin
   cbbParams.Enabled := chkExecAfter.Checked;
   lblPreCmd.Enabled := chkExecAfter.Checked;
   mmoAfterCmd.Enabled := chkExecAfter.Checked;
-  
-  if not chkUseExternal.Checked then Exit;
+  edtMailAddress.Enabled := chkSendMailTo.Checked;
+
+  if not chkUseExternal.Checked then
+    Exit;
   FExt := GetExtFromCompressor(edtCompressor.Text);
   edtFile.Text := _CnChangeFileExt(edtFile.Text, FExt);
 end;
@@ -519,6 +532,42 @@ end;
 procedure TCnProjectBackupSaveForm.SetComments(const Value: string);
 begin
   mmoComments.Lines.Text := Value;
+end;
+
+function TCnProjectBackupSaveForm.GetIncludeVer: Boolean;
+begin
+  Result := chkIncludeVer.Checked;
+end;
+
+procedure TCnProjectBackupSaveForm.SetIncludeVer(const Value: Boolean);
+begin
+  chkIncludeVer.Checked := Value;
+  UpdateContent;
+end;
+
+procedure TCnProjectBackupSaveForm.chkSendMailToClick(Sender: TObject);
+begin
+  UpdateContent;
+end;
+
+function TCnProjectBackupSaveForm.GetMailAddr: string;
+begin
+  Result := edtMailAddress.Text;
+end;
+
+function TCnProjectBackupSaveForm.GetSendMail: Boolean;
+begin
+  Result := chkSendMailTo.Checked;
+end;
+
+procedure TCnProjectBackupSaveForm.SetMailAddr(const Value: string);
+begin
+  edtMailAddress.Text := Value;
+end;
+
+procedure TCnProjectBackupSaveForm.SetSendMail(const Value: Boolean);
+begin
+  chkSendMailTo.Checked := Value;
 end;
 
 {$ENDIF CNWIZARDS_CNPROJECTEXTWIZARD}

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -37,12 +37,12 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizClasses, CnWizUtils, CnConsts, CnCommon,
-  CnEditorToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizMultiLang;
+  CnCodingToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizMultiLang;
 
 type
   TCnEditorCodeToStringForm = class(TCnTranslateForm)
@@ -55,9 +55,9 @@ type
     edtCReturn: TEdit;
     cbSkipSpace: TCheckBox;
   private
-    { Private declarations }
+
   public
-    { Public declarations }
+
   end;
 
 //==============================================================================
@@ -76,7 +76,7 @@ type
     function ProcessText(const Text: string): string; override;
     function GetStyle: TCnCodeToolStyle; override;
   public
-    constructor Create(AOwner: TCnEditorToolsetWizard); override;
+    constructor Create(AOwner: TCnCodingToolsetWizard); override;
     function GetCaption: string; override;
     function GetHint: string; override;
     procedure GetEditorInfo(var Name, Author, Email: string); override;
@@ -87,11 +87,11 @@ type
     property SkipSpace: Boolean read FSkipSpace write FSkipSpace default True;
   end;
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 {$R *.DFM}
 
@@ -104,7 +104,7 @@ const
 
 { TCnEditorCodeToString }
 
-constructor TCnEditorCodeToString.Create(AOwner: TCnEditorToolsetWizard);
+constructor TCnEditorCodeToString.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   FDelphiReturn := '#13#10';
@@ -116,7 +116,7 @@ function TCnEditorCodeToString.ProcessText(const Text: string): string;
 var
   AdjustRet: Boolean;
   Strings: TStrings;
-  i, SpcCount: Integer;
+  I, SpcCount: Integer;
   c: Char;
   s: string;
 begin
@@ -129,9 +129,9 @@ begin
     try
       Strings.Text := Result;
       SpcCount := 0;
-      for i := 0 to Strings.Count - 1 do
+      for I := 0 to Strings.Count - 1 do
       begin
-        s := Strings[i];
+        s := Strings[I];
         if Length(s) > 2 then
           if s[2] = ' ' then            // 带空格的行
           begin
@@ -142,11 +142,11 @@ begin
               Inc(SpcCount);
             s[SpcCount + 1] := c;
             
-            Strings[i] := s;
+            Strings[I] := s;
           end
           else
           begin                         // 不带空格的行
-            Strings[i] := Spc(SpcCount) + s;
+            Strings[I] := Spc(SpcCount) + s;
           end;
       end;
       Result := Strings.Text;
@@ -207,8 +207,8 @@ begin
 end;
 
 initialization
-  RegisterCnCodingToolset(TCnEditorCodeToString); // 注册专家
+  RegisterCnCodingToolset(TCnEditorCodeToString); // 注册工具
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 end.
 

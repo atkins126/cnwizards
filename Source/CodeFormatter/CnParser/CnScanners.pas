@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -24,7 +24,7 @@ unit CnScanners;
 * 软件名称：CnPack 代码格式化专家
 * 单元名称：Object Pascal 词法分析器
 * 单元作者：CnPack开发组
-* 备    注：该单元实现了Object Pascal 词法分析器
+* 备    注：该单元实现了 Object Pascal 词法分析器
 *    缓冲区机制：一块固定长度的缓冲区，读入代码内容后找到最后一个换行，以此为结尾。
 *    扫描至结尾后，重新 ReadBuffer，把本区域结尾到缓冲区尾的内容重新填回缓冲区首，
 *    再在其后跟读满缓冲区，再找最后一个换行并标记结尾。
@@ -32,13 +32,14 @@ unit CnScanners;
 *    即使在处理注释块内部碰到 #0 时加入 ReadBuffer 的处理，也会因为可能的
 *    ”整个缓冲区全是注释“导致 FSourcePtr 没有步进从而无法读入新内容的情况。
 *           唯一办法：使用足够大的单块缓冲区！
+*           另外，Unicode 编译器中，才支持 Unicode 标识符和全角空格
 * 开发平台：Win2003 + Delphi 5.0
 * 兼容测试：not test yet
 * 本 地 化：not test hell
 * 修改记录：2007-10-13 V1.0
 *               完善一些功能
 *           2004-1-14 V0.5
-*               加入标签(Bookmark)功能，可以方便的向前看N个TOKEN
+*               加入标签(Bookmark)功能，可以方便的向前看 N 个 Token
 *           2003-12-16 V0.4
 *               建立。目前自动跳过空格和注释。注释不应该跳过，但是还需要处理。
 ================================================================================
@@ -117,6 +118,7 @@ type
     FIdentContainsDot: Boolean;
     FIsForwarding: Boolean;
     FOnGetCanLineBreak: TGetBooleanEvent;
+    FJustWroteBlockComment: Boolean;
     procedure ReadBuffer;
     procedure SetOrigin(AOrigin: Longint);
     procedure SkipBlanks; // 越过空白和回车换行
@@ -139,10 +141,12 @@ type
     procedure Error(const Ident: Integer);
     procedure ErrorFmt(const Ident: Integer; const Args: array of const);
     procedure ErrorStr(const Message: string);
-    procedure HexToBinary(Stream: TStream);
 
     function IsInStatement: Boolean;
     {* 判断当前是否在语句内部}
+
+    function IsInOpStatement: Boolean;
+    {* 判断当前是否在语句内部，不包括开头，大概算是开区间}
 
     function NextToken: TPascalToken; virtual; abstract;
     function SourcePos: LongInt;
@@ -215,6 +219,9 @@ type
     property InIgnoreArea: Boolean read FInIgnoreArea write FInIgnoreArea;
     {* 由内部前进 Token 时解析设置当前是否忽略格式化标记，供外界使用}
 
+    property JustWroteBlockComment: Boolean read FJustWroteBlockComment;
+    {* 是否刚输出块注释}
+
     property OnLineBreak: TNotifyEvent read FOnLineBreak write FOnLineBreak;
     {* 遇到源文件换行时的事件}
     property OnGetCanLineBreak: TGetBooleanEvent read FOnGetCanLineBreak write FOnGetCanLineBreak;
@@ -225,7 +232,7 @@ type
   private
     FStream: TStream;
     FCodeGen: TCnCodeGenerator;
-    FCompDirectiveMode: TCompDirectiveMode;
+    FCompDirectiveMode: TCnCompDirectiveMode;
     FNestedIsComment: Boolean;
     procedure StorePrevEffectiveToken(AToken: TPascalToken);
   protected
@@ -233,12 +240,12 @@ type
   public
     constructor Create(AStream: TStream); overload; override;
     constructor Create(AStream: TStream; ACodeGen: TCnCodeGenerator;
-      ACompDirectiveMode: TCompDirectiveMode); reintroduce; overload;
+      ACompDirectiveMode: TCnCompDirectiveMode); reintroduce; overload;
     destructor Destroy; override;
     function NextToken: TPascalToken; override;
     function ForwardToken(Count: Integer = 1): TPascalToken; override;
     function ForwardActualToken(Count: Integer = 1): TPascalToken; override;
-    property CompDirectiveMode: TCompDirectiveMode read FCompDirectiveMode;
+    property CompDirectiveMode: TCnCompDirectiveMode read FCompDirectiveMode;
   end;
 
 implementation
@@ -251,105 +258,6 @@ uses
 const
   MIN_SCAN_BUF_SIZE = 512 * 1024 {512KB};
   MAX_SCAN_BUF_SIZE = 32 * 1024 * 1024 {32MB};
-
-procedure BinToHex(Buffer, Text: PChar; BufSize: Integer); 
-const
-  Convert: array[0..15] of Char = '0123456789ABCDEF';
-var
-  I: Integer;
-begin
-  for I := 0 to BufSize - 1 do
-  begin
-    Text[0] := Convert[Byte(Buffer[I]) shr 4];
-    Text[1] := Convert[Byte(Buffer[I]) and $F];
-    Inc(Text, 2);
-  end;
-end;
-{asm
-        PUSH    ESI
-        PUSH    EDI
-        MOV     ESI,EAX
-        MOV     EDI,EDX
-        MOV     EDX,0
-        JMP     @@1
-@@0:    DB      '0123456789ABCDEF'
-@@1:    LODSB
-        MOV     DL,AL
-        AND     DL,0FH
-        MOV     AH,@@0.Byte[EDX]
-        MOV     DL,AL
-        SHR     DL,4
-        MOV     AL,@@0.Byte[EDX]
-        STOSW
-        DEC     ECX
-        JNE     @@1
-        POP     EDI
-        POP     ESI
-end;}
-
-function HexToBin(Text, Buffer: PChar; BufSize: Integer): Integer;
-const
-  Convert: array['0'..'f'] of SmallInt =
-    ( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,-1,-1,-1,-1,-1,-1,
-     -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-     -1,10,11,12,13,14,15);
-var
-  I: Integer;
-begin
-  I := BufSize;
-  while I > 0 do
-  begin
-    if not (Text[0] in ['0'..'f']) or not (Text[1] in ['0'..'f']) then Break;
-    Buffer[0] := Char((Convert[Text[0]] shl 4) + Convert[Text[1]]);
-    Inc(Buffer);
-    Inc(Text, 2);
-    Dec(I);
-  end;
-  Result := BufSize - I;
-end;
-
-{asm
-        PUSH    ESI
-        PUSH    EDI
-        PUSH    EBX
-        MOV     ESI,EAX
-        MOV     EDI,EDX
-        MOV     EBX,EDX
-        MOV     EDX,0
-        JMP     @@1
-@@0:    DB       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,-1,-1,-1,-1,-1,-1
-        DB      -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1
-        DB      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-        DB      -1,10,11,12,13,14,15
-@@1:    LODSW
-        CMP     AL,'0'
-        JB      @@2
-        CMP     AL,'f'
-        JA      @@2
-        MOV     DL,AL
-        MOV     AL,@@0.Byte[EDX-'0']
-        CMP     AL,-1
-        JE      @@2
-        SHL     AL,4
-        CMP     AH,'0'
-        JB      @@2
-        CMP     AH,'f'
-        JA      @@2
-        MOV     DL,AH
-        MOV     AH,@@0.Byte[EDX-'0']
-        CMP     AH,-1
-        JE      @@2
-        OR      AL,AH
-        STOSB
-        DEC     ECX
-        JNE     @@1
-@@2:    MOV     EAX,EDI
-        SUB     EAX,EBX
-        POP     EBX
-        POP     EDI
-        POP     ESI
-end;}
 
 { TAbstractScaner }
 
@@ -474,23 +382,6 @@ begin
   raise EParserError.CreateFmt(SParseError, [Message, FSourceLine, SourcePos]);
 end;
 
-procedure TAbstractScanner.HexToBinary(Stream: TStream);
-var
-  Count: Integer;
-  Buffer: array[0..255] of Char;
-begin
-  SkipBlanks;
-  while FSourcePtr^ <> '}' do
-  begin
-    Count := HexToBin(FSourcePtr, Buffer, SizeOf(Buffer));
-    if Count = 0 then Error(CN_ERRCODE_PASCAL_INVALID_BIN);
-    Stream.Write(Buffer, Count);
-    Inc(FSourcePtr, Count * 2);
-    SkipBlanks;
-  end;
-  NextToken;
-end;
-
 procedure TAbstractScanner.ReadBuffer;
 var
   Count: Integer;
@@ -552,6 +443,15 @@ begin
   EmptyLines := 0;
   while True do
   begin
+{$IFDEF UNICODE}  // Unicode 版本下，支持将全角空格作为空格来处理
+    if FSourcePtr^ = '　' then
+    begin
+      Inc(FSourcePtr);
+      FBackwardToken := tokBlank;
+      Continue;
+    end;
+{$ENDIF}
+
     case FSourcePtr^ of
       #0:
         begin
@@ -771,10 +671,9 @@ begin
       Inc(I);
     until I >= Count;
   finally
+    LoadBookmark(Bookmark);
     FIsForwarding := False;
   end;
-
-  LoadBookmark(Bookmark);
 end;
 
 function TAbstractScanner.BlankString: string;
@@ -849,17 +748,37 @@ end;
 
 function TAbstractScanner.IsInStatement: Boolean;
 begin
-  // 判定当前 Token 是否语句内部，上一个是分号或组合语句，作为语句内换行的额外判断补充。
+  // 判定当前 Token 是否语句内部，上一个是分号或组合语句或双目运算符（真正的语句内部），作为语句内换行的额外判断补充。
   // 当前 Token 可能是空白注释之类的，此时前一个有效 Token 是分号或一些关键字，就说明当前位置已在语句外
   // 如果前一个有效 Token 是标识符，就得判断当前或靠后（如果当前的是注释）的有效 Token 是不是 End 和 Else
   // 如果靠后一个是，表示语句已经结束，现状已经在语句外了。以应对 End 或 Else 前的语句无分号的问题
   if not FIsForwarding then
     Result := (FPrevEffectiveToken in [tokSemicolon, tokKeywordFinally, tokKeywordExcept,
-      tokKeywordOf, tokKeywordElse, tokKeywordDo] + StructStmtTokens)
+      tokKeywordOf, tokKeywordElse, tokKeywordDo] + StructStmtTokens +
+      RelOpTokens + AddOPTokens + MulOpTokens + ShiftOpTokens)
       or not (ForwardActualToken() in [tokKeywordEnd, tokKeywordElse]) // 这句对性能有所影响
   else
     Result := FPrevEffectiveToken in [tokSemicolon] + StructStmtTokens;
   // 在 ForwardToken 调用中不要再重入了
+end;
+
+function TAbstractScanner.IsInOpStatement: Boolean;
+const
+  OpTokens = RelOpTokens + AddOPTokens + MulOpTokens + ShiftOpTokens
+    + [tokAssign];
+begin
+  if FPrevEffectiveToken = tokSemicolon then // 分号说明不在语句内
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  Result := FPrevEffectiveToken in OpTokens + [tokLB, tokSLB]; // 双目运算符后，或左括号后
+
+  if not Result and not FIsForwarding then
+    Result := ForwardActualToken() in OpTokens + [tokSemicolon, tokRB, tokSRB,
+      tokKeywordDo, tokKeywordOf, tokKeywordThen];  // 或者下一个是双目运算符或分号或右括号几个其他语句结束关键字
+  // 可能还有其他判断
 end;
 
 function TAbstractScanner.GetCanLineBreakFromOut: Boolean;
@@ -872,7 +791,7 @@ end;
 { TScaner }
 
 constructor TScanner.Create(AStream: TStream; ACodeGen: TCnCodeGenerator;
-  ACompDirectiveMode: TCompDirectiveMode);
+  ACompDirectiveMode: TCnCompDirectiveMode);
 begin
   AStream.Seek(0, soFromBeginning);
   FStream := AStream;
@@ -922,6 +841,7 @@ var
   BlankStr: string;
   S: string;
   Idx: Integer;
+  LocalJustWroteBlockComment: Boolean;
 
   procedure SkipTo(var P: PChar; TargetChar: Char);
   begin
@@ -963,6 +883,7 @@ var
   TmpToken: string;
 begin
   FOldSourceColPtr := FSourcePtr;
+  LocalJustWroteBlockComment := False;
 
   SkipBlanks;
   FSourceCol := FNewSourceCol;
@@ -981,13 +902,13 @@ begin
         if FIdentContainsDot then // 如果外部要求标识符包括点号如单元名等
         begin
           while (P^ in ['A'..'Z', 'a'..'z', '0'..'9', '_', '.'])
-            {$IFDEF UNICODE} or (P^ >= #$0100) {$ENDIF} do
+            {$IFDEF UNICODE} or ((P^ >= #$0100) and (P^ <> '　')) {$ENDIF} do
             Inc(P);
         end
-        else
+        else  // 注意 Unicode 环境下，Unicode 标识符不包括全角空格，全角空格做半角空格用
         begin
           while (P^ in ['A'..'Z', 'a'..'z', '0'..'9', '_'])
-            {$IFDEF UNICODE} or (P^ >= #$0100) {$ENDIF} do
+            {$IFDEF UNICODE} or ((P^ >= #$0100) and (P^ <> '　')) {$ENDIF} do
             Inc(P);
         end;
         Result := tokSymbol;
@@ -1146,7 +1067,11 @@ begin
         begin
           if P^ = #10 then
           begin
-            NewLine;
+            if not FKeepOneBlankLine then // 保持语句间的空行时，块注释中间的换行要忽略，
+              NewLine
+            else
+              NewLine(False);             // 但也必须参与换行计数，否则源目标行数对应会错乱
+
             FOldSourceColPtr := P;
             Inc(FOldSourceColPtr);
           end;
@@ -1225,7 +1150,7 @@ begin
               FOldSourceColPtr := P;
             end;
           end
-          else
+          else if P^ <> #0 then
             Error(CN_ERRCODE_PASCAL_ENDCOMMENT_EXP);
         end
         else
@@ -1261,7 +1186,11 @@ begin
                   // ASM 模式下，换行作为语句结束符，不在注释内处理，所以这也不加
                   if not FASMMode then
                   begin
-                    NewLine;
+                    if not FKeepOneBlankLine then // 保持语句间的空行时，块注释中间的换行要忽略，
+                      NewLine
+                    else
+                      NewLine(False);             // 但也必须参与换行计数，否则源目标行数对应会错乱
+
                     Inc(FBlankLinesAfterComment);
                     Inc(P);
                     FOldSourceColPtr := P;
@@ -1275,7 +1204,11 @@ begin
             begin
               if P^ = #10 then
               begin
-                NewLine;
+                if not FKeepOneBlankLine then // 保持语句间的空行时，块注释中间的换行要忽略，
+                  NewLine
+                else
+                  NewLine(False);             // 但也必须参与换行计数，否则源目标行数对应会错乱
+
                 FOldSourceColPtr := P;
                 Inc(FOldSourceColPtr);
               end;
@@ -1509,13 +1442,17 @@ begin
             // 如语句中的判断有误，则可能出现该换行的行注释拼到同一行的情况
             // 行注释回车回车块注释，这种模式下写完行注释并第一个回车后，递归到此处写 BlankStr 第二个回车时，该回车会被误删
             // 因而需要用 FNestedIsComment 变量控制，该变量在碰到注释递归进入时会被设置为 True
-            if FKeepOneBlankLine and not FNestedIsComment and IsStringStartWithSpacesCRLF(BlankStr)
-              and GetCanLineBreakFromOut and not IsInStatement then
+            if (FKeepOneBlankLine and not FNestedIsComment and IsStringStartWithSpacesCRLF(BlankStr)
+              and GetCanLineBreakFromOut and not IsInStatement)
+              or (IsInOpStatement and GetCanLineBreakFromOut) then
             begin
+              // 另外，如果当前是语句内保留换行模式，且在开区间的语句内部，尤其是双目运算符后回车，
+              // 那么这个回车对应换行后，本次会写入换行与注释，导致多一行，也得删掉
+
               Idx := Pos(#13#10, BlankStr);
               if Idx > 0 then
                 Delete(BlankStr, 1, Idx + 1); // -1 + #13#10 的长度 2
-              FCodeGen.WriteBlank(BlankStr); // 省略前面的空格与回车
+              FCodeGen.WriteBlank(BlankStr);  // 省略前面的空格与回车
             end
             else
               FCodeGen.WriteBlank(BlankStr); // 把上回内容尾巴，到现在注释开头的空白部分写入
@@ -1547,6 +1484,7 @@ begin
         begin
           FCodeGen.Write(S);
         end;
+        LocalJustWroteBlockComment := True;
       end;
 
       if not FFirstCommentInBlock then // 第一次碰到 Comment 时设置这个
@@ -1559,6 +1497,9 @@ begin
       FNestedIsComment := Result in [tokBlockComment, tokLineComment, tokCompDirective];
       Result := NextToken;
       FNestedIsComment := False;
+
+      // 记录这次写了块注释，不记录递归结果
+      FJustWroteBlockComment := LocalJustWroteBlockComment;
 
       // 进入递归寻找下一个 Token，
       // 进入后 FFirstCommentInBlock 为 True，因此不会重新记录 FBlankLinesBefore
@@ -1619,15 +1560,19 @@ begin
             // 行注释回车回车块注释，这种模式下写完行注释并第一个回车后，递归到此处写 BlankStr 第二个回车时，该回车会被误删
             // 因而需要用 FNestedIsComment 变量控制，该变量在碰到注释递归进入时会被设置为 True
             if FKeepOneBlankLine and not FNestedIsComment and IsStringStartWithSpacesCRLF(BlankStr)
-              and GetCanLineBreakFromOut and not IsInStatement then
+              and GetCanLineBreakFromOut and not IsInStatement
+              or (IsInOpStatement and GetCanLineBreakFromOut) then
             begin
+              // 另外，如果当前是语句内保留换行模式，且在开区间的语句内部，尤其是双目运算符后回车，
+              // 那么这个回车对应换行后，本次会写入换行与注释，导致多一行，也得删掉
+
               Idx := Pos(#13#10, BlankStr);
               if Idx > 0 then
                 Delete(BlankStr, 1, Idx + 1); // -1 + #13#10 的长度 2
-              FCodeGen.WriteBlank(BlankStr); // 省略前面的空格与回车
+              FCodeGen.WriteBlank(BlankStr);  // 省略前面的空格与回车
             end
             else
-              FCodeGen.WriteBlank(BlankStr); // 把上回内容尾巴，到现在注释开头的空白部分写入
+              FCodeGen.WriteBlank(BlankStr);  // 把上回内容尾巴，到现在注释开头的空白部分写入
           end;
         end;
 
@@ -1656,6 +1601,7 @@ begin
         begin
           FCodeGen.Write(S);
         end;
+        LocalJustWroteBlockComment := True;
       end;
 
       if not FFirstCommentInBlock then // 第一次碰到 Comment 时设置这个
@@ -1668,6 +1614,9 @@ begin
       FNestedIsComment := Result in [tokBlockComment, tokLineComment, tokCompDirective];
       Result := NextToken;
       FNestedIsComment := False;
+
+      // 记录这次写了块注释，不记录递归结果
+      FJustWroteBlockComment := LocalJustWroteBlockComment;
 
       // 进入递归寻找下一个 Token，
       // 进入后 FFirstCommentInBlock 为 True，因此不会重新记录 FBlankLinesBefore
@@ -1711,6 +1660,7 @@ begin
         end;
 
         FCodeGen.Write(TokenString); // Write ELSE/ELSEIF itself
+        LocalJustWroteBlockComment := True;
       end;
 
       FInDirectiveNestSearch := True;
@@ -1720,6 +1670,9 @@ begin
       Directive := NextToken;
       FPreviousIsComment := False;
       TmpToken := TokenString;
+
+      // 记录这次写了块注释，不记录递归结果
+      FJustWroteBlockComment := LocalJustWroteBlockComment;
 
       try
         while Directive <> tokEOF do
@@ -1804,7 +1757,7 @@ begin
 
       if FPreviousIsComment then // 上一个是 Comment，记录这个到 上一个Comment的空行数
       begin
-        // 最后一块注释的在递归最外层赋值，因此FBlankLinesAfter会被层层覆盖，
+        // 最后一块注释的在递归最外层赋值，因此 FBlankLinesAfter 会被层层覆盖，
         // 代表最后一块注释后的空行数
         FBlankLinesAfter := FBlankLines + FBlankLinesAfterComment;
       end

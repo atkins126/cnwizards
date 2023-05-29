@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -41,7 +41,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ExtCtrls, IniFiles, Menus, ToolsAPI,
   CnWizUtils, CnConsts, CnCommon, CnWizManager, CnWizEditFiler,
-  CnEditorToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizIdeUtils,
+  CnCodingToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizIdeUtils,
   CnSourceHighlight, CnPasCodeParser, CnEditControlWrapper, mPasLex,
   CnCppCodeParser, mwBCBTokenList;
 
@@ -61,7 +61,7 @@ type
   protected
     function GetDefShortCut: TShortCut; override;
   public
-    constructor Create(AOwner: TCnEditorToolsetWizard); override;
+    constructor Create(AOwner: TCnCodingToolsetWizard); override;
     destructor Destroy; override;
 
     function GetCaption: string; override;
@@ -261,7 +261,7 @@ begin
   end;
 end;
 
-constructor TCnEditorExtendingSelect.Create(AOwner: TCnEditorToolsetWizard);
+constructor TCnEditorExtendingSelect.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   FTimer := TTimer.Create(nil);

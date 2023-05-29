@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -43,11 +43,11 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, Menus,
-  StdCtrls, IniFiles, ToolsAPI, CnConsts, CnWizUtils, CnEditorToolsetWizard, CnWizConsts,
+  StdCtrls, IniFiles, ToolsAPI, CnConsts, CnWizUtils, CnCodingToolsetWizard, CnWizConsts,
   CnEditorOpenFileFrm, CnCommon, CnWizOptions;
 
 type
@@ -82,11 +82,11 @@ type
     {* 包含式地模糊搜索文件，返回多个可能的结果}
   end;
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   CnWizIdeUtils;
@@ -169,7 +169,7 @@ begin
             ShowOpenFileResultList(FFileList);
         end
         else
-          ErrorDlg(SCnEditorOpenFileNotFind);
+          ErrorDlg(SCnEditorOpenFileNotFound);
       end;
     end;
   end;
@@ -319,7 +319,7 @@ begin
 end;
 
 initialization
-  RegisterCnCodingToolset(TCnEditorOpenFile); // 注册专家
+  RegisterCnCodingToolset(TCnEditorOpenFile); // 注册工具
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 end.

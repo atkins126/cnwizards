@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -37,12 +37,12 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizClasses, CnWizUtils, CnConsts, CnCommon,
-  Menus, CnEditorToolsetWizard, CnWizConsts, CnEditorCodeTool;
+  Menus, CnCodingToolsetWizard, CnWizConsts, CnEditorCodeTool;
 
 type
 
@@ -54,7 +54,7 @@ type
 
   TCnEditorFontInc = class(TCnEditorCodeTool)
   public
-    constructor Create(AOwner: TCnEditorToolsetWizard); override;
+    constructor Create(AOwner: TCnCodingToolsetWizard); override;
     function GetCaption: string; override;
     function GetHint: string; override;
     procedure GetEditorInfo(var Name, Author, Email: string); override;
@@ -69,22 +69,22 @@ type
 
   TCnEditorFontDec = class(TCnEditorCodeTool)
   public
-    constructor Create(AOwner: TCnEditorToolsetWizard); override;
+    constructor Create(AOwner: TCnCodingToolsetWizard); override;
     function GetCaption: string; override;
     function GetHint: string; override;
     procedure GetEditorInfo(var Name, Author, Email: string); override;
     procedure Execute; override;
   end;
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 { TCnEditorFontInc }
 
-constructor TCnEditorFontInc.Create(AOwner: TCnEditorToolsetWizard);
+constructor TCnEditorFontInc.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   ValidInSource := True;
@@ -119,7 +119,7 @@ end;
 
 { TCnEditorFontDec }
 
-constructor TCnEditorFontDec.Create(AOwner: TCnEditorToolsetWizard);
+constructor TCnEditorFontDec.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   ValidInSource := True;
@@ -156,5 +156,5 @@ initialization
   RegisterCnCodingToolset(TCnEditorFontInc);
   RegisterCnCodingToolset(TCnEditorFontDec);
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 end.

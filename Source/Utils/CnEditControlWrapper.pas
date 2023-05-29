@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -426,6 +426,9 @@ type
     function GetTabWidth: Integer;
     {* 获得编辑器选项中的 Tab 键宽度}
 
+    function GetBlockIndent: Integer;
+    {* 获得编辑器缩进宽度}
+
     function ClickBreakpointAtActualLine(ActualLineNum: Integer; EditControl: TControl = nil): Boolean;
     {* 点击编辑器控件左侧指定行的断点栏以增加/删除断点}
 
@@ -478,7 +481,7 @@ type
     {* 删除编辑器鼠标移动通知 }
 
     procedure AddEditorMouseLeaveNotifier(Notifier: TEditorMouseLeaveNotifier);
-    {* 增加编辑器鼠标离开通知 }
+    {* 增加编辑器鼠标离开通知，注意鼠标离开通知经常无效，不能太依赖之 }
     procedure RemoveEditorMouseLeaveNotifier(Notifier: TEditorMouseLeaveNotifier);
     {* 删除编辑器鼠标离开通知 }
 
@@ -901,7 +904,7 @@ begin
     WM_MBUTTONDOWN, WM_MBUTTONUP, WM_NCLBUTTONDOWN, WM_NCLBUTTONUP, WM_NCRBUTTONDOWN,
     WM_NCRBUTTONUP, WM_NCMBUTTONDOWN, WM_NCMBUTTONUP, WM_MOUSELEAVE, WM_NCMOUSELEAVE]);
   CnWizNotifierServices.AddCallWndProcRetNotifier(OnCallWndProcRet,
-    [WM_VSCROLL, WM_HSCROLL, WM_NCPAINT, WM_NCACTIVATE]);
+    [WM_VSCROLL, WM_HSCROLL, WM_NCPAINT, WM_NCACTIVATE {$IFDEF IDE_SUPPORT_HDPI}, WM_DPICHANGED {$ENDIF}]);
   CnWizNotifierServices.AddApplicationMessageNotifier(ApplicationMessage);
   CnWizNotifierServices.AddApplicationIdleNotifier(OnIdle);
 
@@ -1456,7 +1459,8 @@ begin
           except
             on E: Exception do
             begin
-              if Item <> nil then Item.Free;
+              if Item <> nil then
+                Item.Free;
               DoHandleException(E.Message);
             end;
           end;
@@ -2513,6 +2517,16 @@ begin
       DoEditorChange(Editors[I], ChangeType + CheckEditorChanges(Editors[i]));
     end;
   end
+{$IFDEF IDE_SUPPORT_HDPI}
+  else if (Msg.Msg = WM_DPICHANGED) and (Control = Application.MainForm) then
+  begin
+    ChangeType := [ctOptionChanged];
+    // 将系统 DPI 改变的通知转化为字体大小选项变化，并且为了避免多次调用，只判断主窗体
+    FOptionChanged := True;
+    for I := 0 to EditorCount - 1 do
+      DoEditorChange(Editor, ChangeType + CheckEditorChanges(Editors[i]));
+  end
+{$ENDIF}
   else if (Msg.Msg = WM_NCPAINT) and IsEditControl(Control) then
   begin
     Editor := nil;
@@ -2929,6 +2943,22 @@ begin
 {$ELSE}
       Result := StrToIntDef(VarToStr(Options.GetOptionValue('TabStops')), 2);
 {$ENDIF}
+    except
+      ;
+    end;
+  end;
+end;
+
+function TCnEditControlWrapper.GetBlockIndent: Integer;
+var
+  Options: IOTAEnvironmentOptions;
+begin
+  Result := 2;
+  Options := CnOtaGetEnvironmentOptions;
+  if Options <> nil then
+  begin
+    try
+      Result := StrToIntDef(VarToStr(Options.GetOptionValue('BlockIndent')), 2);
     except
       ;
     end;

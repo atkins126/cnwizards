@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -61,8 +61,8 @@ uses
   CnMultiLineEdtToolOptFrm in 'DesignEditors\CnMultiLineEdtToolOptFrm.pas' {CnMultiLineEditorToolsOptionForm},
   CnAlignPropEditor in 'DesignEditors\CnAlignPropEditor.pas',
   CnFastCodeWizard in 'IdeEnhancements\CnFastCodeWizard.pas',
-  CnAlignSizeWizard in 'DesignWizard\CnAlignSizeWizard.pas' {CnNonArrangeForm},
-  CnEditorToolsetWizard in 'CodingToolset\CnEditorToolsetWizard.pas' {CnEditorToolsForm},
+  CnDesignWizard in 'DesignWizard\CnDesignWizard.pas' {CnNonArrangeForm},
+  CnCodingToolsetWizard in 'CodingToolset\CnCodingToolsetWizard.pas' {CnEditorToolsForm},
   CnListCompFrm in 'DesignWizard\CnListCompFrm.pas' {CnListCompForm},
   CnPropertyCompareFrm in 'DesignWizard\CnPropertyCompareFrm.pas' {CnPropertyCompareForm},
   CnPropertyCompConfigFrm in 'DesignWizard\CnPropertyCompConfigFrm.pas' {CnPropertyCompConfigForm},
@@ -99,6 +99,7 @@ uses
   CnEditorJumpMessage in 'CodingToolset\CnEditorJumpMessage.pas',
   CnEditorFontZoom in 'CodingToolset\CnEditorFontZoom.pas',
   CnEditorDuplicateUnit in 'CodingToolset\CnEditorDuplicateUnit.pas',
+  CnEditorExtractString in 'CodingToolset\CnEditorExtractString.pas' {CnExtractStringForm},
   CnMsdnWizard in 'SimpleWizards\CnMsdnWizard.pas' {CnMsdnConfigForm},
   CnPas2HtmlWizard in 'SimpleWizards\CnPas2HtmlWizard.pas' {CnPas2HtmlForm},
   CnPasConvertTypeFrm in 'SimpleWizards\CnPasConvertTypeFrm.pas' {CnPasConvertTypeForm},

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -96,15 +96,20 @@ unit CnPasWideLex;
 { |<PRE>
 ================================================================================
 * 软件名称：CnPack IDE 专家包
-* 单元名称：mwPasLex 的 Unicode 版本实现
+* 单元名称：mwPasLex 的 Unicode 版本实现，专门解析 UTF16 字符串
 * 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
 * 备    注：此单元自 mwPasLex 移植而来并改为 Unicode/WideString 实现，保留原始版权声明
 *           当 SupportUnicodeIdent 为 False 时，Unicode 字符挨个作为 tkUnknown 解析
-*           为 True 时整个作为 Identifier 解析。支持 Unicode/非Unicode 编译器。
+*           为 True 时整个作为 Identifier 解析。支持 Unicode/非 Unicode 编译器。
 * 开发平台：Windows 7 + Delphi XE
 * 兼容测试：PWin9X/2000/XP/7 + Delphi 2009 ~
 * 本 地 化：该单元中的字符串支持本地化处理方式
-* 修改记录：2021.08.20 V1.5
+* 修改记录：2022.10.19 V1.7
+*               增加几个关键字的支持，修正 tkKeyString 和 tkString 的混淆
+*               修正 #$0A 的判断错误，修正字符串内单引号的判断错误，均同步 mPasLex
+*           2022.09.09 V1.6
+*               Unicode 标识符模式下增加对全角空格的识别
+*           2021.08.20 V1.5
 *               增加对 dpk 中 requires 与 contains 的识别
 *           2019.03.16 V1.4
 *               增加 LastNoSpaceCRLF 属性以指明上一个非空格非换行的 Token
@@ -225,6 +230,7 @@ type
     function Func39: TTokenKind;
     function Func40: TTokenKind;
     function Func41: TTokenKind;
+    function Func42: TTokenKind;
     function Func44: TTokenKind;
     function Func45: TTokenKind;
     function Func46: TTokenKind;
@@ -244,6 +250,7 @@ type
     function Func66: TTokenKind;
     function Func69: TTokenKind;
     function Func71: TTokenKind;
+    function Func72: TTokenKind;
     function Func73: TTokenKind;
     function Func75: TTokenKind;
     function Func76: TTokenKind;
@@ -253,6 +260,7 @@ type
     function Func85: TTokenKind;
     function Func87: TTokenKind;
     function Func88: TTokenKind;
+    function Func89: TTokenKind;
     function Func91: TTokenKind;
     function Func92: TTokenKind;
     function Func94: TTokenKind;
@@ -267,6 +275,7 @@ type
     function Func103: TTokenKind;
     function Func105: TTokenKind;
     function Func106: TTokenKind;
+    function Func108: TTokenKind;
     function Func112: TTokenKind;
     function Func117: TTokenKind;
     function Func126: TTokenKind;
@@ -335,8 +344,8 @@ type
     procedure NextNoJunk;
     procedure NextClass;
 
-    procedure SaveToBookMark(out Bookmark: TCnPasWideBookmark);
-    procedure LoadFromBookMark(var Bookmark: TCnPasWideBookmark);
+    procedure SaveToBookmark(out Bookmark: TCnPasWideBookmark);
+    procedure LoadFromBookmark(var Bookmark: TCnPasWideBookmark);
 
     property IsClass: Boolean read FIsClass;
     property IsInterface: Boolean read FIsInterface;
@@ -362,8 +371,8 @@ type
     property RunPos: Integer read FRun write SetRunPos;
     {* 当前处理位置相对于 FOrigin 的线性偏移量，单位为字符数，0 开始}
     property TokenPos: Integer read FTokenPos;
-    {* 当前 Token 首相对于 FOrigin 的线性偏移量，单位为字符数，减去 LineStartOffset 即是当前原始列位置
-    （原始列：每个双字节字符占一列，0 开始，不展开 Tab}
+    {* 当前 Token 首相对于 FOrigin 的线性偏移量，0 开始，单位为字符数，减去 LineStartOffset 即是当前原始列位置
+    （原始列：每个双字节字符占一列，0 开始，不展开 Tab），另外和 IDE 中的编辑器线性位置有 Tab 键以及 Utf8 的区别，不能随意通用}
     property TokenID: TTokenKind read FTokenID;
     {* 当前 Token 类型}
     property Token: CnWideString read GetToken;
@@ -372,6 +381,11 @@ type
     {* 当前 Token 的 Unicode 字符串地址}
     property TokenLength: Integer read GetTokenLength;
     {* 当前 Token 的 Unicode 字符长度}
+
+    property RoundCount: Integer read FRoundCount;
+    {* 左小括号数目，开放出来供外界使用}
+    property SquareCount: Integer read FSquareCount;
+    {* 左中括号数目，开放出来供外界使用}
   end;
 
 implementation
@@ -477,6 +491,8 @@ begin
         FIdentFuncTable[I] := Func40;
       41:
         FIdentFuncTable[I] := Func41;
+      42:
+        FIdentFuncTable[I] := Func42;
       44:
         FIdentFuncTable[I] := Func44;
       45:
@@ -515,6 +531,8 @@ begin
         FIdentFuncTable[I] := Func69;
       71:
         FIdentFuncTable[I] := Func71;
+      72:
+        FIdentFuncTable[I] := Func72;
       73:
         FIdentFuncTable[I] := Func73;
       75:
@@ -533,6 +551,8 @@ begin
         FIdentFuncTable[I] := Func87;
       88:
         FIdentFuncTable[I] := Func88;
+      89:
+        FIdentFuncTable[I] := Func89;
       91:
         FIdentFuncTable[I] := Func91;
       92:
@@ -561,6 +581,8 @@ begin
         FIdentFuncTable[I] := Func105;
       106:
         FIdentFuncTable[I] := Func106;
+      108:
+        FIdentFuncTable[I] := Func108;
       112:
         FIdentFuncTable[I] := Func112;
       117:
@@ -594,7 +616,7 @@ function TCnPasWideLex.KeyHash(ToHash: PWideChar): Integer;
 begin
   Result := 0;
   while (_WideCharInSet(ToHash^, ['a'..'z', 'A'..'Z'])) or
-    (FSupportUnicodeIdent and (Ord(ToHash^) > 127)) do
+    (FSupportUnicodeIdent and (Ord(ToHash^) > 127) and (ToHash^ <> '　')) do
   begin
     Inc(Result, GetHashTableValue(ToHash^));
     Inc(ToHash);
@@ -799,6 +821,14 @@ begin
     Result := tkIdentifier;
 end;
 
+function TCnPasWideLex.Func42: TTokenKind;
+begin
+  if KeyComp('Final') then
+    Result := tkElse
+  else
+    Result := tkIdentifier;
+end;
+
 function TCnPasWideLex.Func44: TTokenKind;
 begin
   if KeyComp('Set') then
@@ -953,6 +983,8 @@ begin
     Result := tkUses
   else if KeyComp('Unit') then
     Result := tkUnit
+  else if KeyComp('Helper') then
+    Result := tkHelper
   else
     Result := tkIdentifier;
 end;
@@ -991,6 +1023,14 @@ begin
     Result := tkStdcall
   else if KeyComp('Const') then
     Result := tkConst
+  else
+    Result := tkIdentifier;
+end;
+
+function TCnPasWideLex.Func72: TTokenKind;
+begin
+  if KeyComp('Static') then
+    Result := tkStatic
   else
     Result := tkIdentifier;
 end;
@@ -1044,6 +1084,8 @@ begin
   end
   else if KeyComp('Stored') then
     Result := tkStored
+  else if KeyComp('Deprecated') then
+    Result := tkDeprecated
   else
     Result := tkIdentifier;
 end;
@@ -1069,7 +1111,7 @@ end;
 function TCnPasWideLex.Func87: TTokenKind;
 begin
   if KeyComp('String') then
-    Result := tkString
+    Result := tkKeyString
   else
     Result := tkIdentifier;
 end;
@@ -1078,6 +1120,14 @@ function TCnPasWideLex.Func88: TTokenKind;
 begin
   if KeyComp('Program') then
     Result := tkProgram
+  else
+    Result := tkIdentifier;
+end;
+
+function TCnPasWideLex.Func89: TTokenKind;
+begin
+  if KeyComp('Strict') then
+    Result := tkStrict
   else
     Result := tkIdentifier;
 end;
@@ -1187,6 +1237,8 @@ function TCnPasWideLex.Func101: TTokenKind;
 begin
   if KeyComp('Register') then
     Result := tkRegister
+  else if KeyComp('Platform') then
+    Result := tkPlatform
   else
     Result := tkIdentifier;
 end;
@@ -1224,6 +1276,14 @@ begin
     else
       Result := tkProtected
   end
+  else
+    Result := tkIdentifier;
+end;
+
+function TCnPasWideLex.Func108: TTokenKind;
+begin
+  if KeyComp('Operator') then
+    Result := tkOperator
   else
     Result := tkIdentifier;
 end;
@@ -1474,8 +1534,16 @@ procedure TCnPasWideLex.AsciiCharProc;
 begin
   FTokenID := tkAsciiChar;
   StepRun;
-  while _WideCharInSet(FOrigin[FRun], ['0'..'9']) do
+
+  if FOrigin[FRun] = '$' then
+  begin
     StepRun;
+    while _WideCharInSet(FOrigin[FRun], ['0'..'9', 'A'..'F', 'a'..'f']) do
+      StepRun;
+  end
+  else
+    while _WideCharInSet(FOrigin[FRun], ['0'..'9']) do
+      StepRun;
 end;
 
 procedure TCnPasWideLex.BraceCloseProc;
@@ -1644,7 +1712,7 @@ begin
   FTokenID := IdentKind((FOrigin + FRun));
   StepRun(FStringLen, True);
   while Identifiers[_IndexChar(FOrigin[FRun])] or
-    (FSupportUnicodeIdent and (Ord(_IndexChar(FOrigin[FRun])) > 127)) do
+    (FSupportUnicodeIdent and (Ord(_IndexChar(FOrigin[FRun])) > 127) and (FOrigin[FRun] <> '　')) do
     StepRun(1, FSupportUnicodeIdent); // 支持宽字符标识符时需要计算步进
 end;
 
@@ -1678,7 +1746,7 @@ begin
   FLineStartOffset := FRun;
 end;
 
-procedure TCnPasWideLex.LoadFromBookMark(var Bookmark: TCnPasWideBookmark);
+procedure TCnPasWideLex.LoadFromBookmark(var Bookmark: TCnPasWideBookmark);
 begin
   if Bookmark <> nil then
     with Bookmark do
@@ -1886,7 +1954,7 @@ begin
   end;
 end;
 
-procedure TCnPasWideLex.SaveToBookMark(out Bookmark: TCnPasWideBookmark);
+procedure TCnPasWideLex.SaveToBookmark(out Bookmark: TCnPasWideBookmark);
 begin
   Bookmark := TCnPasWideBookmark.Create;
   with Bookmark do
@@ -1947,7 +2015,8 @@ procedure TCnPasWideLex.SpaceProc;
 begin
   StepRun;
   FTokenID := tkSpace;
-  while _WideCharInSet(FOrigin[FRun], [#1..#9, #11, #12, #14..#32]) do
+  while _WideCharInSet(FOrigin[FRun], [#1..#9, #11, #12, #14..#32])
+    or (FOrigin[FRun] = '　') do
     StepRun;
 end;
 
@@ -1995,9 +2064,10 @@ end;
 procedure TCnPasWideLex.StringProc;
 begin
   FTokenID := tkString;
-  if (FOrigin[FRun + 1] = #39) and (FOrigin[FRun + 2] = #39) then
-    StepRun(2);
   repeat
+    if (FOrigin[FRun + 1] = #39) and (FOrigin[FRun + 2] = #39) then
+      StepRun(2);
+
     case FOrigin[FRun] of
       #0, #10, #13:
         Break;
@@ -2077,8 +2147,10 @@ begin
       C := _IndexChar(W);
       if FSupportUnicodeIdent then
       begin
-        if Ord(W) > 127 then
+        if (Ord(W) > 127) and (W <> '　') then
           IdentProc
+        else if W = '　' then
+          SpaceProc
         else
           FProcTable[C];
       end

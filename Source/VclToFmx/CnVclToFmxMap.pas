@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -155,14 +155,19 @@ var
 
 const
   // VCL 与 FMX 组件的对应转换关系，同名优先
-  VCL_FMX_CLASS_PAIRS: array[0..45] of string = (
+  VCL_FMX_CLASS_PAIRS: array[0..51] of string = (
     'TButton:TButton',        // 可视组件们
     'TBitBtn:TButton',           // 图片会丢失
     'TCalendar:TCalendar',
     'TCheckBox:TCheckBox',
+    'TCheckListBox:TListBox',
     'TColorBox:TColorBox',
     'TColorListBox:TColorListBox',
     'TComboBox:TComboEdit',
+    'TCnBitBtn:TButton',         // 几个 CnVcl 组件
+    'TCnButton:TButton',
+    'TCnEdit:TEdit',
+    'TCnSpeedButton:TSpeedButton',
     'TEdit:TEdit',
     'TGroupBox:TGroupBox',
     'THeader:THeader',
@@ -177,6 +182,7 @@ const
     'TPanel:TPanel',
     'TProgressBar:TProgressBar',
     'TRadioButton:TRadioButton',
+    'TRichEdit:TMemo',
     'TScrollBar:TScrollBar',
     'TScrollBox:TScrollBox',
     'TSpeedButton:TSpeedButton',
@@ -931,11 +937,12 @@ const
   // 特定类或非特定类的属性或方法名的前后对应关系，供源码中替换用
   // 类似于 TCnGeneralConverter.ProcessProperties 中的处理
   // 注意，冒号后可能类名有变化。如果对应的新名字里有 "."，则需要写明全类名
-  VCL_FMX_SINGLE_PROPNAME_PAIRS: array[0..14] of string = (
+  VCL_FMX_SINGLE_PROPNAME_PAIRS: array[0..18] of string = (
     'TPageControl.ActivePage:TTabControl.ActiveTab',
     'TPageControl.ActivePageIndex:TTabControl.TabIndex',
     'TRadioButton.Checked:IsChecked',
     'TCheckBox.Checked:IsChecked',
+    'TButton.Caption:Text',
     'TStringGrid.DefaultRowHeight:RowHeight',
     'TToolBar.ButtonWidth:ItemWidth',
     'TToolBar.ButtonHeight:ItemHeight',
@@ -946,7 +953,10 @@ const
     'TTreeView.Items.Count:GlobalCount',
     'TTreeView.FullCollapse:CollapseAll',
     'TTreeView.FullExpand:ExpandAll',
-    'TTreeView.Items.Clear:Clear'
+    'TTreeView.Items.Clear:Clear',
+    'TStringGrid.ColCount:ColumnCount',
+    'TStringGrid.FixedCols:FixedSize.cx',
+    'TStringGrid.FixedRows:FixedSize.cy'
   );
 
 function CnGetFmxClassFromVclClass(const ComponentClass: string;
@@ -1217,6 +1227,8 @@ begin
   OutUnits.Clear;
   OutUnits.Sorted := True;
   OutUnits.Duplicates := dupIgnore;
+  OutUnits.Add('System.Types');
+  OutUnits.Add('System.UITypes');
   OutUnits.Add('FMX.Types');
   OutUnits.Add('FMX.Controls');
   OutUnits.Add('FMX.Forms');
@@ -1322,13 +1334,20 @@ begin
         begin
           DestStr := Trim(Copy(MapStr, L + 1, MaxInt));
           K := Pos('.', DestStr);
-          if K > 1 then // 可能更换了目的类
+          if K > 1 then // 可能更换了目的类，或者新属性有子属性
           begin
             if (OutComponentClass <> '') and (OutComponentClass <> Trim(Copy(DestStr, 1, K - 1))) then
-              Continue;
-            DestStr := Trim(Copy(DestStr, K + 1, MaxInt));
-             OutSinglePropMap.Add(InComponentName + '.' + Trim(Copy(MapStr, 1, L - 1)) + '='
-              + InComponentName + '.' + DestStr);
+            begin
+              // 目的类名不同，说明是新属性有子属性
+              OutSinglePropMap.Add(InComponentName + '.' + Trim(Copy(MapStr, 1, L - 1)) + '='
+                + InComponentName + '.' + DestStr);
+            end
+            else
+            begin
+              DestStr := Trim(Copy(DestStr, K + 1, MaxInt));
+              OutSinglePropMap.Add(InComponentName + '.' + Trim(Copy(MapStr, 1, L - 1)) + '='
+                + InComponentName + '.' + DestStr);
+            end;
           end
           else // 没更换目的类
             OutSinglePropMap.Add(InComponentName + '.' + Trim(Copy(MapStr, 1, L - 1)) + '='
@@ -1378,6 +1397,11 @@ begin
       InProperties.Add('ButtonWidth = 23');
     if not ContainsHead('ButtonHeight', InProperties) then
       InProperties.Add('ButtonHeight = 22');
+  end
+  else if InComponentClass = 'TCheckListBox' then
+  begin
+    // TCheckListBox 映射成 TListBox，要把 ShowCheckboxes 置为 True
+    OutProperties.Add('ShowCheckboxes = True');
   end;
 
   while InProperties.Count > 0 do

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -39,11 +39,11 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, IniFiles, CnWizUtils, CnConsts, CnCommon, CnEditorToolsetWizard,
+  StdCtrls, IniFiles, CnWizUtils, CnConsts, CnCommon, CnCodingToolsetWizard,
   CnWizConsts, CnEditorCodeTool, CnIni, CnWizIdeDock, ComCtrls, Menus, Clipbrd,
   StdActns, ActnList, ToolWin, Tabs, CnWizShareImages, CnDesignEditorConsts,
   CnWizOptions;
@@ -55,7 +55,7 @@ type
     function GetHint: string; override;
     procedure SetActive(Value: Boolean); override;
   public
-    constructor Create(AOwner: TCnEditorToolsetWizard); override;
+    constructor Create(AOwner: TCnCodingToolsetWizard); override;
     destructor Destroy; override;
 
     procedure Execute; override;
@@ -162,11 +162,11 @@ type
     { Public declarations }
   end;
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 
 {$R *.DFM}
 
@@ -187,7 +187,7 @@ var
 
 { TCnEditorCollector }
 
-constructor TCnEditorCollector.Create(AOwner: TCnEditorToolsetWizard);
+constructor TCnEditorCollector.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   Collector := Self;
@@ -736,7 +736,7 @@ begin
 end;
 
 initialization
-  RegisterCnCodingToolset(TCnEditorCollector); // 注册专家
+  RegisterCnCodingToolset(TCnEditorCollector); // 注册工具
 
-{$ENDIF CNWIZARDS_CNEDITORTOOLSETWIZARD}
+{$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
 end.

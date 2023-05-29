@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }    
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }    
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -23,7 +23,7 @@ unit CnCodeFormatterTest;
 ================================================================================
 * 软件名称：CnPack 代码格式化专家
 * 单元名称：格式化专家测试程序 CnCodeFormaterTest
-* 单元作者：CnPack开发组
+* 单元作者：CnPack 开发组
 * 备    注：该单元实现了代码格式化的核心类
 * 开发平台：Win2003 + Delphi 5.0
 * 兼容测试：not test yet
@@ -117,9 +117,9 @@ type
     procedure tvCompDirectiveCustomDrawItem(Sender: TCustomTreeView; Node:
       TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
   private
-    { Private declarations }
+
   public
-    { Public declarations }
+
   end;
 
 var
@@ -128,7 +128,7 @@ var
 implementation
 
 uses
-  CnCodeFormatter, CnCodeFormatRules, CnScaners, CnTokens, CnCompDirectiveTree,
+  CnCodeFormatter, CnCodeFormatRules, CnScanners, CnTokens, CnCompDirectiveTree,
   CnDebug;
 
 {$R *.DFM}
@@ -154,8 +154,9 @@ var
 begin
   CnPascalCodeForRule.CompDirectiveMode := cdmOnlyFirst;
   CnPascalCodeForRule.TabSpaceCount := UpDown1.Position;
-  CnPascalCodeForRule.KeywordStyle := TKeywordStyle(ComboBox1.ItemIndex);
+  CnPascalCodeForRule.KeywordStyle := TCnKeywordStyle(ComboBox1.ItemIndex);
   CnPascalCodeForRule.KeepUserLineBreak := chkKeepUserBreakLine.Checked;
+  CnPascalCodeForRule.SingleStatementToBlock := True;
 
   if chkAutoWrap.Checked then
     CnPascalCodeForRule.CodeWrapMode := cwmAdvanced

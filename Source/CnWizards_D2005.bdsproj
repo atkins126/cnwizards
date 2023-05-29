@@ -119,7 +119,7 @@
 			<Directories Name="UnitOutputDir">..\Dcu</Directories>
 			<Directories Name="PackageDLLOutputDir"></Directories>
 			<Directories Name="PackageDCPOutputDir"></Directories>
-			<Directories Name="SearchPath">..\..\cnvcl\Source\Common;..\..\cnvcl\Source\Crypto;..\..\cnvcl\Source\NonVisual;..\..\cnvcl\Source\MultiLang;..\..\cnvcl\Source\Graphics;..\..\cnvcl\Source\NetComm;..\..\cnvcl\Source\ObjRep;ThirdParty;ThirdParty\JCL;ThirdParty\DCU32;ThirdParty\DDetours;ThirdParty\PascalScript;ThirdParty\FastCode;Utils;CodeFormatter;ScriptWizard</Directories>
+			<Directories Name="SearchPath">..\..\cnvcl\Source\Common;..\..\cnvcl\Source\Crypto;..\..\cnvcl\Source\NonVisual;..\..\cnvcl\Source\MultiLang;..\..\cnvcl\Source\Graphics;..\..\cnvcl\Source\NetComm;..\..\cnvcl\Source\ObjRep;ThirdParty;ThirdParty\DCU32;ThirdParty\DDetours;ThirdParty\PascalScript;ThirdParty\FastCode;Utils;CodeFormatter;ScriptWizard</Directories>
 			<Directories Name="Packages">rtl;vcl;vclx;designide</Directories>
 			<Directories Name="Conditionals"></Directories>
 			<Directories Name="DebugSourceDirs"></Directories>
@@ -158,7 +158,7 @@
 			<VersionInfoKeys Name="InternalName">CnWizards_D2005</VersionInfoKeys>
 			<VersionInfoKeys Name="OriginalFilename">CnWizards_D2005.DLL</VersionInfoKeys>
 			<VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
-			<VersionInfoKeys Name="LegalCopyright">(C)Copyright 2001-2022 CnPack Team</VersionInfoKeys>
+			<VersionInfoKeys Name="LegalCopyright">(C)Copyright 2001-2023 CnPack Team</VersionInfoKeys>
 			<VersionInfoKeys Name="LegalTrademarks">CnPack</VersionInfoKeys>
 			<VersionInfoKeys Name="ProductName">CnWizards</VersionInfoKeys>
 			<VersionInfoKeys Name="Comments">http://www.cnpack.org</VersionInfoKeys>

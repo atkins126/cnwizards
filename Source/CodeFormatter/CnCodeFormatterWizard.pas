@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -59,7 +59,7 @@ type
     FGetProvider: TCnGetFormatterProvider;
 
     // Pascal Format Settings
-    FDirectiveMode: TCompDirectiveMode;
+    FDirectiveMode: TCnCompDirectiveMode;
     FUsesUnitSingleLine: Boolean;
     FUseIgnoreArea: Boolean;
     FKeepUserLineBreak: Boolean;
@@ -69,9 +69,9 @@ type
     FTabSpaceCount: Byte;
     FSpaceTabASMKeyword: Byte;
     FWrapWidth: Integer;
-    FBeginStyle: TBeginStyle;
-    FKeywordStyle: TKeywordStyle;
-    FWrapMode: TCodeWrapMode;
+    FBeginStyle: TCnBeginStyle;
+    FKeywordStyle: TCnKeywordStyle;
+    FWrapMode: TCnCodeWrapMode;
     FWrapNewLineWidth: Integer;
     FUseIDESymbols: Boolean;
     FBreakpoints: TObjectList;
@@ -122,10 +122,10 @@ type
     procedure LoadSettings(Ini: TCustomIniFile); override;
     procedure SaveSettings(Ini: TCustomIniFile); override;
     procedure AcquireSubActions; override;
-    property DirectiveMode: TCompDirectiveMode read FDirectiveMode write FDirectiveMode;
-    property KeywordStyle: TKeywordStyle read FKeywordStyle write FKeywordStyle;
-    property BeginStyle: TBeginStyle read FBeginStyle write FBeginStyle;
-    property WrapMode: TCodeWrapMode read FWrapMode write FWrapMode;
+    property DirectiveMode: TCnCompDirectiveMode read FDirectiveMode write FDirectiveMode;
+    property KeywordStyle: TCnKeywordStyle read FKeywordStyle write FKeywordStyle;
+    property BeginStyle: TCnBeginStyle read FBeginStyle write FBeginStyle;
+    property WrapMode: TCnCodeWrapMode read FWrapMode write FWrapMode;
     property TabSpaceCount: Byte read FTabSpaceCount write FTabSpaceCount;
     property SpaceBeforeOperator: Byte read FSpaceBeforeOperator write
       FSpaceBeforeOperator;
@@ -358,8 +358,8 @@ begin
 
     if ShowModal = mrOK then
     begin
-      FKeywordStyle := TKeywordStyle(cbbKeywordStyle.ItemIndex);
-      FBeginStyle := TBeginStyle(cbbBeginStyle.ItemIndex);
+      FKeywordStyle := TCnKeywordStyle(cbbKeywordStyle.ItemIndex);
+      FBeginStyle := TCnBeginStyle(cbbBeginStyle.ItemIndex);
       FTabSpaceCount := seTab.Value;
       FWrapWidth := seWrapLine.Value;
       FWrapNewLineWidth := seNewLine.Value;
@@ -377,7 +377,7 @@ begin
       FSpaceBeforeASM := seASMHeadIndent.Value;
       FSpaceTabASMKeyword := seAsmTab.Value;
       FUseIgnoreArea := chkIgnoreArea.Checked;
-      FDirectiveMode := TCompDirectiveMode(cbbDirectiveMode.ItemIndex);
+      FDirectiveMode := TCnCompDirectiveMode(cbbDirectiveMode.ItemIndex);
       FKeepUserLineBreak := chkKeepUserLineBreak.Checked;
     end;
 
@@ -530,10 +530,10 @@ begin
   FWrapWidth := Ini.ReadInteger('', csWrapWidth, CnPascalCodeForVCLRule.WrapWidth);
   FWrapNewLineWidth := Ini.ReadInteger('', csWrapNewLineWidth,
     CnPascalCodeForVCLRule.WrapNewLineWidth);
-  FWrapMode := TCodeWrapMode(Ini.ReadInteger('', csWrapMode, Ord(CnPascalCodeForVCLRule.CodeWrapMode)));
-  FBeginStyle := TBeginStyle(Ini.ReadInteger('', csBeginStyle, Ord(CnPascalCodeForVCLRule.BeginStyle)));
-  FKeywordStyle := TKeywordStyle(Ini.ReadInteger('', csKeywordStyle, Ord(CnPascalCodeForVCLRule.KeywordStyle)));
-  FDirectiveMode := TCompDirectiveMode(Ini.ReadInteger('', csDirectiveMode, Ord(CnPascalCodeForVCLRule.CompDirectiveMode)));
+  FWrapMode := TCnCodeWrapMode(Ini.ReadInteger('', csWrapMode, Ord(CnPascalCodeForVCLRule.CodeWrapMode)));
+  FBeginStyle := TCnBeginStyle(Ini.ReadInteger('', csBeginStyle, Ord(CnPascalCodeForVCLRule.BeginStyle)));
+  FKeywordStyle := TCnKeywordStyle(Ini.ReadInteger('', csKeywordStyle, Ord(CnPascalCodeForVCLRule.KeywordStyle)));
+  FDirectiveMode := TCnCompDirectiveMode(Ini.ReadInteger('', csDirectiveMode, Ord(CnPascalCodeForVCLRule.CompDirectiveMode)));
   FKeepUserLineBreak := Ini.ReadBool('', csKeepUserLineBreak,
     CnPascalCodeForVCLRule.KeepUserLineBreak);
 {$IFDEF CNWIZARDS_CNINPUTHELPER}
@@ -762,7 +762,7 @@ var
   Block: IOTAEditBlock;
   StartPos, EndPos, StartPosIn, EndPosIn: Integer;
   StartRec, EndRec: TOTACharPos;
-  EP: TOTAEditPos;
+  EP, ErrPos: TOTAEditPos;
   ErrLine: string;
   BpBmLineMarks: array of DWORD;
   OutLineMarks: PDWORD;
@@ -982,7 +982,9 @@ begin
           ErrCode := Formatter.RetrievePascalLastError(SourceLine, SourceCol,
             SourcePos, CurrentToken);
           Screen.Cursor := crDefault;
-
+{$IFDEF DEBUG}
+          CnDebugger.LogFmt('Format Error at Line %d, Col %d', [SourceLine, SourceCol]);
+{$ENDIF}
           ErrLine := CnOtaGetLineText(SourceLine, View.Buffer);
           CnOtaGotoEditPos(OTAEditPos(ConvertToEditorCol(ErrLine, SourceCol),
             SourceLine), nil, False);
@@ -1069,7 +1071,7 @@ begin
               View);
 
 {$IFDEF DEBUG}
-            CnDebugger.LogRawString('Format Selection To Process: ' + Src);
+//          CnDebugger.LogRawString('Format Selection To Process: ' + Src);
 {$ENDIF}
             // 此时 StartPos 和 EndPos 标记了当前选择区内要处理的文本
 {$IFDEF UNICODE}
@@ -1135,10 +1137,16 @@ begin
               ErrCode := Formatter.RetrievePascalLastError(SourceLine, SourceCol,
                 SourcePos, CurrentToken);
               Screen.Cursor := crDefault;
-
+{$IFDEF DEBUG}
+              CnDebugger.LogFmt('Format Error at Line %d, Col %d', [SourceLine, SourceCol]);
+{$ENDIF}
               ErrLine := CnOtaGetLineText(SourceLine, View.Buffer);
-              CnOtaGotoEditPos(OTAEditPos(ConvertToEditorCol(ErrLine, SourceCol),
-                SourceLine));
+              ErrPos := OTAEditPos(ConvertToEditorCol(ErrLine, SourceCol), SourceLine);
+{$IFDEF DEBUG}
+              CnDebugger.LogFmt('Format Error Converted EditPos is Line %d, Col %d', [ErrPos.Line, ErrPos.Col]);
+{$ENDIF}
+
+              CnOtaGotoEditPos(ErrPos);
               ErrorDlg(Format(SCnCodeFormatterErrPascalFmt, [SourceLine,
                 ConvertToVisibleCol(ErrLine, SourceCol),
                 GetErrorStr(ErrCode), CurrentToken]));
@@ -1190,7 +1198,7 @@ end;
 
 procedure TCnCodeFormatterForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  if seNewLine.Value < seWrapLine.Value then
+  if (ModalResult = mrOK) and (seNewLine.Value < seWrapLine.Value) then
   begin
     ErrorDlg(SCnCodeFormatterWizardErrLineWidth);
     CanClose := False;

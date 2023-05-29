@@ -1,6 +1,6 @@
 inherited CnProjectBackupForm: TCnProjectBackupForm
-  Left = 433
-  Top = 392
+  Left = 385
+  Top = 274
   AutoScroll = False
   Caption = 'Project Backup'
   ClientHeight = 444
@@ -85,8 +85,8 @@ inherited CnProjectBackupForm: TCnProjectBackupForm
   TextHeight = 13
   object statMain: TStatusBar
     Left = 0
-    Top = 437
-    Width = 661
+    Top = 425
+    Width = 653
     Height = 19
     AutoHint = True
     Panels = <
@@ -104,8 +104,8 @@ inherited CnProjectBackupForm: TCnProjectBackupForm
   object lvFileView: TListView
     Left = 0
     Top = 58
-    Width = 661
-    Height = 379
+    Width = 653
+    Height = 367
     Align = alClient
     Columns = <
       item
@@ -136,7 +136,7 @@ inherited CnProjectBackupForm: TCnProjectBackupForm
   object tlbMain: TToolBar
     Left = 0
     Top = 0
-    Width = 661
+    Width = 653
     Height = 31
     BorderWidth = 1
     Caption = 'tlbMain'
@@ -201,7 +201,7 @@ inherited CnProjectBackupForm: TCnProjectBackupForm
   object pnlTool: TPanel
     Left = 0
     Top = 31
-    Width = 661
+    Width = 653
     Height = 27
     Align = alTop
     BevelOuter = bvNone
@@ -212,6 +212,12 @@ inherited CnProjectBackupForm: TCnProjectBackupForm
       Width = 38
       Height = 13
       Caption = '&Project:'
+    end
+    object lblLast: TLabel
+      Left = 296
+      Top = 7
+      Width = 3
+      Height = 13
     end
     object cbbProjectList: TComboBox
       Left = 82

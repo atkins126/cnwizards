@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -359,6 +359,7 @@ const
   _SUPPORT_WIDECHAR_IDENTIFIER = {$IFDEF SUPPORT_WIDECHAR_IDENTIFIER}True{$ELSE}False{$ENDIF};
   _UNICODE_STRING = {$IFDEF UNICODE}True{$ELSE}False{$ENDIF};
   _VERSIONINFO_PER_CONFIGURATION = {$IFDEF VERSIONINFO_PER_CONFIGURATION}True{$ELSE}False{$ENDIF};
+  _CAPTURE_STACK = {$IFDEF CAPTURE_STACK}True{$ELSE}False{$ENDIF};
 
 {$IFDEF DELPHI5}
   Compiler: TCnCompiler = cnDelphi5;

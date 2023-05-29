@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -112,11 +112,9 @@ type
     procedure SetFonts(const Index: Integer; const Value: TFont);
     procedure DispFontText;
     procedure ResetFontsFromBasic(ABasicFont: TFont);
-    { Private declarations }
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     property CopySelectedShortCut: TShortCut index 0 read GetShortCut write SetShortCut;
     property ExportUnitShortCut: TShortCut index 1 read GetShortCut write SetShortCut;
     property ExportOpenedShortCut: TShortCut index 2 read GetShortCut write SetShortCut;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -192,6 +192,7 @@ begin
   CL.AddDelphiFunction('Function IsCapsLockDown : Boolean');
   CL.AddDelphiFunction('Function IsNumLockDown : Boolean');
   CL.AddDelphiFunction('Function IsScrollLockDown : Boolean');
+  CL.AddDelphiFunction('Function HandleEditShortCut( AControl : TWinControl; AShortCut : TShortCut) : Boolean');
   CL.AddDelphiFunction('Function RemoveClassPrefix( const ClassName : string) : string');
   CL.AddDelphiFunction('Procedure InfoDlg( Mess : string)');
   CL.AddDelphiFunction('Function InfoOk( Mess : string) : Boolean');
@@ -436,6 +437,7 @@ begin
   S.RegisterDelphiFunction(@IsCapsLockDown, 'IsCapsLockDown', cdRegister);
   S.RegisterDelphiFunction(@IsNumLockDown, 'IsNumLockDown', cdRegister);
   S.RegisterDelphiFunction(@IsScrollLockDown, 'IsScrollLockDown', cdRegister);
+  S.RegisterDelphiFunction(@HandleEditShortCut, 'HandleEditShortCut', cdRegister);
   S.RegisterDelphiFunction(@RemoveClassPrefix, 'RemoveClassPrefix', cdRegister);
   S.RegisterDelphiFunction(@InfoDlg_P, 'InfoDlg', cdRegister);
   S.RegisterDelphiFunction(@InfoOk_P, 'InfoOk', cdRegister);

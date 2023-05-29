@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -56,7 +56,7 @@ type
     FLock: Word;
     FColumnPos: Integer;            // 当前列值，注意它和实际情况不一定一致，因为 FCode 中的字符串可能带回车换行
     FActualColumn: Integer;         // 当前实际列值，等于 FCode 最后一行最后一个 #13#10 后的内容
-    FCodeWrapMode: TCodeWrapMode;
+    FCodeWrapMode: TCnCodeWrapMode;
     FPrevStr: string;
     FPrevRow: Integer;
     FPrevColumn: Integer;
@@ -119,11 +119,14 @@ type
        逻辑上，复制范围内的内容不包括 EndColumn 所指的字符}
 
     procedure BackSpaceLastSpaces;
-    {* 把最后一行的行尾空格删掉一个，避免因为已经输出了带空格的内容，导致行尾注释后移的问题}
+    {* 把最后一行的行尾空格删掉一个，避免因为已经输出了带空格的内容，导致行尾注释后移的问题
+      注意 Scanner 在忽略区时不要调用，免得引起额外的空格消失}
     procedure TrimLastEmptyLine;
     {* 如果最后一行是全空格，则清除此行的所有空格，用于保留换行的场合}
     function IsLastLineEmpty: Boolean;
     {* 最后一行是否就一个回车}
+    function IsLastLineSpaces: Boolean;
+    {* 最后一行是否就空格和 Tab}
     function IsLast2LineEmpty: Boolean;
     {* 最后两行是否就两个回车，如果行数不够也返回 False}
 
@@ -144,7 +147,7 @@ type
     {* 当前行最前面的空格数}
     property LastIndentSpaceWithOutComments: Integer read GetLastIndentSpaceWithOutComments;
     {* 上一个非自动换以及非注释的行的最前面的空格数}
-    property CodeWrapMode: TCodeWrapMode read FCodeWrapMode write FCodeWrapMode;
+    property CodeWrapMode: TCnCodeWrapMode read FCodeWrapMode write FCodeWrapMode;
     {* 代码换行的设置}
     property KeepLineBreak: Boolean read FKeepLineBreak write FKeepLineBreak;
     {* 由外界设置的保留换行标记，为 True 时无需处理自动换行}
@@ -994,6 +997,24 @@ begin
   Result := False;
   if FCode.Count > 1 then
     Result := (FCode[FCode.Count - 1] = '') and (FCode[FCode.Count - 2] = '');
+end;
+
+function TCnCodeGenerator.IsLastLineSpaces: Boolean;
+var
+  S: string;
+  Len, I: Integer;
+begin
+  Result := False;
+  if FCode.Count > 0 then
+  begin
+    S := FCode[FCode.Count - 1];
+    Len := Length(S);
+    if Len > 0 then
+      for I := 1 to Len do
+        if (S[I] <> ' ') and (S[I] <> #09) then
+          Exit;
+  end;
+  Result := True;
 end;
 
 end.

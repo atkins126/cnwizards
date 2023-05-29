@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -1368,10 +1368,13 @@ procedure TCnSubMenuWizard.OnExecute(Sender: TObject);
 var
   I: Integer;
 begin
-  if not Active or FExecuting then Exit;
+  if not Active or FExecuting then
+    Exit;
+
   FExecuting := True;
   try
     for I := 0 to FList.Count - 1 do
+    begin
       if TObject(FList[I]) = Sender then
       begin
         // 防止通过快捷键调用无效的工具
@@ -1386,13 +1389,16 @@ begin
               SubActionExecute(I);
           except
             on E: Exception do
+            begin
               DoHandleException(Format('%s.SubActions[%d].Execute: %s - %s',
                 [ClassName, I, E.ClassName, E.Message]));
+            end;
           end;
         end;
 
         Exit;
       end;
+    end;
   finally
     FExecuting := False;
   end;

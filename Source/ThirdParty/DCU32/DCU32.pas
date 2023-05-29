@@ -973,7 +973,7 @@ begin
           end;
         drConstAddInfo:
           begin
-            if not IsMSIL then
+            if (not IsMSIL) and not (Ver >= verD_110A) then // LiuXiao: D11.3 other info packed after uses unit name
               break;
             if hImp <> 0 then
               DCUErrorFmt('ConstAddInfo encountered for %s in subrecord #%d', [UseName, hImp]);
@@ -2458,6 +2458,12 @@ begin
           hDef2 := ReadUindex;
           V := ReadUindex;
         end;
+      $08:  // 08 Add by LiuXiao to Process 11.3 DCUs for new string such as comment after ///
+        begin
+          Result := ReadUIndex;
+          V := ReadUIndex;
+          SkipBlock(V);
+        end;
       $09:
         begin
           Result := ReadUindex;
@@ -2620,6 +2626,12 @@ begin
           V := ReadUIndex;
           V1 := ReadUIndex;
           V2 := ReadUIndex;
+        end;
+      $16:  // 16 Add by LiuXiao to Process 11.3 DCUs for new info
+        begin
+          Result := ReadUIndex;
+          V := ReadUIndex;
+          SkipBlock(V);
         end;
     else
       break;

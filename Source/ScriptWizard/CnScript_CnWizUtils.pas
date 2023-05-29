@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -294,6 +294,7 @@ begin
   CL.AddConstantN('_SUPPORT_WIDECHAR_IDENTIFIER', 'Boolean').SetUInt(Ord(_SUPPORT_WIDECHAR_IDENTIFIER));
   CL.AddConstantN('_UNICODE_STRING', 'Boolean').SetUInt(Ord(_UNICODE_STRING));
   CL.AddConstantN('_VERSIONINFO_PER_CONFIGURATION', 'Boolean').SetUInt(Ord(_VERSIONINFO_PER_CONFIGURATION));
+  CL.AddConstantN('_CAPTURE_STACK', 'Boolean').SetUInt(Ord(_CAPTURE_STACK));
 
   CL.AddTypeS('TFormType', '( ftBinary, ftText, ftUnknown )');
   CL.AddTypeS('TCnCharSet', 'set of Char');
@@ -344,7 +345,6 @@ begin
   CL.AddDelphiFunction('Procedure GetCursorList( List : TStrings)');
   CL.AddDelphiFunction('Procedure GetCharsetList( List : TStrings)');
   CL.AddDelphiFunction('Procedure GetColorList( List : TStrings)');
-  CL.AddDelphiFunction('Function HandleEditShortCut( AControl : TWinControl; AShortCut : TShortCut) : Boolean');
   CL.AddTypeS('TCnSelectMode', '( smAll, smNone, smInvert )');
   CL.AddDelphiFunction('Function CnGetComponentText( Component : TComponent) : string');
   CL.AddDelphiFunction('Function CnGetComponentAction( Component : TComponent) : TBasicAction');
@@ -511,7 +511,8 @@ begin
   CL.AddDelphiFunction('Function CnOtaSetCurSourceCol( Col : Integer) : Boolean');
   CL.AddDelphiFunction('Function CnOtaSetCurSourceRow( Row : Integer) : Boolean');
   CL.AddDelphiFunction('Function CnOtaMovePosInCurSource( Pos : TInsertPos; OffsetRow, OffsetCol : Integer) : Boolean');
-  CL.AddDelphiFunction('Function CnOtaGetCurrPos( SourceEditor : IOTASourceEditor) : Integer');
+  CL.AddDelphiFunction('Function CnOtaGetCurrLinePos( SourceEditor : IOTASourceEditor) : Integer');
+  CL.AddDelphiFunction('Function CnOtaGetLinePosFromEditPos( EditPos : TOTAEditPos; SourceEditor : IOTASourceEditor) : Integer');
   CL.AddDelphiFunction('Function CnOtaGetCurrCharPos( SourceEditor : IOTASourceEditor) : TOTACharPos');
   CL.AddDelphiFunction('Function CnOtaEditPosToLinePos( EditPos : TOTAEditPos; EditView : IOTAEditView) : Integer');
   CL.AddDelphiFunction('Function CnOtaLinePosToEditPos( LinePos : Integer; EditView : IOTAEditView) : TOTAEditPos');
@@ -552,6 +553,11 @@ begin
   CL.AddDelphiFunction('Function SameCharPos( Pos1, Pos2 : TOTACharPos) : Boolean');
   CL.AddDelphiFunction('Function HWndIsNonvisualComponent( hWnd : HWND) : Boolean');
   CL.AddDelphiFunction('Procedure TranslateFormFromLangFile( AForm: TCustomForm; const ALangDir, ALangFile: string; LangID: Cardinal)');
+  CL.AddDelphiFunction('Function CnWizInputQuery( const ACaption, APrompt: string; var Value: string; Ini: TCustomIniFile; const Section: string): Boolean');
+  CL.AddDelphiFunction('Function CnWizInputBox( const ACaption, APrompt, ADefault: string; Ini: TCustomIniFile; const Section: string): string');
+  CL.AddDelphiFunction('Function CnWizInputMultiLineQuery( const ACaption, APrompt: string; var Value: string): Boolean');
+  CL.AddDelphiFunction('Function CnWizInputMultiLineBox( const ACaption, APrompt, ADefault: string): string');
+
   // CnWizSearch
   CL.AddDelphiFunction('Function CheckFileCRLF(const FileName: string; out CRLFCount, LFCount: Integer) : Boolean');
   CL.AddDelphiFunction('Function CorrectFileCRLF(const FileName: string; out CorrectCount: Integer) : Boolean');
@@ -618,7 +624,6 @@ begin
   S.RegisterDelphiFunction(@GetCursorList, 'GetCursorList', cdRegister);
   S.RegisterDelphiFunction(@GetCharsetList, 'GetCharsetList', cdRegister);
   S.RegisterDelphiFunction(@GetColorList, 'GetColorList', cdRegister);
-  S.RegisterDelphiFunction(@HandleEditShortCut, 'HandleEditShortCut', cdRegister);
   S.RegisterDelphiFunction(@CnGetComponentText, 'CnGetComponentText', cdRegister);
   S.RegisterDelphiFunction(@CnGetComponentAction, 'CnGetComponentAction', cdRegister);
   S.RegisterDelphiFunction(@RemoveListViewSubImages, 'RemoveListViewSubImages', cdRegister);
@@ -779,7 +784,8 @@ begin
   S.RegisterDelphiFunction(@CnOtaSetCurSourceCol, 'CnOtaSetCurSourceCol', cdRegister);
   S.RegisterDelphiFunction(@CnOtaSetCurSourceRow, 'CnOtaSetCurSourceRow', cdRegister);
   S.RegisterDelphiFunction(@CnOtaMovePosInCurSource, 'CnOtaMovePosInCurSource', cdRegister);
-  S.RegisterDelphiFunction(@CnOtaGetCurrPos, 'CnOtaGetCurrPos', cdRegister);
+  S.RegisterDelphiFunction(@CnOtaGetCurrLinePos, 'CnOtaGetCurrLinePos', cdRegister);
+  S.RegisterDelphiFunction(@CnOtaGetLinePosFromEditPos, 'CnOtaGetLinePosFromEditPos', cdRegister);
   S.RegisterDelphiFunction(@CnOtaGetCurrCharPos, 'CnOtaGetCurrCharPos', cdRegister);
   S.RegisterDelphiFunction(@CnOtaEditPosToLinePos, 'CnOtaEditPosToLinePos', cdRegister);
   S.RegisterDelphiFunction(@CnOtaLinePosToEditPos, 'CnOtaLinePosToEditPos', cdRegister);
@@ -820,6 +826,11 @@ begin
   S.RegisterDelphiFunction(@SameCharPos, 'SameCharPos', cdRegister);
   S.RegisterDelphiFunction(@HWndIsNonvisualComponent, 'HWndIsNonvisualComponent', cdRegister);
   S.RegisterDelphiFunction(@TranslateFormFromLangFile, 'TranslateFormFromLangFile', cdRegister);
+  S.RegisterDelphiFunction(@CnWizInputQuery, 'CnWizInputQuery', cdRegister);
+  S.RegisterDelphiFunction(@CnWizInputBox, 'CnWizInputBox', cdRegister);
+  S.RegisterDelphiFunction(@CnWizInputMultiLineQuery, 'CnWizInputMultiLineQuery', cdRegister);
+  S.RegisterDelphiFunction(@CnWizInputMultiLineBox, 'CnWizInputMultiLineBox', cdRegister);
+
   // CnWizSearch
   S.RegisterDelphiFunction(@CheckFileCRLF, 'CheckFileCRLF', cdRegister);
   S.RegisterDelphiFunction(@CorrectFileCRLF, 'CorrectFileCRLF', cdRegister);

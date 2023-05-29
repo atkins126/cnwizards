@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -28,7 +28,9 @@ unit CnPasCodeParser;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2019.03.16 V1.2
+* 修改记录：2022.02.06 V1.3
+*               重构部分函数并增加对仅解析字符串 Token 的方法
+*           2019.03.16 V1.2
 *               优化对换行后的点号的支持以及点号后输入的内容恰好是关键字时的支持
 *           2012.02.07
 *               UTF8 的位置转换去除后仍有问题，恢复之
@@ -55,7 +57,7 @@ const
   CN_TOKEN_MAX_SIZE = 63;
 
 type
-  TCnCompDirectiveType = (ctNone, ctIf, ctIfDef, ctIfNDef, ctElse, ctEndIf,
+  TCnCompDirectiveType = (ctNone, ctIf, ctIfOpt, ctIfDef, ctIfNDef, ctElse, ctEndIf,
     ctIfEnd, ctRegion, ctEndRegion);
 
   TCnUseToken = class(TObject)
@@ -77,6 +79,7 @@ type
   private
     FTag: Integer;
     FBracketLayer: Integer;
+    FTokenLength: Integer;
     function GetToken: PAnsiChar;
     function GetEditEndCol: Integer;
   protected
@@ -104,41 +107,43 @@ type
     property UseAsC: Boolean read FUseAsC;
     {* 是否是 C 方式的解析，默认不是}
     property LineNumber: Integer read FLineNumber; // Start 0
-    {* 所在行号，从零开始，由 ParseSource 计算而来 }
+    {* 所在行号，从零开始，由 ParseSource 计算而来}
     property CharIndex: Integer read FCharIndex;   // Start 0
-    {* 从本行开始数的字符位置，从零开始，由 ParseSource 计算而来 }
+    {* 从本行开始数的字符位置，从零开始，由 ParseSource 计算而来}
 
     property EditCol: Integer read FEditCol write FEditCol;
-    {* Token 起始位置所在列，从一开始，由外界转换而来，一般对应 EditPos }
+    {* Token 起始位置所在列，从一开始，由外界转换而来，一般对应 EditPos}
     property EditLine: Integer read FEditLine write FEditLine;
-    {* 所在行，从一开始，由外界转换而来，一般对应 EditPos }
+    {* 所在行，从一开始，由外界转换而来，一般对应 EditPos}
     property EditEndCol: Integer read GetEditEndCol;
     {* Token 结束位置所在列，EditCol 转换成功后才有意义}
 
     property ItemIndex: Integer read FItemIndex;
-    {* 在整个 Parser 中的序号 }
+    {* 在整个 Parser 中的序号}
     property ItemLayer: Integer read FItemLayer;
-    {* 所在高亮的层次，包括过程、函数以及代码块，可直接用来绘制高亮层次，不在任何块内时（最外层）为 0 }
+    {* 所在高亮的层次，包括过程、函数以及代码块，可直接用来绘制高亮层次，不在任何块内时（最外层）为 0}
     property MethodLayer: Integer read FMethodLayer;
-    {* 所在函数的层次，最外层的函数内为 1，包括匿名函数，不在任何函数内时（最外层）为 0 }
+    {* 所在函数的层次，最外层的函数内为 1，包括匿名函数，不在任何函数内时（最外层）为 0}
     property BracketLayer: Integer read FBracketLayer;
     {* 所在的圆括号的层次，最外层的为 0。圆括号本身应该算高一层（暂未实现）}
     property Token: PAnsiChar read GetToken;
     {* 该 Token 的字符串内容 }
+    property TokenLength: Integer read FTokenLength write FTokenLength;
+    {* 该 Token 的实际字符长度，注意它可能大于 Token 数组的内容长度}
     property TokenID: TTokenKind read FTokenID;
-    {* Token 的语法类型 }
+    {* Token 的语法类型}
     property CppTokenKind: TCTokenKind read FCppTokenKind;
     {* 作为 C 的 Token 使用时的 CToken 类型}
     property TokenPos: Integer read FTokenPos;
-    {* Token 在整个文件中的线性位置 }
+    {* Token 在整个文件中的线性位置}
     property IsBlockStart: Boolean read FIsBlockStart;
-    {* 是否是一块可匹配代码区域的开始 }
+    {* 是否是一块可匹配代码区域的开始}
     property IsBlockClose: Boolean read FIsBlockClose;
-    {* 是否是一块可匹配代码区域的结束 }
+    {* 是否是一块可匹配代码区域的结束}
     property IsMethodStart: Boolean read FIsMethodStart;
-    {* 是否是函数过程的开始，包括 function/procedure 和 begin/asm 的情况 }
+    {* 是否是函数过程的开始，包括 function/procedure 和 begin/asm 的情况}
     property IsMethodClose: Boolean read FIsMethodClose;
-    {* 是否是函数过程的结束，只包括 end 的情况，因此和 MethodStart 数量不等 }
+    {* 是否是函数过程的结束，只包括 end 的情况，因此和 MethodStart 数量不等}
     property MethodStartAfterParentBegin: Boolean read FMethodStartAfterParentBegin;
     {* 当 IsMethodStart 是 True 且是 function/procedure 或 begin/asm 时，
        是否位于上一层 function/procedure 的 begin 后的实现部分。
@@ -182,11 +187,17 @@ type
     FIfStack: TCnObjectStack;
     function GetCount: Integer;
     function GetToken(Index: Integer): TCnPasToken; {$IFDEF SUPPORT_INLINE} inline; {$ENDIF}
+  protected
+    function CalcCharIndex(Lex: TmwPasLex; Source: PAnsiChar): Integer;
+    function NewToken(Lex: TmwPasLex; Source: PAnsiChar; CurrBlock: TCnPasToken = nil;
+      CurrMethod: TCnPasToken = nil; CurrBracketLevel: Integer = 0): TCnPasToken;
   public
     constructor Create(SupportUnicodeIdent: Boolean = False);
     destructor Destroy; override;
     procedure Clear;
+
     procedure ParseSource(ASource: PAnsiChar; AIsDpr, AKeyOnly: Boolean);
+    {* 对代码进行常规解析，不生成关键字与标识符之外的内容}
     function FindCurrentDeclaration(LineNumber, CharIndex: Integer): AnsiString;
     {* 查找指定光标位置所在的声明，LineNumber 1 开始，CharIndex 0 开始，类似于 CharPos
        要求是 Ansi 的偏移量。D567 下可以用 ConvertPos 得到的 CharPos 传入}
@@ -194,6 +205,10 @@ type
     {* 根据当前光标位置查找当前块与当前嵌套/外层函数等。
        LineNumber 1 开始，CharIndex 0 开始，类似于 CharPos
        要求是 Ansi 的偏移量。D567 下可以用 ConvertPos 得到的 CharPos 传入}
+
+    procedure ParseString(ASource: PAnsiChar);
+    {* 对代码进行针对字符串的解析，只生成字符串内容}
+
     function IndexOfToken(Token: TCnPasToken): Integer;
     property Count: Integer read GetCount;
     property Tokens[Index: Integer]: TCnPasToken read GetToken;
@@ -256,20 +271,23 @@ type
     pkComment,         // 注释块内部，Pascal 和 C/C++ 都有效
     pkIntfUses,        // Pascal interface 的 uses 内部
     pkImplUses,        // Pascal implementation 的 uses 内部
-    pkClass,           // Pascal class 声明内部
+    pkClass,           // Pascal class 声明内部，也包括 record 内部
     pkInterface,       // Pascal interface 声明内部
-    pkType,            // Pascal type 定义区
-    pkConst,           // Pascal const 定义区
+    pkType,            // Pascal type 定义区等号前的部分
+    pkTypeDecl,        // Pascal type 定义区等号后的部分
+    pkConst,           // Pascal const 定义区，冒号或 = 前的部分
+    pkConstTypeValue,  // Pascal const 定义区，冒号或 = 后的部分
     pkResourceString,  // Pascal resourcestring 定义区
-    pkVar,             // Pascal var 定义区
-    pkCompDirect,      // 编译指令内部{$...}，C/C++ 则是指 #include 等内部
+    pkVar,             // Pascal var 定义区，冒号前的部分
+    pkVarType,         // Pascal var 定义区，冒号后的部分
+    pkCompDirect,      // 编译指令内部 {$...}，C/C++ 则是指 #include 等内部
     pkString,          // 字符串内部，Pascal 和 C/C++ 都有效
     pkField,           // 标识符. 后面的域内部，属性、方法、事件、记录项等，Pascal 和 C/C++ 都有效
     pkProcedure,       // 过程内部
     pkFunction,        // 函数内部
     pkConstructor,     // 构造器内部
     pkDestructor,      // 析构器内部
-    pkFieldDot,        // 连接域的点，包括C/C++的->
+    pkFieldDot,        // 连接域的点，包括 C/C++ 的 ->
 
     pkDeclaration);    // C中的变量声明区，指类型之后的变量名部分，一般无需弹出
 
@@ -518,12 +536,74 @@ begin
   Result := TCnPasToken(FList[Index]);
 end;
 
+function TCnPasStructureParser.CalcCharIndex(Lex: TmwPasLex; Source: PAnsiChar): Integer;
+{$IFDEF BDS2009_UP}
+var
+  I, Len: Integer;
+{$ENDIF}
+begin
+{$IFDEF BDS2009_UP}
+  if FUseTabKey and (FTabWidth >= 2) then
+  begin
+    // 遍历当前行内容进行 Tab 键展开
+    I := Lex.LinePos;
+    Len := 0;
+    while ( I < Lex.TokenPos ) do
+    begin
+      if (Source[I] = #09) then
+        Len := ((Len div FTabWidth) + 1) * FTabWidth
+      else
+        Inc(Len);
+      Inc(I);
+    end;
+    Result := Len;
+  end
+  else
+{$ENDIF}
+    Result := Lex.TokenPos - Lex.LinePos;
+end;
+
+function TCnPasStructureParser.NewToken(Lex: TmwPasLex; Source: PAnsiChar;
+  CurrBlock, CurrMethod: TCnPasToken; CurrBracketLevel: Integer): TCnPasToken;
+var
+  Len: Integer;
+begin
+  Result := CreatePasToken;
+  Result.FTokenPos := Lex.TokenPos;
+
+  Len := Lex.TokenLength;
+  Result.FTokenLength := Len;
+  if Len > CN_TOKEN_MAX_SIZE then
+    Len := CN_TOKEN_MAX_SIZE;
+  // FillChar(Token.FToken[0], SizeOf(Token.FToken), 0);
+  CopyMemory(@Result.FToken[0], Lex.TokenAddr, Len);
+  Result.FToken[Len] := #0;
+
+  Result.FLineNumber := Lex.LineNumber;
+  Result.FCharIndex := CalcCharIndex(Lex, Source);
+  Result.FTokenID := Lex.TokenID;
+  Result.FItemIndex := FList.Count;
+  if CurrBlock <> nil then
+    Result.FItemLayer := CurrBlock.FItemLayer;
+
+  // CurrBlock 的 ItemLayer 包含了 MethodLayer，但如果没有 CurrBlock，
+  // 就得考虑用 CurrMethod 的 MethodLayer 来初始化 Token 的 ItemLayer。
+  if CurrMethod <> nil then
+  begin
+    Result.FMethodLayer := CurrMethod.FMethodLayer;
+    if CurrBlock = nil then
+      Result.FItemLayer := CurrMethod.FMethodLayer;
+  end;
+  Result.FBracketLayer := CurrBracketLevel;
+  FList.Add(Result);
+end;
+
 procedure TCnPasStructureParser.ParseSource(ASource: PAnsiChar; AIsDpr, AKeyOnly:
   Boolean);
 var
   Lex: TmwPasLex;
   Token, CurrMethod, CurrBlock, CurrMidBlock, CurrIfStart: TCnPasToken;
-  SavePos, SaveLineNumber, SaveLinePos: Integer;
+  Bookmark: TmwPasLexBookmark;
   IsClassOpen, IsClassDef, IsImpl, IsHelper, IsElseIf, ExpectElse: Boolean;
   IsRecordHelper, IsSealed, IsAbstract, IsRecord, IsObjectRecord, IsForFunc: Boolean;
   SameBlockMethod, CanEndBlock, CanEndMethod: Boolean;
@@ -532,66 +612,6 @@ var
   PrevTokenStr: AnsiString;
   AProcObj, PrevProcObj: TCnProcObj;
   AIfObj: TCnIfStatement;
-
-  function CalcCharIndex(): Integer;
-{$IFDEF BDS2009_UP}
-  var
-    I, Len: Integer;
-{$ENDIF}
-  begin
-{$IFDEF BDS2009_UP}
-    if FUseTabKey and (FTabWidth >= 2) then
-    begin
-      // 遍历当前行内容进行 Tab 键展开
-      I := Lex.LinePos;
-      Len := 0;
-      while ( I < Lex.TokenPos ) do
-      begin
-        if (ASource[I] = #09) then
-          Len := ((Len div FTabWidth) + 1) * FTabWidth
-        else
-          Inc(Len);
-        Inc(I);
-      end;
-      Result := Len;
-    end
-    else
-{$ENDIF}
-      Result := Lex.TokenPos - Lex.LinePos;
-  end;
-
-  procedure NewToken;
-  var
-    Len: Integer;
-  begin
-    Token := CreatePasToken;
-    Token.FTokenPos := Lex.TokenPos;
-    
-    Len := Lex.TokenLength;
-    if Len > CN_TOKEN_MAX_SIZE then
-      Len := CN_TOKEN_MAX_SIZE;
-    // FillChar(Token.FToken[0], SizeOf(Token.FToken), 0);
-    CopyMemory(@Token.FToken[0], Lex.TokenAddr, Len);
-    Token.FToken[Len] := #0;
-
-    Token.FLineNumber := Lex.LineNumber;
-    Token.FCharIndex := CalcCharIndex();
-    Token.FTokenID := Lex.TokenID;
-    Token.FItemIndex := FList.Count;
-    if CurrBlock <> nil then
-      Token.FItemLayer := CurrBlock.FItemLayer;
-
-    // CurrBlock 的 ItemLayer 包含了 MethodLayer，但如果没有 CurrBlock，
-    // 就得考虑用 CurrMethod 的 MethodLayer 来初始化 Token 的 ItemLayer。
-    if CurrMethod <> nil then
-    begin
-      Token.FMethodLayer := CurrMethod.FMethodLayer;
-      if CurrBlock = nil then
-        Token.FItemLayer := CurrMethod.FMethodLayer;
-    end;
-    Token.FBracketLayer := CurrBracketLevel;
-    FList.Add(Token);
-  end;
 
   procedure DiscardToken(Forced: Boolean = False);
   begin
@@ -615,7 +635,7 @@ begin
   Clear;
   Lex := nil;
   PrevTokenID := tkProgram;
-  
+
   try
     FSource := ASource;
     FKeyOnly := AKeyOnly;
@@ -630,8 +650,7 @@ begin
     Lex.Origin := PAnsiChar(ASource);
 
     DeclareWithEndLevel := 0; // 嵌套的需要 end 的定义层数
-    Token := nil;
-    CurrMethod := nil;        // 当前 Token 所在的方法 procedure/function，包括匿名函数的情形 
+    CurrMethod := nil;        // 当前 Token 所在的方法 procedure/function，包括匿名函数的情形
     CurrBlock := nil;         // 当前 Token 所在的块。
     CurrMidBlock := nil;
     CurrBracketLevel := 0;
@@ -648,8 +667,8 @@ begin
       ExpectElse := False;
 
       if (Lex.TokenID in [tkCompDirect]) // Allow CompDirect
-        or ((PrevTokenID <> tkAmpersand) and (Lex.TokenID in
-        [tkProcedure, tkFunction, tkConstructor, tkDestructor,
+        or ((not (PrevTokenID in [tkAmpersand, tkAddressOp])) and (Lex.TokenID in
+        [tkProcedure, tkFunction, tkConstructor, tkDestructor, tkOperator,
         tkInitialization, tkFinalization,
         tkBegin, tkAsm,
         tkCase, tkTry, tkRepeat, tkIf, tkFor, tkWith, tkOn, tkWhile,
@@ -658,13 +677,10 @@ begin
         tkExcept, tkFinally, tkElse,
         tkEnd, tkUntil, tkThen, tkDo])) then
       begin
-        NewToken;
+        Token := NewToken(Lex, ASource, CurrBlock, CurrMethod, CurrBracketLevel);
         case Lex.TokenID of
-          tkProcedure, tkFunction, tkConstructor, tkDestructor:
+          tkProcedure, tkFunction, tkConstructor, tkDestructor, tkOperator:
             begin
-              // IsAnonFunc := IsImpl and (Lex.TokenID in [tkProcedure, tkFunction])
-              //   and (PrevTokenID in [tkTo, tkAssign, tkRoundOpen, tkComma]);
-
               // 不处理 procedure/function 类型定义，前面是 = 号
               // 也不处理 procedure/function 变量声明，前面是 : 号
               // 也不处理匿名方法声明，前面是 to
@@ -674,10 +690,6 @@ begin
                 and (DeclareWithEndLevel <= 0) then
               begin
                 // DeclareWithEndLevel <= 0 表示只处理 class/record 外的声明，内部不管
-//                while BlockStack.Count > 0 do
-//                  BlockStack.Pop;
-//                CurrBlock := nil;
-
                 if CurrBlock = nil then
                   Token.FItemLayer := 0
                 else
@@ -800,24 +812,14 @@ begin
                 ((PrevTokenID = tkSymbol) and (PrevTokenStr = '&'));
               if IsRecord then
               begin
-                // 处理 record helper for 的情形，但在implementation部分其end会被
-                // record内部的function/procedure给干掉，暂无解决方案。
-                IsRecordHelper := False;
-                SavePos := Lex.RunPos;
-                SaveLineNumber := Lex.LineNumber;
-                SaveLinePos := Lex.LinePos;
+                // 处理 record helper for 的情形，但在 implementation 部分其 end 会被
+                // record 内部的 function/procedure 给干掉，暂无解决方案。
+                Lex.SaveToBookmark(Bookmark);
 
                 LexNextNoJunkWithoutCompDirect(Lex);
-                if Lex.TokenID in [tkSymbol, tkIdentifier] then
-                begin
-                  if LowerCase(string(Lex.Token)) = 'helper' then
-                    IsRecordHelper := True;
-                end;
+                IsRecordHelper := Lex.TokenID = tkHelper;
 
-                // TODO: 恢复后，Lex.TokenID 变了
-                Lex.LineNumber := SaveLineNumber;
-                Lex.LinePos := SaveLinePos;
-                Lex.RunPos := SavePos;
+                Lex.LoadFromBookmark(Bookmark);
               end;
 
               // of object 的 object 不应该高亮，但不在此处剔除
@@ -902,41 +904,25 @@ begin
               // 处理不是 classdef 但是 class helper for TObject 的情形
               if not IsClassDef and (Lex.TokenID = tkClass) and not Lex.IsClass then
               begin
-                SavePos := Lex.RunPos;
-                SaveLineNumber := Lex.LineNumber;
-                SaveLinePos := Lex.LinePos;
+                Lex.SaveToBookmark(Bookmark);
 
                 LexNextNoJunkWithoutCompDirect(Lex);
-                if Lex.TokenID in [tkSymbol, tkIdentifier, tkSealed, tkAbstract] then
+                if Lex.TokenID in [tkHelper, tkSealed, tkAbstract] then
                 begin
-                  if LowerCase(string(Lex.Token)) = 'helper' then
-                  begin
-                    IsClassDef := True;
-                    IsHelper := True;
-                  end
-                  else if Lex.TokenID = tkSealed then
-                  begin
-                    IsClassDef := True;
-                    IsSealed := True;
-                  end
-                  else if Lex.TokenID = tkAbstract then
-                  begin
-                    IsClassDef := True;
-                    IsAbstract := True;
-                  end;
+                  IsClassDef := True;
+                  IsHelper := Lex.TokenID = tkHelper;
+                  IsSealed := Lex.TokenID = tkSealed;
+                  IsAbstract := Lex.TokenID = tkAbstract;
                 end;
-                Lex.LineNumber := SaveLineNumber;
-                Lex.LinePos := SaveLinePos;
-                Lex.RunPos := SavePos;
+
+                Lex.LoadFromBookmark(Bookmark);
               end;
 
               IsClassOpen := False;
               if IsClassDef then
               begin
                 IsClassOpen := True;
-                SavePos := Lex.RunPos;
-                SaveLineNumber := Lex.LineNumber;
-                SaveLinePos := Lex.LinePos;
+                Lex.SaveToBookmark(Bookmark);
 
                 LexNextNoJunkWithoutCompDirect(Lex);
                 if Lex.TokenID = tkSemiColon then // 是个 class; 不需要 end;
@@ -957,11 +943,7 @@ begin
                 else if Lex.TokenID = tkFor then
                   IsClassOpen := True;
 
-                // RunPos 重新赋值不会导致已经下移的 LineNumber 回归，是个 Bug
-                // 如果给 Lex 的 LineNumber 以及 LinePos 直接赋值，又不知道会有啥问题
-                Lex.LineNumber := SaveLineNumber;
-                Lex.LinePos := SaveLinePos;
-                Lex.RunPos := SavePos;
+                Lex.LoadFromBookmark(Bookmark);
               end;
 
               if IsClassOpen then // 有后续内容，需要一个 end
@@ -1269,7 +1251,7 @@ begin
 
         // 需要时，普通标识符加，& 后的标识符也加
         if not AKeyOnly and ((PrevTokenID <> tkAmpersand) or (Lex.TokenID = tkIdentifier)) then
-          NewToken;
+          Token := NewToken(Lex, ASource, CurrBlock, CurrMethod, CurrBracketLevel);
       end;
 
       if Lex.TokenID = tkRoundOpen then
@@ -1554,6 +1536,31 @@ begin
   end;
 end;
 
+procedure TCnPasStructureParser.ParseString(ASource: PAnsiChar);
+var
+  Lex: TmwPasLex;
+begin
+  Clear;
+  Lex := nil;
+
+  try
+    FSource := ASource;
+
+    Lex := TmwPasLex.Create(FSupportUnicodeIdent);
+    Lex.Origin := PAnsiChar(ASource);
+
+    while Lex.TokenID <> tkNull do
+    begin
+      if Lex.TokenID in [tkString] then
+        NewToken(Lex, ASource);
+
+      Lex.NextNoJunk;
+    end;
+  finally
+    Lex.Free;
+  end;
+end;
+
 //==============================================================================
 // Pascal 源码位置信息分析
 //==============================================================================
@@ -1563,6 +1570,7 @@ function ParsePasCodePosInfo(const Source: AnsiString; CurrPos: Integer;
 var
   IsProgram: Boolean;
   InClass: Boolean;
+  IsAfterProcBegin: Boolean;
   ProcStack: TStack;
   ProcIndent: Integer;
   SavePos: TCodePosKind;
@@ -1624,7 +1632,9 @@ begin
     SavePos := pkUnknown;
     IsProgram := False;
     InClass := False;
+    IsAfterProcBegin := False;
     ProcIndent := 0;
+
     while (Lex.TokenPos < CurrPos) and (Lex.TokenID <> tkNull) do
     begin
       // CnDebugger.LogFmt('Token ID %d, Pos %d, %s',[Integer(Lex.TokenID), Lex.TokenPos, Lex.Token]);
@@ -1633,6 +1643,10 @@ begin
       // 小修补，点号后的短关键字要当成普通标识符，才能保持 pkField
       if (Lex.LastNoSpace = tkPoint) and (Lex.TokenID in [tkTo, tkIn, tkOf, tkOn, tkIs, tkDo]) then
         MyTokenID := tkIdentifier;
+
+      // 小修补 (. 和 .) 会被语法当成左右中括号，后者对弹出有影响
+      if (Lex.TokenID = tkSquareClose) and (Lex.Token = '.)') then
+        MyTokenID := tkPoint;
 
       case MyTokenID of
         tkUnit:
@@ -1659,7 +1673,7 @@ begin
               Result.PosKind := pkInterface;
               DoNext(True);
               if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkSemiColon) then
-                Result.PosKind := pkType
+                Result.PosKind := pkTypeDecl
               else if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkRoundOpen) then
               begin
                 while (Lex.TokenPos < CurrPos) and not (Lex.TokenID in
@@ -1669,7 +1683,7 @@ begin
                 begin
                   DoNext(True);
                   if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkSemiColon) then
-                    Result.PosKind := pkType;
+                    Result.PosKind := pkTypeDecl;
                 end;
               end;
               if Result.PosKind = pkInterface then
@@ -1759,7 +1773,7 @@ begin
               Result.PosKind := pkClass;
               DoNext(True);
               if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkSemiColon) then
-                Result.PosKind := pkType
+                Result.PosKind := pkTypeDecl
               else if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkRoundOpen) then
               begin
                 while (Lex.TokenPos < CurrPos) and not (Lex.TokenID in
@@ -1769,7 +1783,7 @@ begin
                 begin
                   DoNext(True);
                   if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkSemiColon) then
-                    Result.PosKind := pkType
+                    Result.PosKind := pkTypeDecl
                   else
                   begin
                     InClass := True;
@@ -1779,6 +1793,18 @@ begin
               end
               else
               begin
+                InClass := True;
+                Continue;
+              end;
+            end
+            else // Lex 的 IsClass 在 class 关键字后是以下内容时判断错误，需如此弥补
+            begin
+              DoNext(True);
+              if (Lex.TokenPos < CurrPos) and (Lex.TokenID in [tkSealed, tkStrict,
+                tkPrivate, tkProtected, tkPublic, tkPublished, tkHelper, tkClass,
+                tkVar, tkConst, tkType, tkProperty]) then
+              begin
+                Result.PosKind := pkClass;
                 InClass := True;
                 Continue;
               end;
@@ -1804,7 +1830,7 @@ begin
           end;
         tkString:
           begin
-            if not SameText(string(Lex.Token), 'String') and (Result.PosKind <> pkString) then
+            if Result.PosKind <> pkString then
             begin
               SavePos := Result.PosKind;
               Result.PosKind := pkString;
@@ -1829,15 +1855,50 @@ begin
               else
                 Result.PosKind := pkDestructor;
               ProcStack.Push(Pointer(Result.PosKind));
+              IsAfterProcBegin := False;
             end;
             // todo: 处理单独声明的函数
           end;
         tkBegin, tkTry, tkCase, tkAsm, tkRecord:
           begin
-            if ProcStack.Count > 0 then
+            if (ProcStack.Count > 0) or ((ProcStack.Count = 0) and IsProgram and (MyTokenID = tkBegin)) then
             begin
               Inc(ProcIndent);
-              Result.PosKind := TCodePosKind(ProcStack.Peek);
+              if ProcStack.Count = 0 then // 表示是 program 或 library 里的主 begin
+                Result.PosKind := pkProcedure
+              else
+                Result.PosKind := TCodePosKind(ProcStack.Peek);
+              IsAfterProcBegin := True;
+            end;
+
+            if MyTokenID = tkRecord then
+            begin
+              Result.PosKind := pkClass; // Record 也复用 class 标记，后续的判断类似于 class
+              DoNext(True);
+              if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkSemiColon) then
+                Result.PosKind := pkTypeDecl
+              else if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkRoundOpen) then
+              begin
+                while (Lex.TokenPos < CurrPos) and not (Lex.TokenID in
+                  [tkNull, tkRoundClose]) do
+                  DoNext;
+                if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkRoundClose) then
+                begin
+                  DoNext(True);
+                  if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkSemiColon) then
+                    Result.PosKind := pkTypeDecl
+                  else
+                  begin
+                    InClass := True;
+                    Continue;
+                  end;
+                end;
+              end
+              else
+              begin
+                InClass := True;
+                Continue;
+              end;
             end;
           end;
         tkEnd:
@@ -1854,8 +1915,50 @@ begin
               begin
                 ProcStack.Pop;
                 Result.PosKind := pkFlat;
+                IsAfterProcBegin := False;
               end;
             end;
+          end;
+        tkColon:
+          begin
+            if Result.PosKind = pkVar then  // 判断是否就地 var Str: string 这种类型声明
+              Result.PosKind := pkVarType
+            else if Result.PosKind = pkConst then
+              Result.PosKind := pkConstTypeValue;
+          end;
+        tkEqual:
+          begin
+            if Result.PosKind = pkConst then
+              Result.PosKind := pkConstTypeValue
+            else if Result.PosKind = pkType then
+              Result.PosKind := pkTypeDecl;
+          end;
+        tkAssign:
+          begin
+            if Result.PosKind = pkVar then  // 判断是否就地 var K := 1 这种推断声明
+              Result.PosKind := pkVarType;
+
+            // Field 等内容如果碰到赋值，也要结束掉
+            if Result.PosKind in [pkCompDirect, pkComment, pkField] then
+              Result.PosKind := SavePos;
+          end;
+        tkSemiColon:
+          begin
+            if Result.PosKind in [pkString, pkCompDirect, pkComment] then // 先还原
+              Result.PosKind := SavePos;
+
+            if Result.PosKind = pkVarType then
+            begin
+              // 判断是否是 procedure 对应的 begin 后，是则恢复成 pkProcedure 等
+              if IsAfterProcBegin and (ProcStack.Count > 0) then
+                Result.PosKind := TCodePosKind(ProcStack.Peek)
+              else
+                Result.PosKind := pkVar;
+            end
+            else if Result.PosKind = pkConstTypeValue then
+              Result.PosKind := pkConst
+            else if Result.PosKind = pkTypeDecl then
+              Result.PosKind := pkType;
           end;
       else
         if Result.PosKind in [pkCompDirect, pkComment, pkString, pkField,

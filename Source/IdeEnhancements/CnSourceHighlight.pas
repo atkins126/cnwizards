@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2022 CnPack 开发组                       }
+{                   (C)Copyright 2001-2023 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -141,11 +141,11 @@ const
   csCppFlowTokenKinds: TIdentDirect = [ctkgoto, ctkreturn, ctkcontinue, ctkbreak];
   // If change here, CppCodeParser also need change.
 
-  csPasCompDirectiveTokenStr: array[0..7] of TCnIdeTokenString = // 并非全匹配而是开头匹配
-    ('{$IF ', '{$IFDEF ', '{$IFNDEF ', '{$ELSE', '{$ENDIF', '{$IFEND', '{$REGION', '{$ENDREGION');
+  csPasCompDirectiveTokenStr: array[0..8] of TCnIdeTokenString = // 并非全匹配而是开头匹配
+    ('{$IF ', '{$IFOPT ', '{$IFDEF ', '{$IFNDEF ', '{$ELSE', '{$ENDIF', '{$IFEND', '{$REGION', '{$ENDREGION');
 
-  csPasCompDirectiveTypes: array[0..7] of TCnCompDirectiveType =
-    (ctIf, ctIfDef, ctIfNDef, ctElse, ctEndIf, ctIfEnd, ctRegion, ctEndRegion);
+  csPasCompDirectiveTypes: array[0..8] of TCnCompDirectiveType =
+    (ctIf, ctIfOpt, ctIfDef, ctIfNDef, ctElse, ctEndIf, ctIfEnd, ctRegion, ctEndRegion);
 
   csCppCompDirectiveKinds: TIdentDirect = [ctkdirif, ctkdirifdef, ctkdirifndef,
     ctkdirelif, ctkdirelse, ctkdirendif];
@@ -154,7 +154,7 @@ const
   csCppCompDirectiveRegionTokenStr: array[0..1] of TCnIdeTokenString =
     ('region', 'end_region');
 
-  CPP_PAS_REGION_TYPE_OFFSET = 6;
+  CPP_PAS_REGION_TYPE_OFFSET = 7; // 对应 ctRegion 的位置
 
 type
   TCnLineStyle = (lsSolid, lsDot, lsSmallDot, lsTinyDot);
@@ -1056,7 +1056,7 @@ begin
     Exit;
 
   ALine := Copy(Utf8Text, 1, Utf8Col - 1);
-  ULine := Utf8Encode(ALine);
+  ULine := string(Utf8Encode(ALine));
   Result := CalcAnsiLengthFromWideString(PWideChar(ULine)) + 1;
 end;
 
@@ -1277,7 +1277,7 @@ var
   EditView: IOTAEditView;
   Stream: TMemoryStream;
   CharPos: TOTACharPos;
-  i: Integer;
+  I: Integer;
   StartIndex, EndIndex: Integer;
 
   function IsHighlightKeywords(Parser: TCnGeneralPasStructParser; Idx: Integer): Boolean;
@@ -1462,7 +1462,7 @@ begin
 
         CnGeneralSaveEditorToStream(EditView.Buffer, Stream);
 
-        // 解析当前显示的源文件，需要高亮当前标识符时不设置KeyOnly
+        // 解析当前显示的源文件，需要高亮当前标识符时不设置 KeyOnly
         CnPasParserParseSource(PasParser, Stream, IsDpr(EditView.Buffer.FileName),
           not (FHighlight.CurrentTokenHighlight or FHighlight.HighlightFlowStatement));
       finally
@@ -2280,7 +2280,7 @@ begin
   end
   else
   begin
-    // Pascal 代码，IF/IFDEF/IFNDEF 与 ENDIF/IFEND 配对，ELSE 在中间
+    // Pascal 代码，IF/IFOPT/IFDEF/IFNDEF 与 ENDIF/IFEND 配对，ELSE 在中间
     try
       for I := 0 to FCompDirectiveTokenList.Count - 1 do
       begin
@@ -2288,7 +2288,7 @@ begin
 {$IFDEF DEBUG}
 //      CnDebugger.LogFmt('CompDirectiveInfo Check CompDirectivtType: %d', [Ord(PToken.CompDirectivtType)]);
 {$ENDIF}
-        if PToken.CompDirectiveType in [ctIf, ctIfDef, ctIfNDef, ctRegion] then
+        if PToken.CompDirectiveType in [ctIf, ctIfOpt, ctIfDef, ctIfNDef, ctRegion] then
         begin
           Pair := TCnCompDirectivePair.Create;
           Pair.StartToken := PToken;
@@ -2957,12 +2957,12 @@ end;
 
 function TCnSourceHighlight.IndexOfBracket(EditControl: TControl): Integer;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to FBracketList.Count - 1 do
-    if TCnBracketInfo(FBracketList[i]).Control = EditControl then
+  for I := 0 to FBracketList.Count - 1 do
+    if TCnBracketInfo(FBracketList[I]).Control = EditControl then
     begin
-      Result := i;
+      Result := I;
       Exit;
     end;
   Result := -1;
@@ -2975,7 +2975,7 @@ function TCnSourceHighlight.GetBracketMatch(EditView: IOTAEditView;
   EditBuffer: IOTAEditBuffer; EditControl: TControl; AInfo: TCnBracketInfo):
   Boolean;
 var
-  i: Integer;
+  I: Integer;
   CL, CR: AnsiChar;
   LText: AnsiString;
   PL, PR: TOTAEditPos;
@@ -3376,27 +3376,27 @@ begin
 //      CnDebugger.LogFmt('GetBracketMatch Chars Left and Right to Cursor: ''%s'', ''%s''', [CL, CR]);
 {$ENDIF}
         PR := EditView.CursorPos;
-        for i := 0 to BracketCount - 1 do
+        for I := 0 to BracketCount - 1 do
         begin
-          if CL = BracketChars^[i][0] then
+          if CL = BracketChars^[I][0] then
           begin
             AInfo.TokenStr := CL;
             AInfo.TokenLine := LText;
             AInfo.TokenPos := PL;
             CharPos := OTACharPos(PL.Col - 1, PL.Line);
-            AInfo.TokenMatchStr := BracketChars^[i][1];
+            AInfo.TokenMatchStr := BracketChars^[I][1];
             AInfo.TokenMatchPos := ForwardFindMatchToken(AInfo.TokenStr,
               AInfo.TokenMatchStr, AInfo.FTokenMatchLine);
             Result := True;
             Break;
           end
-          else if CR = BracketChars^[i][1] then
+          else if CR = BracketChars^[I][1] then
           begin
             AInfo.TokenStr := CR;
             AInfo.TokenLine := LText;
             AInfo.TokenPos := PR;
             CharPos := OTACharPos(PR.Col - 1, PR.Line);
-            AInfo.TokenMatchStr := BracketChars^[i][0];
+            AInfo.TokenMatchStr := BracketChars^[I][0];
             AInfo.TokenMatchPos := BackFindMatchToken(AInfo.TokenStr,
               AInfo.TokenMatchStr, AInfo.FTokenMatchLine);
             Result := True;
@@ -3527,12 +3527,12 @@ end;
 
 function TCnSourceHighlight.IndexOfBlockMatch(EditControl: TControl): Integer;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to FBlockMatchList.Count - 1 do
-    if TCnBlockMatchInfo(FBlockMatchList[i]).Control = EditControl then
+  for I := 0 to FBlockMatchList.Count - 1 do
+    if TCnBlockMatchInfo(FBlockMatchList[I]).Control = EditControl then
     begin
-      Result := i;
+      Result := I;
       Exit;
     end;
   Result := -1;
@@ -3990,7 +3990,7 @@ begin
   begin
     if IndexOfBlockMatch(EditControl) >= 0 then
     begin
-      // 找到该 EditControl对应的BlockMatch列表
+      // 找到该 EditControl 对应的 BlockMatch 列表
       Info := TCnBlockMatchInfo(FBlockMatchList[IndexOfBlockMatch(EditControl)]);
 
       CanvasSaved := False;
@@ -4197,7 +4197,7 @@ begin
             begin
               EditControlWrapper.GetAttributeAtPos(EditControl, EditPos, False,
                 Element, LineFlag);
-              CanDrawToken := (LineFlag = 0) and (Element in [atIdentifier
+              CanDrawToken := (LineFlag = 0) and (Element in [atIdentifier, atAssembler
                 {$IFDEF IDE_STRING_ANSI_UTF8} , atIllegal {$ENDIF}]);
               // 2005~2007 下 Cpp 文件的 Unicode 标识符是 atIllegal，据说 Pascal 中不会出现
 
@@ -4255,7 +4255,7 @@ begin
                     Element, LineFlag);
 
                   // 2005~2007 下 Cpp 文件的 Unicode 标识符是 atIllegal，据说 Pascal 中不会出现
-                  if (Element in [atIdentifier {$IFDEF IDE_STRING_ANSI_UTF8} , atIllegal {$ENDIF}]) and (LineFlag = 0) then
+                  if (Element in [atIdentifier, atAssembler {$IFDEF IDE_STRING_ANSI_UTF8} , atIllegal {$ENDIF}]) and (LineFlag = 0) then
                   begin
                     // 在位置上画字，颜色已先设置好
                     {$IFDEF UNICODE}
@@ -4466,7 +4466,9 @@ begin
                     Font.Style := Font.Style + [fsUnderline];
 {$IFDEF BDS}
                   // BDS 下需要挨个绘制字符，因为 BDS 自身采用的是加粗的字符间距绘制
+                  Brush.Style := bsClear;
                   EditPosColBaseForAttribute := CalcTokenEditColForAttribute(Token);
+
                   for J := 0 to Length(Token.Token) - 1 do
                   begin
                     EditPos.Col := EditPosColBaseForAttribute + J;
@@ -5443,7 +5445,7 @@ var
   I: Integer;
 begin
   for I := 0 to FCurLineList.Count - 1 do
-    if TCnCurLineInfo(FCurLineList[i]).Control = EditControl then
+    if TCnCurLineInfo(FCurLineList[I]).Control = EditControl then
     begin
       Result := I;
       Exit;
