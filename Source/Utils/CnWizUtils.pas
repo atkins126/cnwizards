@@ -772,7 +772,7 @@ function ConvertNtaEditorStringToAnsi(const LineText: string; UseAlterChar: Bool
 {* 将通过 Nta 方法获得的字符串 AnsiString/AnsiUtf8/Utf16 尽量转换为 AnsiString}
 
 function StrToSourceCode(const Str, ADelphiReturn, ACReturn: string;
-  Wrap: Boolean; MaxLen: Integer = 0): string;
+  Wrap: Boolean; MaxLen: Integer = 0; AddAtHead: Boolean = False): string;
 {* 字符串转为源代码串}
 
 function CodeAutoWrap(Code: string; Width, Indent: Integer;
@@ -6304,7 +6304,7 @@ end;
 
 // 字符串转为源代码串
 function StrToSourceCode(const Str, ADelphiReturn, ACReturn: string;
-  Wrap: Boolean; MaxLen: Integer): string;
+  Wrap: Boolean; MaxLen: Integer; AddAtHead: Boolean): string;
 var
   Strings: TStrings;
   I, J: Integer;
@@ -6371,7 +6371,8 @@ begin
               if SingleLine[J] = '''' then
                 Insert('''', SingleLine, J);
             end
-            else begin                   // C++Builder 将 " 号转换为 \"
+            else
+            begin                   // C++Builder 将 " 号转换为 \"
               if SingleLine[J] = '"' then
                 Insert('\', SingleLine, J);
             end;
@@ -6384,7 +6385,7 @@ begin
         until Length(TmpLine) = 0;
       end;
 
-      if IsDelphi then
+      if IsDelphi then // Delphi 字符串需 + 号才能将字符串连在一起且 #13#10 在字符串外
       begin
         if I = Strings.Count - 1 then  // 最后一行不加换行符
         begin
@@ -6398,10 +6399,20 @@ begin
         begin
           if Trim(ADelphiReturn) <> '' then
           begin
-            if Wrap or (Line <> '') then
-              Result := Format('%s''%s'' + %s + %s', [Result, Line, ADelphiReturn, S])
+            if AddAtHead then
+            begin
+              if Wrap or (Line <> '') then
+                Result := Format('%s''%s'' + %s%s+ ', [Result, Line, ADelphiReturn, S])
+              else
+                Result := Result + ADelphiReturn + ' + ' + S;
+            end
             else
-              Result := Result + ADelphiReturn + ' + ' + S;
+            begin
+              if Wrap or (Line <> '') then
+                Result := Format('%s''%s'' + %s + %s', [Result, Line, ADelphiReturn, S])
+              else
+                Result := Result + ADelphiReturn + ' + ' + S;
+            end;
           end
           else
           begin
@@ -6412,7 +6423,7 @@ begin
           end;
         end;
       end
-      else
+      else // C 字符串无需 + 号便能将字符串连在一起且 \n 在字符串内
       begin
         if I = Strings.Count - 1 then
           Result := Format('%s"%s"', [Result, Line])
@@ -6437,7 +6448,7 @@ begin
     Result := Code;
     Exit;
   end;
-  
+
   Result := StrLeft(Code, Indent); // 先处理第一行由于缩进多出来的字符
   Delete(Code, 1, Indent);
   
@@ -8450,6 +8461,9 @@ begin
   end;
 end;
 
+const
+  MAX_BOOKMARK_COUNT = 20; // 20 是因为 Toggle Var/Uses 使用到了 19 和 20
+
 // 将一 EditView 中的书签信息保存至一 ObjectList 中
 procedure SaveBookMarksToObjectList(EditView: IOTAEditView; BookMarkList: TObjectList);
 var
@@ -8460,7 +8474,7 @@ begin
   if (EditView = nil) or (BookMarkList = nil) then Exit;
   BookMarkList.Clear;
 
-  for I := 0 to 9 do
+  for I := 0 to MAX_BOOKMARK_COUNT do
   begin
     APos := EditView.BookmarkPos[I];
     if (APos.CharIndex <> 0) or (APos.Line <> 0) then
@@ -8472,6 +8486,9 @@ begin
       BookMarkList.Add(BookMarkObj);
     end;
   end;
+{$IFDEF DEBUG}
+  CnDebugger.LogFmt('SaveBookMarksToObjectList Got %d Bookmarks.', [BookMarkList.Count]);
+{$ENDIF}
 end;
 
 // 从 ObjectList 中恢复一 EditView 中的书签
@@ -8487,7 +8504,7 @@ begin
   if BookMarkList.Count > 0 then
   begin
     SavePos := EditView.CursorPos;
-    for I := 0 to 9 do // 先清除以前的书签
+    for I := 0 to MAX_BOOKMARK_COUNT do // 先清除以前的书签
     begin
       APos := EditView.BookmarkPos[I];
       if (APos.Line <> 0) or (APos.CharIndex <> 0) then
@@ -8541,7 +8558,7 @@ begin
   if BookMarkList.Count > 0 then
   begin
     SavePos := EditView.CursorPos;
-    for I := 0 to 9 do // 先清除存在于 BookMarkList 中的书签
+    for I := 0 to MAX_BOOKMARK_COUNT do // 先清除存在于 BookMarkList 中的书签
     begin
       if not BookMarkIdInList(I) then
         Continue;
