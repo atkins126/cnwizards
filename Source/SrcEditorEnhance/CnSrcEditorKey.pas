@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -153,7 +153,12 @@ type
       var Handled: Boolean);
     procedure ExecuteInsertCharOnIdle(Sender: TObject);
 
+    procedure SnapCursorToEol;
     procedure EditorChanged(Editor: TEditorObject; ChangeType: TEditorChangeTypes);
+{$IFDEF DELPHI104_SYDNEY_UP}
+    procedure EditorMouseUp(Editor: TEditorObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer; IsNC: Boolean);
+{$ENDIF}
   public
     constructor Create;
     destructor Destroy; override;
@@ -195,8 +200,8 @@ implementation
 {$IFDEF CNWIZARDS_CNSRCEDITORENHANCE}
 
 uses
-  {$IFDEF DEBUG}CnDebug, {$ENDIF}
-  CnSourceHighlight, mPasLex, mwBCBTokenList, CnIdentRenameFrm;
+  {$IFDEF DEBUG} CnDebug, {$ENDIF} CnIDEStrings,
+  CnSourceHighlight, mPasLex, mwBCBTokenList, CnIdentRenameFrm, CnWideStrings;
 
 { TCnSrcEditorKey }
 
@@ -479,13 +484,21 @@ begin
   EditControlWrapper.AddKeyDownNotifier(EditControlKeyDown);
   EditControlWrapper.AddKeyUpNotifier(EditControlKeyUp);
   EditControlWrapper.AddEditorChangeNotifier(EditorChanged);
+
+{$IFDEF DELPHI104_SYDNEY_UP}
+  EditControlWrapper.AddEditorMouseUpNotifier(EditorMouseUp);
+{$ENDIF}
 end;
 
 destructor TCnSrcEditorKey.Destroy;
 begin
+{$IFDEF DELPHI104_SYDNEY_UP}
+  EditControlWrapper.RemoveEditorMouseUpNotifier(EditorMouseUp);
+{$ENDIF}
+
   EditControlWrapper.RemoveEditorChangeNotifier(EditorChanged);
-  EditControlWrapper.RemoveKeyDownNotifier(EditControlKeyDown);
   EditControlWrapper.RemoveKeyUpNotifier(EditControlKeyUp);
+  EditControlWrapper.RemoveKeyDownNotifier(EditControlKeyDown);
 
 {$IFDEF IDE_HAS_EDITOR_SEARCHPANEL}
   FEditWindowSearchDnClickMethodHook.Free;
@@ -3188,10 +3201,12 @@ begin
 
     // 无块时，如不记忆 IDE 的查找，则退出，让 IDE 去执行查找下一个
     if not FKeepSearch then
+    begin
 {$IFDEF DEBUG}
       CnDebugger.LogMsg('Do NOT Search for not KeepSearch');
 {$ENDIF}
       Exit;
+    end;
 
     // 无选择块并且在 KeepSearch 情况下，使用上次 F3 查找的内容。
     // 已通过挂接实现了记录 IDE 查找对话框中的字符串到 FOldSearchText 中
@@ -3453,9 +3468,7 @@ begin
   SearchWrap := Ini.ReadBool(csEditorKey, csSearchWrap, True);
   FHomeExt := Ini.ReadBool(csEditorKey, csHomeExt, True);
   FHomeFirstChar := Ini.ReadBool(csEditorKey, csHomeFirstChar, False);
-{$IFNDEF DELPHI104_SYDNEY_UP}  // 10.4 无法支持光标行尾
   FCursorBeforeEOL := Ini.ReadBool(csEditorKey, csCursorBeforeEOL, False);
-{$ENDIF}
   FLeftLineWrap := Ini.ReadBool(csEditorKey, csLeftLineWrap, False);
   FRightLineWrap := Ini.ReadBool(csEditorKey, csRightLineWrap, False);
   FAutoBracket := Ini.ReadBool(csEditorKey, csAutoBracket, False);
@@ -3528,44 +3541,63 @@ end;
 
 procedure TCnSrcEditorKey.EditorChanged(Editor: TEditorObject;
   ChangeType: TEditorChangeTypes);
+begin
+  if not Active or not FCursorBeforeEOL then
+    Exit;
+
+  if ((ctCurrLine in ChangeType) or (ctCurrCol in ChangeType)) then
+    SnapCursorToEol;
+end;
+
+{$IFDEF DELPHI104_SYDNEY_UP}
+
+procedure TCnSrcEditorKey.EditorMouseUp(Editor: TEditorObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer; IsNC: Boolean);
+begin
+  if not Active or not FCursorBeforeEOL then
+    Exit;
+
+  SnapCursorToEol;
+end;
+
+{$ENDIF}
+
+procedure TCnSrcEditorKey.SnapCursorToEol;
 var
   Line: string;
   EditView: IOTAEditView;
   LineNo, CharIndex, Len: Integer;
 begin
-  if not Active or not FCursorBeforeEOL then
+  if FCursorMoving then
     Exit;
 
-  if ((ctCurrLine in ChangeType) or (ctCurrCol in ChangeType)) and not FCursorMoving then
+  // 获得当前编辑器光标位置，并判断是否超出行尾
+  if CnNtaGetCurrLineText(Line, LineNo, CharIndex) then
   begin
-    // 获得当前编辑器光标位置，并判断是否超出行尾
-    if CnNtaGetCurrLineText(Line, LineNo, CharIndex) then
-    begin
-      // 空行也强迫到行首    
+    // 空行也强迫到行首
 //    if Trim(Line) = '' then
 //      Exit;
 
-      // Line 分别是 Ansi/Utf8/Utf16
+    // Line 分别是 Ansi/Utf8/Utf16
 {$IFDEF UNICODE}
-      Len := CalcAnsiLengthFromWideString(PWideChar(Line));
+    Len := CalcAnsiDisplayLengthFromWideString(PWideChar(Line));
 {$ELSE}
-      Len := Length(Line);
+    Len := Length(Line);
 {$ENDIF}
 
-      EditView := CnOtaGetTopMostEditView;
-      CharIndex := EditView.CursorPos.Col - 1;  // 分别是 Ansi/Utf8/Ansi
+    EditView := CnOtaGetTopMostEditView;
+    CharIndex := EditView.CursorPos.Col - 1;  // 分别是 Ansi/Utf8/Ansi
 {$IFDEF DEBUG}
-      CnDebugger.LogFmt('Cursor Before EOL: Col %d, Len %d.', [CharIndex, Len]);
+    CnDebugger.LogFmt('Cursor Before EOL: Col %d, Len %d.', [CharIndex, Len]);
 {$ENDIF}
-      if CharIndex > Len then
-      begin
-        try
-          FCursorMoving := True;
-          EditView.Buffer.EditPosition.MoveEOL;
-          EditView.Paint;
-        finally
-          FCursorMoving := False;
-        end;
+    if CharIndex > Len then
+    begin
+      try
+        FCursorMoving := True;
+        EditView.Buffer.EditPosition.MoveEOL;
+        EditView.Paint;
+      finally
+        FCursorMoving := False;
       end;
     end;
   end;

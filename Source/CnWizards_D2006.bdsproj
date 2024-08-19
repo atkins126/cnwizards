@@ -125,7 +125,7 @@
 			<Directories Name="PackageDCPOutputDir"></Directories>
 			<Directories Name="SearchPath">..\..\cnvcl\Source\Common;..\..\cnvcl\Source\Crypto;..\..\cnvcl\Source\NonVisual;..\..\cnvcl\Source\MultiLang;..\..\cnvcl\Source\Graphics;..\..\cnvcl\Source\NetComm;..\..\cnvcl\Source\ObjRep;ThirdParty;ThirdParty\DCU32;ThirdParty\DDetours;ThirdParty\PascalScript;ThirdParty\FastCode;Utils;CodeFormatter;ScriptWizard</Directories>
 			<Directories Name="Packages">rtl;vcl;vclx;designide</Directories>
-			<Directories Name="Conditionals"></Directories>
+			<Directories Name="Conditionals">ENABLE_UIINTERACT</Directories>
 			<Directories Name="DebugSourceDirs"></Directories>
 			<Directories Name="UsePackages">True</Directories>
 		</Directories>
@@ -165,10 +165,10 @@
 			<VersionInfoKeys Name="InternalName">CnWizards_D2006</VersionInfoKeys>
 			<VersionInfoKeys Name="OriginalFilename">CnWizards_D2006.DLL</VersionInfoKeys>
 			<VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
-			<VersionInfoKeys Name="LegalCopyright">(C)Copyright 2001-2023 CnPack Team</VersionInfoKeys>
+			<VersionInfoKeys Name="LegalCopyright">(C)Copyright 2001-2024 CnPack Team</VersionInfoKeys>
 			<VersionInfoKeys Name="LegalTrademarks">CnPack</VersionInfoKeys>
 			<VersionInfoKeys Name="ProductName">CnWizards</VersionInfoKeys>
-			<VersionInfoKeys Name="Comments">http://www.cnpack.org</VersionInfoKeys>
+			<VersionInfoKeys Name="Comments">https://www.cnpack.org</VersionInfoKeys>
 			<VersionInfoKeys Name="CompanyName">CnPack Team</VersionInfoKeys>
 		</VersionInfoKeys>
 		<Language>

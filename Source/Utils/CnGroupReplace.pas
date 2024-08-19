@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -31,7 +31,9 @@ unit CnGroupReplace;
 * 开发平台：PWinXP SP2 + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串支持本地化处理方式
-* 修改记录：2005.08.09
+* 修改记录：2024.04.13
+*                完善 32位、64位及 Unicode 支持
+*           2005.08.09
 *               从 CnSrcEditorGroupReplace 中移出
 ================================================================================
 |</PRE>}
@@ -41,7 +43,7 @@ interface
 {$I CnWizards.inc}
 
 uses
-  Windows, SysUtils, Classes, CnClasses, CnCommon;
+  Windows, SysUtils, Classes, CnClasses, CnNative, CnCommon;
 
 type
   TCnReplacement = class(TCnAssignableCollectionItem)
@@ -126,7 +128,8 @@ begin
     ASrc := AnsiString(Source);
 
   Result := -1;
-  if (Text = '') or (ASrc = '') then Exit;
+  if (Text = '') or (ASrc = '') then
+    Exit;
 
   L := Length(ASrc);
   PText := PAnsiChar(Text);
@@ -137,19 +140,19 @@ begin
     begin
       if not FWholeWord then
       begin
-        Result := Integer(PSub) - Integer(PText);
+        Result := TCnNativeInt(PSub) - TCnNativeInt(PText);
         Exit;
       end
       else
       begin
-        if (Cardinal(PSub) > Cardinal(PText)) and IsValidIdentChar(Char(PSub[-1])) or
+        if (TCnNativeUInt(PSub) > TCnNativeUInt(PText)) and IsValidIdentChar(Char(PSub[-1])) or
           IsValidIdentChar(Char(PSub[L])) then
         begin
-          PSub := PAnsiChar(Integer(PSub) + L);
+          PSub := PAnsiChar(TCnNativeInt(PSub) + L);
         end
         else
         begin
-          Result := Integer(PSub) - Integer(PText);
+          Result := TCnNativeInt(PSub) - TCnNativeInt(PText);
           Exit;
         end;
       end;
@@ -174,7 +177,8 @@ begin
     ASrc := Source;
 
   Result := -1;
-  if (Text = '') or (ASrc = '') then Exit;
+  if (Text = '') or (ASrc = '') then
+    Exit;
 
   L := Length(ASrc);
   PText := PChar(Text);
@@ -185,19 +189,19 @@ begin
     begin
       if not FWholeWord then
       begin
-        Result := Integer(PSub) - Integer(PText);
+        Result := (TCnNativeInt(PSub) - TCnNativeInt(PText)) shr 1; // div SizeOf(WideChar)
         Exit;
       end
       else
       begin
-        if (Cardinal(PSub) > Cardinal(PText)) and IsValidIdentChar(Char(PSub[-1])) or
+        if (TCnNativeUInt(PSub) > TCnNativeUInt(PText)) and IsValidIdentChar(Char(PSub[-1])) or
           IsValidIdentChar(Char(PSub[L])) then
         begin
-          PSub := PChar(Integer(PSub) + L);
+          PSub := PChar(TCnNativeInt(PSub) + L);
         end
         else
         begin
-          Result := Integer(PSub) - Integer(PText);
+          Result := (TCnNativeInt(PSub) - TCnNativeInt(PText)) shr 1; // div SizeOf(WideChar)
           Exit;
         end;
       end;
@@ -246,11 +250,12 @@ end;
 
 function TCnGroupReplacement.Execute(Text: string): string;
 var
-  i, APos, MinPos, ItemIdx: Integer;
+  I, APos, MinPos, ItemIdx: Integer;
   AnsiText, AnsiResult: {$IFDEF UNICODE} string {$ELSE} AnsiString {$ENDIF};
 begin
   Result := '';
-  if Text = '' then Exit;
+  if Text = '' then
+    Exit;
 
 {$IFDEF UNICODE}
   AnsiText := Text;
@@ -259,12 +264,13 @@ begin
   repeat
     MinPos := MaxInt;
     ItemIdx := -1;
-    for i := 0 to Items.Count - 1 do
+
+    for I := 0 to Items.Count - 1 do
     begin
-      APos := Items[i].FindInTextW(AnsiText);
+      APos := Items[I].FindInTextW(AnsiText);
       if (APos >= 0) and (APos < MinPos) then
       begin
-        ItemIdx := i;
+        ItemIdx := I;
         MinPos := APos;
         if MinPos = 0 then
           Break;
@@ -286,12 +292,12 @@ begin
   repeat
     MinPos := MaxInt;
     ItemIdx := -1;
-    for i := 0 to Items.Count - 1 do
+    for I := 0 to Items.Count - 1 do
     begin
-      APos := Items[i].FindInText(AnsiText);
+      APos := Items[I].FindInText(AnsiText);
       if (APos >= 0) and (APos < MinPos) then
       begin
-        ItemIdx := i;
+        ItemIdx := I;
         MinPos := APos;
         if MinPos = 0 then
           Break;

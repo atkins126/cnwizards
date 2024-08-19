@@ -27,6 +27,11 @@ ideenhance\capbuttons.png
 ideenhance\cpuwin.htm
 ideenhance\cpuwinconf.png
 ideenhance\cpuwinmenu.png
+ideenhance\debugenh.htm
+ideenhance\debugenhmenu.png
+ideenhance\debugenhconf1.png
+ideenhance\debugenhconf2.png
+ideenhance\debugenhconf3.png
 ideenhance\flatform.png
 ideenhance\flatformcustomize.png
 ideenhance\formdesigner.htm
@@ -104,6 +109,7 @@ srcedtenh\srcedttab.htm
 srcedtenh\srcedttbcustomize.png
 srcedtenh\srcedttoolbar.png
 srcedtenh\srcedttoolbar.htm
+wizards\aicoderwizard.htm
 wizards\alignsizeconfig.png
 wizards\alignsizemenu.png
 wizards\alignsizewizards.htm
@@ -131,6 +137,7 @@ wizards\toolset\editorcodedelblank.png
 wizards\toolset\editorcodedelblank.htm
 wizards\toolset\editorcodeindent.htm
 wizards\toolset\editorcodeswap.htm
+wizards\toolset\editorevalalign.htm
 wizards\toolset\editorcodetogglecomment.htm
 wizards\toolset\editorcodetostring.png
 wizards\toolset\editorcodetostring.htm
@@ -158,6 +165,8 @@ wizards\toolset\editorjumpideinsight.htm
 wizards\toolset\editorfontinc.htm
 wizards\toolset\editorfontdec.htm
 wizards\toolset\editorduplicateunit.htm
+wizards\toolset\extractstring.htm
+wizards\toolset\extractstring.png
 wizards\toolset\wizeditorform.png
 wizards\toolset\wizeditors.htm
 wizards\feedreader.htm

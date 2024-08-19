@@ -28,12 +28,13 @@ unit DCURecs;
 *)
 interface
 
+{$RANGECHECKS OFF}
+
 {$IFNDEF VER90}
 {$IFNDEF VER100}
 {$REALCOMPATIBILITY ON}
 {$ENDIF}
 {$ENDIF}
-
 
 uses
   {SysUtils, moved to implementation to check ANSIStrings.StrScan} Classes, DCU_In, DCU_Out, DasmDefs, FixUp
@@ -715,7 +716,7 @@ type
     NDX: TNDX;
     CStart: TConstDecl;
     NameTbl: TList;
-    HasEq: boolean; // Some const was defined by С=Сprev and not included into NameTbl
+    HasEq: boolean; //
     constructor Create;
     destructor Destroy; override;
     function ShowValue(DP: Pointer; DS: Cardinal): integer { Size used }; override;
@@ -2655,7 +2656,7 @@ constructor TMethodDecl.Create(LK: TDeclListKind);
             // parent class unit
           end;
         if (CurUnit.Ver >= verD2009) and (CurUnit.Ver < verK1) and (GetTag = arMethod) then begin
-            // !!!Запомнить и отобразить
+            // !!!
             nSkip := 0;
             if CurUnit.Ver >= verD2010 then begin
                 Inc(nSkip);
@@ -4625,7 +4626,10 @@ function TFloatDef.ShowValue(DP: Pointer; DS: Cardinal): integer { Size used };
               end;
             end;
         end;
+{$IFNDEF WIN64}
+      // Win64 ПВ Extended 8 ЧЦЅЪ¶ш·З 10 ЧЦЅЪЈ¬Ул Double ЦШёґ
       SizeOf(Extended): E := Extended(DP^);
+{$ENDIF}
       SizeOf(Real): E := Real(DP^);
     else
       Ok := false;
@@ -5492,7 +5496,7 @@ function ReadClassInterfaces(PITbl: PPNDXTbl): integer { ICnt };
                     B := ReadByte;
                     MName := ReadName;
                     N := ReadUIndex;
-                    hMember := ReadUIndex; // !!!Не факт, что hMember
+                    hMember := ReadUIndex; // !!!
                   end;
               end;
           end;

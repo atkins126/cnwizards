@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,13 +23,15 @@ unit CnPas2HtmlConfigFrm;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：代码到 HTML 转换输出专家配置单元
-* 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：CnPas2Html 专家配置单元
 * 开发平台：PWin98SE + Delphi 6
 * 兼容测试：暂无（PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6）
 * 本 地 化：该窗体中的字符串均符合本地化处理方式
-* 修改记录：2021.05.22 V1.4
-*               加入尝试从注册表中载入 IDE 高亮设置的功能。
+* 修改记录：2024.03.31 V1.5
+*               支持背景色。
+*           2021.05.22 V1.4
+*               设置时检查快捷键冲突。
 *           2004.06.29 V1.3
 *               加入尝试从注册表中载入 IDE 高亮设置的功能。
 *           2003.03.09 V1.2
@@ -91,6 +93,9 @@ type
     Label8: TLabel;
     btnLoad: TButton;
     actLoad: TAction;
+    lblBackground: TLabel;
+    shpBackground: TShape;
+    dlgColor: TColorDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure ComboBoxFontChange(Sender: TObject);
@@ -101,8 +106,11 @@ type
     procedure btnHelpClick(Sender: TObject);
     procedure actLoadExecute(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure shpBackgroundMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   private
     FFontArray: array[0..9] of TFont;
+    FBackgroundColor: TColor;
     
     function GetShortCut(const Index: Integer): TShortCut;
     procedure SetShortCut(const Index: Integer; const Value: TShortCut);
@@ -112,6 +120,7 @@ type
     procedure SetFonts(const Index: Integer; const Value: TFont);
     procedure DispFontText;
     procedure ResetFontsFromBasic(ABasicFont: TFont);
+    procedure SetBackgroundColor(const Value: TColor);
   protected
     function GetHelpTopic: string; override;
   public
@@ -122,7 +131,7 @@ type
     property ExportBPGShortCut: TShortCut index 4 read GetShortCut write SetShortCut;
     property ConfigShortCut: TShortCut index 5 read GetShortCut write SetShortCut;
     property DispGauge: Boolean read GetDispGauge write SetDispGauge;
-
+    property BackgroundColor: TColor read FBackgroundColor write SetBackgroundColor;
     property FontBasic: TFont index 0 read GetFonts write SetFonts;
     property FontAssembler: TFont index 1 read GetFonts write SetFonts;
     property FontComment: TFont index 2 read GetFonts write SetFonts;
@@ -144,7 +153,7 @@ implementation
 uses
   CnWizCompilerConst, CnEditControlWrapper, CnPas2HtmlWizard;
 
-{$R *.dfm}
+{$R *.DFM}
 
 { TCnPas2HtmlConfigForm }
 
@@ -161,7 +170,8 @@ begin
   PageControl.ActivePageIndex := 0;
   if ComboBoxFont.ItemIndex < 0 then
     ComboBoxFont.ItemIndex := 0;
-  ComboBoxFont.OnChange(ComboBoxFont);
+  shpBackground.Brush.Color := FBackgroundColor;
+  ComboBoxFontChange(ComboBoxFont);
 end;
 
 procedure TCnPas2HtmlConfigForm.FormDestroy(Sender: TObject);
@@ -224,21 +234,32 @@ end;
 
 procedure TCnPas2HtmlConfigForm.ComboBoxFontChange(Sender: TObject);
 begin
-  PanelDisp.Font := FFontArray[ComboBoxFont.ItemIndex];
-  DispFontText;
+  if ComboBoxFont.ItemIndex >= 0 then
+  begin
+    PanelDisp.Font := FFontArray[ComboBoxFont.ItemIndex];
+    DispFontText;
+  end;
+
+  if FBackgroundColor <> clNone then
+    PanelDisp.Color := FBackgroundColor
+  else
+    PanelDisp.Color := clWhite; // 默认白色
 end;
 
 procedure TCnPas2HtmlConfigForm.DispFontText;
 var
   S: string;
 begin
-  S := Format('%s, %d', [FFontArray[ComboBoxFont.ItemIndex].Name,
-    FFontArray[ComboBoxFont.ItemIndex].Size]);
-  if fsBold in FFontArray[ComboBoxFont.ItemIndex].Style then
-    S := S + ', Bold';
-  if fsItalic in FFontArray[ComboBoxFont.ItemIndex].Style then
-    S := S + ', Italic';
-  LabelFontDisp.Caption := S;
+  if ComboBoxFont.ItemIndex >= 0 then
+  begin
+    S := Format('%s, %d', [FFontArray[ComboBoxFont.ItemIndex].Name,
+      FFontArray[ComboBoxFont.ItemIndex].Size]);
+    if fsBold in FFontArray[ComboBoxFont.ItemIndex].Style then
+      S := S + ', Bold';
+    if fsItalic in FFontArray[ComboBoxFont.ItemIndex].Style then
+      S := S + ', Italic';
+    LabelFontDisp.Caption := S;
+  end;
 end;
 
 procedure TCnPas2HtmlConfigForm.ChangeFontActionExecute(Sender: TObject);
@@ -259,12 +280,18 @@ var
   TempFont: TFont;
 begin
   TempFont := TFont.Create;
-  TempFont.Name := 'Courier New';  {Do NOT Localize}
-  TempFont.Size := 10;
-  ResetFontsFromBasic(TempFont);
-  TempFont.Free;
+  try
+    TempFont.Name := 'Courier New';  {Do NOT Localize}
+    TempFont.Size := 10;
+    ResetFontsFromBasic(TempFont);
+  finally
+    TempFont.Free;
+  end;
+  FBackgroundColor := clWhite;
+  shpBackground.Brush.Color := FBackgroundColor;
+
   ComboBoxFont.ItemIndex := 0;
-  ComboBoxFont.OnChange(ComboBoxFont);
+  ComboBoxFontChange(ComboBoxFont);
 end;
 
 procedure TCnPas2HtmlConfigForm.ResetFontsFromBasic(ABasicFont: TFont);
@@ -337,6 +364,8 @@ begin
   FFontArray[7].Assign(EditControlWrapper.FontSpace);
   FFontArray[8].Assign(EditControlWrapper.FontString);
   FFontArray[9].Assign(EditControlWrapper.FontSymbol);
+  FBackgroundColor := EditControlWrapper.BackgroundColor;
+  shpBackground.Brush.Color := FBackgroundColor;
 
   ComboBoxFontChange(ComboBoxFont);
 end;
@@ -369,6 +398,25 @@ begin
       Exit;
     end;
   end;
+end;
+
+procedure TCnPas2HtmlConfigForm.shpBackgroundMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  dlgColor.Color := shpBackground.Brush.Color;
+  if dlgColor.Execute then
+  begin
+    shpBackground.Brush.Color := dlgColor.Color;
+    BackgroundColor := dlgColor.Color;
+    ComboBoxFontChange(ComboBoxFont);
+  end;
+end;
+
+procedure TCnPas2HtmlConfigForm.SetBackgroundColor(const Value: TColor);
+begin
+  FBackgroundColor := Value;
+  shpBackground.Brush.Color := Value;
+  ComboBoxFontChange(ComboBoxFont);
 end;
 
 {$ENDIF CNWIZARDS_CNPAS2HTMLWIZARD}

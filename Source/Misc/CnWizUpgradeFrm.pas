@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -131,7 +131,6 @@ type
     procedure FormCreate(Sender: TObject);
     procedure cbNoHintClick(Sender: TObject);
   private
-    { Private declarations }
     FCollection: TCnWizUpgradeCollection;
     FMemo: TMemo;
     FPanel: TPanel;
@@ -140,7 +139,7 @@ type
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
+
   end;
 
 procedure CheckUpgrade(AUserCheck: Boolean);
@@ -162,6 +161,7 @@ const
   csBetaVersion = 'BetaVersion';
   csURL = 'URL';
   csURLCN = 'URL_CN';
+  csNoHint = 'NoHint';
 
 var
   FThread: TCnWizUpgradeThread;
@@ -270,7 +270,7 @@ var
   S: string;
   Y1, M1, D1, Y2, M2, D2: Word;
 begin
-  // 取升级记录，发送IDE大版本号与专家包版本号以及语言ID作为参数
+  // 取升级记录，发送 IDE 大版本号与专家包版本号以及语言 ID 作为参数
   S := Format('%s?ide=%s&ver=%s&langid=%d', [WizOptions.UpgradeURL, CompilerShortName,
     SCnWizardVersion, WizOptions.CurrentLangID]);
 
@@ -302,17 +302,17 @@ end;
 // 从 S 中找出可用的 URL 来。
 procedure TCnWizUpgradeThread.FindLinks(S: string; Strings: TStrings);
 var
-  I, j: Integer;
+  I, J: Integer;
 begin
   Strings.Clear;
   I := Pos(csHttp, LowerCase(S));
   while I > 0 do
   begin
-    j := I + Length(csHttp);
-    while (j < Length(S)) and not CharInSet(S[j], ['"', ' ', '>']) do
-      Inc(j);
-    Strings.Add(Copy(S, I, j - I));
-    Delete(S, I, j - I);
+    J := I + Length(csHttp);
+    while (J < Length(S)) and not CharInSet(S[J], ['"', ' ', '>']) do
+      Inc(J);
+    Strings.Add(Copy(S, I, J - I));
+    Delete(S, I, J - I);
     I := Pos(csHttp, LowerCase(S));
   end;
 end;
@@ -553,7 +553,7 @@ begin
   begin
     FMemo := TMemo.Create(Self);
 
-    //Memo
+    // Memo
     FMemo.Name := 'Memo';
     FMemo.Parent := Self;
     FMemo.Left := 48;
@@ -573,7 +573,7 @@ begin
     FPanel := TPanel.Create(Self);
     FLabelContent := TCnWideLabel.Create(Self);
 
-    //FPanel
+    // FPanel
     FPanel.Name := 'FPanel';
     FPanel.Parent := Self;
     FPanel.Left := 48;
@@ -585,7 +585,7 @@ begin
     FPanel.TabOrder := 4;
     FPanel.Caption := '';
 
-    //FLabelContent
+    // FLabelContent
     FLabelContent.Name := 'FLabelContent';
     FLabelContent.Parent := FPanel;
     FLabelContent.Left := 3;
@@ -596,9 +596,6 @@ begin
     FLabelContent.Caption := '';
   end;
 end;
-
-const
-  csNoHint = 'NoHint';
 
 procedure TCnWizUpgradeForm.FormShow(Sender: TObject);
 var

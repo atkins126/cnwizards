@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnSampleComponent;
 ================================================================================
 * 软件名称：CnPack 专家包
 * 单元名称：示例组件单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：
 * 开发平台：Win7 + Delphi 5
 * 兼容测试：未测试
@@ -42,6 +42,26 @@ uses
 
 type
   TCnDynIntArray = array of Integer;
+
+  TCnSampleCollectionItem = class(TCollectionItem)
+  private
+    FText: string;
+  published
+    property Text: string read FText write FText;
+  end;
+
+  TCnSampleCollection = class(TCollection)
+  private
+    FVersion: Integer;
+    function GetItem(Index: Integer): TCnSampleCollectionItem;
+    procedure SetItem(Index: Integer;
+      const Value: TCnSampleCollectionItem);
+  public
+    constructor Create; reintroduce; virtual;
+    property Items[Index: Integer]: TCnSampleCollectionItem read GetItem write SetItem;
+  published
+    property Version: Integer read FVersion write FVersion;
+  end;
 
   TCnSampleComponent = class(TComponent)
   private
@@ -65,6 +85,11 @@ type
 {$IFDEF UNICODE}
     FUniStr: string;
 {$ENDIF}
+    FThisDate: TDate;
+    FThisDateTime: TDateTime;
+    FThisTime: TTime;
+    FCollection: TCnSampleCollection;
+
     FReadOnlyHint: AnsiString;
     FReadOnlyAccChar: Char;
     FReadOnlyFloatValue: Double;
@@ -86,6 +111,9 @@ type
 {$IFDEF UNICODE}
     FReadOnlyUniStr: string;
 {$ENDIF}
+    FReadOnlyDate: TDate;
+    FReadOnlyDateTime: TDateTime;
+    FReadOnlyTime: TTime;
   protected
 
   public
@@ -123,6 +151,10 @@ type
 {$IFDEF UNICODE}
     property UniStr: string read FUniStr write FUniStr;
 {$ENDIF}
+    property ThisDate: TDate read FThisDate write FThisDate;
+    property ThisTime: TTime read FThisTime write FThisTime;
+    property ThisDateTime: TDateTime read FThisDateTime write FThisDateTime;
+    property Collection: TCnSampleCollection read FCollection write FCollection;
 
     property ReadOnlyHeight: Integer read FReadOnlyHeight;
     property ReadOnlyAccChar: Char read FReadOnlyAccChar;
@@ -143,6 +175,10 @@ type
 {$IFDEF UNICODE}
     property ReadOnlyUniStr: string read FReadOnlyUniStr write FReadOnlyUniStr;
 {$ENDIF}
+    property ReadOnlyDate: TDate read FReadOnlyDate write FReadOnlyDate;
+    property ReadOnlyTime: TTime read FReadOnlyTime write FReadOnlyTime;
+    property ReadOnlyDateTime: TDateTime read FReadOnlyDateTime write FReadOnlyDateTime;
+
   end;
 
 implementation
@@ -182,12 +218,47 @@ begin
   FPoint.y := 20;
 
   FReadOnlyFont := TFont.Create;
+
+  FThisDate := Date;
+  FThisTime := Time;
+  FThisDateTime := Now;
+
+  FReadOnlyDate := Date;
+  FReadOnlyTime := Time;
+  FReadOnlyDateTime := Now;
+
+  FCollection := TCnSampleCollection.Create;
+  FCollection.Version := 42;
+  FCollection.Add;
+  FCollection.Add;
+  FCollection.Items[0].Text := '吃菜';
+  FCollection.Items[1].Text := '20240101';
 end;
 
 destructor TCnSampleComponent.Destroy;
 begin
+  FCollection.Free;
   FReadOnlyFont.Free;
   inherited;
+end;
+
+{ TCnSampleCollection }
+
+constructor TCnSampleCollection.Create;
+begin
+  inherited Create(TCnSampleCollectionItem);
+end;
+
+function TCnSampleCollection.GetItem(
+  Index: Integer): TCnSampleCollectionItem;
+begin
+  Result := TCnSampleCollectionItem(inherited GetItem(Index));
+end;
+
+procedure TCnSampleCollection.SetItem(Index: Integer;
+  const Value: TCnSampleCollectionItem);
+begin
+  inherited SetItem(Index, Value);
 end;
 
 end.

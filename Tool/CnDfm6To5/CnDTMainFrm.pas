@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -125,8 +125,8 @@ var
     'or C++Builder 6 to Delphi 5 or C++ Builder 5 Format.' + #13#10 +
     'Text and Binary Format are both Supported.' + #13#10#13#10 +
     'Author: Zhou JingYu (zjy@cnpack.org)' + #13#10 +
-    'Multilang: LiuXiao (liuxiao@cnpack.org)' + #13#10 +
-    'Copyright (C)2001-2023 CnPack Team';
+    'Multilang: LiuXiao (master@cnpack.org)' + #13#10 +
+    'Copyright (C)2001-2024 CnPack Team';
 
   csResults: array[TDFMConvertResult] of string =
     ('SSucc', 'SOpenFail', 'SSaveFail', 'SInvalidFormat');

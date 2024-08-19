@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -61,7 +61,7 @@ type
     FIconName: string;
     FContent: string;
     FHint: string;
-    FInsertPos: TEditorInsertPos;
+    FInsertPos: TCnEditorInsertPos;
     FShortCut: TShortCut;
     FActionIndex: Integer;
     FSavePos: Boolean;
@@ -76,7 +76,7 @@ type
     property Enabled: Boolean read FEnabled write FEnabled;
     property ShortCut: TShortCut read FShortCut write FShortCut;
     property SavePos: Boolean read FSavePos write FSavePos;
-    property InsertPos: TEditorInsertPos read FInsertPos write FInsertPos;
+    property InsertPos: TCnEditorInsertPos read FInsertPos write FInsertPos;
     property Caption: string read FCaption write FCaption;
     property Content: string read FContent write FContent;
     property Hint: string read FHint write FHint;
@@ -185,7 +185,7 @@ type
   end;
 
 const
-  csEditorInsertPosDescs: array[TEditorInsertPos] of PString = (
+  csEditorInsertPosDescs: array[TCnEditorInsertPos] of PString = (
     @SCnEIPCurrPos, @SCnEIPBOL, @SCnEIPEOL, @SCnEIPBOF, @SCnEIPEOF, @SCnEIPProcHead);
 
 {$ENDIF CNWIZARDS_CNSRCTEMPLATE}
@@ -495,7 +495,6 @@ begin
   FConfigIndex := RegisterASubAction(SCnSrcTemplateConfigName,
     SCnSrcTemplateConfigCaption, 0, SCnSrcTemplateConfigHint,
     SCnSrcTemplateIconName);
-  FLastIndexRef := FConfigIndex;
 
   AddSepMenu;
   FInsertToProcIndex := RegisterASubAction(SCnSrcTemplateInsertToProcName,
@@ -530,8 +529,12 @@ var
 {$ENDIF}
   end;
 begin
+  if not Active then
+    Exit;
+
   WizShortCutMgr.BeginUpdate;
   try
+    // 注意如果 Active 为 False，则 FLastIndexRef 可能为 0，会出错
     while SubActionCount > FLastIndexRef + 1 do
       DeleteSubAction(FLastIndexRef + 1);
 
@@ -756,7 +759,7 @@ var
   AHint: string;
   AIconName: string;
   AShortCut: TShortCut;
-  AInsertPos: TEditorInsertPos;
+  AInsertPos: TCnEditorInsertPos;
   AEnabled: Boolean;
   ASavePos: Boolean;
   AContent: string;

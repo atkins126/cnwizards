@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnSourceCropper;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：源码注释删除解析模块
-* 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：源码注释解析模块
 * 开发平台：Windows 2000 + Delphi 5
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
@@ -47,20 +47,20 @@ uses
   Classes, SysUtils;
 
 type
-  TSourceTokenKind = (skUndefined, skCode, skBlockComment, skLineComment,
+  TCnCropSourceTokenKind = (skUndefined, skCode, skBlockComment, skLineComment,
     skQuoteString, skDittoString, skDirective, skTodoList, skToReserve);
-    
-  TCropOption = (coAll, coExAscii);
+
+  TCnCropOption = (coAll, coExAscii);
 
 type
   TCnSourceCropper = class
   private
-    FCurTokenKind: TSourceTokenKind;
+    FCurTokenKind: TCnCropSourceTokenKind;
     FCurChar: AnsiChar;
 
     FCropTodoList: Boolean;
     FCropDirective: Boolean;
-    FCropOption: TCropOption;
+    FCropOption: TCnCropOption;
     FInStream: TStream;
     FOutStream: TStream;
     FReserve: Boolean;
@@ -96,7 +96,7 @@ type
     {* 输入要求是 Ansi 或 Utf8 形式的 AnsiString}
     property OutStream: TStream read FOutStream write SetOutStream;
     {* 输出会是对应的 Ansi 或 Utf8 形式的 AnsiString}
-    property CropOption: TCropOption read FCropOption write FCropOption;
+    property CropOption: TCnCropOption read FCropOption write FCropOption;
     property CropDirective: Boolean read FCropDirective write FCropDirective;
     property CropTodoList: Boolean read FCropTodoList write FCropTodoList;
     property RemoveSingleLineSlashes: Boolean read FRemoveSingleLineSlashes write FRemoveSingleLineSlashes;
@@ -121,7 +121,7 @@ type
   end;
 
 type
-  TCnCPPCropper = class(TCnSourceCropper)
+  TCnCppCropper = class(TCnSourceCropper)
   private
 
   protected
@@ -360,9 +360,12 @@ begin
   if Assigned(FInStream) then
   begin
     try
-      FInStream.Seek(- Value - 1, soFromCurrent);
-      FInStream.Read(Result, SizeOf(AnsiChar));
-      FInStream.Seek(Value, soFromCurrent);
+      if FInStream.Position - Value - 1 >= 0 then // 前面有足够空位才往回找
+      begin
+        FInStream.Seek(- Value - 1, soFromCurrent);
+        FInStream.Read(Result, SizeOf(AnsiChar));
+        FInStream.Seek(Value, soFromCurrent);
+      end;
     except
       Exit;
     end;
@@ -460,9 +463,9 @@ begin
   end;
 end;
 
-{ TCnCPPCropper }
+{ TCnCppCropper }
 
-procedure TCnCPPCropper.DoParse;
+procedure TCnCppCropper.DoParse;
 var
   IsSpace, WholeLineSpace: Boolean;
   SpCount: Integer;
@@ -541,7 +544,7 @@ begin
   WriteChar(#0);
 end;
 
-procedure TCnCPPCropper.ProcessToBlockEnd;
+procedure TCnCppCropper.ProcessToBlockEnd;
 var
   NeedSep: Boolean;
 begin

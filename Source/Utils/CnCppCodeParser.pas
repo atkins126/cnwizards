@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnCppCodeParser;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：C/C++ 源代码分析器
-* 单元作者：刘啸 liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：
@@ -90,6 +90,8 @@ type
     FTabWidth: Integer;
     function GetCount: Integer;
     function GetToken(Index: Integer): TCnCppToken;
+  protected
+    function NewToken(CParser: TBCBTokenList; Layer: Integer = 0): TCnCppToken;
   public
     constructor Create(SupportUnicodeIdent: Boolean = False);
     destructor Destroy; override;
@@ -97,6 +99,10 @@ type
     procedure ParseSource(ASource: PAnsiChar; Size: Integer; CurrLine: Integer = 0;
       CurCol: Integer = 0; ParseCurrent: Boolean = False);
     {* 解析代码结构，行列均以 1 开始}
+
+    procedure ParseString(ASource: PAnsiChar; Size: Integer);
+    {* 对代码进行针对字符串的解析，只生成字符串内容}
+
     function IndexOfToken(Token: TCnCppToken): Integer;
     property Count: Integer read GetCount;
     property Tokens[Index: Integer]: TCnCppToken read GetToken;
@@ -223,6 +229,29 @@ begin
   Result := TCnCppToken(FList[Index]);
 end;
 
+function TCnCppStructureParser.NewToken(CParser: TBCBTokenList; Layer: Integer): TCnCppToken;
+var
+  Len: Integer;
+begin
+  Result := CreateCppToken;
+  Result.FTokenPos := CParser.RunPosition;
+
+  Len := CParser.TokenLength;
+  Result.TokenLength := Len;
+  if Len > CN_TOKEN_MAX_SIZE then
+    Len := CN_TOKEN_MAX_SIZE;
+
+  Move(CParser.TokenAddr^, Result.FToken[0], Len);
+  Result.FToken[Len] := #0;
+
+  Result.FLineNumber := CParser.RunLineNumber - 1; // 1 开始变成 0 开始
+  Result.FCharIndex := CParser.RunColNumber - 1;   // 暂未做 Ansi 的 Tab 展开功能
+  Result.FCppTokenKind := CParser.RunID;
+  Result.FItemLayer := Layer;
+  Result.FItemIndex := FList.Count;
+  FList.Add(Result);
+end;
+
 procedure TCnCppStructureParser.ParseSource(ASource: PAnsiChar; Size: Integer;
   CurrLine: Integer; CurCol: Integer; ParseCurrent: Boolean);
 const
@@ -239,30 +268,6 @@ var
   BeginBracePosition: Integer;
   FunctionName, OwnerClass: string;
   PrevIsOperator, RunReachedZero: Boolean;
-
-  procedure NewToken;
-  var
-    Len: Integer;
-  begin
-    Token := CreateCppToken;
-    Token.FTokenPos := CParser.RunPosition;
-
-    Len := CParser.TokenLength;
-    Token.TokenLength := Len;
-    if Len > CN_TOKEN_MAX_SIZE then
-      Len := CN_TOKEN_MAX_SIZE;
-    FillChar(Token.FToken[0], SizeOf(Token.FToken), 0);
-    CopyMemory(@Token.FToken[0], CParser.TokenAddr, Len);
-
-    // Token.FToken := AnsiString(CParser.RunToken);
-
-    Token.FLineNumber := CParser.RunLineNumber - 1; // 1 开始变成 0 开始
-    Token.FCharIndex := CParser.RunColNumber - 1;   // 暂未做 Ansi 的 Tab 展开功能
-    Token.FCppTokenKind := CParser.RunID;
-    Token.FItemLayer := Layer;
-    Token.FItemIndex := FList.Count;
-    FList.Add(Token);
-  end;
 
   function CompareLineCol(Line1, Line2, Col1, Col2: Integer): Integer;
   begin
@@ -377,7 +382,7 @@ begin
         ctkbraceopen:
           begin
             Inc(Layer);
-            NewToken;
+            Token := NewToken(CParser, Layer);
             if HasNamespace then
             begin
               Token.Tag := 1; // 用 Tag 等于 1 来表示是 namespace 对应的左括号
@@ -405,7 +410,7 @@ begin
           end;
         ctkbraceclose:
           begin
-            NewToken;
+            Token := NewToken(CParser, Layer);
             if CompareLineCol(CParser.RunLineNumber, CurrLine,
               CParser.RunColNumber, CurCol) >= 0 then // 一旦在光标后了就可判断
             begin
@@ -447,12 +452,12 @@ begin
         ctkidentifier,        // Need these for flow control in source highlight
         ctkreturn, ctkgoto, ctkbreak, ctkcontinue:
           begin
-            NewToken;
+            NewToken(CParser, Layer);
           end;
         ctkdirif, ctkdirifdef, // Need these for conditional compile directive
         ctkdirifndef, ctkdirelif, ctkdirelse, ctkdirendif, ctkdirpragma:
           begin
-            NewToken;
+            NewToken(CParser, Layer);
           end;
       end;
 
@@ -644,6 +649,30 @@ end;
 function TCnCppStructureParser.IndexOfToken(Token: TCnCppToken): Integer;
 begin
   Result := FList.IndexOf(Token);
+end;
+
+procedure TCnCppStructureParser.ParseString(ASource: PAnsiChar; Size: Integer);
+var
+  TokenList: TBCBTokenList;
+begin
+  Clear;
+  TokenList := nil;
+
+  try
+    FSource := ASource;
+
+    TokenList := TBCBTokenList.Create(FSupportUnicodeIdent);
+    TokenList.SetOrigin(ASource, Size);
+
+    while TokenList.RunID <> ctknull do
+    begin
+      if TokenList.RunID in [ctkstring] then
+        NewToken(TokenList);
+      TokenList.NextNonJunk;
+    end;
+  finally
+    TokenList.Free;
+  end;
 end;
 
 { TCnCppToken }

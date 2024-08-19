@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -409,15 +409,15 @@ end;
 function TCnScriptCreator.GetImplFileName: string;
 var
   Dir: string;
-  i: Integer;
+  I: Integer;
 begin
   Dir := MakePath(WizOptions.UserPath) + SCnScriptFileDir;
   ForceDirectories(Dir);
   ChDir(Dir);
-  i := 1;
+  I := 1;
   repeat
-    Result := MakePath(Dir) + Format(SCnScriptDefName, [i]);
-    Inc(i);
+    Result := MakePath(Dir) + Format(SCnScriptDefName, [I]);
+    Inc(I);
   until not FileExists(Result);
 end;
 
@@ -548,17 +548,17 @@ procedure TCnScriptForm.pmRunPopup(Sender: TObject);
 var
   Wizard: TCnScriptWizard;
   Menu: TMenuItem;
-  i: Integer;
+  I: Integer;
 begin
   Wizard := TCnScriptWizard(CnWizardMgr.WizardByClass(TCnScriptWizard));
   if Wizard <> nil then
   begin
     while pmRun.Items.Count > 2 do
       pmRun.Items[2].Free;
-    for i := 2 to Wizard.SubActionCount - 1 do
+    for I := 2 to Wizard.SubActionCount - 1 do
     begin
       Menu := TMenuItem.Create(pmRun.Items);
-      Menu.Action := Wizard.SubActions[i];
+      Menu.Action := Wizard.SubActions[I];
       pmRun.Items.Add(Menu);
     end;
   end;
@@ -689,17 +689,17 @@ end;
 
 procedure TCnScriptForm.OutputMessages(Engine: TCnScriptExec; const AName: string);
 var
-  i: Longint;
-  b: Boolean;
+  I: Integer;
+  B: Boolean;
 begin
-  b := False;
-  for i := 0 to Engine.Engine.CompilerMessageCount - 1 do
+  B := False;
+  for I := 0 to Engine.Engine.CompilerMessageCount - 1 do
   begin
-    mmoOut.Lines.Add(SCnScriptCompiler + ': ' + string(Engine.Engine.CompilerErrorToStr(i)));
-    if (not b) and (Engine.Engine.CompilerMessages[i] is TIFPSPascalCompilerError) then
+    mmoOut.Lines.Add(SCnScriptCompiler + ': ' + string(Engine.Engine.CompilerErrorToStr(I)));
+    if (not B) and (Engine.Engine.CompilerMessages[I] is TIFPSPascalCompilerError) then
     begin
-      b := True;
-      with TIFPSPascalCompilerError(Engine.Engine.CompilerMessages[i]) do
+      B := True;
+      with TIFPSPascalCompilerError(Engine.Engine.CompilerMessages[I]) do
         GotoErrorCode(Engine, AName, string(ModuleName), Col, Row);
     end;
   end;

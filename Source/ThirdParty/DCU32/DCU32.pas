@@ -27,6 +27,8 @@ freely, subject to the following restrictions:
 
 interface
 
+{$RANGECHECKS OFF}
+
 uses
   {$IFDEF UNICODE}  AnsiStrings, {$ENDIF}
   SysUtils, Classes, DasmDefs, DCU_In, DCU_Out, FixUp, DCURecs;
@@ -66,7 +68,8 @@ const {My own (AX) codes for Delphi/Kylix versions}
   verD_102T = 24;
   verD_103R = 25;
   verD_104S = 26;
-  verD_110A = 27; // Added by LiuXiao End.
+  verD_110A = 27;
+  verD_120A = 28; // Added by LiuXiao End.
   verK1 = 100; //Kylix 1.0
   verK2 = 101; //Kylix 2.0
   verK3 = 102; //Kylix 3.0
@@ -2633,6 +2636,13 @@ begin
           V := ReadUIndex;
           SkipBlock(V);
         end;
+      $17:  // 17 Add by LiuXiao to Process D12 DCUs for new info. But NOT Used
+        begin
+          Result := ReadUIndex;
+          V := ReadUIndex;
+          V1 := ReadUIndex;
+          V2 := ReadUIndex;
+        end;
     else
       break;
     end;
@@ -3023,7 +3033,7 @@ begin
               break;
          {TStrConstTypeDef.Create;}
             Decl := TStrConstDecl.Create;
-        {//?? надо регистрировать ?таблиц?адресо?
+        {//
          ReadStr;
          ReadUIndex;
          ReadUIndex;
@@ -4612,6 +4622,39 @@ begin
     $2300774D:
       begin
         FVer := verD_110A;
+        FPlatform := dcuplAndroid;
+      //The drCBlock section is missing here, all the memory is in the corresponding
+      //*.o file. Or inline info decoding is required
+      end;
+
+    $2400034D:
+      FVer := verD_120A;
+    $2400234D:
+      begin
+        FVer := verD_120A;
+        FPlatform := dcuplWin64;
+        FPtrSize := 8;
+      end;
+    $2400044D:
+      begin
+        FVer := verD_120A;
+        FPlatform := dcuplOsx32;
+      end;
+    $2400144D:
+      begin
+        FVer := verD_120A;
+        FPlatform := dcuplIOSEmulator;
+      end;
+    $2400764D:
+      begin
+        FVer := verD_120A;
+        FPlatform := dcuplIOSDevice;
+      //The drCBlock section is missing here, all the memory is in the corresponding
+      //*.o file. Or inline info decoding is required
+      end;
+    $2400774D:
+      begin
+        FVer := verD_120A;
         FPlatform := dcuplAndroid;
       //The drCBlock section is missing here, all the memory is in the corresponding
       //*.o file. Or inline info decoding is required

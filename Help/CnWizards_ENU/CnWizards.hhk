@@ -13,6 +13,10 @@
 		<param name="Local" value="cnpack\about.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="AI Coder Wizard">
+		<param name="Local" value="wizards\aicoderwizard.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="ASCII Chart">
 		<param name="Local" value="wizards\toolset\asciichart.htm">
 		</OBJECT>
@@ -121,6 +125,10 @@
 		<param name="Local" value="other\credits.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Debugger Enhancements">
+		<param name="Local" value="ideenhance\debugenh.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Decrease Font Size Tool">
 		<param name="Local" value="wizards\toolset\editorfontdec.htm">
 		</OBJECT>
@@ -157,6 +165,10 @@
 		<param name="Local" value="options\otherconfig.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Evaluation Align Tool">
+		<param name="Local" value="wizards\toolset\editorevalalign.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Evaluation Swap Tool">
 		<param name="Local" value="wizards\toolset\editorcodeswap.htm">
 		</OBJECT>
@@ -165,16 +177,16 @@
 		<param name="Local" value="wizards\explorer.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Extract String Tool">
+		<param name="Local" value="wizards\toolset\extractstring.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Form Design Wizard">
 		<param name="Local" value="wizards\alignsizewizards.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="FastCode IDE Optimizer">
 		<param name="Local" value="ideenhance\fastcodeopt.htm">
-		</OBJECT>
-	<LI> <OBJECT type="text/sitemap">
-		<param name="Name" value="Feed Reader Wizard">
-		<param name="Local" value="wizards\feedreader.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Form Designer Enhancements Wizard">

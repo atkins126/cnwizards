@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -177,18 +177,19 @@ type
     procedure lbDesignEditorsKeyPress(Sender: TObject; var Key: Char);
   private
     FWizardsActiveChanged: Boolean;
-    FShortCuts: array of TShortCut;
-    FActives: array of Boolean;
-    FEditorActives: array of Boolean;
+    FShortCuts: array of TShortCut;    // 所有专家的快捷键
+    FActives: array of Boolean;        // 所有专家的启用状态
+    FEditorActives: array of Boolean;  // 所有编辑器的启用状态
     FDrawTextHeight: Integer;
     function CalcSelectedWizardIndex(Wizard: TCnBaseWizard = nil): Integer;
+    {* 返回指定 Wizard 实例在专家中的索引号，或返回专家列表框中的选中的索引号}
     function CalcSelectedEditorIndex(Editor: TCnDesignEditorInfo = nil): Integer;
     procedure ToggleWizardActive;
     procedure TogglePropertyEditorActive;
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
+
   end;
 
 // 显示配置窗口
@@ -644,11 +645,19 @@ procedure TCnWizConfigForm.ToggleWizardActive;
 var
   Idx: Integer;
 begin
-  Idx := CalcSelectedWizardIndex();
+  Idx := CalcSelectedWizardIndex; // Idx 会返回 lbWizards.ItemIndex
   if Idx >= 0 then
   begin
     FWizardsActiveChanged := True;
     FActives[Idx] := not FActives[Idx];
+
+    // 实时更新 Wizard 实例的状态
+    Screen.Cursor := crHourGlass;
+    try
+      TCnBaseWizard(lbWizards.Items.Objects[lbWizards.ItemIndex]).Active := FActives[Idx];
+    finally
+      Screen.Cursor := crDefault;
+    end;
     cbWizardActive.Checked := FActives[Idx];
     btnConfig.Enabled := FActives[Idx] and
       TCnBaseWizard(lbWizards.Items.Objects[lbWizards.ItemIndex]).HasConfig;
@@ -662,10 +671,13 @@ procedure TCnWizConfigForm.TogglePropertyEditorActive;
 var
   Idx: Integer;
 begin
-  Idx := CalcSelectedEditorIndex();
+  Idx := CalcSelectedEditorIndex;
   if Idx >= 0 then
   begin
     FEditorActives[Idx] := not FEditorActives[Idx];
+
+    // 实时更新属性编辑器实例状态
+    CnDesignEditorMgr.PropEditors[Idx].Active := FEditorActives[Idx];
     cbDesignEditorActive.Checked := FEditorActives[Idx];
     btnDesignEditorConfig.Enabled := cbDesignEditorActive.Checked;
     lbDesignEditors.Refresh;
@@ -696,8 +708,8 @@ begin
     Wizard := TCnBaseWizard(lbWizards.Items.Objects[lbWizards.ItemIndex]);
     if QueryDlg(Format(SCnConfirmResetSetting, [Wizard.WizardName])) then
     begin
-      with Wizard do
-        if HasConfig then DoResetSettings;
+      Wizard.DoResetSettings; // 无论 HasConfig 是 True 还是 False 都应该重置
+
       if Wizard is TCnActionWizard then
       begin
         TCnActionWizard(Wizard).Action.ShortCut := TCnActionWizardHack(Wizard).GetDefShortCut;

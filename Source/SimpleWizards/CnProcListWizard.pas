@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -32,7 +32,7 @@ unit CnProcListWizard;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：函数过程列表专家单元
-* 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：该单元部分内容移植自 GExperts 的相应单元
 *           其原始内容受 GExperts License 的保护
 *           ——有待增加设置窗口控制其设置
@@ -40,7 +40,9 @@ unit CnProcListWizard;
 * 开发平台：PWin2000 + Delphi 5
 * 兼容测试：暂无（PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6）
 * 本 地 化：该窗体中的字符串均符合本地化处理方式
-* 修改记录：2012.12.25 V1.4
+* 修改记录：2024.03.13 V1.5
+*               增加预览窗口的位置控制按钮，宽度和高度的保存加载暂无 HDPI 问题
+*           2012.12.25 V1.4
 *               修正列表框的宽度恢复可能有误的问题
 *           2012.02.07 V1.3
 *               增加列表框的宽度保存机制
@@ -68,7 +70,7 @@ uses
   ComCtrls, ToolWin, StdCtrls, ExtCtrls, IniFiles, Math, Menus, ActnList,
   CnProjectViewBaseFrm, CnIni, mPasLex,  mwBCBTokenList, Contnrs, Clipbrd, CnPasCodeParser,
   {$IFDEF USE_CUSTOMIZED_SPLITTER} CnSplitter, {$ENDIF} CnWidePasParser, CnWideCppParser,
-  CnPopupMenu, CnCppCodeParser, CnStrings, CnEdit, RegExpr,
+  CnPopupMenu, CnCppCodeParser, CnStrings, CnEdit, RegExpr, CnIDEStrings,
 {$IFNDEF STAND_ALONE}
   ToolsAPI, CnWizClasses, CnWizManager, CnWizEditFiler, CnEditControlWrapper, CnWizUtils,
   CnWizMenuAction, CnWizIdeUtils, CnFloatWindow,
@@ -167,6 +169,9 @@ type
     cbbFiles: TComboBox;
     Splitter: TSplitter;
     mmoContent: TMemo;
+    btnPreviewRight: TToolButton;
+    btnPreviewDown: TToolButton;
+    btn2: TToolButton;
     procedure FormDestroy(Sender: TObject);
     procedure lvListData(Sender: TObject; Item: TListItem);
     procedure btnShowPreviewClick(Sender: TObject);
@@ -183,6 +188,8 @@ type
       Shift: TShiftState);
     procedure lvListKeyPress(Sender: TObject; var Key: Char);
     procedure SplitterMoved(Sender: TObject);
+    procedure btnPreviewRightClick(Sender: TObject);
+    procedure btnPreviewDownClick(Sender: TObject);
   private
     FFileName: string;
 {$IFNDEF STAND_ALONE}
@@ -296,8 +303,10 @@ type
   private
     FChangeDown: Boolean;
     FDisableChange: Boolean;
+    FFocusedClick: Boolean;
     FOnKillFocus: TNotifyEvent;
     FDropDownList: TCnProcDropDownBox;
+    FOnMarginClick: TNotifyEvent;
     procedure RefreshDropBox(Sender: TObject);
     procedure DropDownListDblClick(Sender: TObject);
     procedure DropDownListClick(Sender: TObject);
@@ -309,6 +318,8 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure WndProc(var Message: TMessage); override;
     procedure Change; override;
+    procedure Click; override;
+    procedure DoMarginClick; virtual;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -320,6 +331,8 @@ type
     property OnKillFocus: TNotifyEvent read FOnKillFocus write FOnKillFocus;
     property ChangeDown: Boolean read FChangeDown write FChangeDown;
     // 是否由于文字改变导致的下拉，为 False 时大概是点击导致的下拉
+    property OnMarginClick: TNotifyEvent read FOnMarginClick write FOnMarginClick;
+    {* 点击在文字右侧的空白处触发，供改善用户体验用}
   end;
 
   TCnProcToolButton = class(TToolButton);
@@ -334,6 +347,8 @@ type
     FToolBtnSep1: TCnProcToolButton;
     FToolBtnJumpIntf: TCnProcToolButton;
     FToolBtnJumpImpl: TCnProcToolButton;
+    FToolBtnJumps: TCnProcToolButton;
+    FJumpsMenu: TPopupMenu;
     FClassCombo: TCnProcListComboBox;
     FProcCombo: TCnProcListComboBox;
     FPopupMenu: TPopupMenu;
@@ -356,6 +371,8 @@ type
     property ToolBtnSep1: TCnProcToolButton read FToolBtnSep1 write FToolBtnSep1;
     property ToolBtnJumpIntf: TCnProcToolButton read FToolBtnJumpIntf write FToolBtnJumpIntf;
     property ToolBtnJumpImpl: TCnProcToolButton read FToolBtnJumpImpl write FToolBtnJumpImpl;
+    property ToolBtnJumps: TCnProcToolButton read FToolBtnJumps write FToolBtnJumps;
+    property JumpsMenu: TPopupMenu read FJumpsMenu write FJumpsMenu;
     property ClassCombo: TCnProcListComboBox read FClassCombo write FClassCombo;
     property Splitter1: TCnCustomizedSplitter read FSplitter1 write FSplitter1;
     property Splitter2: TCnCustomizedSplitter read FSplitter2 write FSplitter2;
@@ -422,6 +439,7 @@ type
     procedure CurrentGotoLineAndFocusEditControl(Line: Integer); overload;
     procedure JumpIntfOnClick(Sender: TObject);
     procedure JumpImplOnClick(Sender: TObject);
+    procedure JumpsOnClick(Sender: TObject);
     procedure ClassComboDropDown(Sender: TObject);
     procedure ProcComboDropDown(Sender: TObject);
     procedure DoIdleComboChange(Sender: TObject);
@@ -500,6 +518,20 @@ uses
 
 {$R *.DFM}
 
+type
+  TCnFileInfo = class(TObject)
+  private
+    FAllName: string;
+    FProjectName: string;
+    FFileName: string;
+  public
+    property FileName: string read FFileName write FFileName;
+    property AllName: string read FAllName write FAllName;
+    property ProjectName: string read FProjectName write FProjectName;
+  end;
+
+  TCnJumpsPoint = (jpUnit, jpEnd, jpInitialization, jpFinalization, jpProgramBegin);
+
 const
   csUseEditorToolbar = 'UseEditorToolBar';
   csPreviewLineCount = 'PreviewLineCount';
@@ -515,27 +547,14 @@ const
   csClassComboName = 'ClassCombo';
 
   CN_SPLITTER_WIDTH = 3;
-  CN_INIT_CLASSCOMBO_WIDTH = 250;
-  CN_INIT_PROCCOMBO_WIDTH = 350;
+  CN_INIT_CLASSCOMBO_WIDTH = 300;
+  CN_INIT_PROCCOMBO_WIDTH = 400;
   CN_ICON_WIDTH = 22;
 
   csDefHistoryCount = 8;
   csDefPreviewLineCount = 4;
   csDefProcDropDownBoxFontSize = 8;
 
-type
-  TCnFileInfo = class(TObject)
-  private
-    FAllName: string;
-    FProjectName: string;
-    FFileName: string;
-  public
-    property FileName: string read FFileName write FFileName;
-    property AllName: string read FAllName write FAllName;
-    property ProjectName: string read FProjectName write FProjectName;
-  end;
-
-const
   csShowPreview = 'ShowPreview';
   csPreviewHeight = 'PreviewHeight';
   csPreviewWidth = 'PreviewWidth';
@@ -551,6 +570,10 @@ const
 
   ProcBlacklist: array[0..2] of string = ('CATCH_ALL', 'CATCH', 'AND_CATCH_ALL');
 
+  JumpCaptions: array[Low(TCnJumpsPoint)..High(TCnJumpsPoint)] of string =
+    ('unit ;', 'end.', 'initialization', 'finalization', 'program begin');
+  JUMP_IMAGE_OFFSET = 5;
+
 var
   FLanguage: TCnSourceLanguageType;
   FCurElement: string;
@@ -558,6 +581,11 @@ var
   FOldCaption: string;
   FIntfLine: Integer = 0;
   FImplLine: Integer = 0;
+  FUnitLine: Integer = 0;
+  FEndLine: Integer = 0;
+  FOuterBeginLine: Integer = 0;
+  FInitializationLine: Integer = 0;
+  FFinalizationLine: Integer = 0;
 
   GListSortIndex: Integer = 0;
   GListSortReverse: Boolean = False;
@@ -674,11 +702,19 @@ begin
     begin
       Obj.ToolBtnJumpIntf.Enabled := True;
       Obj.ToolBtnJumpImpl.Enabled := True;
+      Obj.ToolBtnJumps.Enabled := True;
+    end
+    else if IsDpr(S) then
+    begin
+      Obj.ToolBtnJumpIntf.Enabled := False;
+      Obj.ToolBtnJumpImpl.Enabled := False;
+      Obj.ToolBtnJumps.Enabled := True;
     end
     else
     begin
       Obj.ToolBtnJumpIntf.Enabled := False;
       Obj.ToolBtnJumpImpl.Enabled := False;
+      Obj.ToolBtnJumps.Enabled := False;
     end;
   end;
 end;
@@ -801,6 +837,11 @@ begin
   FElementList.Clear;
   FIntfLine := 0;
   FImplLine := 0;
+  FUnitLine := 0;
+  FEndLine := 0;
+  FOuterBeginLine := 0;
+  FInitializationLine := 0;
+  FFinalizationLine := 0;
 end;
 
 procedure TCnProcListWizard.Config;
@@ -906,6 +947,7 @@ procedure TCnProcListWizard.CreateProcToolBar(ToolBarType: string;
 var
   Obj: TCnProcToolBarObj;
   Item, SubItem: TMenuItem;
+  JP: TCnJumpsPoint;
 begin
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('ProcList: Create Proc ToolBar from EditControl %8.8x', [Integer(EditControl)]);
@@ -1006,6 +1048,7 @@ begin
     SetTextWithoutChange('');
     FDisableChange := False;
     OnButtonClick := ClassComboDropDown;
+    OnMarginClick := ClassComboDropDown;
   end;
 
   Obj.FSplitter1 := TCnCustomizedSplitter.Create(ToolBar);
@@ -1035,6 +1078,7 @@ begin
     SetTextWithoutChange('');
     FDisableChange := False;
     OnButtonClick := ProcComboDropDown;
+    OnMarginClick := ProcComboDropDown;
   end;
 
   Obj.FSplitter2 := TCnCustomizedSplitter.Create(ToolBar);
@@ -1092,6 +1136,34 @@ begin
     ImageIndex := 1;
     SetToolBar(Obj.InternalToolBar2);
     OnClick := JumpImplOnClick;
+  end;
+
+  Obj.JumpsMenu := TPopupMenu.Create(Obj.InternalToolBar2);
+  Obj.JumpsMenu.Images := dmCnSharedImages.ilProcToolBar;
+
+  for JP := Low(TCnJumpsPoint) to High(TCnJumpsPoint) do
+  begin
+    Item := TMenuItem.Create(Obj.JumpsMenu);
+    Item.Caption := JumpCaptions[JP];
+    Item.Tag := Ord(JP);
+    Item.ImageIndex := JUMP_IMAGE_OFFSET + Ord(JP);
+    Item.Hint := Format(SCnProcListJumpsHintFmt, [JumpCaptions[JP]]);
+    Item.OnClick := JumpsOnClick;
+    Obj.JumpsMenu.Items.Add(Item);
+  end;
+
+  Obj.ToolBtnJumps := TCnProcToolButton.Create(ToolBar);
+  with Obj.ToolBtnJumps do
+  begin
+    Left := 90;
+    Top := 0;
+    Caption := '';
+    Style := tbsDropDown;
+    ImageIndex := JUMP_IMAGE_OFFSET;
+    Item.Hint := Format(SCnProcListJumpsHintFmt, [JumpCaptions[Low(TCnJumpsPoint)]]);
+    SetToolBar(Obj.InternalToolBar2);
+    DropdownMenu := Obj.JumpsMenu;
+    OnClick := JumpsOnClick;
   end;
 
   Obj.InternalToolBar1 := TCnExternalSrcEditorToolBar.Create(ToolBar);
@@ -1254,6 +1326,11 @@ begin
     with TCnProcListForm.Create(nil) do
     try
       Wizard := Self;
+      if FPreviewIsRight then
+        btnPreviewRight.Down := True
+      else
+        btnPreviewDown.Down := True;
+
 {$IFNDEF STAND_ALONE}
       ShowHint := WizOptions.ShowHint;
 {$ENDIF}
@@ -1458,6 +1535,70 @@ begin
     CurrentGotoLineAndFocusEditControl(FImplLine)
   else
     ErrorDlg(SCnProcListErrorNoImpl);
+end;
+
+procedure TCnProcListWizard.JumpsOnClick(Sender: TObject);
+var
+  JP: TCnJumpsPoint;
+  Item: TMenuItem;
+  Menu: TPopupMenu;
+  Tlb: TToolBar;
+  I: Integer;
+begin
+  CheckReparse;
+
+  // 拿 Sender 的 Tag 跳
+  if not (Sender is TComponent) then
+    Exit;
+
+  JP := TCnJumpsPoint((Sender as TComponent).Tag);
+  case JP of
+    jpUnit:
+      if FUnitLine > 0 then
+        CurrentGotoLineAndFocusEditControl(FUnitLine)
+      else
+        ErrorDlg(SCnProcListErrorNoUnit);
+    jpEnd:
+      if FEndLine > 0 then
+        CurrentGotoLineAndFocusEditControl(FEndLine)
+      else
+        ErrorDlg(SCnProcListErrorNoEnd);
+    jpInitialization:
+      if FInitializationLine > 0 then
+        CurrentGotoLineAndFocusEditControl(FInitializationLine)
+      else
+        ErrorDlg(SCnProcListErrorNoInitialization);
+    jpFinalization:
+      if FFinalizationLine > 0 then
+        CurrentGotoLineAndFocusEditControl(FFinalizationLine)
+      else
+        ErrorDlg(SCnProcListErrorNoFinalization);
+    jpProgramBegin:
+      if FOuterBeginLine > 0 then
+        CurrentGotoLineAndFocusEditControl(FOuterBeginLine)
+      else
+        ErrorDlg(SCnProcListErrorNoProgramBegin);
+  end;
+
+  // 判断 Sender 是 MenuItem 的话，把 Button 的 ImageIndex 和 Tag 设过去
+  if Sender is TMenuItem then
+  begin
+    Item := Sender as TMenuItem;
+    Menu := TPopupMenu(Item.Owner);
+    if Menu <> nil then
+    begin
+      Tlb := TToolBar(Menu.Owner);
+      for I := 0 to Tlb.ButtonCount - 1 do
+      begin
+        if Tlb.Buttons[I].DropdownMenu = Menu then
+        begin
+          Tlb.Buttons[I].ImageIndex := Item.ImageIndex;
+          Tlb.Buttons[I].Tag := Item.Tag;
+          Tlb.Buttons[I].Hint := Item.Hint;
+        end;
+      end;
+    end;
+  end;
 end;
 
 procedure TCnProcListWizard.JumpIntfOnClick(Sender: TObject);
@@ -1803,6 +1944,15 @@ var
 {$ENDIF}
   end;
 
+  function GetPasParserColNumber: Integer;
+  begin
+{$IFDEF UNICODE}
+    Result := PasParser.TokenPos - PasParser.LineStartOffset;
+{$ELSE}
+    Result := PasParser.TokenPos - PasParser.LinePos;
+{$ENDIF}
+  end;
+
   function IsDprOrInc(const AFile: string): Boolean;
   var
     FileExt: string;
@@ -1831,27 +1981,21 @@ var
 
   function GetProperProcName(ProcType: TTokenKind; IsClass: Boolean): string;
   begin
-    Result := SUnknown;
-    if IsClass then
-    begin
-      if ProcType = tkFunction then
-        Result := 'class function' // Do not localize.
-      else if ProcType = tkProcedure then
-        Result := 'class procedure' // Do not localize.
-      else if ProcType = tkOperator then
-        Result := 'class operator'; // Do not localize.
-    end
+    Result := SCnUnknown;
+
+    case ProcType of
+      // Do not localize.
+      tkFunction: Result := 'function';
+      tkProcedure: Result := 'procedure';
+      tkConstructor: Result := 'constructor';
+      tkDestructor: Result := 'destructor';
+      tkOperator: Result := 'operator';
     else
-    begin
-      case ProcType of
-        // Do not localize.
-        tkFunction: Result := 'function';
-        tkProcedure: Result := 'procedure';
-        tkConstructor: Result := 'constructor';
-        tkDestructor: Result := 'destructor';
-        tkOperator: Result := 'operator';
-      end;
+      Exit;
     end;
+
+    if IsClass then
+      Result := 'class ' + Result;
   end;
 
   function GetProperElementType(ProcType: TTokenKind; IsClass: Boolean): TCnElementType;
@@ -1859,10 +2003,12 @@ var
     Result := etUnknown;
     if IsClass then
     begin
-      if ProcType in [tkFunction, tkProcedure] then
-        Result := etClassFunc
-      else if ProcType = tkOperator then
-        Result := etOperator
+      case ProcType of
+        tkFunction, tkProcedure: Result := etClassFunc;
+        tkConstructor: Result := etConstructor;
+        tkDestructor: Result := etDestructor;
+        tkOperator: Result := etOperator;
+      end;
     end
     else
     begin
@@ -2140,6 +2286,7 @@ var
     ElementInfo: TCnElementInfo;
     BeginProcHeaderPosition: Longint;
     J, K: Integer;
+    IsProgram: Boolean;
     LineNo: Integer;
     ProcName, ProcReturnType, IntfName: string;
     ElementTypeStr, OwnerClass, ProcArgs: string;
@@ -2176,11 +2323,21 @@ var
             CurClassForNotKnown := '';
             PrevTokenID := tkNull;
             NotKnownLineNo := -1;
+            IsProgram := False;
 
             while PasParser.TokenID <> tkNull do
             begin
               // 记录下每个 Identifier
-              if PasParser.TokenID = tkLower then
+              if PasParser.TokenID in [tkProgram, tkLibrary] then
+                IsProgram := True;
+
+              if (PasParser.TokenID in [tkProgram, tkLibrary, tkUnit]) and (FUnitLine = 0) then // 第一个 Unit
+                FUnitLine := GetPasParserLineNumber
+              else if (PasParser.TokenID = tkInitialization) and (FInitializationLine = 0) then // 第一个 Initialization
+                FInitializationLine := GetPasParserLineNumber
+              else if (PasParser.TokenID = tkFinalization) and (FFinalizationLine = 0) then // 第一个 Finalization
+                FFinalizationLine := GetPasParserLineNumber
+              else if PasParser.TokenID = tkLower then
               begin
                 IsInTemplate := True;
                 CurIdent := CurIdent + '<'
@@ -2231,7 +2388,10 @@ var
                 CurIntf := CurIdent;
               end
               else if (PasParser.TokenID = tkImplementation) and (FImplLine = 0) then
-                FImplLine := GetPasParserLineNumber;
+                FImplLine := GetPasParserLineNumber
+              else if IsProgram and (PasParser.TokenID = tkBegin) and
+                (GetPasParserColNumber = 0) then // Program 中最后一个行首的 begin
+                FOuterBeginLine := GetPasParserLineNumber;
 
               if ((not InTypeDeclaration and InImplementation) or InIntfDeclaration) and
                 (PasParser.TokenID in [tkFunction, tkProcedure, tkConstructor, tkDestructor, tkOperator]) then
@@ -2562,6 +2722,10 @@ var
 
               ClassLast := (PasParser.TokenID = tkClass);
               IntfLast := (PasParser.TokenID = tkInterface);
+
+              // 最后一个 end
+              if PasParser.TokenID = tkEnd then
+                FEndLine := GetPasParserLineNumber;
 
               if not (PasParser.TokenID in [tkSpace, tkCRLF, tkCRLFCo]) then
                 PrevTokenID := PasParser.TokenID;
@@ -3274,7 +3438,7 @@ procedure TCnProcListWizard.AddProcedure(ElementList, ObjectList: TStringList;
   ElementInfo: TCnElementInfo; IsIntf: Boolean);
 var
   TempStr: string;
-  i, j: Integer;
+  I, J, K1, K2: Integer;
 begin
 {$IFNDEF STAND_ALONE}
   ElementInfo.Name := CompressWhiteSpace(ElementInfo.Name);
@@ -3284,19 +3448,28 @@ begin
       begin
         TempStr := ElementInfo.Name;
         // Remove the class reserved word
-        i := Pos('CLASS ', UpperCase(TempStr)); // Do not localize.
-        if i = 1 then
+        I := Pos('CLASS ', UpperCase(TempStr)); // Do not localize.
+        if I = 1 then
           Delete(TempStr, 1, Length('CLASS ')); // Do not localize.
         // Remove 'function' or 'procedure'
-        i := Pos(' ', TempStr);
-        j := Pos('(', TempStr);
-        if (i > 0) and (i < j) then // 匿名函数没有函数名
-          TempStr := Copy(TempStr, i + 1, Length(TempStr))
-        else if (i > 0) and (j = 0) then
+        I := Pos(' ', TempStr);
+        J := Pos('(', TempStr);
+        if (I > 0) and (I < J) then // 匿名函数没有函数名
+          TempStr := Copy(TempStr, I + 1, Length(TempStr))
+        else if (I > 0) and (J = 0) then
         begin
-          j := Pos(';', TempStr); // 没有括号的函数，有分号也可以
-          if j > i then
-            TempStr := Copy(TempStr, i + 1, Length(TempStr));
+          J := Pos(';', TempStr); // 没有括号的函数，有分号也可以，但得处理分号是在注释内的情况
+          if J > I then
+          begin
+            K1 := Pos('{', TempStr);
+            K2 := Pos('}', TempStr);
+
+            // 简单处理 {}。如果分号是注释内，也就是 K1 < J < K2，那么只要 Copy 到 K1
+            if (K1 < J) and (J < K2) then
+              TempStr := Copy(TempStr, I + 1, K1 - I - 1)
+            else
+              TempStr := Copy(TempStr, I + 1, Length(TempStr));
+          end;
         end;
 
         // 为 Interface 的成员声明加上 Interface 名
@@ -3304,13 +3477,13 @@ begin
           TempStr := ElementInfo.OwnerClass + '.' + TempStr;
 
         // Remove the paramater list
-        i := Pos('(', TempStr);
-        if i > 0 then
-          TempStr := Copy(TempStr, 1, i - 1);
+        I := Pos('(', TempStr);
+        if I > 0 then
+          TempStr := Copy(TempStr, 1, I - 1);
         // Remove the function return type
-        i := Pos(':', TempStr);
-        if i > 0 then
-          TempStr := Copy(TempStr, 1, i - 1);
+        I := Pos(':', TempStr);
+        if I > 0 then
+          TempStr := Copy(TempStr, 1, I - 1);
         // Check for an implementation procedural type
         if Length(TempStr) = 0 then
         begin
@@ -3438,7 +3611,7 @@ begin
     mmoContent.Visible := False;
     Splitter.Visible := False;
 
-    if FPreviewIsRight then
+    if mmoContent.Align = alRight then
       FPreviewWidth := mmoContent.Width
     else
       FPreviewHeight := mmoContent.Height;
@@ -3912,6 +4085,20 @@ begin
   UpdateStatusBar;
 end;
 
+procedure TCnProcListForm.btnPreviewRightClick(Sender: TObject);
+begin
+  btnPreviewRight.Down := True;
+  btnPreviewDown.Down := False;
+  FPreviewIsRight := True;
+end;
+
+procedure TCnProcListForm.btnPreviewDownClick(Sender: TObject);
+begin
+  btnPreviewDown.Down := True;
+  btnPreviewRight.Down := False;
+  FPreviewIsRight := False;
+end;
+
 procedure TCnProcListForm.UpdateMemoSize(Sender: TObject);
 const
   csStep = 5;
@@ -4278,8 +4465,8 @@ end;
 constructor TCnProcDropDownBox.Create(AOwner: TComponent);
 const
   csMinDispItems = 6;
-  csDefDispItems = 12;
-  csMinDispWidth = 450;
+  csDefDispItems = 16;
+  csMinDispWidth = 500;
   csDefDispWidth = 300;
 begin
   inherited;
@@ -4467,6 +4654,9 @@ begin
 
   if Text = '' then
   begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('TCnProcListComboBox.Change: NO Text. Hide');
+{$ENDIF}
     FDropDownList.Hide;
     FDropDownList.SavePosition;
     Exit;
@@ -4483,6 +4673,10 @@ begin
   FDropDownList.MatchStr := Text;
   Obj := FWizard.GetCurrentToolBarObj;
   FDropDownList.MatchMode := GetMatchMode(Obj);
+
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('TCnProcListComboBox.Change: To UpdateDisplay and ShowDropBox');
+{$ENDIF}
 
   FDropDownList.UpdateDisplay;
   if not FDropDownList.Visible then
@@ -4506,6 +4700,9 @@ end;
 
 procedure TCnProcListComboBox.WndProc(var Message: TMessage);
 begin
+  if Message.Msg = WM_LBUTTONDOWN then
+    FFocusedClick := Focused; // 记录鼠标左键点下时有无焦点，有才能处理自动下拉
+
   inherited;
   if Message.Msg = WM_KILLFOCUS then
   begin
@@ -4549,12 +4746,19 @@ end;
 
 procedure TCnProcListComboBox.DropDownListClick(Sender: TObject);
 begin
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('TCnProcListComboBox.DropDownListClick');
+{$ENDIF}
   if FDropDownList.FDisableClickFlag then
   begin
+    // 屏蔽一次单击下拉触发事件
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('TCnProcListComboBox.DropDownListClick Ignore One');
+{$ENDIF}
     FDropDownList.FDisableClickFlag := False;
     Exit;
   end;
-  
+
   if FDropDownList.ItemIndex >= 0 then
     PostMessage(Handle, WM_KEYDOWN, VK_RETURN, 0);
 end;
@@ -4737,6 +4941,49 @@ begin
   end;
 {$ENDIF}
   FDisableChange := False;
+end;
+
+procedure TCnProcListComboBox.Click;
+var
+  W: Integer;
+  P: TPoint;
+  ACanvas: TControlCanvas;
+begin
+  inherited;
+// 本来点击前如果没焦点，此次点击只是获取焦点，不应下拉，但去掉了这个限制
+//  if not FFocusedClick then
+//    Exit;
+
+  P := Mouse.CursorPos;
+  P := ScreenToClient(P);
+{$IFDEF DEBUG}
+  CnDebugger.LogFmt('TCnProcListComboBox.Click at X %d, Button Left Edge %d',
+    [P.X, ClientWidth - ButtonWidth]);
+{$ENDIF}
+
+  if P.X > ClientWidth - ButtonWidth then // 鼠标点击位置在按钮上则啥也不做
+    Exit;
+
+  // 鼠标点击位置是否在文字右侧
+  ACanvas := TControlCanvas.Create;
+  try
+    ACanvas.Control := Self;
+    W := ACanvas.TextWidth(Text);
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('TCnProcListComboBox.Click at X %d, Text Width %d', [P.X, W]);
+{$ENDIF}
+  finally
+    ACanvas.Free;
+  end;
+
+  if P.X > W then
+    DoMarginClick;
+end;
+
+procedure TCnProcListComboBox.DoMarginClick;
+begin
+  if Assigned(FOnMarginClick) then
+    FOnMarginClick(Self);
 end;
 
 { TCnProcToolBarObj }

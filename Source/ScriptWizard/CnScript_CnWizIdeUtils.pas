@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -457,7 +457,7 @@ begin
     RegisterMethod('Function GetCharHeight : Integer');
     RegisterMethod('Function GetCharWidth : Integer');
     RegisterMethod('Function GetCharSize : TSize');
-    RegisterMethod('Function GetEditControlInfo( EditControl : TControl) : TEditControlInfo');
+    RegisterMethod('Function GetEditControlInfo( EditControl : TControl) : TCnEditControlInfo');
     RegisterMethod('Function GetEditControlCharHeight( EditControl : TControl) : Integer');
     RegisterMethod('Function GetEditControlSupportsSyntaxHighlight( EditControl : TControl) : Boolean');
     RegisterMethod('Function GetEditControlCanvas( EditControl : TControl) : TCanvas');
@@ -559,7 +559,7 @@ begin
     RegisterMethod('Constructor Create( AEditControl : TControl; AEditView : IOTAEditView)');
     RegisterMethod('Function EditorIsOnTop : Boolean');
     RegisterMethod('Procedure IDEShowLineNumberChanged');
-    RegisterProperty('Context', 'TEditorContext', iptr);
+    RegisterProperty('Context', 'TCnEditorContext', iptr);
     RegisterProperty('EditControl', 'TControl', iptr);
     RegisterProperty('EditWindow', 'TCustomForm', iptr);
     RegisterProperty('EditView', 'IOTAEditView', iptr);
@@ -574,14 +574,14 @@ end;
 (*----------------------------------------------------------------------------*)
 procedure SIRegister_CnEditControlWrapper(CL: TPSPascalCompiler);
 begin
-  CL.AddTypeS('TEditControlInfo', 'record TopLine : Integer; LinesInWindow : In'
+  CL.AddTypeS('TCnEditControlInfo', 'record TopLine : Integer; LinesInWindow : In'
    +'teger; LineCount : Integer; CaretX : Integer; CaretY : Integer; CharXIndex'
    +' : Integer; LineDigit : Integer; end');
   CL.AddTypeS('TEditorChangeType', '( ctView, ctWindow, ctCurrLine, ctCurrCol, '
    +'ctFont, ctVScroll, ctHScroll, ctBlock, ctModified, ctTopEditorChanged, ctL'
    +'ineDigit, ctElided, ctUnElided, ctOptionChanged )');
   CL.AddTypeS('TEditorChangeTypes', 'set of TEditorChangeType');
-  CL.AddTypeS('TEditorContext', 'record TopRow : Integer; BottomRow : Integer; '
+  CL.AddTypeS('TCnEditorContext', 'record TopRow : Integer; BottomRow : Integer; '
    +'LeftColumn : Integer; CurPos : TOTAEditPos; LineCount : Integer; LineText '
    +': string; ModTime : TDateTime; BlockValid : Boolean; BlockSize : Integer; '
    +'BlockStartingColumn : Integer; BlockStartingRow : Integer; BlockEndingColu'
@@ -841,7 +841,7 @@ procedure TEditorObjectEditControl_R(Self: TEditorObject; var T: TControl);
 begin T := Self.EditControl; end;
 
 (*----------------------------------------------------------------------------*)
-procedure TEditorObjectContext_R(Self: TEditorObject; var T: TEditorContext);
+procedure TEditorObjectContext_R(Self: TEditorObject; var T: TCnEditorContext);
 begin T := Self.Context; end;
 
 (*----------------------------------------------------------------------------*)
@@ -965,7 +965,7 @@ begin
   begin
     RegisterConstructor(@TEditorObject.Create, 'Create');
     RegisterMethod(@TEditorObject.EditorIsOnTop, 'EditorIsOnTop');
-    RegisterMethod(@TEditorObject.IDEShowLineNumberChanged, 'IDEShowLineNumberChanged');
+    RegisterMethod(@TEditorObject.NotifyIDEGutterChanged, 'NotifyIDEGutterChanged');
     RegisterPropertyHelper(@TEditorObjectContext_R,nil,'Context');
     RegisterPropertyHelper(@TEditorObjectEditControl_R,nil,'EditControl');
     RegisterPropertyHelper(@TEditorObjectEditWindow_R,nil,'EditWindow');

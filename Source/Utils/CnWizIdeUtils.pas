@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -33,7 +33,7 @@ unit CnWizIdeUtils;
 * 软件名称：CnPack IDE 专家包
 * 单元名称：IDE 相关公共单元
 * 单元作者：周劲羽 (zjy@cnpack.org)
-*           LiuXiao（刘啸）liuxiao@cnpack.org
+*           CnPack 开发组 master@cnpack.org
 * 备    注：该单元部分内容移植自 GExperts 1.12 Src
 *           其原始内容受 GExperts License 的保护
 * 开发平台：PWin2000Pro + Delphi 5.01
@@ -71,7 +71,7 @@ uses
   {$IFNDEF CNWIZARDS_MINIMUM} CnIDEVersion, {$ENDIF}
   CnPasCodeParser, CnWidePasParser, CnWizMethodHook, mPasLex, CnPasWideLex,
   mwBCBTokenList, CnBCBWideTokenList, CnWizUtils, CnWizEditFiler, CnCommon,
-  CnWizOptions, CnWizCompilerConst;
+  CnWideStrings, CnWizOptions, CnWizCompilerConst;
 
 //==============================================================================
 // IDE 中的常量定义
@@ -148,6 +148,10 @@ const
   SCnMessageViewFormClassName = 'TMessageViewForm';
   SCnMessageViewTabSetName = 'MessageGroups';
   SCnMvEditSourceItemName = 'mvEditSourceItem';
+
+  // 调试信息提示大窗口
+  SCnExpandableEvalViewClassName = 'TExpandableEvalView';
+  SCnExpandableEvalViewName = 'ExpandableEvalView';
 
 {$IFDEF BDS}
   SCnTreeMessageViewClassName = 'TBetterHintWindowVirtualDrawTree';
@@ -333,6 +337,9 @@ function GetComponentPaletteControlBar: TControlBar;
 function GetIdeInsightBar: TWinControl;
 {* 返回 IDE Insight 搜索框控件对象}
 
+function GetExpandableEvalViewForm: TCustomForm;
+{* 返回调试时提示信息大窗口，低版本或非调试期可能为空}
+
 function GetMainMenuItemHeight: Integer;
 {* 返回主菜单项高度 }
 
@@ -344,6 +351,9 @@ function IsIdeDesignForm(AForm: TCustomForm): Boolean;
 
 procedure BringIdeEditorFormToFront;
 {* 将源码编辑器设为活跃}
+
+procedure CloseExpandableEvalViewForm;
+{* 关闭调试时提示信息大窗口}
 
 function IDEIsCurrentWindow: Boolean;
 {* 判断 IDE 是否是当前的活动窗口 }
@@ -385,8 +395,9 @@ function GetComponentUnitName(const ComponentName: string): string;
 procedure GetInstalledComponents(Packages, Components: TStrings);
 {* 取已安装的包和组件，参数允许为 nil（忽略）}
 
-function GetIDERegistryFont(const RegItem: string; AFont: TFont): Boolean;
-{* 从某项注册表中载入某项字体并赋值给 AFont
+function GetIDERegistryFont(const RegItem: string; AFont: TFont;
+  out BackgroundColor: TColor): Boolean;
+{* 从某项注册表中载入某项字体并赋值给 AFont，并把背景色赋值给 BackgroundColor
    RegItem 可以是 '', 'Assembler', 'Comment', 'Preprocessor',
     'Identifier', 'Reserved word', 'Number', 'Whitespace', 'String', 'Symbol'
     等注册表里头已经定义了的键值}
@@ -718,6 +729,8 @@ function IdeGetVirtualImageListFromOrigin(Origin: TCustomImageList;
 
 {$ENDIF}
 
+{$IFNDEF CNWIZARDS_MINIMUM}
+
 function SearchUsesInsertPosInCurrentPas(IsIntf: Boolean; out HasUses: Boolean;
   out CharPos: TOTACharPos): Boolean;
 {* 在当前编辑的 Pascal 源文件中搜索 uses 待插入的位置，IsIntf 指明搜索的是 interface 处的 uses
@@ -731,6 +744,8 @@ function JoinUsesOrInclude(IsCpp, FileHasUses: Boolean; IsHFromSystem: Boolean;
   const IncFiles: TStrings): string;
 {* 根据源码类型与待插入的文件名列表得到插入的 uses 或 include 字符串，
   FileHasUses 只对 Pascal 代码有效、IsHFromSystem 只对 Cpp 文件有效}
+
+{$ENDIF}
 
 implementation
 
@@ -751,6 +766,11 @@ const
 const
   SBeginBatchOpenCloseName = '@Editorform@BeginBatchOpenClose$qqrv';
   SEndBatchOpenCloseName = '@Editorform@EndBatchOpenClose$qqrv';
+
+{$IFDEF DELPHI120_ATHENS_UP}
+  // D12.1 改名了，但 12 没改
+  SEndBatchOpenCloseName121 = '@Editorform@EndBatchOpenClose$qqrxo';
+{$ENDIF}
 
 var
   BeginBatchOpenCloseProc: TProcedure = nil;
@@ -1193,7 +1213,7 @@ begin
   // 行相等才需要比较列，并且由于 CursorPos 是 ANSI 的光标位置，
   // 所以得把 Utf16 转成 Ansi 来比较
   Result := (Col >= Token.EditCol) and (Col <= Token.EditCol +
-    CalcAnsiLengthFromWideString(Token.Token));
+    CalcAnsiDisplayLengthFromWideString(Token.Token));
 end;
 
 //==============================================================================
@@ -1444,6 +1464,21 @@ begin
 {$ENDIF}
 end;
 
+function GetExpandableEvalViewForm: TCustomForm;
+var
+  I: Integer;
+begin
+  for I := 0 to Screen.CustomFormCount - 1 do
+  begin
+    if Screen.CustomForms[I].ClassNameIs(SCnExpandableEvalViewClassName) then
+    begin
+      Result := Screen.CustomForms[I];
+      Exit;
+    end;
+  end;
+  Result := nil;
+end;
+
 function GetIdeInsightBar: TWinControl;
 {$IFDEF IDE_HAS_INSIGHT}
 var
@@ -1512,6 +1547,15 @@ begin
       Exit;
     end;
   end;
+end;
+
+procedure CloseExpandableEvalViewForm;
+var
+  F: TCustomForm;
+begin
+  F := GetExpandableEvalViewForm;
+  if F <> nil then
+    F.Close;
 end;
 
 // 判断 IDE 是否是当前的活动窗口
@@ -1597,7 +1641,7 @@ begin
 {$IFDEF DELPHI110_ALEXANDRIA}
   Result := Result + 'Embarcadero\BDS\22.0';
 {$ELSE}
-{$IFDEF DELPHI120_YUKON}
+{$IFDEF DELPHI120_ATHENS}
   Result := Result + 'Embarcadero\BDS\23.0';
 {$ELSE}
   Error: Unknown Compiler
@@ -1963,7 +2007,8 @@ begin
   end;
 end;
 
-function GetIDERegistryFont(const RegItem: string; AFont: TFont): Boolean;
+function GetIDERegistryFont(const RegItem: string; AFont: TFont;
+  out BackgroundColor: TColor): Boolean;
 const
   SCnIDERegName = {$IFDEF BDS} 'BDS' {$ELSE} {$IFDEF DELPHI} 'Delphi' {$ELSE} 'C++Builder' {$ENDIF}{$ENDIF};
 
@@ -2037,7 +2082,7 @@ begin
           end;
           Result := True; // 不存在则用默认字体
         end
-        else  // 是高亮字体，有前景色读取，但没读背景色，因为 TFont 没有背景色
+        else  // 是高亮字体，有前景色读取和背景色读取，因为 TFont 没有背景色，因而搁 BackgroundColor 变量中
         begin
           AFont.Style := [];
           if Reg.OpenKeyReadOnly(Format(WizOptions.CompilerRegPath
@@ -2061,18 +2106,34 @@ begin
             if Reg.ValueExists(SCnIDEForeColor) then
             begin
               Result := True;
-  {$IFDEF COMPILER7_UP}
+{$IFDEF COMPILER7_UP}
               AColorStr := Reg.ReadString(SCnIDEForeColor);
               if IdentToColor(AColorStr, AColor) then
                 AFont.Color := AColor
               else
                 AFont.Color := StrToIntDef(AColorStr, 0);
-  {$ELSE}
+{$ELSE}
               // D5/6 的颜色是 16 色索引号
               AColor := Reg.ReadInteger(SCnIDEForeColor);
               if AColor in [0..15] then
                 AFont.Color := SCnColor16Table[AColor];
-  {$ENDIF}
+{$ENDIF}
+            end;
+            if Reg.ValueExists(SCnIDEBackColor) then
+            begin
+              Result := True;
+{$IFDEF COMPILER7_UP}
+              AColorStr := Reg.ReadString(SCnIDEBackColor);
+              if IdentToColor(AColorStr, AColor) then
+                BackgroundColor := AColor
+              else
+                BackgroundColor := StrToIntDef(AColorStr, 0);
+{$ELSE}
+              // D5/6 的颜色是 16 色索引号
+              AColor := Reg.ReadInteger(SCnIDEBackColor);
+              if AColor in [0..15] then
+                BackgroundColor := SCnColor16Table[AColor];
+{$ENDIF}
             end;
           end;
         end;
@@ -2330,6 +2391,11 @@ begin
   Assert(Assigned(BeginBatchOpenCloseProc), 'Failed to load BeginBatchOpenCloseProc from CorIdeModule');
 
   EndBatchOpenCloseProc := GetProcAddress(CorIdeModule, SEndBatchOpenCloseName);
+{$IFDEF DELPHI120_ATHENS_UP}
+  if not Assigned(EndBatchOpenCloseProc) then // D12.1 改名了，再找一次
+    EndBatchOpenCloseProc := GetProcAddress(CorIdeModule, SEndBatchOpenCloseName121);
+{$ENDIF}
+
   Assert(Assigned(EndBatchOpenCloseProc), 'Failed to load EndBatchOpenCloseProc from CorIdeModule');
 {$ENDIF}
 end;
@@ -3773,6 +3839,8 @@ end;
 
 {$ENDIF}
 
+{$IFNDEF CNWIZARDS_MINIMUM}
+
 function SearchUsesInsertPosInCurrentPas(IsIntf: Boolean; out HasUses: Boolean;
   out CharPos: TOTACharPos): Boolean;
 var
@@ -4002,6 +4070,8 @@ begin
     end;
   end;
 end;
+
+{$ENDIF}
 
 initialization
   // 使用此全局变量可以避免频繁调用 IdeGetIsEmbeddedDesigner 函数

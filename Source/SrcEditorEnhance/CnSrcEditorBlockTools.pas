@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -28,7 +28,9 @@ unit CnSrcEditorBlockTools;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串支持本地化处理方式
-* 修改记录：2018.07.30
+* 修改记录：2024.04.15
+*               色块支持 TAlphaColors 类型的字符串
+*           2018.07.30
 *               增加显示色块的功能
 *           2012.11.02 by liuxiao
 *               因 OTA 的 Bug，屏蔽 D7 下的三项新增功能
@@ -54,6 +56,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Dialogs, ToolsAPI,
   IniFiles, Forms, Menus, ActnList, Math, {$IFDEF DELPHIXE3_UP} Actions, {$ENDIF}
+  {$IFDEF SUPPORT_ALPHACOLOR} System.UITypes, System.UIConsts, {$ENDIF}
   CnCommon, CnWizUtils, CnWizIdeUtils, CnWizConsts, CnEditControlWrapper,
   CnWizFlatButton, CnConsts, CnWizNotifier, CnWizShortCut, CnPopupMenu,
   CnSrcEditorCodeWrap, CnSrcEditorGroupReplace, CnSrcEditorWebSearch,
@@ -66,10 +69,12 @@ type
     btLowerCase, btUpperCase, btToggleCase,
     btIndent, btIndentEx, btUnindent, btUnindentEx,
     btCommentCode, btUnCommentCode, btToggleComment, btCommentCropper,
-    btFormatCode, btCodeSwap, btCodeToString, btInsertColor, btInsertDateTime,
+    btAICoderExplainCode, btAICoderReviewCode, btAICoderToggleChatWindow, btAICoderSetting,
+    btFormatCode, btCodeSwap, btEvalAlign, btCodeToString, btInsertColor, btInsertDateTime,
     btSortLines, btUsesFromIdent, {$IFDEF IDE_HAS_INSIGHT} btSearchInsight, {$ENDIF}
     btBlockMoveUp, btBlockMoveDown, btBlockDelLines, btDisableHighlight,
     btShortCutConfig);
+  // 通过 AddMenuItemWithAction 添加的菜单项也需在此增加类型，但除了映射外暂无实际作用
 
   TCnSrcEditorBlockTools = class(TPersistent)
   private
@@ -103,6 +108,9 @@ type
     FScriptMenu: TMenuItem;
     FScriptSettingChangedReceiver: ICnEventBusReceiver;
 {$ENDIF}
+{$ENDIF}
+{$IFDEF CNWIZARDS_CNAICODERWIZARD}
+    FAICoderMenu: TMenuItem;
 {$ENDIF}
     FHideStructMenu: TMenuItem;
     FTabIndent: Boolean;
@@ -171,7 +179,7 @@ implementation
 {$IFDEF CNWIZARDS_CNSRCEDITORENHANCE}
 
 uses
-  CnWizSubActionShortCutFrm, CnScriptWizard, CnScriptFrm
+  CnWizSubActionShortCutFrm, CnScriptWizard, CnScriptFrm, CnAICoderWizard
   {$IFDEF DEBUG}, CnDebug{$ENDIF};
 
 const
@@ -643,11 +651,13 @@ var
   I: Integer;
 begin
   for I := 0 to MenuItem.Count - 1 do
+  begin
     if (MenuItem.Items[I].Tag = Ord(Kind)) and Assigned(MenuItem.Items[I].Action) then
     begin
       Result := MenuItem.Items[I].Action.Execute;
       Exit;
     end;
+  end;
   Result := False;
 end;
 
@@ -803,6 +813,9 @@ var
   SW: TCnScriptWizard;
 {$ENDIF}
 {$ENDIF}
+{$IFDEF CNWIZARDS_CNAICODERWIZARD}
+  AW: TCnAICoderWizard;
+{$ENDIF}
 
   function DoAddMenuItem(AItem: TMenuItem; const ACaption: string;
     Kind: TBlockToolKind; const ShortCut: TShortCut = 0;
@@ -915,7 +928,7 @@ begin
       begin
         Item := AddMenuItem(FScriptMenu, SW.Scripts[I].Name, OnScriptExecute);
         Item.Enabled := SW.Scripts[I].Enabled;
-        Item.tag := I;
+        Item.Tag := I;
       end;
     end;
     FScriptMenu.Visible := FScriptMenu.Count > 0;
@@ -926,10 +939,25 @@ begin
 {$ENDIF}
 {$ENDIF}
 
+{$IFDEF CNWIZARDS_CNAICODERWIZARD}
+  // AI 辅助编程菜单
+  AW := CnWizardMgr.WizardByClassName('TCnAICoderWizard') as TCnAICoderWizard;
+  if AW <> nil then
+  begin
+    FAICoderMenu := AddMenuItem(Items, SCnAICoderWizardMenuCaption, nil);
+    AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardExplainCode', btAICoderExplainCode);
+    AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardReviewCode', btAICoderReviewCode);
+    AddSepMenuItem(FAICoderMenu);
+    AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardChatWindow', btAICoderToggleChatWindow);
+    AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardConfig', btAICoderSetting);
+  end;
+{$ENDIF}
+
   // 其它菜单
   FMiscMenu := AddMenuItem(Items, SCnSrcBlockMisc, nil);
   AddMenuItemWithAction(FMiscMenu, 'actCnCodeFormatterWizardFormatCurrent', btFormatCode);
   AddMenuItemWithAction(FMiscMenu, 'actCnEditorCodeSwap', btCodeSwap);
+  AddMenuItemWithAction(FMiscMenu, 'actCnEditorEvalAlign', btEvalAlign);
   AddMenuItemWithAction(FMiscMenu, 'actCnEditorCodeToString', btCodeToString);
   AddMenuItemWithAction(FMiscMenu, 'actCnEditorInsertColor', btInsertColor);
   AddMenuItemWithAction(FMiscMenu, 'actCnEditorInsertTime', btInsertDateTime);
@@ -990,11 +1018,36 @@ var
   SyncBtn: TControl;
 {$ENDIF}
 
+{$IFDEF SUPPORT_ALPHACOLOR}
+  function IdentToAlphaColor(const ColorStr: string; out AColor: TColor): Boolean;
+  var
+    F: TAlphaColor;
+  begin
+    try
+      F := StringToAlphaColor(ColorStr);
+      TColorRec(AColor).R := TAlphaColorRec(F).R;
+      TColorRec(AColor).G := TAlphaColorRec(F).G;
+      TColorRec(AColor).B := TAlphaColorRec(F).B;
+      TColorRec(AColor).A := 0;
+      Result := True;
+    except
+      Result := False;
+    end;
+  end;
+{$ENDIF}
+
   function StringIsColor(const ColorStr: string; out AColor: TColor): Boolean;
   begin
     Result := False;
     if IdentToColor(ColorStr, Longint(AColor)) then
       Result := True
+{$IFDEF SUPPORT_ALPHACOLOR}
+    // System.UITypes 里的 TAlphaColors.Red 这种也要能处理
+    else if IdentToAlphaColor(ColorStr, AColor) then
+    begin
+      Result := True;
+    end
+{$ENDIF}
     else
     begin
       if (Length(ColorStr) = 6) or (Length(ColorStr) = 8) then

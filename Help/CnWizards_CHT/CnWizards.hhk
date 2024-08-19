@@ -8,6 +8,10 @@
 	<param name="FrameName" value="right">
 </OBJECT>
 <UL>
+  <LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="AI 編碼輔助專家">
+		<param name="Local" value="wizards\aicoderwizard.htm">
+		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="ASCII 字符表">
 		<param name="Name" value="ASCII 字符表">
@@ -130,6 +134,10 @@
 		<param name="Local" value="wizards\projext\projectexwizard.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="抽取字符串工具">
+		<param name="Local" value="wizards\toolset\extractstring.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="窗口置頂與折疊擴展專家">
 		<param name="Local" value="ideenhance\wintoproller.htm">
 		</OBJECT>
@@ -208,6 +216,10 @@
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="多行文本編輯器">
 		<param name="Local" value="propeditor\propstring.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="賦值對齊工具">
+		<param name="Local" value="wizards\toolset\editorevalalign.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="賦值交換工具">
@@ -338,6 +350,10 @@
 		<param name="Local" value="wizards\toolset\editorfontdec.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="調試增強工具">
+		<param name="Local" value="ideenhance\debugenh.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="跳至後一標識符工具">
 		<param name="Local" value="wizards\editor\editorjumpnextident.htm">
 		</OBJECT>
@@ -420,10 +436,6 @@
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="源代碼自動保存">
 		<param name="Local" value="srcedtenh\srcedtautosave.htm">
-		</OBJECT>
-	<LI> <OBJECT type="text/sitemap">
-		<param name="Name" value="源閱讀專家">
-		<param name="Local" value="wizards\feedreader.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="源碼模板專家">

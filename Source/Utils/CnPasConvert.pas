@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -26,7 +26,7 @@ unit CnPasConvert;
 * 单元作者：Pan Ying  panying@sina.com
 *           小冬 (kendling)
 *           LiuXiao
-* 备    注：实现 PAS 到 HTML 以及 RTF 转换的解析器
+* 备    注：实现 PAS 到 HTML 以及 RTF 转换的解析器，不支持纯 #10 换行的源文件
 * 开发平台：PWin98SE + Delphi 5
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6
 * 本 地 化：该窗体中的字符串均符合本地化处理方式
@@ -123,7 +123,7 @@ interface
 {$IFDEF CNWIZARDS_CNPAS2HTMLWIZARD}
 
 uses
-  Classes, SysUtils, Graphics, Windows, CnCommon;
+  Classes, SysUtils, Graphics, Windows, CnCommon, CnWideStrings;
 
 {$IFDEF DEBUG}
   {$DEFINE CNPASCONVERT_DEBUG}
@@ -197,8 +197,8 @@ type
 
   TCnSourceConversion = class(TObject)
   private
-    bDiffer: Boolean;
-    bAssembler: Boolean;
+    FDiffer: Boolean;
+    FAssembler: Boolean;
 
     FTokenType: TCnPasConvertTokenType;
 
@@ -238,6 +238,7 @@ type
     FLineNo: Integer;
     FSourceType: TCnConvertSourceType;
     FIsMulti: Boolean;
+    FBackgroundColor: TColor;
 
     procedure NewToken;
     procedure TokenAdd(AChar: Char);
@@ -287,23 +288,27 @@ type
     procedure SetInStream(const Value: TStream);
     procedure SetOutStream(const Value: TStream);
   protected
+    FFull: Boolean; // 控制是否写入头尾，由 ConvertBegin 和 ConvertEnd 处理
     {this should be override}
     procedure WriteTokenToStream; virtual; abstract;
     {this should be override}
     procedure SetPreFixAndPosFix(AFont: TFont; ATokenType: TCnPasConvertTokenType);
       virtual; abstract;
   public
-    constructor Create;
+    constructor Create; virtual;
     destructor Destroy; override;
 
-    function Convert: Boolean;
+    function Convert(Full: Boolean = True): Boolean;
 
     property StatusFont[ATokenType: TCnPasConvertTokenType]: TFont read
       GetStatusFont;
-    property InStream: TStream read FInStream write SetInStream;     // 输入流 Ansi/Utf16
+    property InStream: TStream read FInStream write SetInStream;
+    {* 输入的代码流，内容根据当前编译器版本，必须是 Ansi 或 Utf16 的字符串}
     property OutStream: TStream read FOutStream write SetOutStream;  // 输出流 Ansi 或 utf8
+    {* 输出的代码流，内容根据当前编译器版本输出的是 Ansi 或 Utf8 的字符串}
 
     property Size: Integer read FSize;
+    property BackgroundColor: TColor read FBackgroundColor write FBackgroundColor;
     property AssemblerFont: TFont read FAssemblerFont write SetAssemblerFont;
     property CommentFont: TFont read FCommentFont write SetCommentFont;
     property DirectiveFont: TFont read FDirectiveFont write SetDirectiveFont;
@@ -320,6 +325,7 @@ type
       FProcessEvent;
 
     property SourceType: TCnConvertSourceType read FSourceType write FSourceType;
+    {* 由外界指定源码语言类型}
   end;
 
 { TCnSourceToHtmlConversion }
@@ -328,6 +334,8 @@ type
   private
     FIsUtf8: Boolean;
     FHTMLEncode: string;
+    function ColorToHTML(AColor: TColor): string;
+    {* 将 TColor 转为 #AABBCC 这种格式的颜色字符串}
     function ConvertFontToCss(AFont: TFont): string;
     procedure SetHTMLEncode(const Value: string);
   protected
@@ -386,7 +394,7 @@ const
     'EndFragment:000000000' + SCnPas2HtmlLineFeed +
     'StartSelection:000000000' + SCnPas2HtmlLineFeed +
     'EndSelection:000000000' + SCnPas2HtmlLineFeed +
-    'SourceURL:http://www.cnpack.org/' + SCnPas2HtmlLineFeed +
+    'SourceURL:https://www.cnpack.org/' + SCnPas2HtmlLineFeed +
     '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">' +
       SCnPas2HtmlLineFeed;
   SCnHtmlClipStart = '<!--StartFragment-->';
@@ -405,74 +413,13 @@ const
 
   CRLF = #13#10;
 
-{-------------------------------------------------------------------------------
-  过程名:    WideStringToUTF8
-  作者:      Administrator
-  日期:      2003.02.20
-  参数:      Buf: WideString; Len: Integer; outStream: TStream
-  返回值:    无
-  备注:      参考 JclUnicode 库，将字符串转换成 UTF8 格式，注意 Len 必须是 WideString 的长度
-
--------------------------------------------------------------------------------}
-procedure WideStringToUTF8(Buf: WideString; Len: Integer; outStream: TStream);
-const
-  FirstByteMark: array[0..6] of Byte = ($00, $00, $C0, $E0, $F0, $F8, $FC);
-  ReplacementCharacter: Cardinal = $0000FFFD;
-  MaximumUCS2: Cardinal = $0000FFFF;
-  MaximumUTF16: Cardinal = $0010FFFF;
-  MaximumUCS4: Cardinal = $7FFFFFFF;
+procedure WideStringToUTF8Stream(const Buf: WideString; outStream: TStream);
 var
-  Ch: Cardinal;
-  L, J, T, BytesToWrite: Cardinal;
-  ByteMask: Cardinal;
-  ByteMark: Cardinal;
   R: AnsiString;
 begin
-  if Len = 0 then
-    R := ''
-  else
+  if Length(Buf) > 0 then
   begin
-    SetLength(R, Len * 6);
-    T := 1;
-    ByteMask := $BF;
-    ByteMark := $80;
-
-    for J := 1 to Len do
-    begin
-      Ch := Cardinal(Buf[J]);
-
-      if Ch < $80 then
-        BytesToWrite := 1
-      else
-        if Ch < $800 then
-          BytesToWrite := 2
-        else
-          if Ch < $10000 then
-            BytesToWrite := 3
-          else
-            if Ch < $200000 then
-              BytesToWrite := 4
-            else
-              if Ch < $4000000 then
-                BytesToWrite := 5
-              else
-                if Ch <= MaximumUCS4 then
-                  BytesToWrite := 6
-                else
-                begin
-                  BytesToWrite := 2;
-                  Ch := ReplacementCharacter;
-                end;
-
-      for L := BytesToWrite downto 2 do
-      begin
-        R[T + L - 1] := AnsiChar((Ch or ByteMark) and ByteMask);
-        Ch := Ch shr 6;
-      end;
-      R[T] := AnsiChar(Ch or FirstByteMark[BytesToWrite]);
-      Inc(T, BytesToWrite);
-    end;
-    SetLength(R, T - 1);
+    R := CnUtf8EncodeWideString(Buf);
     outStream.Write(R[1], Length(R));
   end;
 end;
@@ -493,34 +440,34 @@ procedure ConvertHTMLToClipBoardHtml(inStream, outStream: TMemoryStream);
   end;
 
 var
-  tmpoutStream: TMemoryStream;
-  bodyPos, bodyEndPos, Headlen: Integer;
+  TmpOutStream: TMemoryStream;
+  BodyPos, BodyEndPos, HeadLen: Integer;
   PCh: PAnsiChar;
   S: WideString;
   Zero: Byte;
 begin
   if Assigned(inStream) and Assigned(outStream) then
   begin
-    tmpoutStream := TMemoryStream.Create;
+    TmpOutStream := TMemoryStream.Create;
 
     Zero := 0;
     inStream.Write(Zero, 1); // Write #0 after string;
     S := WideString(PAnsiChar(inStream.Memory));
-    WideStringToUTF8(S, Length(S), tmpoutStream);
+    WideStringToUTF8Stream(S, TmpOutStream);
     // 先转 UTF8
 
    { 接着处理 tmpoutStream，变换成 HTML 剪贴板形式写入 OutStream}
-    Headlen := Length(SCnHtmlClipHead);
-    outStream.Write(AnsiString(SCnHtmlClipHead), Headlen);
-    bodyPos := Pos(AnsiString('<span '), PAnsiChar(tmpoutStream.Memory));
-    bodyEndPos := Pos(AnsiString('</body>'), PAnsiChar(tmpoutStream.Memory));
-    outStream.Write(tmpoutStream.Memory^, bodyPos - 1);
+    HeadLen := Length(SCnHtmlClipHead);
+    outStream.Write(AnsiString(SCnHtmlClipHead), HeadLen);
+    BodyPos := Pos(AnsiString('<span '), PAnsiChar(TmpOutStream.Memory));
+    BodyEndPos := Pos(AnsiString('</body>'), PAnsiChar(TmpOutStream.Memory));
+    outStream.Write(TmpOutStream.Memory^, BodyPos - 1);
     outStream.Write(AnsiString(SCnHtmlClipStart), Length(SCnHtmlClipStart));
-    outStream.Write((Pointer(Integer(tmpoutStream.Memory) + bodyPos - 1))^,
-      bodyEndPos - bodyPos - 1);
+    outStream.Write((Pointer(Integer(TmpOutStream.Memory) + BodyPos - 1))^,
+      BodyEndPos - BodyPos - 1);
     outStream.Write(AnsiString(SCnHtmlClipEnd), Length(SCnHtmlClipEnd));
-    outStream.Write((Pointer(Integer(tmpoutStream.Memory) + bodyEndPos - 1))^,
-      tmpoutStream.Size - bodyEndPos + 1);
+    outStream.Write((Pointer(Integer(TmpOutStream.Memory) + BodyEndPos - 1))^,
+      TmpOutStream.Size - BodyEndPos + 1);
 
 {    // 写 StartHTML
     outStream.Seek(PosStartHTML, soFromBeginning);
@@ -562,11 +509,11 @@ begin
     CopyMemory(Pointer(Integer(outStream.Memory) + outStream.Position), PCh,
       PosLength);
 
-    tmpoutStream.Free;
+    TmpOutStream.Free;
   end;
 end;
 
-{ TCnPasConversion }
+{ TCnSourceConversion }
 
 function TCnSourceConversion.CheckNextChar: Char;
 begin
@@ -577,7 +524,7 @@ end;
 
 procedure TCnSourceConversion.CheckTokenState;
 begin
-  if (bAssembler) and (FTokenType <> ttComment) and (FTokenType <> ttCRLF)
+  if (FAssembler) and (FTokenType <> ttComment) and (FTokenType <> ttCRLF)
     and (FTokenType <> ttKeyWord)
     and (CompareStr(UpperCase(FTokenStr), 'END') = 0) then
     FTokenType := ttAssembler;
@@ -606,7 +553,7 @@ begin
     ttKeyWord:
       begin
         FTokenType := ttUnknown;
-        bAssembler := (CompareStr(UpperCase(FTokenStr), 'ASM') = 0) or
+        FAssembler := (CompareStr(UpperCase(FTokenStr), 'ASM') = 0) or
          (FSourceType = stCpp) and ((CompareStr(UpperCase(FTokenStr), '_ASM') = 0) or
          (CompareStr(UpperCase(FTokenStr), '__ASM') = 0));
       end;
@@ -622,9 +569,11 @@ begin
   end;
 end;
 
-function TCnSourceConversion.Convert: Boolean;
+function TCnSourceConversion.Convert(Full: Boolean): Boolean;
 begin
   Result := False;
+  FFull := Full;
+
   {check the two stream is ok }
   if (FInStream = nil) or (FOutStream = nil) then
     Exit;
@@ -699,7 +648,7 @@ begin
               if IsDirectiveKeyWord(FTokenStr) then
               begin
                 { v1.03: 不区分 Property 后的 KeyWord }
-                if bDiffer then
+                if FDiffer then
                   FTokenType := ttKeyWord;
               end
               else
@@ -939,7 +888,7 @@ begin
   end;
 
   {v0.96 sigh , forget to set it :P}
-  Result := true;
+  Result := True;
 end;
 
 procedure TCnSourceConversion.ConvertBegin;
@@ -959,8 +908,8 @@ begin
   inherited;
 
   {ok, i initial all the private varible here}
-  bDiffer := False;
-  bAssembler := False;
+  FDiffer := False;
+  FAssembler := False;
 
   FInStream := nil;
   FOutStream := nil;
@@ -979,14 +928,15 @@ begin
   FStringFont := TFont.Create;
   FSymbolFont := TFont.Create;
 
+  FBackgroundColor := clWhite;
+
   {change the TokenLength if has problem}
   FTokenLength := 1024;
   try
     GetMem(FToken, FTokenLength * SizeOf(Char));
   except
     on EOutOfMemory do
-      raise
-      ECnSourceConversionException.Create('SourceConversion Error : Can not maintain the Token Memory');
+      raise ECnSourceConversionException.Create('SourceConversion Error : Can not maintain the Token Memory');
   end;
   FTokenEnd := FToken + FTokenLength; // PChar 加减是针对 Char 的，无需乘以 SizeOf(Char)
 
@@ -1487,9 +1437,9 @@ begin
   Result := False;
   Token := UpperCase(AToken);
   if CompareStr('PROPERTY', Token) = 0 then
-    bDiffer := True;
+    FDiffer := True;
   if IsDiffKey(Token) then
-    bDiffer := False;
+    FDiffer := False;
   while First <= Last do
   begin
     I := (First + Last) shr 1;
@@ -1497,7 +1447,7 @@ begin
     if Compare = 0 then
     begin
       Result := True;
-      if bDiffer then
+      if FDiffer then
       begin
         Result := False;
         if CompareStr('NAME', Token) = 0 then
@@ -1733,34 +1683,45 @@ var
   TokenType: TCnPasConvertTokenType;
 begin
   inherited;
-  if FHTMLEncode = '' then
-    FHTMLEncode := 'gb2312';
+  if FFull then
+  begin
+    if FHTMLEncode = '' then
+      FHTMLEncode := 'gb2312';
 
-  WriteStringToStream('<html>' + CRLF + '<head>' + CRLF + '<title>' + Title + '</title>' + CRLF);
-  WriteStringToStream('<meta http-equiv="Content-Type" content="text/html; charset=' + FHTMLEncode + '">' + CRLF);
-  WriteStringToStream('<meta name="GENERATOR" content="CnPack Source2Html Wizard (http://www.cnpack.org)">' + CRLF);
-  WriteStringToStream('<style type="text/css">' + CRLF + '<!--' + CRLF);
+    WriteStringToStream('<html>' + CRLF + '<head>' + CRLF + '<title>' + Title + '</title>' + CRLF);
+    WriteStringToStream('<meta http-equiv="Content-Type" content="text/html; charset=' + FHTMLEncode + '">' + CRLF);
+    WriteStringToStream('<meta name="GENERATOR" content="CnPack Source2Html Wizard (https://www.cnpack.org)">' + CRLF);
+    WriteStringToStream('<style type="text/css">' + CRLF + '<!--' + CRLF);
 
-  { v1.03: Set default body style as Whitespace style }
-  WriteStringToStream('body { ' + ConvertFontToCss(StatusFont[ttSpace]) + ' }'
-    + CRLF + CRLF);
+    { v1.03: Set default body style as Whitespace style }
+    WriteStringToStream('body { ' + ConvertFontToCss(StatusFont[ttSpace]) + ' }'
+      + CRLF + CRLF);
 
-  for TokenType := Low(TCnPasConvertTokenType) to High(TCnPasConvertTokenType) do
-    WriteStringToStream('.u' + IntToStr(Ord(TokenType)) + ' { '
-      + ConvertFontToCss(StatusFont[TokenType]) + ' }' + CRLF);
-  WriteStringToStream('-->' + CRLF + '</style> ' + CRLF + '</head>' + CRLF
-    + '<body bgcolor="#FFFFFF">' + CRLF);
+    for TokenType := Low(TCnPasConvertTokenType) to High(TCnPasConvertTokenType) do
+      WriteStringToStream('.u' + IntToStr(Ord(TokenType)) + ' { '
+        + ConvertFontToCss(StatusFont[TokenType]) + ' }' + CRLF);
+    WriteStringToStream('-->' + CRLF + '</style> ' + CRLF + '</head>' + CRLF
+      + Format('<body bgcolor="%s">', [ColorToHTML(FBackgroundColor)]) + CRLF);
+  end;
 end;
 
 procedure TCnSourceToHtmlConversion.ConvertEnd;
 begin
-  WriteStringToStream(CRLF + '</body>' + CRLF + '</html>' + CRLF);
+  if FFull then
+    WriteStringToStream(CRLF + '</body>' + CRLF + '</html>' + CRLF);
   inherited;
 end;
 
-function TCnSourceToHtmlConversion.ConvertFontToCss(AFont: TFont): string;
+function TCnSourceToHtmlConversion.ColorToHTML(AColor: TColor): string;
 var
-  TempColor: TColor;
+  T: LongInt;
+begin
+  T := ColorToRGB(AColor);
+  Result := '#' + IntToHex(GetRValue(T), 2) + IntToHex(GetGValue(T), 2)
+    + IntToHex(GetBValue(T), 2);
+end;
+
+function TCnSourceToHtmlConversion.ConvertFontToCss(AFont: TFont): string;
 begin
   Result := 'font-family: "' + AFont.Name
     + '"; font-size: ' + IntToStr(AFont.Size) + 'pt;';
@@ -1774,9 +1735,7 @@ begin
   if fsBold in AFont.Style then
     Result := Result + ' font-weight: bold;';
 
-  TempColor := ColorToRGB(AFont.Color);
-  Result := Result + 'color: #' + IntToHex(GetRValue(TempColor), 2)
-    + IntToHex(GetGValue(TempColor), 2) + IntToHex(GetBValue(TempColor), 2);
+  Result := Result + 'color: ' + ColorToHTML(AFont.Color);
 end;
 
 procedure TCnSourceToHtmlConversion.SetHTMLEncode(const Value: string);
@@ -1936,7 +1895,13 @@ begin
       #10:
         begin
           Inc(nCount);
+{$IFDEF UNICODE}
+          if nCount = 2 then
+            FOutStream.WriteBuffer(StartPtr^, 1); // 单独写 #13
+          FOutStream.WriteBuffer(CurPtr^, 1);     // 再单独写 #10
+{$ELSE}
           FOutStream.WriteBuffer(StartPtr^, nCount); // 注意这里不是替换 #10 而是加写额外内容因此 #10 还得写进去
+{$ENDIF}
           Inc(FSize, nCount);
           nCount := 0;
 
@@ -1962,42 +1927,54 @@ end;
 { TCnSourceToRTFConversion }
 
 procedure TCnSourceToRTFConversion.ConvertBegin;
+const
+  S_RTF_BK =
+    '\noqfpromote \paperw12240\paperh15840\margl1800\margr1800\margt1440\margb1440\gutter0\ltrsect' + CRLF +
+    '\ftnbj\aenddoc\trackmoves0\trackformatting1\donotembedsysfont0\relyonvml0\donotembedlingdata1\grfdocevents0\validatexml0\showplaceholdtext0\ignoremixedcontent0\saveinvalidxml0\showxmlerrors0\horzdoc\dghspace120\dgvspace120\dghorigin1701\dgvorigin1984' + CRLF +
+    '\dghshow0\dgvshow3\jcompress\viewkind1\viewscale100\rsidroot12779632\viewbksp1 \fet0{\*\wgrffmtfilter 2450}\ilfomacatclnup0{\*\background' + CRLF +
+    '{\shp{\*\shpinst\shpleft0\shptop0\shpright0\shpbottom0\shpfhdr0\shpbxmargin\shpbxignore\shpbymargin\shpbyignore\shpwr0\shpwrk0\shpfblwtxt1\shpz0\shplid1025{\sp{\sn shapeType}{\sv 1}}{\sp{\sn fFlipH}{\sv 0}}{\sp{\sn fFlipV}{\sv 0}}' + CRLF +
+    '{\sp{\sn fillColor}{\sv %d}}{\sp{\sn fFilled}{\sv 1}}{\sp{\sn lineWidth}{\sv 0}}{\sp{\sn fLine}{\sv 0}}{\sp{\sn bWMode}{\sv 9}}{\sp{\sn fBackground}{\sv 1}}{\sp{\sn fLayoutInCell}{\sv 1}}{\sp{\sn fLayoutInCell}{\sv 1}}}}}';
 var
   TokenType: TCnPasConvertTokenType;
   FontTable: string;
   ColorTable: string;
-  // Code Page varibles
   CodePage: DWORD;
   CPInfo: TCPInfo;
   AYear, AMonth, ADay, AHour, AMin, ASec, AMiSec: Word;
 begin
   inherited;
-{$IFDEF DEBUG}
-  CnDebugger.LogMsg('Create Font Table');
-{$ENDIF}
-  for TokenType := Low(TCnPasConvertTokenType) to High(TCnPasConvertTokenType) do
+  if FFull then
   begin
-    FontTable := FontTable + ConvertFontToRTFFontTable(TokenType, StatusFont[TokenType]);
-    ColorTable := ColorTable + ConvertFontToRTFColorTable(StatusFont[TokenType]);
-  end;
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('End Font Table');
+    CnDebugger.LogMsg('Create Font Table');
+{$ENDIF}
+    for TokenType := Low(TCnPasConvertTokenType) to High(TCnPasConvertTokenType) do
+    begin
+      FontTable := FontTable + ConvertFontToRTFFontTable(TokenType, StatusFont[TokenType]);
+      ColorTable := ColorTable + ConvertFontToRTFColorTable(StatusFont[TokenType]);
+    end;
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('End Font Table');
 {$ENDIF}
 
-  // Get system Code Page
-  CodePage := 0;
-  FillChar(CPInfo, SizeOf(CPInfo), 0);
-  GetCPInfo(CodePage, CPInfo);
+    // Get system Code Page
+    CodePage := 0;
+    FillChar(CPInfo, SizeOf(CPInfo), 0);
+    GetCPInfo(CodePage, CPInfo);
 
-  WriteStringToStream(Format('{\rtf1\ansi\ansicpg%d\deff0\deflang1033\deflangfe%d{\fonttbl %s}' + CRLF,
-    [CodePage, GetSystemDefaultLangID, FontTable]));
-  WriteStringToStream('{\colortbl ;' + ColorTable + '}' + CRLF);
+    WriteStringToStream(Format('{\rtf1\ansi\ansicpg%d\deff0\deflang1033\deflangfe%d{\fonttbl %s}' + CRLF,
+      [CodePage, GetSystemDefaultLangID, FontTable]));
+    WriteStringToStream('{\colortbl ;' + ColorTable + '}' + CRLF);
 
-  DecodeDate(Now, AYear, AMonth, ADay);
-  DecodeTime(Now, AHour, AMin, ASec, AMiSec);
-  WriteStringToStream(Format('{\info{\author CnPack Source2RTF Wizard (http://www.cnpack.org)}{\creatim\yr%d\mo%d\dy%d\hr%d\min%d}{\comment CnPack Source2RTF Wizard (http://www.cnpack.org)}}' + CRLF,
-    [AYear, AMonth, ADay, AHour, AMin]));
-  WriteStringToStream(Format('{\*\generator Msftedit 5.41.15.1507;}\viewkind4\uc1\pard\lang%d', [GetSystemDefaultLangID]));
+    if (FBackgroundColor <> clWhite) and (FBackgroundColor <> clNone) then
+      WriteStringToStream(Format(S_RTF_BK, [ColorToRGB(FBackgroundColor)]));
+
+    DecodeDate(Now, AYear, AMonth, ADay);
+    DecodeTime(Now, AHour, AMin, ASec, AMiSec);
+    WriteStringToStream(Format('{\info{\author CnPack Source2RTF Wizard (https://www.cnpack.org)}{\creatim\yr%d\mo%d\dy%d\hr%d\min%d}{\comment CnPack Source2RTF Wizard (https://www.cnpack.org)}}' + CRLF,
+      [AYear, AMonth, ADay, AHour, AMin]));
+    WriteStringToStream(Format('{\*\generator Msftedit 5.41.15.1507;}\viewkind4\uc1\pard\lang%d', [GetSystemDefaultLangID]));
+  end;
 end;
 
 function TCnSourceToRTFConversion.ConvertChineseToRTF(const AString: string): string;
@@ -2005,20 +1982,23 @@ var
   I: Integer;
 begin
   for I := 1 to Length(AString) do
+  begin
     if Ord(AString[I]) > 128 then
       Result := Result + '\''' + IntToHex(Ord(AString[I]), 2)
     else
       Result := Result + AString[I];
+  end;
 end;
 
 procedure TCnSourceToRTFConversion.ConvertEnd;
 begin
-  WriteStringToStream(CRLF + '}' + CRLF);
+  if FFull then
+    WriteStringToStream(CRLF + '}' + CRLF);
   inherited;
 end;
 
 function TCnSourceToRTFConversion.ConvertFontToRTFFontTable(const TokenType:
-    TCnPasConvertTokenType; const AFont: TFont): string;
+  TCnPasConvertTokenType; const AFont: TFont): string;
 begin
   Result := Format('{\f%d\fnil\fprq%d\fcharset%d %s;}',
     [Ord(TokenType), Ord(AFont.Pitch), AFont.Charset, ConvertChineseToRTF(AFont.Name)]);
@@ -2034,7 +2014,7 @@ begin
 end;
 
 procedure TCnSourceToRTFConversion.SetPreFixAndPosFix(AFont: TFont; ATokenType:
-    TCnPasConvertTokenType);
+  TCnPasConvertTokenType);
 var
   TmpStr: string;
 begin
@@ -2162,7 +2142,13 @@ begin
       #10:
         begin
           Inc(C);
+{$IFDEF UNICODE}
+          if C = 2 then
+            FOutStream.WriteBuffer(StartPtr^, 1); // 单独写 #13
+          FOutStream.WriteBuffer(CurPtr^, 1);     // 再单独写 #10
+{$ELSE}
           FOutStream.WriteBuffer(StartPtr^, C); // 注意这里不是替换 #10 而是加写额外内容因此 #10 还得写进去
+{$ENDIF}
           Inc(FSize, C);
           C := 0;
 

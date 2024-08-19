@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -49,7 +49,7 @@ type
     cnDelphi2006, cnDelphi2007, cnDelphi2009, cnDelphi2010, cnDelphiXE, cnDelphiXE2,
     cnDelphiXE3, cnDelphiXE4, cnDelphiXE5, cnDelphiXE6, cnDelphiXE7, cnDelphiXE8,
     cnDelphi10S, cnDelphi101B, cnDelphi102T, cnDelphi103R, cnDelphi104S, cnDelphi110A,
-    cnBCB5, cnBCB6);
+    cnDelphi120A, cnBCB5, cnBCB6);
   TCnCompilers = set of TCnCompiler;
 
 const
@@ -77,6 +77,7 @@ const
     'RAD Studio 10.3 Rio',
     'RAD Studio 10.4 Sydney',
     'RAD Studio 11.0 Alexandria',
+    'RAD Studio 12.0 Athens',
     'C++Builder 5',
     'C++Builder 6');
 
@@ -104,6 +105,7 @@ const
     'RADStudio103R',
     'RADStudio104S',
     'RADStudio110A',
+    'RADStudio120A',
     'BCB5',
     'BCB6');
 
@@ -131,6 +133,7 @@ const
     '\Software\Embarcadero\BDS\20.0',
     '\Software\Embarcadero\BDS\21.0',
     '\Software\Embarcadero\BDS\22.0',
+    '\Software\Embarcadero\BDS\23.0',
     '\Software\Borland\C++Builder\5.0',
     '\Software\Borland\C++Builder\6.0');
 
@@ -165,7 +168,7 @@ const
   _DELPHI103_RIO = {$IFDEF DELPHI103_RIO}True{$ELSE}False{$ENDIF};
   _DELPHI104_SYDNEY = {$IFDEF DELPHI104_SYDNEY}True{$ELSE}False{$ENDIF};
   _DELPHI110_ALEXANDRIA = {$IFDEF DELPHI110_ALEXANDRIA}True{$ELSE}False{$ENDIF};
-  _DELPHI120_YUKON = {$IFDEF _DELPHI120_YUKON}True{$ELSE}False{$ENDIF};
+  _DELPHI120_ATHENS = {$IFDEF _DELPHI120_ATHENS}True{$ELSE}False{$ENDIF};
 
   _DELPHI1_UP = {$IFDEF DELPHI1_UP}True{$ELSE}False{$ENDIF};
   _DELPHI2_UP = {$IFDEF DELPHI2_UP}True{$ELSE}False{$ENDIF};
@@ -194,7 +197,7 @@ const
   _DELPHI103_RIO_UP = {$IFDEF DELPHI103_RIO_UP}True{$ELSE}False{$ENDIF};
   _DELPHI104_SYDNEY_UP = {$IFDEF DELPHI104_SYDNEY_UP}True{$ELSE}False{$ENDIF};
   _DELPHI110_ALEXANDRIA_UP = {$IFDEF DELPHI110_ALEXANDRIA_UP}True{$ELSE}False{$ENDIF};
-  _DELPHI120_YUKON_UP = {$IFDEF DELPHI120_YUKON_UP}True{$ELSE}False{$ENDIF};
+  _DELPHI120_ATHENS_UP = {$IFDEF DELPHI120_ATHENS_UP}True{$ELSE}False{$ENDIF};
 
   _BCB1 = {$IFDEF BCB1}True{$ELSE}False{$ENDIF};
   _BCB3 = {$IFDEF BCB3}True{$ELSE}False{$ENDIF};
@@ -220,7 +223,7 @@ const
   _BCB103_RIO = {$IFDEF BCB103_RIO}True{$ELSE}False{$ENDIF};
   _BCB104_SYDNEY = {$IFDEF BCB104_SYDNEY}True{$ELSE}False{$ENDIF};
   _BCB110_ALEXANDRIA = {$IFDEF BCB110_ALEXANDRIA}True{$ELSE}False{$ENDIF};
-  _BCB120_YUKON = {$IFDEF BCB120_YUKON}True{$ELSE}False{$ENDIF};
+  _BCB120_ATHENS = {$IFDEF BCB120_ATHENS}True{$ELSE}False{$ENDIF};
 
   _BCB1_UP = {$IFDEF BCB1_UP}True{$ELSE}False{$ENDIF};
   _BCB3_UP = {$IFDEF BCB3_UP}True{$ELSE}False{$ENDIF};
@@ -246,7 +249,7 @@ const
   _BCB103_RIO_UP = {$IFDEF BCB103_RIO_UP}True{$ELSE}False{$ENDIF};
   _BCB104_SYDNEY_UP = {$IFDEF BCB104_SYDNEY_UP}True{$ELSE}False{$ENDIF};
   _BCB110_ALEXANDRIA_UP = {$IFDEF BCB110_ALEXANDRIA_UP}True{$ELSE}False{$ENDIF};
-  _BCB120_YUKON_UP = {$IFDEF BCB120_YUKON_UP}True{$ELSE}False{$ENDIF};
+  _BCB120_ATHENS_UP = {$IFDEF BCB120_ATHENS_UP}True{$ELSE}False{$ENDIF};
 
   _KYLIX1 = {$IFDEF KYLIX1}True{$ELSE}False{$ENDIF};
   _KYLIX2 = {$IFDEF KYLIX2}True{$ELSE}False{$ENDIF};
@@ -507,19 +510,26 @@ const
                                             CompilerName = 'RAD Studio 110_ALEXANDRIA';
                                             CompilerShortName = 'D110A';
                                             {$ELSE}
-                                              {$IFDEF BCB5}
-                                                Compiler: TCnCompiler = cnBCB5;
-                                                CompilerKind: TCnCompilerKind = ckBCB;
-                                                CompilerName = 'C++BUILDER 5';
-                                                CompilerShortName = 'CB5';
+                                              {$IFDEF DELPHI120_ATHENS}
+                                              Compiler: TCnCompiler = cnDelphi120A;
+                                              CompilerKind: TCnCompilerKind = ckDelphi;
+                                              CompilerName = 'RAD Studio 120_ATHENS';
+                                              CompilerShortName = 'D120A';
                                               {$ELSE}
-                                                {$IFDEF BCB6}
-                                                  Compiler: TCnCompiler = cnBCB6;
+                                                {$IFDEF BCB5}
+                                                  Compiler: TCnCompiler = cnBCB5;
                                                   CompilerKind: TCnCompilerKind = ckBCB;
-                                                  CompilerName = 'C++BUILDER 6';
-                                                  CompilerShortName = 'CB6';
+                                                  CompilerName = 'C++BUILDER 5';
+                                                  CompilerShortName = 'CB5';
                                                 {$ELSE}
-                                                  {$MESSAGE ERROR 'Unknow Compiler!'}
+                                                  {$IFDEF BCB6}
+                                                    Compiler: TCnCompiler = cnBCB6;
+                                                    CompilerKind: TCnCompilerKind = ckBCB;
+                                                    CompilerName = 'C++BUILDER 6';
+                                                    CompilerShortName = 'CB6';
+                                                  {$ELSE}
+                                                    {$MESSAGE ERROR 'Unknow Compiler!'}
+                                                  {$ENDIF}
                                                 {$ENDIF}
                                               {$ENDIF}
                                             {$ENDIF}

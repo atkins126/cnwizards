@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -97,7 +97,7 @@ unit CnPasWideLex;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：mwPasLex 的 Unicode 版本实现，专门解析 UTF16 字符串
-* 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：此单元自 mwPasLex 移植而来并改为 Unicode/WideString 实现，保留原始版权声明
 *           当 SupportUnicodeIdent 为 False 时，Unicode 字符挨个作为 tkUnknown 解析
 *           为 True 时整个作为 Identifier 解析。支持 Unicode/非 Unicode 编译器。
@@ -218,6 +218,7 @@ type
     FIdentFuncTable: array[0..191] of function: TTokenKind of object;
 
     function KeyHash(ToHash: PWideChar): Integer;
+    // 往前搜索到标识符尾并计算一个散列值供比对
     function KeyComp(const aKey: CnWideString): Boolean;
     function Func15: TTokenKind;
     function Func19: TTokenKind;
@@ -335,7 +336,8 @@ type
     procedure AmpersandProc; // &
     procedure UnknownProc;
     function GetToken: CnWideString;
-    function InSymbols(aChar: WideChar): Boolean;
+    function InSymbols(aChar: WideChar): Boolean;  // 用来判断关键字后的有效字符是否符合一定条件以进一步确定是否关键字
+    function InSymbols1(aChar: WideChar): Boolean; // 去除了上面函数的引号操作
     function GetTokenAddr: PWideChar;
     function GetTokenLength: Integer;
     function GetWideColumnNumber: Integer;
@@ -429,7 +431,7 @@ procedure MakeIdentTable;
 var
   I, J: AnsiChar;
 begin
-  for I := #0 to#255 do
+  for I := #0 to #255 do
   begin
     case I of
       '_', '0'..'9', 'a'..'z', 'A'..'Z':
@@ -722,7 +724,7 @@ function TCnPasWideLex.Func28: TTokenKind;
 begin
   if KeyComp('Read') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkRead
@@ -761,7 +763,7 @@ begin
     Result := tkOr
   else if KeyComp('Name') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols1(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkName
@@ -840,6 +842,8 @@ function TCnPasWideLex.Func44: TTokenKind;
 begin
   if KeyComp('Set') then
     Result := tkSet
+  else if KeyComp('Package') then
+    Result := tkPackage
   else
     Result := tkIdentifier;
 end;
@@ -916,7 +920,7 @@ function TCnPasWideLex.Func56: TTokenKind;
 begin
   if KeyComp('Index') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkIndex
@@ -967,7 +971,7 @@ function TCnPasWideLex.Func63: TTokenKind;
 begin
   if KeyComp('Public') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkPublic
@@ -1054,7 +1058,7 @@ function TCnPasWideLex.Func75: TTokenKind;
 begin
   if KeyComp('Write') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkWrite
@@ -1143,7 +1147,7 @@ function TCnPasWideLex.Func91: TTokenKind;
 begin
   if KeyComp('Private') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkPrivate
@@ -1190,7 +1194,7 @@ function TCnPasWideLex.Func96: TTokenKind;
 begin
   if KeyComp('Published') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkPublished
@@ -1231,7 +1235,7 @@ function TCnPasWideLex.Func100: TTokenKind;
 begin
   if KeyComp('Automated') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkAutomated
@@ -1278,7 +1282,7 @@ function TCnPasWideLex.Func106: TTokenKind;
 begin
   if KeyComp('Protected') then
   begin
-    if inSymbols(CharAhead(FStringLen)) then
+    if InSymbols(CharAhead(FStringLen)) then
       Result := tkIdentifier
     else
       Result := tkProtected
@@ -1416,7 +1420,7 @@ procedure TCnPasWideLex.MakeMethodTables;
 var
   I: AnsiChar;
 begin
-  for I := #0 to#255 do
+  for I := #0 to #255 do
     case I of
       #0:
         FProcTable[I] := NullProc;
@@ -1697,6 +1701,14 @@ end;
 function TCnPasWideLex.InSymbols(aChar: WideChar): Boolean;
 begin
   if _WideCharInSet(aChar, ['#', '$', '&', #39, '(', ')', '*', '+', ',', '?', '.', '/', ':', ';', '<', '=', '>', '@', '[', ']', '^']) then
+    Result := True
+  else
+    Result := False;
+end;
+
+function TCnPasWideLex.InSymbols1(aChar: WideChar): Boolean;
+begin
+  if _WideCharInSet(aChar, ['#', '$', '&', '(', ')', '*', '+', ',', '?', '.', '/', ':', ';', '<', '=', '>', '@', '[', ']', '^']) then
     Result := True
   else
     Result := False;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -82,14 +82,14 @@ type
     procedure mniSameSelClick(Sender: TObject);
     procedure pmListPopup(Sender: TObject);
     procedure btnHelpClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
-    { Private declarations }
     List: TObjectList;
     FSelection: TTreeNode;
+    procedure InitTree;
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     procedure InitList(AList: TObjectList);
   end;
 
@@ -146,44 +146,53 @@ end;
 { TCnUsesCleanResultForm }
 
 procedure TCnUsesCleanResultForm.InitList(AList: TObjectList);
+begin
+  // 本过程需在 Create 后 Show 前调用
+  List := AList;
+{$IFNDEF DELPHI120_ATHENS_UP}
+  InitTree;
+{$ENDIF}
+end;
+
+procedure TCnUsesCleanResultForm.InitTree;
 var
   ProjectInfo: TCnProjectUsesInfo;
   ProjNode, UnitNode, IntfNode, ImplNode, ANode: TTreeNode;
-  i, j, k: Integer;
-  
+  I, J, K: Integer;
+
   function GetUsesCaption(const ACaption: string; AKind: TCnUsesKinds): string;
   var
-    s: string;
+    S: string;
     Kind: TCnUsesKind;
   begin
     Result := ACaption;
-    s := '';
+    S := '';
     for Kind := Low(Kind) to High(Kind) do
       if Kind in AKind then
-        if s = '' then
-          s := csUsesKinds[Kind]^
+        if S = '' then
+          S := csUsesKinds[Kind]^
         else
-          s := s + ', ' + csUsesKinds[Kind]^;
-    if s <> '' then
-      Result := Result + ' [' + s + ']';
+          S := S + ', ' + csUsesKinds[Kind]^;
+    if S <> '' then
+      Result := Result + ' [' + S + ']';
   end;
+
 begin
-  List := AList;
   chktvResult.BeginUpdate;
   try
     chktvResult.Items.Clear;
-    for i := 0 to List.Count - 1 do
+    for I := 0 to List.Count - 1 do
     begin
-      ProjectInfo := TCnProjectUsesInfo(List[i]);
+      ProjectInfo := TCnProjectUsesInfo(List[I]);
       ProjNode := chktvResult.Items.AddChildObject(nil,
         _CnExtractFileName(ProjectInfo.Project.FileName), ProjectInfo);
       ProjNode.ImageIndex := IdxProject;
       ProjNode.SelectedIndex := IdxProject;
-      for j := 0 to ProjectInfo.Units.Count - 1 do
-        with TCnEmptyUsesInfo(ProjectInfo.Units[j]) do
+      for J := 0 to ProjectInfo.Units.Count - 1 do
+        with TCnEmptyUsesInfo(ProjectInfo.Units[J]) do
         begin
           UnitNode := chktvResult.Items.AddChildObject(ProjNode,
-            _CnExtractFileName(SourceFileName), ProjectInfo.Units[j]);
+            _CnExtractFileName(SourceFileName), ProjectInfo.Units[J]);
           UnitNode.ImageIndex := IdxUnit;
           UnitNode.SelectedIndex := IdxUnit;
 
@@ -192,13 +201,13 @@ begin
             IntfNode := chktvResult.Items.AddChild(UnitNode, SCnIntfCaption);
             IntfNode.ImageIndex := IdxIntf;
             IntfNode.SelectedIndex := IdxIntf;
-            for k := 0 to IntfCount - 1 do
+            for K := 0 to IntfCount - 1 do
             begin
               ANode := chktvResult.Items.AddChildObject(IntfNode,
-                GetUsesCaption(IntfItems[k].Name, IntfItems[k].Kinds), IntfItems[k]);
+                GetUsesCaption(IntfItems[K].Name, IntfItems[K].Kinds), IntfItems[K]);
               ANode.ImageIndex := IdxUses;
               ANode.SelectedIndex := IdxUses;
-              chktvResult.Checked[ANode] := IntfItems[k].Checked;
+              chktvResult.Checked[ANode] := IntfItems[K].Checked;
             end;
           end;
 
@@ -207,17 +216,18 @@ begin
             ImplNode := chktvResult.Items.AddChild(UnitNode, SCnImplCaption);
             ImplNode.ImageIndex := IdxImpl;
             ImplNode.SelectedIndex := IdxImpl;
-            for k := 0 to ImplCount - 1 do
+            for K := 0 to ImplCount - 1 do
             begin
               ANode := chktvResult.Items.AddChildObject(ImplNode,
-                GetUsesCaption(ImplItems[k].Name, ImplItems[k].Kinds), ImplItems[k]);
+                GetUsesCaption(ImplItems[K].Name, ImplItems[K].Kinds), ImplItems[K]);
               ANode.ImageIndex := IdxUses;
               ANode.SelectedIndex := IdxUses;
-              chktvResult.Checked[ANode] := ImplItems[k].Checked;
+              chktvResult.Checked[ANode] := ImplItems[K].Checked;
             end;
           end;
         end;
     end;
+
     chktvResult.FullExpand;
     chktvResult.Selected := chktvResult.Items.GetFirstNode;
     chktvResult.TopItem := chktvResult.Items.GetFirstNode;
@@ -350,6 +360,13 @@ end;
 procedure TCnUsesCleanResultForm.btnHelpClick(Sender: TObject);
 begin
   ShowFormHelp;
+end;
+
+procedure TCnUsesCleanResultForm.FormShow(Sender: TObject);
+begin
+{$IFDEF DELPHI120_ATHENS_UP}
+  InitTree;
+{$ENDIF}
 end;
 
 {$ENDIF CNWIZARDS_CNUSESTOOLS}

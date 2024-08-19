@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -43,7 +43,7 @@ unit CnBCBWideTokenList;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：mwBCBTokenList 的 Unicode 版本实现
-* 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：此单元自 mwBCBTokenList 移植而来并改为 Unicode/WideString 实现，保留原始版权声明
 * 开发平台：Windows 7 + Delphi XE
 * 兼容测试：PWin9X/2000/XP/7 + Delphi 2009 ~
@@ -75,7 +75,7 @@ type
 
   TCnBCBWideTokenList = class;
 
-  TCnSearcher = class(Tobject)
+  TCnSearcher = class(TObject)
   private
     FBCBTokenList: TCnBCBWideTokenList;
     FSearchOrigin: PWideChar;

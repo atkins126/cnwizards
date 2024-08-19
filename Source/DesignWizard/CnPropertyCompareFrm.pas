@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnPropertyCompareFrm;
 ================================================================================
 * 软件名称：CnPack 专家包
 * 单元名称：组件属性对比窗体单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：
 * 开发平台：Win7 + Delphi 5
 * 兼容测试：未测试
@@ -45,7 +45,7 @@ uses
   {$IFNDEF STAND_ALONE}
   CnWizClasses, CnWizUtils, CnWizIdeUtils, CnWizManager, CnComponentSelector,
   {$ENDIF}
-  {$IFDEF SUPPORT_ENHANCED_RTTI} Rtti, {$ENDIF} IniFiles,
+  {$IFDEF SUPPORT_ENHANCED_RTTI} Rtti, {$ENDIF} IniFiles, CnIni,
   CnConsts, CnWizConsts, CnWizMultiLang, CnCommon, CnPropSheetFrm, CnWizShareImages;
 
 const
@@ -89,6 +89,7 @@ type
     FOnlyShowDiff: Boolean;
     FShowMenu: Boolean;
     FShowEvents: Boolean;
+    FGridFont: TFont;
     procedure SetLeftComponent(const Value: TComponent);
     procedure SetRightComponent(const Value: TComponent);
     function GetSelectionCount: Integer;
@@ -96,6 +97,7 @@ type
     procedure CompareExecute(Sender: TObject);
     procedure SetIgnoreProperties(const Value: TStringList);
     procedure SetShowMenu(const Value: Boolean);
+    procedure SetGridFont(const Value: TFont);
   protected
     procedure Notification(AComponent: TComponent;
       Operation: TOperation); override;
@@ -123,6 +125,8 @@ type
     {* 全部赋值时要忽略的属性列表，如 Name 等}
     property ShowEvents: Boolean read FShowEvents write FShowEvents;
     {* 是否显示事件}
+    property GridFont: TFont read FGridFont write SetGridFont;
+    {* 显示的字体}
   end;
 
 {$ENDIF}
@@ -271,6 +275,7 @@ type
     FLeftProperties: TObjectList;
     FRightProperties: TObjectList;
     FCompareBmp: TBitmap;
+    procedure UpdateFont;
 {$IFDEF SUPPORT_ENHANCED_RTTI}
     function ListContainsProperty(const APropName: string; List: TObjectList): Boolean;
 {$ENDIF}
@@ -322,7 +327,7 @@ implementation
 {$R *.DFM}
 
 uses
-  {$IFDEF DEBUG} CnDebug, {$ENDIF} CnPropertyCompConfigFrm, CnWizOptions
+  {$IFDEF DEBUG} CnDebug, {$ENDIF} CnPropertyCompConfigFrm, CnWizOptions, CnGraphUtils
   {$IFNDEF STAND_ALONE}, CnListCompFrm {$ENDIF};
 
 const
@@ -341,6 +346,7 @@ const
   csSameType = 'SameType';
   csIgnoreProperties = 'IgnoreProperties';
   csShowEvents = 'ShowEvents';
+  csGridFont = 'GridFont';
 
 {$IFNDEF STAND_ALONE}
 var
@@ -467,12 +473,13 @@ begin
   FManager := Self;
   FSelection := TList.Create;
   FIgnoreProperties := TStringList.Create;
-
+  // 延迟创建 FGridFont
   RegisterMenu;
 end;
 
 destructor TCnPropertyCompareManager.Destroy;
 begin
+  FGridFont.Free;
   FIgnoreProperties.Free;
   FSelection.Free;
   inherited;
@@ -484,12 +491,41 @@ begin
 end;
 
 procedure TCnPropertyCompareManager.LoadSettings(Ini: TCustomIniFile);
+var
+  Temp1, Temp2: TFont;
 begin
   ShowMenu := Ini.ReadBool('', csShowMenu, True);
   FOnlyShowDiff := Ini.ReadBool('', csOnlyShowDiff, FOnlyShowDiff);
   FSameType := Ini.ReadBool('', csSameType, FSameType);
   FIgnoreProperties.CommaText := Ini.ReadString('', csIgnoreProperties, DEF_IGNORE_PROP);
   FShowEvents := Ini.ReadBool('', csShowEvents, False);
+
+  Temp1 := nil;
+  Temp2 := nil;
+
+  with TCnIniFile.Create(Ini) do
+  try
+    Temp1 := TFont.Create;
+    Temp2 := TFont.Create;
+    Temp2 := ReadFont('', csGridFont, Temp2);
+
+    if FontEqual(Temp1, Temp2) then
+    begin
+      // Temp2 没有变化，说明没有设置，保持 FGridFont 为 nil
+      FreeAndNil(FGridFont);
+    end
+    else
+    begin
+      FGridFont := TFont.Create;
+      FGridFont.Assign(Temp2);
+    end;
+
+    GridFont := ReadFont('', csGridFont, FGridFont);
+  finally
+    Temp2.Free;
+    Temp1.Free;
+    Free;
+  end;
 end;
 
 procedure TCnPropertyCompareManager.Notification(AComponent: TComponent;
@@ -540,6 +576,14 @@ begin
   Ini.WriteBool('', csSameType, FSameType);
   Ini.WriteString('', csIgnoreProperties, FIgnoreProperties.CommaText);
   Ini.WriteBool('', csShowEvents, FShowEvents);
+
+  with TCnIniFile.Create(Ini) do
+  try
+    if FGridFont <> nil then
+      WriteFont('', csGridFont, FGridFont);
+  finally
+    Free;
+  end;
 end;
 
 procedure TCnPropertyCompareManager.SelectExecute(Sender: TObject);
@@ -552,6 +596,12 @@ begin
     if Comp <> nil then
       LeftComponent := Comp;
   end;
+end;
+
+procedure TCnPropertyCompareManager.SetGridFont(const Value: TFont);
+begin
+  if Value <> nil then
+    FGridFont.Assign(Value);
 end;
 
 procedure TCnPropertyCompareManager.SetIgnoreProperties(
@@ -780,6 +830,8 @@ begin
 
   FCompareBmp := TBitmap.Create;
   FCompareBmp.Canvas.Brush.Color := clWindow;
+
+  UpdateFont;
 end;
 
 {$IFDEF SUPPORT_ENHANCED_RTTI}
@@ -791,7 +843,7 @@ var
 begin
   if RttiProperty <> nil then
   begin
-    if RttiProperty.Visibility <> mvPublished then // 只拿 published 的
+    if not (RttiProperty.Visibility in [mvPublished]) then // 注意部分 published 的属性在这里会取到 public 导致不显示，可能是 IDE 的 Bug，绕过方法是使用旧 RTTI
       Exit;
 
     if AProp = nil then
@@ -908,11 +960,15 @@ var
   RttiContext: TRttiContext;
   RttiType: TRttiType;
   RttiProperty: TRttiProperty;
-{$ELSE}
-  PropInfo:PPropInfo;
 {$ENDIF}
+  PropInfo: PPropInfo;
 begin
+  // 先以旧方式拿，因为 LoadOneRttiProp 里可能因为属性类型有误而拿不着
+  PropInfo := GetPropInfo(AObject, PropName);
+  LoadOneClassicProp(AProp, AObject, PropInfo);
+
 {$IFDEF SUPPORT_ENHANCED_RTTI}
+  // 其实新方式拿似乎也重复了，只能指望拿到时它们一致
   RttiContext := TRttiContext.Create;
   try
     RttiType := RttiContext.GetType(AObject.ClassInfo);
@@ -924,9 +980,6 @@ begin
   finally
     RttiContext.Free;
   end;
-{$ELSE}
-  PropInfo := GetPropInfo(AObject, PropName);
-  LoadOneClassicProp(AProp, AObject, PropInfo);
 {$ENDIF}
 end;
 
@@ -939,49 +992,12 @@ var
   RttiType: TRttiType;
   RttiProperty: TRttiProperty;
   RttiMethod: TRttiMethod;
-{$ELSE}
+{$ENDIF}
   PropListPtr: PPropList;
   I, APropCount: Integer;
   PropInfo: PPropInfo;
-{$ENDIF}
 begin
-{$IFDEF SUPPORT_ENHANCED_RTTI}
-  // D2010 及以上，使用新 RTTI 方法获取更多属性
-  RttiContext := TRttiContext.Create;
-  try
-    RttiType := RttiContext.GetType(AObject.ClassInfo);
-    if RttiType <> nil then
-    begin
-      for RttiProperty in RttiType.GetProperties do
-      begin
-        if RttiProperty.PropertyType.TypeKind in tkProperties then
-        begin
-          if ListContainsProperty(RttiProperty.Name, List) then // 子类、父类可能有相同的属性
-            Continue;
-
-          AProp := nil;
-          LoadOneRttiProp(AProp, AObject, RttiProperty);
-          if AProp <> nil then
-            List.Add(AProp);
-        end
-        else if FShowEvents and (RttiProperty.PropertyType.TypeKind in tkMethods) then
-        begin
-          if ListContainsProperty(RttiProperty.Name, List) then // 子类、父类可能有相同的属性
-            Continue;
-
-          AProp := nil;
-          LoadOneRttiProp(AProp, AObject, RttiProperty);
-          if AProp <> nil then
-            List.Add(AProp);
-        end;
-      end;
-    end;
-  finally
-    RttiContext.Free;
-  end;
-
-{$ELSE}
-
+  // 注意必须先拿旧的！如果只拿新的，新 RTTI 里有的属性明明是 published 的结果返回 public 的导致不能显示
   APropCount := GetTypeData(PTypeInfo(AObject.ClassInfo))^.PropCount;
   if APropCount <= 0 then
     Exit;
@@ -1007,6 +1023,40 @@ begin
     FreeMem(PropListPtr);
   end;
 
+{$IFDEF SUPPORT_ENHANCED_RTTI}
+  // D2010 及以上，使用新 RTTI 方法补充获取更多属性，实际可能也多不出来因为内部控制了 published 的
+  RttiContext := TRttiContext.Create;
+  try
+    RttiType := RttiContext.GetType(AObject.ClassInfo);
+    if RttiType <> nil then
+    begin
+      for RttiProperty in RttiType.GetProperties do
+      begin
+        if RttiProperty.PropertyType.TypeKind in tkProperties then
+        begin
+          if ListContainsProperty(RttiProperty.Name, List) then // 前面旧的、以及子类、父类可能有相同的属性
+            Continue;
+
+          AProp := nil;
+          LoadOneRttiProp(AProp, AObject, RttiProperty);
+          if AProp <> nil then
+            List.Add(AProp);
+        end
+        else if FShowEvents and (RttiProperty.PropertyType.TypeKind in tkMethods) then
+        begin
+          if ListContainsProperty(RttiProperty.Name, List) then // 上面旧的、以及子类、父类可能有相同的属性
+            Continue;
+
+          AProp := nil;
+          LoadOneRttiProp(AProp, AObject, RttiProperty);
+          if AProp <> nil then
+            List.Add(AProp);
+        end;
+      end;
+    end;
+  finally
+    RttiContext.Free;
+  end;
 {$ENDIF}
 end;
 
@@ -1420,6 +1470,7 @@ begin
     P2 := TCnDiffPropertyObject(Another[ARow]);
 
   // 画背景
+  G.Canvas.Font.Assign(G.Font);
   G.Canvas.Font.Color := clBtnText;
   G.Canvas.Brush.Style := bsSolid;
 
@@ -2027,14 +2078,25 @@ begin
     chkShowMenu.Checked := FManager.ShowMenu;
     chkSameType.Checked := not FManager.SameType;
     mmoIgnoreProperties.Lines.Assign(FManager.IgnoreProperties);
+
+    if FManager.GridFont <> nil then
+      pnlFont.Font := FManager.GridFont;
 {$ENDIF}
 
     if ShowModal = mrOK then
     begin
 {$IFNDEF STAND_ALONE}
+      if FontChanged then
+      begin
+        if FManager.GridFont = nil then
+          FManager.GridFont := TFont.Create;
+        FManager.GridFont := pnlFont.Font;
+      end;
       FManager.ShowMenu := chkShowMenu.Checked;
       FManager.SameType := not chkSameType.Checked;
       FManager.IgnoreProperties.Assign(mmoIgnoreProperties.Lines);
+
+      UpdateFont;
 {$ENDIF}
     end;
 
@@ -2128,6 +2190,33 @@ begin
 
   LoadListProperties;
   ShowProperties;
+end;
+
+procedure TCnPropertyCompareForm.UpdateFont;
+{$IFNDEF STAND_ALONE}
+var
+  H: Integer;
+{$ENDIF}
+begin
+{$IFNDEF STAND_ALONE}
+  if FManager.GridFont = nil then
+    Exit;
+
+  gridLeft.Font := FManager.GridFont;
+  gridRight.Font := FManager.GridFont;
+
+{$IFDEF DEBUG}
+  CnDebugger.LogFmt('PropertyCompare Grid Font: %s Size %d. Height %d.', [FManager.GridFont.Name,
+    FManager.GridFont.Size, FManager.GridFont.Height]);
+{$ENDIF}
+
+  H := FManager.GridFont.Height + 8;
+  if H < 18 then
+    H := 18;
+
+  gridLeft.DefaultRowHeight := H;
+  gridRight.DefaultRowHeight := H;
+{$ENDIF}
 end;
 
 {$ENDIF CNWIZARDS_CNALIGNSIZEWIZARD}

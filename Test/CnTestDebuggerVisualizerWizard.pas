@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -40,7 +40,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  ToolsAPI, IniFiles, CnCommon, CnWizClasses, CnWizUtils, CnWizConsts;
+  ToolsAPI, IniFiles, CnCommon, CnWizClasses, CnWizUtils, CnWizConsts,
+  CnDataSetVisualizer;
 
 type
 
@@ -53,7 +54,9 @@ type
   TCnTestDebuggerVisualizerWizard = class(TCnMenuWizard)
   private
     FRegistered: Boolean;
+{$IFDEF IDE_HAS_DEBUGGERVISUALIZER}
     FVisualizer: IOTADebuggerVisualizerValueReplacer;
+{$ENDIF}
   protected
     function GetHasConfig: Boolean; override;
   public
@@ -69,6 +72,8 @@ type
     function GetDefShortCut: TShortCut; override;
     procedure Execute; override;
   end;
+
+{$IFDEF IDE_HAS_DEBUGGERVISUALIZER}
 
   TCnTestDebuggerVisualizerValueReplacer = class(TInterfacedObject,
     IOTAThreadNotifier, IOTADebuggerVisualizerValueReplacer)
@@ -100,6 +105,8 @@ type
     function GetReplacementValue(const Expression, TypeName, EvalResult: string): string;
   end;
 
+{$ENDIF}
+
 implementation
 
 {$IFDEF DEBUG}
@@ -109,12 +116,12 @@ uses
 
 type
   TCnVisualClasses = (vcBigNumber, vcBigNumberPolynomial, vcBigNumberRationalPolynomial,
-    vcEccPoint, vcEcc3Point);
+    vcEccPoint, vcEcc3Point, vcInt128, vcUInt128);
 
 const
   SCnVisualClasses: array[Low(TCnVisualClasses)..High(TCnVisualClasses)] of string =
     ('TCnBigNumber', 'TCnBigNumberPolynomial', 'TCnBigNumberRationalPolynomial',
-     'TCnEccPoint', 'TCnEcc3Point');
+     'TCnEccPoint', 'TCnEcc3Point', 'TCnInt128', 'TCnUInt128');
 
 //==============================================================================
 // 测试 DebuggerVisualizer 的菜单专家
@@ -131,6 +138,7 @@ destructor TCnTestDebuggerVisualizerWizard.Destroy;
 var
   ID: IOTADebuggerServices;
 begin
+{$IFDEF IDE_HAS_DEBUGGERVISUALIZER}
   if FRegistered and (FVisualizer <> nil) then
   begin
     if not Supports(BorlandIDEServices, IOTADebuggerServices, ID) then
@@ -138,7 +146,7 @@ begin
     ID.UnregisterDebugVisualizer(FVisualizer);
     FVisualizer := nil;
   end;
-
+{$ENDIF}
   inherited;
 end;
 
@@ -146,6 +154,7 @@ procedure TCnTestDebuggerVisualizerWizard.Execute;
 var
   ID: IOTADebuggerServices;
 begin
+{$IFDEF IDE_HAS_DEBUGGERVISUALIZER}
   if not Supports(BorlandIDEServices, IOTADebuggerServices, ID) then
     Exit;
 
@@ -164,6 +173,9 @@ begin
     FRegistered := False;
     ShowMessage('Debugger Visualizer UnRegistered');
   end;
+{$ENDIF}
+
+  ShowDataSetExternalViewer('ADOTable1');
 end;
 
 function TCnTestDebuggerVisualizerWizard.GetCaption: string;
@@ -208,6 +220,8 @@ procedure TCnTestDebuggerVisualizerWizard.SaveSettings(Ini: TCustomIniFile);
 begin
 
 end;
+
+{$IFDEF IDE_HAS_DEBUGGERVISUALIZER}
 
 { TCnTestDebuggerVisualizerValueReplacer }
 
@@ -294,6 +308,14 @@ begin
   else if TypeName = SCnVisualClasses[vcEcc3Point] then
   begin
     NewExpr := Expression + '.ToString';
+  end
+  else if TypeName = SCnVisualClasses[vcInt128] then
+  begin
+    NewExpr := 'Int128ToStr(' + Expression + ')';
+  end
+  else if TypeName = SCnVisualClasses[vcUInt128] then
+  begin
+    NewExpr := 'UInt128ToStr(' + Expression + ')';
   end;
 
   EvalRes := CT.Evaluate(NewExpr, @FRes[0], SizeOf(FRes), FCanModify, True,
@@ -328,7 +350,6 @@ begin
         end;
       end;
   end;
-
 end;
 
 procedure TCnTestDebuggerVisualizerValueReplacer.GetSupportedType(
@@ -345,7 +366,7 @@ end;
 
 function TCnTestDebuggerVisualizerValueReplacer.GetVisualizerDescription: string;
 begin
-  Result := 'CnPack CnVcl Debugger Visualizer for some Classes.'
+  Result := 'CnPack CnVcl Debugger Visualizer for some Types.'
 end;
 
 function TCnTestDebuggerVisualizerValueReplacer.GetVisualizerIdentifier: string;
@@ -375,9 +396,9 @@ begin
 
 end;
 
-initialization
-{$IFDEF IDE_HAS_DEBUGGERVISUALIZER}
-  RegisterCnWizard(TCnTestDebuggerVisualizerWizard); // 注册此测试专家
 {$ENDIF}
+
+initialization
+  RegisterCnWizard(TCnTestDebuggerVisualizerWizard); // 注册此测试专家
 
 end.

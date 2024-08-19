@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -25,6 +25,16 @@ unit CnWizConsts;
 * 单元名称：资源字符串定义单元
 * 单元作者：CnPack开发组
 * 备    注：该单元定义了 CnWizards 用到的资源字符串
+*
+*           从本文件中将定义的变量字符串转换成多语文件条目的 AI（如通义千问） 提示词：
+
+            请帮我处理一批多语翻译字符串，原始字符串以 Pascal 变量的形式定义，
+            如这句定义代码 SCnTestName: string = '一个测试名称';
+            这一句代码我们会转换成多语条目为 SCnTestName=一个测试名称
+            也就是需去掉类型、引号等。如果你看明白了，请回答明白。
+
+            下一次把本文件中将定义的变量字符串的代码贴过去即可。
+*
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
@@ -58,7 +68,7 @@ const
   SCnWizardDesc = 'CnPack IDE Wizards for Delphi/C++Builder/BDS/Rad Studio' + #13#10 +
                   '' + #13#10 +
                   'Version: ' + SCnWizardFullVersion + #13#10 +
-                  'Copyright: 2001-2023 CnPack Team' + #13#10 +
+                  'Copyright: 2001-2024 CnPack Team' + #13#10 +
                   '' + #13#10 +
                   'This is a freeware, you can use it freely without any fee. ' +
                   'You can copy or distribute it in any form, without any fee. ' +
@@ -249,6 +259,17 @@ resourcestring
   SCnFilesSnapshotsItem = 'CnFilesSnapshotsItem';
   SCnFilesSnapshotReopen = 'CnFilesSnapshotReopen';
 
+  // CnDebugEnhanceWizard
+  SCnDebugVisualizerIdentifier = 'CnPackIDEWizardsDebugVisualizer';
+  SCnDataSetVisualizerIdentifier = 'CnPackIDEWizardsDataSetVisualizer';
+  SCnDebugReplacerDataName = 'DebugReplacer.txt';
+  SCnDebugEvalAsStrings = 'CnDebugEvalAsStrings';
+  SCnDebugEvalAsBytes = 'CnDebugEvalAsBytes';
+  SCnDebugEvalAsWide = 'CnDebugEvalAsWide';
+  SCnDebugEvalAsMemoryStream = 'CnDebugEvalAsMemoryStream';
+  SCnDebugEvalAsDataSet = 'CnDebugEvalAsDataSet';
+  SCnDebugConfig = 'CnDebugConfig';
+
   // CnWizAbout
   SCnWizAboutHelp = 'CnWizAboutHelp';
   SCnWizAboutHistory = 'CnWizAboutHistory';
@@ -266,7 +287,7 @@ resourcestring
   SCnMenuCloseOtherPagesName = 'CnCloseOtherPages';
   SCnShellMenuName = 'CnShellMenu';
   SCnMenuSelAllName = 'CnSelAll';
-  SCnMenuEnableThumbnail = 'CnEnableThumbnail';
+  SCnMenuEnableThumbnailName = 'CnEnableThumbnail';
   SCnMenuBlockToolsName = 'CnMenuBlockTools';
   SCnMenuExploreName = 'CnExplore';
   SCnCopyFileNameMenuName = 'CnCopyFileName';
@@ -366,6 +387,13 @@ resourcestring
   SCnCodeFormatterWizardConfig = 'CnCodeFormatterWizardConfig';
   SCnCodeFormatterWizardFormatCurrent = 'CnCodeFormatterWizardFormatCurrent';
 
+  // AICoderWizard
+  SCnAICoderWizardExplainCode = 'CnAICoderWizardExplainCode';
+  SCnAICoderWizardReviewCode = 'CnAICoderWizardReviewCode';
+  SCnAICoderWizardChatWindow = 'CnAICoderWizardChatWindow';
+  SCnAICoderWizardConfig = 'CnAICoderWizardConfig';
+  SCnAICoderEngineOptionFileFmt = 'AICoderConfig%s.json';
+
 //==============================================================================
 // Event Names used around CnEventBus
 //==============================================================================
@@ -378,6 +406,8 @@ resourcestring
   EVENT_INPUTHELPER_POPUP_SHORTCUT_CHANGED = 'InputHeperPopupShortcutChanged';
   // Script Library Settings Changed
   EVENT_SCRIPT_SETTING_CHANGED = 'CnScriptSettingChanged';
+  // Prefix Wizard Active Changed
+  EVENT_PREFIX_WIZARD_ACTIVE_CHANGED = 'CnPrefixWizardActiveChanged';
 
 //==============================================================================
 // Need to Localize
@@ -404,47 +434,47 @@ var
   SCnCountFmt: string = 'Count: %d';
 
   // 反馈向导
-  STypeDescription: string =
+  SCnTypeDescription: string =
     '  Bug Report includes access violation, system crash, malfunctions and other exceptions.' + #13#10#13#10 +
     '  Suggestions include advices, new requirements and other information to CnPack IDE Wizards.' + #13#10#13#10 +
     '  Please make sure that your CnPack IDE Wizards is the latest version when you commit this report. ' +
     'You can obtain the latest version by auto update or access our website.';
-  SBugDescriptionDescription: string =
+  SCnBugDescriptionDescription: string =
     '  Please enter the bug details, including special configuration data in your system and other useful information which is beneficial to developers.' + #13#10#13#10 +
     '  Generally, Only a bug can be reproduced, it can be fixed effectively. Your compiler environments and OS information will be collected as important details.';
-  SFeatureDescriptionDescription: string =
+  SCnFeatureDescriptionDescription: string =
     '  Please enter the details about your requirements, making sure that it''s useful to you.';
-  SDetailsDescription: string =
+  SCnDetailsDescription: string =
     '  It''s Important for us to reproduce the bug your reported.' + #13#10#13#10 +
     '  Please tell us whether you can reproduce the bug through some certain steps, and its probability.' + #13#10#13#10 +
     '  If possible, including whether the bug can recur at other computer and whether only relative to some certain projects.';
-  SStepsDescription: string =
+  SCnStepsDescription: string =
     '  Please enter the steps to help us to reproduce the bug.' + #13#10#13#10 +
     '  The steps should begin at starting IDE to the bug''s appearing, include Mouse clicking, Shortcuts, Form switching and Exception information about the bug.' + #13#10#13#10 +
     '  If possible, try to reproduce it by a simple or default project, or a IDE Demo project.';
-  SBugConfigurationDescription: string =
+  SCnBugConfigurationDescription: string =
     '  Your selection will send to us to help us to reproduce the bug and fix it.' + #13#10#13#10 +
     '  To keep the report effective, we recommend that you keep the default options. Before you send it, you can edit or delete the options information.';
-  SFeatureConfigurationDescription: string =
+  SCnFeatureConfigurationDescription: string =
     '  Your selection will send to us to help us to affirm your suggestions.' + #13#10#13#10 +
     '  To keep the report effective, we recommend that you keep the default options. Before you send it, you can edit or delete the options information.';
-  SReportDescription: string =
+  SCnReportDescription: string =
     '  Press Finish button to generate a feedback mail''s content. You need paste the content to your email, ' + #13#10#13#10 +
     '  or press Save button to save the content and send to %s as attachment.' + #13#10#13#10 +
     '  Our Wizards would not automatically send information which may be about your privacy. All contents need you to send manually.';
-  STypeExample: string =
+  SCnTypeExample: string =
     '  CnPack team won''t to take any commercial develop tasks. All members are busy. ' +
     'Freeware developing is our interesting and pursuit, so we won''t do any customize components, ' +
     'wizards or projects. Further more, wizards existing in free Tools, e.g. GExperts, are also excluded.' + #13#10#13#10 +
     '  Please pay attention to it.';
-  SBugDescriptionExample: string =
+  SCnBugDescriptionExample: string =
     '  I add some Toolbutton to IDE toolbar. After restarting, the buttons added become empty.';
-  SFeatureDescriptionExample: string =
+  SCnFeatureDescriptionExample: string =
     '  I hope that You can write a new editor, which can convert Delphi or C++ code to VB, so I can write Outlook Email Virus in Delphi or C++. :-)' + #13#10#13#10 +
     '  If you could implement it, I''ll give you a lot of money.';
-  SDetailsExample: string =
+  SCnDetailsExample: string =
     '';
-  SStepsExample: string =
+  SCnStepsExample: string =
     '1. Run %s from Start Menu.' + #13#10 +
     '2. Right-Click the Toolbar in IDE, Choose Customize...' + #13#10 +
     '3. Drag a CnPack IDE Wizard to Toolbar.' + #13#10 +
@@ -455,35 +485,35 @@ var
     '';
   SReportExample: string =
     '';
-  SFinish: string = '&Finished';
-  SNext: string = '&Next >';
-  STitle: string = 'Bug Report or Suggestions Wizard -';
-  SBugReport: string = 'Bug Report';
-  SFeatureRequest: string = 'Suggestions';
-  SDescription: string = 'Description:';
-  SSteps: string = 'Steps:';
-  SBugDetails: string = 'Bug Details:';
-  SBugIsReproducible: string = '  Can Recur with a Probability of %s%%.';
-  SBugIsNotReproducible: string = '  Can''t Recur.';
-  SFillInReminder: string = 'Please Paste the Report Here';
-  SFillInReminderPaste: string = 'Please Paste the Report Here';
-  SFillInReminderAttach: string = 'Please Paste the Report and the Attachment %s Here';
-  SBugSteps: string =
+  SCnFinish: string = '&Finished';
+  SCnNext: string = '&Next >';
+  SCnTitle: string = 'Bug Report or Suggestions Wizard -';
+  SCnBugReport: string = 'Bug Report';
+  SCnFeatureRequest: string = 'Suggestions';
+  SCnDescription: string = 'Description:';
+  SCnSteps: string = 'Steps:';
+  SCnBugDetails: string = 'Bug Details:';
+  SCnBugIsReproducible: string = '  Can Recur with a Probability of %s%%.';
+  SCnBugIsNotReproducible: string = '  Can''t Recur.';
+  SCnFillInReminder: string = 'Please Paste the Report Here';
+  SCnFillInReminderPaste: string = 'Please Paste the Report Here';
+  SCnFillInReminderAttach: string = 'Please Paste the Report and the Attachment %s Here';
+  SCnBugSteps: string =
     '1. Run %s from Start Menu.' + #13#10 +
     '2. A Blank Project Created.' + #13#10 +
     '3. Click the MainMenu...' + #13#10 +
     '4.' + #13#10 +
     '5.';
 
-  SUnknown: string = '<Unknown>';
-  SOutKeyboard: string = 'Keyboard:';
-  SOutLocale: string = 'Localization Info:';
-  SOutExperts: string = 'Wizards Installed:';
-  SOutPackages: string = 'Packages Installed:';
-  SOutIDEPackages: string = 'IDE Packages Installed:';
-  SOutCnWizardsActive: string = 'CnPack IDE Wizards Enabled State:';
-  SOutCnWizardsCreated: string = 'CnPack IDE Wizards Created State:';
-  SOutConfig: string = 'Settings:';
+  SCnUnknown: string = '<Unknown>';
+  SCnOutKeyboard: string = 'Keyboard:';
+  SCnOutLocale: string = 'Localization Info:';
+  SCnOutExperts: string = 'Wizards Installed:';
+  SCnOutPackages: string = 'Packages Installed:';
+  SCnOutIDEPackages: string = 'IDE Packages Installed:';
+  SCnOutCnWizardsActive: string = 'CnPack IDE Wizards Enabled State:';
+  SCnOutCnWizardsCreated: string = 'CnPack IDE Wizards Created State:';
+  SCnOutConfig: string = 'Settings:';
   SOutEditorSettings: string = 'Editor Settings:';
 
   // Key Mapping Conflicts
@@ -516,7 +546,7 @@ var
 
   // CheckIDEVersion
   SCnIDENOTLatest: string =
-    'We''ve Detected that the Latest Update Pack Maybe NOT Installed in this IDE. ' +
+    'We''ve Detected that the Latest Update Pack %s Maybe NOT Installed in this IDE. ' +
     'Perhaps Your IDE is NOT stable, and Some Functions of CnWizards will NOT be Supported. ' +
     'We Recommend You Download and Install the Latest Update Pack.';
 
@@ -641,13 +671,18 @@ var
   SCnEditorCodeSwapName: string = 'Eval Swap Tool';
   SCnEditorCodeSwapMenuHint: string = 'Swap the Contents of the Evaluation Sign in Both Sides';
 
+  // CnEditorEvalAlign
+  SCnEditorEvalAlignMenuCaption: string = 'Eval &Align';
+  SCnEditorEvalAlignName: string = 'Eval Align Tool';
+  SCnEditorEvalAlignMenuHint: string = 'Align the Evaluation Signs in Lines';
+
   // CnEditorCodeToString
   SCnEditorCodeToStringMenuCaption: string = 'Convert to &String';
   SCnEditorCodeToStringName: string = 'Code to String Converter';
   SCnEditorCodeToStringMenuHint: string = 'Convert Code Block Selected to String';
 
   // CnEditorExtractString
-  SCnEditorExtractStringMenuCaption: string = '&Extract Strings...';
+  SCnEditorExtractStringMenuCaption: string = 'E&xtract Strings...';
   SCnEditorExtractStringName: string = 'Extract String Tool';
   SCnEditorExtractStringMenuHint: string = 'Search and Extract Strings in Source.';
   SCnEditorExtractStringNotFound: string = 'NO String Found in Source!';
@@ -655,7 +690,7 @@ var
   SCnEditorExtractStringAskReplace: string = 'Sure to Replace Strings with New Names?';
   SCnEditorExtractStringChangeName: string = 'Change Name';
   SCnEditorExtractStringEnterNewName: string = 'Enter New Name:';
-  SCnEditorExtractStringDuplicatedName: string = 'Same Name Found, Please Retry.';
+  SCnEditorExtractStringDuplicatedName: string = 'Duplicated Name Found, Please Retry.';
   SCnEditorExtractStringReplacedFmt: string = 'Replace %d String(s) with %d Name(s).';
 
   // CnEditorCodeDelBlank
@@ -994,7 +1029,7 @@ var
   SCnStatExpFileCodeLines: string = 'Code Lines: %s';
   SCnStatExpFileCommentLines: string = 'Comment Lines: %s';
   SCnStatExpFileCommentBlocks: string = 'Comment Blocks: %s';
-  SCnStatExpSeperator: string = '' + #13#10 + '--------------------------' + #13#10 + ';';
+  SCnStatExpSeparator: string = '' + #13#10 + '--------------------------' + #13#10 + ';';
   SCnStatExpCSVTitleFmt: string = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s';
   SCnStatExpCSVLineFmt: string = '%s%s%s%s%d%s%d%s%d%s%d%s%d%s%d%s%d%s%d%s%d';
   SCnStatExpCSVProject: string = 'Project Information';
@@ -1147,10 +1182,10 @@ var
   SCnEmbeddedDesignerNotSupport: string = 'Sorry. VCL Embedded Designer NOT Supported.';
 
   // CnDesignWizard
-  SCnAlignSizeMenuCaption: string = 'Form Design Wi&zard';
-  SCnAlignSizeMenuHint: string = 'Adjust Align or Size of Selected Components';
-  SCnAlignSizeName: string = 'Form Design Wizard';
-  SCnAlignSizeComment: string = 'Allow Adjusting Align or Size of Selected Components';
+  SCnDesignWizardMenuCaption: string = 'Form Design Wi&zard';
+  SCnDesignWizardMenuHint: string = 'Adjust Align or Size of Selected Components';
+  SCnDesignWizardName: string = 'Form Design Wizard';
+  SCnDesignWizardComment: string = 'Allow Adjusting Align or Size of Selected Components';
   SCnAlignLeftCaption: string = 'Align Left Edges';
   SCnAlignLeftHint: string = 'Align Left Edges, Enabled when Selected >= 2';
   SCnAlignRightCaption: string = 'Align Right Edges';
@@ -1279,6 +1314,55 @@ var
   // CnVerEnhanceWizard
   SCnVerEnhanceWizardName: string = 'Version Enhancements';
   SCnVerEnhanceWizardComment: string = 'Version Enhancements Wizard';
+
+  // CnDebugEnhanceWizard
+  SCnDebugEnhanceWizardName: string = 'Debugger Enhancements';
+  SCnDebugEnhanceWizardComment: string = 'Debugger Enhancements Wizard';
+  SCnDebugEnhanceWizardCaption: string = 'Debugger Enhancements';
+  SCnDebugEnhanceWizardHint: string = 'Debugger Extension Tools';
+  SCnDebugEvalAsStringsCaption: string = 'Evaluate as T&Strings...';
+  SCnDebugEvalAsStringsHint: string = 'Evaluate Expression as TStrings';
+  SCnDebugEvalAsBytesCaption: string = 'Evaluate as T&Bytes/RawByteString...';
+  SCnDebugEvalAsBytesHint: string = 'Evaluate Expression as TBytes or RawByteString';
+  SCnDebugEvalAsWideCaption: string = 'Evaluate as &WideString/UnicodeString...';
+  SCnDebugEvalAsWideHint: string = 'Evaluate Expression as WideString or UnicodeString';
+  SCnDebugEvalAsMemoryStreamCaption: string = 'Evaluate as T&MemoryStream...';
+  SCnDebugEvalAsMemoryStreamHint: string = 'Evaluate Expression as TMemoryStream';
+  SCnDebugEvalAsDataSetCaption: string = 'Evaluate as T&DataSet...';
+  SCnDebugEvalAsDataSetHint: string = 'Evaluate Expression as TDataSet';
+  SCnDebugConfigCaption: string = '&Options...';
+  SCnDebugConfigHint: string = 'Display Options Dialog';
+  SCnDebugVisualizerName: string = 'CnPack Debugger Visualizer';
+  SCnDebugVisualizerDescription: string = 'CnPack IDE Wizards Debugger Visualizer';
+  SCnDebugDataSetViewerName: string = 'CnPack DataSet Viewer';
+  SCnDebugDataSetViewerDescription: string = 'CnPack IDE Wizards DataSet Viewer';
+  SCnDebugDataSetViewerMenuText: string = 'Show DataSet';
+  SCnDataSetViewerFormCaption: string = 'TDataSet Visualizer for %s';
+  SCnDebugStringsViewerName: string = 'CnPack Strings Viewer';
+  SCnDebugStringsViewerDescription: string = 'CnPack IDE Wizards Strings Viewer';
+  SCnDebugStringsViewerMenuText: string = 'Show Strings';
+  SCnStringsViewerFormCaption: string = 'TStrings Visualizer for %s';
+  SCnDebugBytesViewerName: string = 'CnPack Bytes Viewer';
+  SCnDebugBytesViewerDescription: string = 'CnPack IDE Wizards Bytes Viewer';
+  SCnDebugBytesViewerMenuText: string = 'Show Bytes';
+  SCnBytesViewerFormCaption: string = 'TBytes Visualizer for %s';
+  SCnDebugWideViewerName: string = 'CnPack UnicodeString Viewer';
+  SCnDebugWideViewerDescription: string = 'CnPack IDE Wizards UnicodeString Viewer';
+  SCnDebugWideViewerMenuText: string = 'Show UnicodeString';
+  SCnWideViewerFormCaption: string = 'UnicodeString Visualizer for %s';
+  SCnDebugMemoryStreamViewerName: string = 'CnPack MemoryStream Viewer';
+  SCnDebugMemoryStreamViewerDescription: string = 'CnPack IDE Wizards MemoryStream Viewer';
+  SCnDebugMemoryStreamViewerMenuText: string = 'Show MemoryStream';
+  SCnMemoryStreamViewerFormCaption: string = 'MemoryStream Visualizer for %s';
+  SCnDebugErrorProcessNotAccessible: string = 'Process NOT Accessible';
+  SCnDebugErrorValueNotAccessible: string = 'Value NOT Accessible';
+  SCnDebugErrorOutOfScope: string = 'Out of Scope';
+  SCnDebugAddReplacerCaption: string = 'Enter a Replacer';
+  SCnDebugAddReplacerHint: string = 'ClassName=Expression with %s';
+  SCnDebugRemoveReplacerHint: string = 'Sure to Delete Selected Hint?';
+  SCnDebugErrorReplacerFormat: string = 'Invalid Replacer Hint Format';
+  SCnDebugErrorExprNotAClass: string = '%s Error or NOT %s';
+  SCnDebugEnterExpression: string = 'Enter an Expression to Evaluate:';
 
   // CnCorPropWizard
   SCnCorrectPropertyName: string = 'Property Corrector';
@@ -1553,6 +1637,7 @@ var
   SCnProcListAllFileOpened: string = '<All Opened>';
   SCnProcListJumpIntfHint: string = 'Jump to Interface';
   SCnProcListJumpImplHint: string = 'Jump to Implementation';
+  SCnProcListJumpsHintFmt: string = 'Jump to %s';
   SCnProcListClassComboHint: string = 'Class List';
   SCnProcListProcComboHint: string = 'Procedure/Function List';
   SCnProcListSortMenuCaption: string = '&Sort';
@@ -1567,6 +1652,11 @@ var
     'in Procedure List Dialog.';
   SCnProcListErrorNoIntf: string = 'Interface NOT Found.';
   SCnProcListErrorNoImpl: string = 'Implementation NOT Found.';
+  SCnProcListErrorNoUnit: string = 'Unit Name NOT Found.';
+  SCnProcListErrorNoEnd: string = 'End. NOT Found.';
+  SCnProcListErrorNoInitialization: string = 'Initialization NOT Found.';
+  SCnProcListErrorNoFinalization: string = 'Finalization NOT Found.';
+  SCnProcListErrorNoProgramBegin: string = 'Program Begin NOT Found';
 
   // CnUsesTools
   SCnUsesToolsMenuCaption: string = '&Uses Units Tools';
@@ -1577,8 +1667,6 @@ var
   // CnUsesCleaner
   SCnUsesCleanerMenuCaption: string = '&Uses Cleaner...';
   SCnUsesCleanerMenuHint: string = 'Clean Unused Units Reference';
-  SCnUsesCleanerName: string = 'Uses Units Cleaner';
-  SCnUsesCleanerComment: string = 'Clean Unused Units Reference';
   SCnUsesCleanerCompileFail: string = 'Compile Error. Cleaner can NOT Continue.';
   SCnUsesCleanerUnitError: string = 'Processing %s Failed.' + #13#10#13#10 + 'Perhaps the Format is NOT supported, Please contact CnPack Team. ';
   SCnUsesCleanerProcessError: string = 'Failed when Processing file %s , Continue?';
@@ -1614,6 +1702,8 @@ var
   // CnSourceHighlight
   SCnSourceHighlightWizardName: string = 'Source Highlight Enhancements';
   SCnSourceHighlightWizardComment: string = 'Bracket Match & Structure Highlight';
+  SCnSourceHighlightCustomIdentHint: string = 'Enter an Identifier:';
+  SCnSourceHighlightCustomIdentConfirm: string = 'Sure to Delete Selected Identifier?';
 
   // CnIdeBRWizard
   SCnIdeBRWizardMenuCaption: string = 'IDE Config Backup&/Restore...';
@@ -1662,24 +1752,13 @@ var
   SCnScriptModeEditorFlatButton: string = 'Attach to Editor Flat Button Menu';
   SCnScriptModeDesignerContextMenu: string = 'Attach to Designer Context Menu';
 
-  // CnFeedReaderWizard
-  SCnFeedReaderWizardName: string = 'FeedReader Wizard';
-  SCnFeedReaderWizardComment: string = 'Display Feed Content in Status Bar';
-  SCnFeedPrevFeedCaption: string = '&Previous Item';
-  SCnFeedNextFeedCaption: string = '&Next Item';
-  SCnFeedForceUpdateCaption: string = '&Update All';
-  SCnFeedConfigCaption: string = '&Settings...';
-  SCnFeedCloseCaption: string = '&Close';
-  SCnFeedCloseQuery: string = 'Sure to Close FeedReader Wizard?';
-  SCnFeedNewItem: string = 'New Feed';
-
   // CnCodeFormatterWizard
   SCnCodeFormatterWizardName: string = 'Code Formatter Wizard';
   SCnCodeFormatterWizardComment: string = 'Format Code';
   SCnCodeFormatterWizardMenuCaption: string = 'Code Formatter';
   SCnCodeFormatterWizardMenuHint: string = 'Code Formatter Wizard';
   SCnCodeFormatterWizardConfigCaption: string = '&Options...';
-  SCnCodeFormatterWizardConfigHint: string = '&Options...';
+  SCnCodeFormatterWizardConfigHint: string = 'Options of Code Formatter';
   SCnCodeFormatterWizardFormatCurrentCaption: string = 'Format Current File/Selection';
   SCnCodeFormatterWizardFormatCurrentHint: string = 'Format Current File or Selection';
   SCnCodeFormatterWizardErrLineWidth: string = 'Wrap Line Width Error.';
@@ -1687,7 +1766,7 @@ var
 
   SCnCodeFormatterErrUnknown: string = 'Unknown Error.';
   SCnCodeFormatterErrPascalFmt: string = 'Format Error(%d, %d): %s' + #13#10#13#10 + 'Current: ''%s''';
-
+  SCnCodeFormatterErrMaybeComment: string = #13#10#13#10 + 'If Error Caused by Compiler Directive {$...},' + #13#10 + 'Maybe You Can Change Format Option for it and Try Again.';
   SCnCodeFormatterErrPascalIdentExp: string = 'Identifier Expected.';
   SCnCodeFormatterErrPascalStringExp: string = 'String Expected.';
   SCnCodeFormatterErrPascalNumberExp: string = 'Number Expected.';
@@ -1710,6 +1789,27 @@ var
   SCnCodeFormatterErrPascalUnknownGoal: string = 'Unknown Target Source File.';
   SCnCodeFormatterErrPascalErrorInterface: string = 'Interface Error.';
   SCnCodeFormatterErrPascalInvalidStatement: string = 'Invalid Statement.';
+
+  // CnAICoderWizard
+  SCnAICoderWizardName: string = 'AI Coder Wizard';
+  SCnAICoderWizardComment: string = 'AI Assistant for Coding';
+  SCnAICoderWizardMenuCaption: string = 'AI Coder';
+  SCnAICoderWizardMenuHint: string = 'AI Coder Wizard';
+  SCnAICoderWizardExplainCodeCaption: string = '&Explain Code...';
+  SCnAICoderWizardExplainCodeHint: string = 'Explain Selected Code';
+  SCnAICoderWizardReviewCodeCaption: string = '&Review Code...';
+  SCnAICoderWizardReviewCodeHint: string = 'Review Selected Code';
+  SCnAICoderWizardChatWindowCaption: string = 'AI &Chat Window';
+  SCnAICoderWizardChatWindowHint: string = 'Show or Hide AI Chat Window';
+  SCnAICoderWizardConfigCaption: string = '&Options...';
+  SCnAICoderWizardConfigHint: string = 'Options of AI Coder';
+  SCnAICoderWizardSystemMessageFmt: string = 'You are an Expert of Delphi/C++Builder/RAD Studio. Now we use %s.';
+  SCnAICoderWizardUserMessageExplainFmt: string = 'Please Explain the Code using %s: ';
+  SCnAICoderWizardUserMessageReviewFmt: string = 'Please Conduct a Code Review for this Segment of Code. ' +
+    'There is No Need to Explain its Functionality; instead, Please Analyze and Point out Issues using %s from Aspects such as Structure, Spelling, Performance and Safety etc. If the Code is too Short or has No Obvious Issues, Answer No Problem.';
+  SCnAICoderWizardErrorNoEngine: string = 'No Active AI Engine or Option Exists.';
+  SCnAICoderWizardErrorURLFmt: string = 'URL Error or Empty for AI Engine %s.';
+  SCnAICoderWizardErrorAPIKeyFmt: string = 'API Key Error or Empty for AI Engine %s.';
 
   // CnMatchButtonFrame
   SCnMatchButtonFrameMenuStartCaption: string = 'Match From &Start';

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnViewCore;
 ================================================================================
 * 软件名称：CnDebugViewer
 * 单元名称：核心结构与字符串定义单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7
@@ -278,8 +278,8 @@ var
   SCnDebugViewerAbout: string =
     'CnDebugViewer 1.9' + #13#10#13#10 +
     'This Tool is Used to Show the Debugging Output Information from CnDebug.' + #13#10#13#10 +
-    'Author: Liu Xiao (liuxiao@cnpack.org)' + #13#10 +
-    'Copyright (C) 2001-2023 CnPack Team';
+    'Author: Liu Xiao (master@cnpack.org)' + #13#10 +
+    'Copyright (C) 2001-2024 CnPack Team';
 
   SCnHTMFormatHeader: string =
     '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">' + #13#10 +

@@ -141,12 +141,16 @@
 			<param name="Local" value="wizards\scriptwizard.htm">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="源阅读专家">
-			<param name="Local" value="wizards\feedreader.htm">
+			<param name="Name" value="调试增强工具">
+			<param name="Local" value="ideenhance\debugenh.htm">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="代码格式化专家">
 			<param name="Local" value="wizards\codeformatter.htm">
+			</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="AI 辅助编码专家">
+			<param name="Local" value="wizards\aicoderwizard.htm">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="IDE 专家管理工具">
@@ -202,12 +206,16 @@
 				<param name="Local" value="wizards\toolset\wizeditors.htm">
 				</OBJECT>
 			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="打开文件工具">
+				<param name="Local" value="wizards\toolset\editoropenfile.htm">
+				</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
 				<param name="Name" value="赋值交换工具">
 				<param name="Local" value="wizards\toolset\editorcodeswap.htm">
 				</OBJECT>
 			<LI> <OBJECT type="text/sitemap">
-				<param name="Name" value="打开文件工具">
-				<param name="Local" value="wizards\toolset\editoropenfile.htm">
+				<param name="Name" value="赋值对齐工具">
+				<param name="Local" value="wizards\toolset\editorevalalign.htm">
 				</OBJECT>
 			<LI> <OBJECT type="text/sitemap">
 				<param name="Name" value="代码窗口全屏切换工具">
@@ -312,6 +320,10 @@
 			<LI> <OBJECT type="text/sitemap">
 				<param name="Name" value="复制当前单元工具">
 				<param name="Local" value="wizards\toolset\editorduplicateunit.htm">
+				</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="抽取字符串工具">
+				<param name="Local" value="wizards\toolset\extractstring.htm">
 				</OBJECT>
 		</UL>
 		<LI> <OBJECT type="text/sitemap">

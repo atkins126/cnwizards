@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnCodeFormatterWizard;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：代码格式化专家单元
-* 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：
 * 开发平台：WinXP + Delphi 5
 * 兼容测试：暂无（PWin9X/2000/XP/7 Delphi 5/6/7 + C++Builder 5/6）
@@ -997,7 +997,7 @@ begin
             SourceLine), nil, False);
           ErrorDlg(Format(SCnCodeFormatterErrPascalFmt, [SourceLine,
             ConvertToVisibleCol(ErrLine, SourceCol),
-            GetErrorStr(ErrCode), CurrentToken]));
+            GetErrorStr(ErrCode), CurrentToken]) + SCnCodeFormatterErrMaybeComment);
         end;
       finally
         Formatter := nil;
@@ -1165,7 +1165,7 @@ begin
               CnOtaGotoEditPos(ErrPos);
               ErrorDlg(Format(SCnCodeFormatterErrPascalFmt, [SourceLine,
                 ConvertToVisibleCol(ErrLine, SourceCol),
-                GetErrorStr(ErrCode), CurrentToken]));
+                GetErrorStr(ErrCode), CurrentToken]) + SCnCodeFormatterErrMaybeComment);
             end;
           end;
         end;

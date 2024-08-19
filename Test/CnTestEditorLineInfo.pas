@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -289,10 +289,6 @@ begin
   lstInfo.Items.Add(SEP);
   CurrPos := CnOtaGetCurrLinePos; // 取到的线性偏移基本准确
   lstInfo.Items.Add(Format('CnOtaGetCurrPos Linear %d.', [CurrPos]));
-{$IFDEF UNICODE}
-  CurrPos := CnOtaOldGetCurrLinePos;
-  lstInfo.Items.Add(Format('CnOtaGetCurrPos Linear %d from ToolsAPI.', [CurrPos]));
-{$ENDIF}
 
   Stream := TMemoryStream.Create;
   Lex := TmwPasLex.Create;

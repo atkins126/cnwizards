@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -24,9 +24,9 @@ unit CnVerEnhancements;
 * 软件名称：CnPack IDE 专家包
 * 单元名称：版本信息增强专家
 * 单元作者：陈省（hubdog）
-* 备    注：本专家不支持D5,C5
+* 备    注：本专家不支持D5, C5
 * 开发平台：JWinXPPro + Delphi 7.01
-* 兼容测试：JWinXPPro ＋Delphi7.０１
+* 兼容测试：JWinXPPro ＋Delphi 7.01
 * 本 地 化：该单元中的字符串支持本地化处理方式
 * 修改记录：2019.03.26 V1.5 by liuxiao
 *               加入将年月日设为版本号的设置
@@ -446,6 +446,7 @@ begin
   FDateTimeFormat := csDefaultDateTimeFormat;
   CnWizNotifierServices.AddBeforeCompileNotifier(BeforeCompile);
   CnWizNotifierServices.AddAfterCompileNotifier(AfterCompile);
+  FCompileNotifierAdded := True;
 end;
 
 procedure TCnVerEnhanceWizard.InsertTime;
@@ -460,7 +461,7 @@ begin
       Keys.Values[csDateKeyName] := DateTimeToStr(Now);
     end;
   except
-    // 对于D5/BCB5/BCB6出错的，简单屏蔽
+    // 对于 D5/BCB5/BCB6 出错的，简单屏蔽
 {$IFDEF DEBUG}
     CnDebugger.LogMsg('VerEnhance. Insert LastCompiledTime not Exists or Fail.');
 {$ENDIF}

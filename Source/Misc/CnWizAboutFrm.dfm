@@ -35,7 +35,7 @@ inherited CnWizAboutForm: TCnWizAboutForm
     Top = 68
     Width = 173
     Height = 13
-    Caption = 'Copyright: 2001-2023 CnPack Team'
+    Caption = 'Copyright: 2001-2024 CnPack Team'
   end
   object lblWeb: TLabel
     Left = 96
@@ -43,7 +43,7 @@ inherited CnWizAboutForm: TCnWizAboutForm
     Width = 160
     Height = 13
     Cursor = crHandPoint
-    Caption = 'WebSite: http://www.cnpack.org'
+    Caption = 'WebSite: https://www.cnpack.org'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlue
     Font.Height = -11
@@ -81,7 +81,7 @@ inherited CnWizAboutForm: TCnWizAboutForm
     Width = 143
     Height = 13
     Cursor = crHandPoint
-    Caption = 'Forum: http://bbs.cnpack.org'
+    Caption = 'Forum: https://bbs.cnpack.org'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlue
     Font.Height = -11

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnOTACreators;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：Creators 单元框架
-* 单元作者：LiuXiao （liuxiao@cnpack.org）
+* 单元作者：LiuXiao （master@cnpack.org）
 * 备    注：利用 TCnTemplateParser 生成代码的实现了 Creators 的框架单元
 * 开发平台：Windows 2000 + Delphi 5
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
@@ -193,6 +193,9 @@ type
       string); virtual;
     {* 子类重载此函数实现 ProjectCreator 的模板 Tag 替换 }
   public
+    function GetCreatorType: string; override;
+    {* 重载以返回 sApplication }
+
     function GetOwner: IOTAModule; override;
     {* 简单重载此函数返回当前 ProjectGroup }
 
@@ -204,7 +207,8 @@ type
     function GetShowSource: Boolean; virtual;
     {* 默认返回 False，表示不显示 Project Source }
     procedure NewDefaultModule; virtual;
-    {* 新建项目时需要建立默认模块的时候调用 }
+    {* 新建项目时需要建立默认模块的时候调用，
+      注意虽然说 BDS 中 deprecated了，但始终没改成 NewDefaultProjectModule，因而还是得重载这个 }
     function NewOptionSource(const ProjectName: string): IOTAFile; virtual;
     {* 返回 OptionSource，仅用于 C++ }
     procedure NewProjectResource(const Project: IOTAProject); virtual;
@@ -213,9 +217,9 @@ type
     {* 返回项目源文件的 IOTAFile 接口 }
 
 {$IFDEF BDS}
-    // IOTAProjectCreator80 接口实现
+    // IOTAProjectCreator50 接口实现
     procedure NewDefaultProjectModule(const Project: IOTAProject);
-    {* 新建缺省模块 }
+    {* 新建缺省模块，注意虽然早就转正了但始终不被调用 }
     function GetProjectPersonality: string;
     {* 返回 Personality 字符串 }
 {$ENDIF}
@@ -445,9 +449,9 @@ end;
 function TCnTemplateModuleCreator.NewFormFile(const FormIdent, AncestorIdent:
   string): IOTAFile;
 begin
-  {$IFDEF DEBUG}
+{$IFDEF DEBUG}
   CnDebugger.LogFmt('New Form File. %s, %s', [FormIdent, AncestorIdent]);
-  {$ENDIF}
+{$ENDIF}
   FModuleIdent := '';
   FFormIdent := FormIdent;
   FAncestorIdent := AncestorIdent;
@@ -457,9 +461,9 @@ end;
 function TCnTemplateModuleCreator.NewImplSource(const ModuleIdent, FormIdent,
   AncestorIdent: string): IOTAFile;
 begin
-  {$IFDEF DEBUG}
+{$IFDEF DEBUG}
   CnDebugger.LogFmt('New Impl Source.%s, %s, %s', [ModuleIdent, FormIdent, AncestorIdent]);
-  {$ENDIF}
+{$ENDIF}
   FModuleIdent := ModuleIdent;
   FFormIdent := FormIdent;
   FAncestorIdent := AncestorIdent;
@@ -469,9 +473,9 @@ end;
 function TCnTemplateModuleCreator.NewIntfSource(const ModuleIdent, FormIdent,
   AncestorIdent: string): IOTAFile;
 begin
-  {$IFDEF DEBUG}
+{$IFDEF DEBUG}
   CnDebugger.LogFmt('New Intf Source. %s, %s, %s', [ModuleIdent, FormIdent, AncestorIdent]);
-  {$ENDIF}
+{$ENDIF}
   FModuleIdent := ModuleIdent;
   FFormIdent := FormIdent;
   FAncestorIdent := AncestorIdent;
@@ -506,7 +510,7 @@ begin
 end;
 
 procedure TCnTemplateModuleCreator.DoReplaceTagsSource(const TagString: string;
-  TagParams: TStrings; var ReplaceText: string; ASourceType: TCnSourceType; 
+  TagParams: TStrings; var ReplaceText: string; ASourceType: TCnSourceType;
   ModuleIdent, FormIdent, AncestorIdent: string);
 begin
   // 基类不进行有特色的替换
@@ -524,6 +528,15 @@ end;
 function TCnTemplateProjectCreator.GetOwner: IOTAModule;
 begin
   Result := CnOtaGetProjectGroup;
+end;
+
+function TCnTemplateProjectCreator.GetCreatorType: string;
+begin
+{$IFDEF BDS}
+  Result := sApplication;
+{$ELSE}
+  Result := inherited GetCreatorType;
+{$ENDIF}
 end;
 
 function TCnTemplateProjectCreator.GetFileName: string;
@@ -549,8 +562,8 @@ end;
 function TCnTemplateProjectCreator.NewOptionSource(const ProjectName: string):
   IOTAFile;
 begin
-  Self.FProjectName := ProjectName;
-  Result := Self.GetIOTAFileByTemplate(stOptionSource);
+  FProjectName := ProjectName;
+  Result := GetIOTAFileByTemplate(stOptionSource);
 end;
 
 procedure TCnTemplateProjectCreator.NewProjectResource(const Project: IOTAProject);
@@ -561,14 +574,14 @@ end;
 function TCnTemplateProjectCreator.NewProjectSource(const ProjectName: string):
   IOTAFile;
 begin
-  Self.FProjectName := ProjectName;
-  Result := Self.GetIOTAFileByTemplate(stProjectSource);
+  FProjectName := ProjectName;
+  Result := GetIOTAFileByTemplate(stProjectSource);
 end;
 
 {$IFDEF BDS}
 procedure TCnTemplateProjectCreator.NewDefaultProjectModule(const Project: IOTAProject);
 begin
-
+  // 奇怪，始终不会被调用
 end;
 
 function TCnTemplateProjectCreator.GetProjectPersonality: string;

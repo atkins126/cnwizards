@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -47,6 +47,7 @@ uses
 type
   TCnAfterWriteEvent = procedure (Sender: TObject; IsWriteBlank: Boolean;
     IsWriteln: Boolean; PrefixSpaces: Integer) of object;
+  TCnGetInIgnoreEvent = function (Sender: TObject): Boolean of object;
 
   TCnCodeGenerator = class
   private
@@ -73,6 +74,7 @@ type
     FJustWrittenCommentEndLn: Boolean;
     FKeepLineBreak: Boolean;
     FKeepLineBreakIndentWritten: Boolean;
+    FOnGetInIgnore: TCnGetInIgnoreEvent;
     function GetCurIndentSpace: Integer;
     function GetLockedCount: Word;
     function GetPrevColumn: Integer;
@@ -176,7 +178,8 @@ type
     {* 超宽时自动换行时是否缩进，供外界控制，如 uses 区用 True}
     property OnAfterWrite: TCnAfterWriteEvent read FOnAfterWrite write FOnAfterWrite;
     {* 写内容一次成功后被调用}
-
+    property OnGetInIgnore: TCnGetInIgnoreEvent read FOnGetInIgnore write FOnGetInIgnore;
+    {* 欲获得外界 Scaner 是否在忽略区时调用}
 {$IFDEF DEBUG}
     property DebugCodeString: string read GetDebugCodeString;
     {* 调试模式下返回 FCode 的全部内容}
@@ -583,7 +586,7 @@ procedure TCnCodeGenerator.Write(const Text: string; BeforeSpaceCount,
   AfterSpaceCount: Word; NeedPadding: Boolean; NeedUnIndent: Boolean);
 var
   Str, WrapStr, Tmp, S: string;
-  ThisCanBeHead, PrevCanBeTail, IsCRLFSpace, IsAfterCommentAuto: Boolean;
+  ThisCanBeHead, PrevCanBeTail, IsCRLFSpace, IsAfterCommentAuto, InIgnore: Boolean;
   Len, Blanks, LastSpaces, CRLFPos, I, TmpWrapWidth: Integer;
 
   function ExceedLineWrap(Width: Integer): Boolean;
@@ -715,7 +718,11 @@ begin
 {$ENDIF}
 
   FPrevRow := FCode.Count - 1;
-  if (FCodeWrapMode = cwmNone) or FKeepLineBreak then
+  InIgnore := False;
+  if Assigned(FOnGetInIgnore) then
+    InIgnore := FOnGetInIgnore(Self);
+
+  if (FCodeWrapMode = cwmNone) or FKeepLineBreak or InIgnore then
   begin
     // 不自动换行时无需处理，
   end

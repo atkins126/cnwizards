@@ -2,6 +2,12 @@ unit CnTestDcu32Frm;
 
 interface
 
+{$I CnPack.inc}
+
+{$IFDEF DELPHI110_ALEXANDRIA_UP}
+  {$MESSAGE ERROR 'This case is only for Delphi 5~10.4'}
+{$ENDIF}
+
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, TypInfo, Clipbrd, ExtCtrls, FileCtrl;
@@ -27,7 +33,7 @@ type
     function ExtractSymbol(const Symbol: string): string;
     procedure DumpADcu(const AFileName: string; ALines: TStrings);
   public
-    { Public declarations }
+
   end;
 
 var
@@ -222,13 +228,13 @@ begin
     Info := TCnUnitUsesInfo.Create(AFileName, False);
 
     ALines.Add('=================== ' + AFileName);
-    ALines.Add('interface:');
+    ALines.Add('interface: ' + IntToStr(Info.IntfUsesCount));
     for I := 0 to Info.IntfUsesCount - 1 do
     begin
       ALines.Add(Info.IntfUses[I]);
       ALines.Add(Info.IntfUsesImport[I].Text);
     end;
-    ALines.Add('implementation:');
+    ALines.Add('implementation: ' + IntToStr(Info.ImplUsesCount));
     for I := 0 to Info.ImplUsesCount - 1 do
     begin
       ALines.Add(Info.ImplUses[I]);

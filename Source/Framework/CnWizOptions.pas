@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -97,7 +97,7 @@ type
     FShowHint: Boolean;
     FShowWizComment: Boolean;
     FDelphiExt: string;
-    FCExt: string;
+    FCppExt: string;
     FCompilerName: string;
     FCompilerID: string;
     FUpgradeReleaseOnly: Boolean;
@@ -139,9 +139,13 @@ type
     procedure SaveSettings(Manual: Boolean = False);
     // Manual 为 True 时表示从界面保存而不是结束时自动保存
 
+{$IFNDEF CNWIZARDS_MINIMUM}
+
     procedure ResetToolbarWithLargeIcons(AToolBar: TToolBar);
     {* 封装的根据是否使用大图标来调整普通窗体上部的工具栏的方法，也可用于编辑器工具栏
       前提是 AToolbar 已经设好了 Parent 并且 Scale 过}
+
+{$ENDIF}
 
     // 参数读写方法
     function CreateRegIniFile: TCustomIniFile; overload;
@@ -167,6 +171,9 @@ type
     function IsCSource(const FileName: string): Boolean;
     {* 判断指定文件是否 C 源文件，使用由用户设置的扩展名列表判断}
 
+    function GetDataFileName(const FileName: string): string;
+    {* 返回安装时自带的原始数据文件，无论有无用户数据文件，
+      供外界需要明确处理原始数据文件时使用，比如新版选项合并}
     function GetUserFileName(const FileName: string; IsRead: Boolean; FileNameDef:
       string = ''): string;
     {* 返回用户数据文件名，如果 UserPath 下的文件不存在，返回 DataPath 中的文件名}
@@ -242,8 +249,8 @@ type
     // 用户设置
     property DelphiExt: string read FDelphiExt write FDelphiExt;
     {* 用户定义的 Delphi 文件扩展名}
-    property CExt: string read FCExt write FCExt;
-    {* 用户定义的 C 文件扩展名}
+    property CppExt: string read FCppExt write FCppExt;
+    {* 用户定义的 C/C++ 文件扩展名}
     property ShowHint: Boolean read FShowHint write FShowHint;
     {* 是否显示控件 Hint，各窗体应在 Create 时设置 TForm.ShowHint 等于该值}
     property ShowWizComment: Boolean read FShowWizComment write FShowWizComment;
@@ -304,7 +311,8 @@ uses
   CnDebug,
 {$ENDIF}
 {$IFNDEF STAND_ALONE}
-  CnWizUtils, CnWizIdeUtils, CnWizManager, CnWizShareImages,
+  CnWizUtils, CnWizIdeUtils, CnWizManager,
+  {$IFNDEF CNWIZARDS_MINIMUM} CnWizShareImages, {$ENDIF}
 {$ENDIF}
   CnWizConsts, CnCommon,  CnConsts, CnWizCompilerConst, CnNative;
 
@@ -335,7 +343,7 @@ const
   csShowWizComment = 'ShowWizComment';
   csShowTipOfDay = 'ShowTipOfDay';
   csDelphiExt = 'DelphiExt';
-  csCExt = 'CExt';
+  csCppExt = 'CppExt';
   csUseToolsMenu = 'UseToolsMenu';
   csFixThreadLocale = 'FixThreadLocale';
   csUseOneCPUCore = 'UseOneCPUCore';
@@ -349,7 +357,7 @@ const
 {$ENDIF}
 
   csDelphiExtDefault = '.pas;.dpr;.inc';
-  csCExtDefault = '.c;.cpp;.h;.hpp;.cc;.hh';
+  csCppExtDefault = '.c;.cpp;.h;.hpp;.cc;.hh';
 
   csUpgradeURL = 'URL';
   csNightlyBuildURL = 'URL';
@@ -464,8 +472,8 @@ begin
     FShowTipOfDay := ReadBool(SCnOptionSection, csShowTipOfDay, True);
     FDelphiExt := ReadString(SCnOptionSection, csDelphiExt, csDelphiExtDefault);
     if FDelphiExt = '' then FDelphiExt := csDelphiExtDefault;
-    FCExt := ReadString(SCnOptionSection, csCExt, csCExtDefault);
-    if FCExt = '' then FCExt := csCExtDefault;
+    FCppExt := ReadString(SCnOptionSection, csCppExt, csCppExtDefault);
+    if FCppExt = '' then FCppExt := csCppExtDefault;
     FUseToolsMenu := ReadBool(SCnOptionSection, csUseToolsMenu, False);
     FixThreadLocale := ReadBool(SCnOptionSection, csFixThreadLocale, False);
     FUseLargeIcon := ReadBool(SCnOptionSection, csUseLargeIcon, False);
@@ -538,7 +546,7 @@ begin
     WriteBool(SCnOptionSection, csShowWizComment, FShowWizComment);
     WriteBool(SCnOptionSection, csShowTipOfDay, FShowTipOfDay);
     WriteString(SCnOptionSection, csDelphiExt, FDelphiExt);
-    WriteString(SCnOptionSection, csCExt, FCExt);
+    WriteString(SCnOptionSection, csCppExt, FCppExt);
     WriteBool(SCnOptionSection, csUseToolsMenu, FUseToolsMenu);
     WriteBool(SCnOptionSection, csFixThreadLocale, FFixThreadLocale);
 
@@ -616,7 +624,7 @@ end;
 
 function TCnWizOptions.IsCSource(const FileName: string): Boolean;
 begin
-  Result := FileMatchesExts(FileName, FCExt);
+  Result := FileMatchesExts(FileName, FCppExt);
 end;
 
 function TCnWizOptions.IsDelphiSource(const FileName: string): Boolean;
@@ -698,6 +706,11 @@ begin
   end;
 end;
 
+function TCnWizOptions.GetDataFileName(const FileName: string): string;
+begin
+  Result := DataPath + FileName;
+end;
+
 function TCnWizOptions.GetUserFileName(const FileName: string; IsRead: Boolean;
   FileNameDef: string = ''): string;
 var
@@ -714,8 +727,7 @@ begin
     Result := DstFile;
 end;
 
-function TCnWizOptions.GetAbsoluteUserFileName(
-  const FileName: string): string;
+function TCnWizOptions.GetAbsoluteUserFileName(const FileName: string): string;
 begin
   ForceDirectories(UserPath);
   Result := UserPath + FileName;
@@ -901,6 +913,8 @@ begin
     Result := Round(Value / GetFactorFromSizeEnlarge(AEnlarge));
 end;
 
+{$IFNDEF CNWIZARDS_MINIMUM}
+
 procedure TCnWizOptions.ResetToolbarWithLargeIcons(AToolBar: TToolBar);
 {$IFDEF IDE_SUPPORT_HDPI}
 var
@@ -924,6 +938,9 @@ begin
       AToolBar.Images := dmCnSharedImages.LargeVirtualImages
     else
       AToolBar.Images := dmCnSharedImages.VirtualImages;
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('ResetToolbarWithLargeIcons %s with VirtualImages', [AToolBar.Name]);
+{$ENDIF}
     NeedNew := False;
   end;
   if AToolBar.DisabledImages = dmCnSharedImages.DisabledImages then
@@ -932,13 +949,27 @@ begin
       AToolBar.DisabledImages := dmCnSharedImages.DisabledLargeVirtualImages
     else
       AToolBar.DisabledImages := dmCnSharedImages.DisabledVirtualImages;
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('ResetToolbarWithLargeIcons %s with DisabledVirtualImages', [AToolBar.Name]);
+{$ENDIF}
     NeedNew := False;
   end;
 
   if NeedNew and (AToolBar.Images <> nil) and (AToolBar.Owner = AToolBar.Images.Owner) then
+  begin
     AToolBar.Images := IdeGetVirtualImageListFromOrigin(AToolBar.Images);
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('ResetToolbarWithLargeIcons %s New a VirtualImages', [AToolBar.Name]);
+{$ENDIF}
+  end;
+
   if (AToolBar.DisabledImages <> nil) and (AToolBar.Owner = AToolBar.DisabledImages.Owner) then
+  begin
     AToolBar.DisabledImages := IdeGetVirtualImageListFromOrigin(AToolBar.DisabledImages);
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('ResetToolbarWithLargeIcons %s New a DisabledVirtualImages', [AToolBar.Name]);
+{$ENDIF}
+  end;
 
 {$ELSE}
   if FUseLargeIcon then
@@ -953,6 +984,8 @@ begin
   if FUseLargeIcon and (AToolBar.Height <= AToolBar.ButtonHeight) then
     AToolBar.Height := AToolBar.ButtonHeight + csLargeToolbarHeightDelta;
 end;
+
+{$ENDIF}
 
 procedure TCnWizOptions.DumpToStrings(Infos: TStrings);
 begin
@@ -977,4 +1010,5 @@ begin
 end;
 
 {$ENDIF}
+
 end.

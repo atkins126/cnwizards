@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnVclToFmxConverter;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：CnWizards VCL/FMX 属性转换器单元
-* 单元作者：刘啸 (liuxiao@cnpack.org)
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：该单元以 Delphi 10.3.1 的 VCL 与 FMX 为基础确定了一些映射关系
 * 开发平台：PWin7 + Delphi 10.3.1
 * 兼容测试：XE2 或以上，不支持更低版本
@@ -392,10 +392,12 @@ class procedure TCnCaptionConverter.ProcessProperties(const PropertyName,
   TheClassName, PropertyValue: string; InProperties, OutProperties: TStrings;
   Tab: Integer);
 begin
-  // FMX TPanel / TToolBar 对应的 TGridLayout / ToolButton 对应的 SpeedButton 没有 Text 属性
+  // FMX TPanel / TToolBar 对应的 TGridLayout 没有 Text 属性
   if (PropertyName = 'Caption') and ((TheClassName <> 'TPanel') and
-    (TheClassName <> 'TToolBar') and (TheClassName <> 'TToolButton')) then
+    (TheClassName <> 'TToolBar')) then
     OutProperties.Add('Text = ' + PropertyValue);
+
+  // ToolButton 对应的 SpeedButton 以前没有 Text 属性后来加上了
 end;
 
 { TCnSizeConverter }

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnSrcEditorGutter;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：代码编辑器行号显示单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 *           周劲羽 (zjy@cnpack.org)
 * 备    注：
 * 开发平台：PWin2000Pro + Delphi 5.01
@@ -90,7 +90,7 @@ type
     FIDELineNumMenu: TMenuItem;
 {$ENDIF}
     FOldLineWidth: Integer;
-    FPosInfo: TEditControlInfo;
+    FPosInfo: TCnEditControlInfo;
 {$IFNDEF BDS}
     FLineInfo: TCnList;
 {$ENDIF}
@@ -527,7 +527,7 @@ begin
         begin
           StrNum := IntToStr(Idx);
           DrawText(Canvas.Handle, PChar(StrNum), Length(StrNum), R, DT_VCENTER or
-            DT_RIGHT);
+            DT_RIGHT or DT_SINGLELINE);
         end
         else // 整十模式下，绘制普通短点和五整除长点
         begin
@@ -582,7 +582,7 @@ begin
 
         Canvas.FillRect(R);
         DrawText(Canvas.Handle, PChar(StrNum), Length(StrNum), R, DT_VCENTER or
-          DT_RIGHT);
+          DT_RIGHT or DT_SINGLELINE);
       end;
     end;
 
@@ -850,15 +850,15 @@ procedure TCnSrcEditorGutter.OnShowIDELineNum(Sender: TObject);
 var
   AShow: Boolean;
   Options: IOTAEnvironmentOptions;
-  i: Integer;
+  I: Integer;
 begin
   Options := CnOtaGetEnvironmentOptions;
   if Options <> nil then
   begin
     AShow := Options.GetOptionValue(csIDEShowLineNumbers);
     Options.SetOptionValue(csIDEShowLineNumbers, not AShow);
-    for i := 0 to EditControlWrapper.EditorCount - 1 do
-      EditControlWrapper.Editors[i].IDEShowLineNumberChanged;
+    for I := 0 to EditControlWrapper.EditorCount - 1 do
+      EditControlWrapper.Editors[I].NotifyIDEGutterChanged;
   end;
 end;
 {$ENDIF}
@@ -1145,18 +1145,35 @@ end;
 { TCnSrcEditorGutterMgr }
 
 constructor TCnSrcEditorGutterMgr.Create;
+var
+  Option: IOTAEditOptions;
 begin
   inherited;
   FList := TList.Create;
   FFont := TFont.Create;
   FCurrFont := TFont.Create;
-  FFont.Name := 'Verdana';
-  FFont.Size := 9;
+
+  Option := CnOtaGetEditOptions;
+  if Option <> nil then
+  begin
+    FFont.Name := Option.FontName;
+    FFont.Size := Option.FontSize;
+  end
+  else
+  begin
+    FFont.Name := 'Verdana';
+    FFont.Size := 9;
+  end;
+  FCurrFont.Name := FFont.Name;
+  FCurrFont.Size := FFont.Size;
+
+{$IFDEF DEBUG}
+  CnDebugger.LogFmt('TCnSrcEditorGutterMgr.Create Gutter Font Size %d', [FFont.Size]);
+{$ENDIF}
+
   FFont.Color := csDefaultLineNumberColor;
-  FCurrFont.Name := 'Verdana';
-  FCurrFont.Size := 9;
   FCurrFont.Color := csDefaultCurrentLineNumberColor;
-  
+
   FActive := True;
   FShowLineNumber := True;
   FShowLineCount := True;

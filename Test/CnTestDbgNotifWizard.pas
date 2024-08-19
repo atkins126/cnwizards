@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -100,10 +100,8 @@ end;
 
 procedure TCnTestDbgNotifMenuWizard.Execute;
 var
-  a: array[0..255] of Char;
-  CanModify: Boolean;
-  ResAddr: LongWord;
-  ResSize, ResVal: LongWord;  
+  Eval: TCnRemoteProcessEvaluator;
+  S: string;
 begin
   if (FProcess = nil) or (FThread = nil) then
   begin
@@ -111,13 +109,22 @@ begin
       'Please Use CnDebugViewer to See the Output Results' + #13#10 + 'when Add/Delete Breakpoint and Run/Pause/Stop Process.');
   end;
 
-  FillChar(a, SizeOf(a), 0);
-  if EvaluateExpression(FThread, 'Screen.FormCount', @a[0], 255, CanModify, True, '', ResAddr, ResSize, ResVal) then
-  begin
-    CnDebugger.TraceFmt('Execute ResultStr %s, ResAddr %x, ResSize %x, ResVal %x.', [a, ResAddr, ResSize, ResVal]);
-  end
+  Eval := TCnRemoteProcessEvaluator.Create;
+  try
+    S := Eval.EvaluateExpression('Screen.FormCount');
+    if S <> '' then
+      CnDebugger.TraceMsg(S)
+    else
+      CnDebugger.TraceMsg('Empty String Returned from Local Evaluator');
+  finally
+    Eval.Free;
+  end;
+
+  S := CnRemoteProcessEvaluator.EvaluateExpression('ADOTable1');
+  if S <> '' then
+    CnDebugger.TraceMsg(S)
   else
-    CnDebugger.TraceFmt('ResultStr %s', [a]);
+    CnDebugger.TraceMsg('Empty String Returned from Global Evaluator');
 end;
 
 function TCnTestDbgNotifMenuWizard.GetCaption: string;
@@ -201,7 +208,7 @@ begin
     begin
       CnDebugger.TraceFmt('Notify Evaluation OK. Return String: ', [a]);
       CnDebugger.TraceFmt('Notify ResAddr %x, ResSize %x, ResVal %x.', [ResAddr, ResSize, ResVal]);
-      // 如果返回的是对象，则ResAddr就是此对象的引用地址，也就是对象本身。
+      // 如果返回的是对象，则 ResAddr 就是此对象的引用地址，也就是对象本身。
       // 但由于地址空间不同，所以没法直接使用子进程的此对象。所以下两句不可用。
       // if ResAddr <> 0 then
       //  CnDebugger.TraceMsg(TApplication(TObject(ResAddr)).Title);

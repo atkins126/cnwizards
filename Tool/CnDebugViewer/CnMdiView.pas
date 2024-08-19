@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnMdiView;
 ================================================================================
 * 软件名称：CnDebugViewer
 * 单元名称：子窗体单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7
@@ -195,7 +195,7 @@ var
 
 implementation
 
-uses CnCommon, CnViewMain, CnViewCore, CnDebugIntf, CnMsgXMLFiler;
+uses CnCommon, CnViewMain, CnViewCore, CnDebugIntf, CnMsgFiler;
 
 {$R *.DFM}
 
@@ -765,6 +765,13 @@ begin
         AddBatchItemToView(FStore, 0, FStore.MsgCount - 1);
         RefreshTime(FStore);
       end
+      else if Ext = '.json' then // 是 CnDebugViewer 保存的 JSON 文件
+      begin
+        Filer := TCnMsgJSONFiler.Create;
+        FStore.LoadFromFile(Filer, FileName);
+        AddBatchItemToView(FStore, 0, FStore.MsgCount - 1);
+        RefreshTime(FStore);
+      end
       else if Ext = '.cdd' then // 是 CnDebug.pas 直接 Dump 出的文件
       begin
         DumpFile := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
@@ -801,7 +808,10 @@ begin
   begin
     Screen.Cursor := crHourGlass;
     try
-      Filer := TCnMsgXMLFiler.Create;
+      if LowerCase(_CnExtractFileExt(FileName)) = '.xml' then
+        Filer := TCnMsgXMLFiler.Create
+      else
+        Filer := TCnMsgJsonFiler.Create;
       FStore.SaveToFile(Filer, FileName);
     finally
       Screen.Cursor := crDefault;

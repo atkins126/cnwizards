@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnWizMultiLang;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：专家包多语控制单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：OldCreateOrder 必须为 False，才能正常调整边距
 *           AutoScroll 必须为 False，才能正常缩放
 *           所以要检查凡是 Sizable 的 Form，AutoScroll自动为 True，要手工改回来。
@@ -116,7 +116,8 @@ type
     procedure CheckDefaultFontSize;
     // 部分 Win7 主题会出现右下角超出窗体的现象，原因是 ClientHeight/ClientWidth
     // 会因为主题而缩小，遍历修复。注意重设 Anchors 时如果 FormCreate 事件里修改
-    // 了尺寸，则会因为组件的 Explicit Bounds 导致尺寸复原，需要特殊处理
+    // 了尺寸，则会因为组件的 Explicit Bounds 导致尺寸复原，需要特殊处理，
+    // 子类可重载 NeedAdjustRightBottomMargin 以不处理
     procedure AdjustRightBottomMargin;
 
     procedure ProcessSizeEnlarge;
@@ -133,6 +134,9 @@ type
     procedure DoCreate; override;
     procedure DoDestroy; override;
     procedure ReadState(Reader: TReader); override;
+
+    function NeedAdjustRightBottomMargin: Boolean; virtual;
+    {* 控制子类是否要调整右下方向边距}
 {$ENDIF}
 
 {$IFDEF CREATE_PARAMS_BUG}
@@ -173,7 +177,8 @@ type
   end;
 
 {$IFNDEF TEST_APP}
-function CnLangMgr: TCnCustomLangManager;
+
+function CnWizLangMgr: TCnCustomLangManager;
 {* CnLanguageManager 的简略封装，保证返回的管理器能进行翻译 }
 
 procedure InitLangManager;
@@ -181,6 +186,7 @@ procedure InitLangManager;
 function GetFileFromLang(const FileName: string): string;
 
 procedure RegisterThemeClass;
+
 {$ENDIF}
 
 implementation
@@ -296,7 +302,7 @@ begin
 end;
 
 // CnLanguageManager 的简略封装，保证返回的管理器不为 nil 且能进行翻译
-function CnLangMgr: TCnCustomLangManager;
+function CnWizLangMgr: TCnCustomLangManager;
 begin
   if CnLanguageManager = nil then
     CreateLanguageManager;
@@ -478,7 +484,9 @@ begin
 
   ProcessSizeEnlarge;
   ProcessGlyphForHDPI(Self);
-  AdjustRightBottomMargin;   // inherited 中会调用 FormCreate 事件，有可能改变了 Width/Height
+
+  if NeedAdjustRightBottomMargin then
+    AdjustRightBottomMargin;   // inherited 中会调用 FormCreate 事件，有可能改变了 Width/Height
 end;
 
 procedure TCnTranslateForm.DoDestroy;
@@ -952,6 +960,11 @@ begin
 {$ENDIF}
 end;
 
+function TCnTranslateForm.NeedAdjustRightBottomMargin: Boolean;
+begin
+  Result := True;
+end;
+
 initialization
 {$IFDEF STAND_ALONE}
   CreateLanguageManager;
@@ -965,14 +978,14 @@ initialization
 finalization
 {$IFDEF DEBUG}
   CnDebugger.LogEnter('CnWizMultiLang finalization.');
-{$ENDIF DEBUG}
+{$ENDIF}
 
   if FStorage <> nil then
     FreeAndNil(FStorage);
 
 {$IFDEF DEBUG}
   CnDebugger.LogLeave('CnWizMultiLang finalization.');
-{$ENDIF DEBUG}
+{$ENDIF}
 
 {$ENDIF TEST_APP}
 end.

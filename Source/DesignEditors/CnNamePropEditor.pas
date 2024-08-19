@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -74,19 +74,12 @@ uses
 procedure TCnNamePropEditor.Edit;
 var
   Wizard: TCnPrefixWizard;
-
-//  function IsRootControl(Comp: TPersistent): Boolean;
-//  begin
-//    Result := (Comp is TDataModule) or (Comp is TCustomFrame) or
-//      (Comp is TCustomForm);
-//  end;
 begin
   Wizard := TCnPrefixWizard(CnWizardMgr.WizardByClass(TCnPrefixWizard));
-  if Assigned(Wizard) then
+  if Assigned(Wizard) and Wizard.Active then
   begin
     if (GetComponent(0) is TComponent) and
       (Trim(TComponent(GetComponent(0)).Name) <> '') then
-      // not IsRootControl(GetComponent(0)) then
     begin
       Wizard.ExecuteRename(TComponent(GetComponent(0)), True);
     end;
@@ -116,7 +109,7 @@ var
   Wizard: TCnPrefixWizard;
 begin
   Wizard := TCnPrefixWizard(CnWizardMgr.WizardByClass(TCnPrefixWizard));
-  if Assigned(Wizard) then
+  if Assigned(Wizard) and Wizard.Active then
   begin
     RegisterPropertyEditor(TypeInfo(TComponentName), TControl, 'Name',
       TCnNamePropEditor);

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -575,8 +575,8 @@ begin
   Result.FTokenLength := Len;
   if Len > CN_TOKEN_MAX_SIZE then
     Len := CN_TOKEN_MAX_SIZE;
-  // FillChar(Token.FToken[0], SizeOf(Token.FToken), 0);
-  CopyMemory(@Result.FToken[0], Lex.TokenAddr, Len);
+
+  Move(Lex.TokenAddr^, Result.FToken[0], Len);
   Result.FToken[Len] := #0;
 
   Result.FLineNumber := Lex.LineNumber;
@@ -1251,7 +1251,7 @@ begin
 
         // 需要时，普通标识符加，& 后的标识符也加
         if not AKeyOnly and ((PrevTokenID <> tkAmpersand) or (Lex.TokenID = tkIdentifier)) then
-          Token := NewToken(Lex, ASource, CurrBlock, CurrMethod, CurrBracketLevel);
+          NewToken(Lex, ASource, CurrBlock, CurrMethod, CurrBracketLevel);
       end;
 
       if Lex.TokenID = tkRoundOpen then
@@ -1286,15 +1286,15 @@ var
   procedure _BackwardFindDeclarePos;
   var
     Level: Integer;
-    i, NestedProcs: Integer;
+    I, NestedProcs: Integer;
     StartInner: Boolean;
   begin
     Level := 0;
     StartInner := True;
     NestedProcs := 1;
-    for i := CurrIndex - 1 downto 0 do
+    for I := CurrIndex - 1 downto 0 do
     begin
-      Token := Tokens[i];
+      Token := Tokens[I];
       if Token.IsBlockStart then
       begin
         if StartInner and (Level = 0) then
@@ -1345,15 +1345,15 @@ var
   procedure _ForwardFindDeclarePos;
   var
     Level: Integer;
-    i, NestedProcs: Integer;
+    I, NestedProcs: Integer;
     EndInner: Boolean;
   begin
     Level := 0;
     EndInner := True;
     NestedProcs := 1;
-    for i := CurrIndex to Count - 1 do
+    for I := CurrIndex to Count - 1 do
     begin
-      Token := Tokens[i];
+      Token := Tokens[I];
       if Token.IsBlockClose then
       begin
         if EndInner and (Level = 0) then
@@ -1577,6 +1577,7 @@ var
   Lex: TmwPasLex;
   Text: AnsiString;
   MyTokenID: TTokenKind;
+  Bookmark: TmwPasLexBookmark;
 
   procedure DoNext(NoJunk: Boolean = False);
   begin
@@ -1799,6 +1800,7 @@ begin
             end
             else // Lex 的 IsClass 在 class 关键字后是以下内容时判断错误，需如此弥补
             begin
+              Lex.SaveToBookmark(Bookmark);
               DoNext(True);
               if (Lex.TokenPos < CurrPos) and (Lex.TokenID in [tkSealed, tkStrict,
                 tkPrivate, tkProtected, tkPublic, tkPublished, tkHelper, tkClass,
@@ -1807,6 +1809,11 @@ begin
                 Result.PosKind := pkClass;
                 InClass := True;
                 Continue;
+              end
+              else
+              begin
+                // 不是，则要恢复，免得多 DoNext 一次
+                Lex.LoadFromBookmark(Bookmark);
               end;
             end;
           end;
@@ -1828,7 +1835,7 @@ begin
               Result.PosKind := pkCompDirect;
             end;
           end;
-        tkString:
+        tkString, tkMultiLineString:
           begin
             if Result.PosKind <> pkString then
             begin
@@ -1931,7 +1938,9 @@ begin
             if Result.PosKind = pkConst then
               Result.PosKind := pkConstTypeValue
             else if Result.PosKind = pkType then
-              Result.PosKind := pkTypeDecl;
+              Result.PosKind := pkTypeDecl
+            else if Result.PosKind = pkField then // 等号结束 Field
+              Result.PosKind := SavePos;
           end;
         tkAssign:
           begin

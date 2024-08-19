@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -221,7 +221,15 @@ begin
   CL.AddDelphiFunction('Procedure BeginWait');
   CL.AddDelphiFunction('Procedure EndWait');
   CL.AddDelphiFunction('Function CheckWindows9598 : Boolean');
+  CL.AddDelphiFunction('Function CheckWindowsNT : Boolean');
   CL.AddDelphiFunction('Function CheckWinXP : Boolean');
+  CL.AddDelphiFunction('Function CheckWinVista : Boolean');
+  CL.AddDelphiFunction('Function CheckWin8 : Boolean');
+  CL.AddDelphiFunction('Function CheckWin10 : Boolean');
+  CL.AddDelphiFunction('Function CheckWin64: Boolean');
+  CL.AddDelphiFunction('Function CheckWow64: Boolean');
+  CL.AddDelphiFunction('Function CheckProcess64( ProcessHandle: THandle): Boolean');
+  CL.AddDelphiFunction('Function CheckProcessWow64( ProcessHandle: THandle): Boolean');
   CL.AddDelphiFunction('Function GetOSString : string');
   CL.AddDelphiFunction('Function GetComputeNameStr : string');
   CL.AddDelphiFunction('Function GetLocalUserName : string');
@@ -253,6 +261,7 @@ begin
   CL.AddDelphiFunction('Function SoundCardExist : Boolean');
   CL.AddDelphiFunction('Function InheritsFromClassName( AObject : TObject; const AClass : string) : Boolean;');
   CL.AddDelphiFunction('Procedure KillProcessByFileName( const FileName : String)');
+  CL.AddDelphiFunction('Procedure KillProcessByFullFileName( const FullFileName : String)');
   CL.AddDelphiFunction('Function IndexStr( AText : string; AValues : array of string; IgCase : Boolean) : Integer');
   CL.AddDelphiFunction('Function IndexInt( ANum : Integer; AValues : array of Integer) : Integer');
   CL.AddDelphiFunction('Procedure TrimStrings( AList : TStrings)');
@@ -466,7 +475,15 @@ begin
   S.RegisterDelphiFunction(@BeginWait, 'BeginWait', cdRegister);
   S.RegisterDelphiFunction(@EndWait, 'EndWait', cdRegister);
   S.RegisterDelphiFunction(@CheckWindows9598, 'CheckWindows9598', cdRegister);
+  S.RegisterDelphiFunction(@CheckWindowsNT, 'CheckWindowsNT', cdRegister);
   S.RegisterDelphiFunction(@CheckWinXP, 'CheckWinXP', cdRegister);
+  S.RegisterDelphiFunction(@CheckWinVista, 'CheckWinVista', cdRegister);
+  S.RegisterDelphiFunction(@CheckWin8, 'CheckWin8', cdRegister);
+  S.RegisterDelphiFunction(@CheckWin10, 'CheckWin10', cdRegister);
+  S.RegisterDelphiFunction(@CheckWin64, 'CheckWin64', cdRegister);
+  S.RegisterDelphiFunction(@CheckWow64, 'CheckWow64', cdRegister);
+  S.RegisterDelphiFunction(@CheckProcess64, 'CheckProcess64', cdRegister);
+  S.RegisterDelphiFunction(@CheckProcessWow64, 'CheckProcessWow64', cdRegister);
   S.RegisterDelphiFunction(@GetOSString, 'GetOSString', cdRegister);
   S.RegisterDelphiFunction(@GetComputeNameStr, 'GetComputeNameStr', cdRegister);
   S.RegisterDelphiFunction(@GetLocalUserName, 'GetLocalUserName', cdRegister);
@@ -498,6 +515,7 @@ begin
   S.RegisterDelphiFunction(@SoundCardExist, 'SoundCardExist', cdRegister);
   S.RegisterDelphiFunction(@InheritsFromClassName_P, 'InheritsFromClassName', cdRegister);
   S.RegisterDelphiFunction(@KillProcessByFileName, 'KillProcessByFileName', cdRegister);
+  S.RegisterDelphiFunction(@KillProcessByFullFileName, 'KillProcessByFullFileName', cdRegister);
   S.RegisterDelphiFunction(@IndexStr, 'IndexStr', cdRegister);
   S.RegisterDelphiFunction(@IndexInt, 'IndexInt', cdRegister);
   S.RegisterDelphiFunction(@TrimStrings, 'TrimStrings', cdRegister);

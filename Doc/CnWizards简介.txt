@@ -16,13 +16,13 @@ Delphi/C++Builder/BDS µÄ IDE ÖÐ£¬ÓÃÓÚÔöÇ¿ IDE ¹¦ÄÜ¡¢Ìá¸ß IDE µÄ¿ÉÓÃÐÔ¼°
 ¶þ¡¢CnWizards Ö÷ÒªÃæ¶ÔÄÄÀàÓÃ»§Èº£¿
 ==================================
 
-CnWizards ²úÆ·Ö÷ÒªÃæ¶ÔÊ¹ÓÃ Delphi 5 6 7¡¢C++Builder 5 6 Óë BDS 2005 
-2006¡¢RAD Studio 2007 2009 2010¡¢XE¡¢XE2¡¢XE3¡¢XE4¡¢XE5¡¢XE6¡¢XE7¡¢
+CnWizards ²úÆ·Ö÷ÒªÃæ¶ÔÊ¹ÓÃ Delphi 5¡¢6¡¢7¡¢C++Builder 5¡¢6 Óë BDS 2005¡¢ 
+2006¡¢RAD Studio 2007¡¢2009¡¢2010¡¢XE¡¢XE2¡¢XE3¡¢XE4¡¢XE5¡¢XE6¡¢XE7¡¢
 XE8¡¢10 Seattle¡¢10.1 Berlin¡¢10.2 Tokyo¡¢10.3 Rio¡¢10.4 Sydney¡¢
-11 Alexandria µÄ¿ª·¢Õß¡£
+11 Alexandria¡¢12 Athens µÄ¿ª·¢Õß¡£
 
-CnWizards Ä¿Ç°°üÀ¨ÒÔÏÂ¼¸ÖÖÓïÑÔµÄ·¢²¼°æ±¾£º¼òÌåÖÐÎÄ¡¢·±ÌåÖÐÎÄ¡¢Ó¢Óï¡¢
-¶íÓï¡¢µÂÓï¡¢·¨Óï¡£
+CnWizards Ä¿Ç°°üÀ¨ÒÔÏÂÆßÖÖÓïÑÔµÄ·¢²¼°æ±¾£º¼òÌåÖÐÎÄ¡¢·±ÌåÖÐÎÄ¡¢Ó¢Óï¡¢
+¶íÓï¡¢µÂÓï¡¢·¨Óï¡¢°ÍÎ÷ÆÏÌÑÑÀÓï¡£
 
 ==============================
 Èý¡¢CnWizards Ö÷ÒªÓÐÄÄÐ©¹¦ÄÜ£¿
@@ -45,7 +45,7 @@ CnWizards ÔÚ Delphi / C++Builder / BDS µÄ IDE ÖÐÌá¹©ÁËÊ®¶à¸ö¿É¶ÀÁ¢ÉèÖÃµÄ
   * ÒýÓÃµ¥ÔªÇåÀí
   * ÆäËû´óÁ¿ÔöÇ¿Óë¸Ä½ø
 
-¹ØÓÚ½çÃæ½ØÍ¼¿É²Î¿¼£ºhttp://www.cnpack.org/images/cnwizards.gif
+¹ØÓÚ½çÃæ½ØÍ¼¿É²Î¿¼£ºhttps://www.cnpack.org/images/cnwizards.gif
 ´ËÍâ£¬CnWizards »¹¸½´øÏÂÁÐ¶ÀÁ¢ÔËÐÐµÄÐ¡¹¤¾ß£º
 
   * CnWizards ÉèÖÃµ¼Èëµ¼³ö¹¤¾ß
@@ -68,11 +68,15 @@ CnPack ÊÇÓÉ»¥ÁªÍøÉÏÒ»ÈºÖÐ¹ú³ÌÐòÔ±¿ª·¢µÄ¿ª·ÅÔ´ÂëµÄ×ÔÓÉÈí¼þÏîÄ¿£¬µ±Ç°Ö÷Òª
 Í³µÈ¡£
 CnPack ¿ª·¢ÍÅ¶ÓÄ¿Ç°¹æÄ£ÓÐ 260 ÓàÈË£¬²¢ÇÒ»¹ÔÚ²»¶Ï·¢Õ¹×³´óÖÐ¡£
 
-CnPack ÍøÕ¾£ºhttp://www.cnpack.org
-CnPack ÂÛÌ³£ºhttp://bbs.cnpack.org
-Ã¿ÈÕ¹¹½¨°æ£º http://www.cnpack.org/downbuilds.php
+CnPack ÍøÕ¾£ºhttps://www.cnpack.org
+CnPack ÂÛÌ³£ºhttps://bbs.cnpack.org
+Ã¿ÈÕ¹¹½¨°æ£º https://www.cnpack.org/downbuilds.php
 ¹ÜÀíÔ±ÐÅÏä£º master@cnpack.org
+Î¢ÐÅ¹«ÖÚºÅ£ºCnPack¿ª·¢×é
 
+Ô´ÂëÍÐ¹Ü£º
+https://github.com/cnpack
+https://gitee.com/cnpack
 
 ***********************************************************************
 
@@ -92,13 +96,14 @@ CnWizards enters Embarcadero Delphi XE Partner DVD in Sep. 2010.
 2. Who can use CnWizards?
 =========================
 
-CnWizards is designed to face the programmers who use Delphi 5 6 7, 
-C++Builder 5 6 and BDS 2005 2006, RAD Studio 2007 2009 2010, XE, XE2,
+CnWizards is designed to face the programmers who use Delphi 5, 6, 7, 
+C++Builder 5, 6 and BDS 2005, 2006, RAD Studio 2007, 2009, 2010, XE, XE2,
 XE3, XE4, XE5, XE6, XE7, XE8, 10 Seattle, 10.1 Berlin, 10.2 Tokyo,
-10.3 Rio, 10.4 Sydney, 11 Alexandria.
+10.3 Rio, 10.4 Sydney, 11 Alexandria, 12 Athens.
 
 The offical version of CnWizards includes follow languages: 
-Simplified Chinese, Traditional Chinese, English, Russian, German and French.
+Simplified Chinese, Traditional Chinese, English, Russian, German, French
+and Brazilian Portuguese.
 
 =========================
 3. What can CnWizards do?
@@ -122,7 +127,7 @@ in Delphi / C++ Builder /BDS IDE:
   * Lots of Other Improvements
 
 Screenshot (English):
-http://www.cnpack.org/images/cnwizards.gif
+https://www.cnpack.org/images/cnwizards.gif
 
 Furthermore, these independent tools are also included in CnWizards:
 
@@ -144,9 +149,9 @@ CnPack Team are Made up of Many Chinese Programmers and Delphi / C++
 Builder Fans on Internet. Our products include CnPack IDE Wizards, 
 CnPack Component Package and CVSTracNT. etc.
 
-CnPack Website: http://www.cnpack.org
-CnPack BBS:     http://bbs.cnpack.org
-Nightly Build:  http://www.cnpack.org/downbuilds.php
+CnPack Website: https://www.cnpack.org
+CnPack BBS:     https://bbs.cnpack.org
+Nightly Build:  https://www.cnpack.org/downbuilds.php
 Email:          master@cnpack.org
 
 ***********************************************************************
@@ -161,7 +166,7 @@ CnWizards - §ï§ä§à §à§ã§ß§à§Ó§ß§à§Û §á§â§à§Õ§å§Ü§ä §Ü§à§Þ§Ñ§ß§Õ§í CnPack, §ã §á§
 * 2. §¬§ä§à §Þ§à§Ø§Ö§ä §Ú§ã§á§à§Ý§î§Ù§à§Ó§Ñ§ä§î CnWizards? *
 ========================================
 
-CnWizards §ã§à§Ù§Õ§Ñ§ß §Õ§Ý§ñ §á§â§à§Ô§â§Ñ§Þ§Þ§Ú§ã§ä§à§Ó, §Ü§à§ä§à§â§í§Ö §Ú§ã§á§à§Ý§î§Ù§å§ð§ä Delphi 5 6 7, C++ Builder 5 6 §Ú BDS 2005 2006, RAD Studio 2007 2009 2010, XE, XE2, XE3, XE4, XE5, XE6, XE7, XE8, 10 Seattle, 10.1 Berlin, 10.2 Tokyo, 10.3 Rio, 10.4 Sydney, 11 Alexandria.
+CnWizards §ã§à§Ù§Õ§Ñ§ß §Õ§Ý§ñ §á§â§à§Ô§â§Ñ§Þ§Þ§Ú§ã§ä§à§Ó, §Ü§à§ä§à§â§í§Ö §Ú§ã§á§à§Ý§î§Ù§å§ð§ä Delphi 5, 6, 7, C++ Builder 5, 6, §Ú BDS 2005, 2006, RAD Studio 2007, 2009, 2010, XE, XE2, XE3, XE4, XE5, XE6, XE7, XE8, 10 Seattle, 10.1 Berlin, 10.2 Tokyo, 10.3 Rio, 10.4 Sydney, 11 Alexandria, 12 Athens.
 §°§æ§Ú§è§Ú§Ñ§Ý§î§ß§Ñ§ñ §Ó§Ö§â§ã§Ú§ñ CnWizards §á§Ö§â§Ö§Ó§Ö§Õ§Ö§ß§Ñ §ß§Ñ §ã§Ý§Ö§Õ§å§ð§ë§Ú§Ö §ñ§Ù§í§Ü§Ú: §å§á§â§à§ë§Ö§ß§ß§í§Û §Ü§Ú§ä§Ñ§Û§ã§Ü§Ú§Û, §ä§â§Ñ§Õ§Ú§è§Ú§à§ß§ß§í§Û §Ü§Ú§ä§Ñ§Û§ã§Ü§Ú§Û, §Ñ§ß§Ô§Ý§Ú§Û§ã§Ü§Ú§Û, §ß§Ö§Þ§Ö§è§Ü§Ú§Û §Ú §â§å§ã§ã§Ü§Ú§Û. §°§Õ§ß§Ñ§Ü§à, §æ§Ñ§Û§Ý §ã§á§â§Ñ§Ó§Ü§Ú §á§Ö§â§Ö§Ó§Ö§Õ§×§ß §á§à§Ü§Ñ §ä§à§Ý§î§Ü§à §ß§Ñ §ä§â§Ú: §å§á§â§à§ë§Ö§ß§ß§í§Û §Ü§Ú§ä§Ñ§Û§ã§Ü§Ú§Û, §ä§â§Ñ§Õ§Ú§è§Ú§à§ß§ß§í§Û §Ü§Ú§ä§Ñ§Û§ã§Ü§Ú§Û §Ú §Ñ§ß§Ô§Ý§Ú§Û§ã§Ü§Ú§Û. §°§Õ§ß§Ñ§Ü§à, §Ó §Ú§ß§ä§Ö§â§ß§Ö§ä§Ö §Õ§à§ã§ä§å§á§ß§à §à§á§Ú§ã§Ñ§ß§Ú§Ö §Ú §ß§Ñ §â§å§ã§ã§Ü§à§Þ §ñ§Ù§í§Ü§Ö, §ã§Þ. §â§Ñ§Ù§Õ§Ö§Ý "§° CnPack Wizards §ß§Ñ §â§å§ã§ã§Ü§à§Þ"
 
 ===========================
@@ -186,7 +191,7 @@ CnWizards §ã§à§Õ§Ö§â§Ø§Ú§ä §Ò§à§Ý§Ö§Ö §Õ§Ö§ã§ñ§ä§Ú §Þ§Ñ§ã§ä§Ö§â§à§Ó §ã §Þ§ß§à§Ø§
   * §®§ß§à§Ø§Ö§ã§ä§Ó§à §Õ§â§å§Ô§Ú§ç §å§Ý§å§é§ê§Ö§ß§Ú§Û
 
 §³§ß§Ú§Þ§à§Ü §ï§Ü§â§Ñ§ß§Ñ (§Ñ§ß§Ô§Ý§Ú§Û§ã§Ü§Ú§Û):
-http://www.cnpack.org/images/cnwizards.gif
+https://www.cnpack.org/images/cnwizards.gif
 
 §¬§â§à§Þ§Ö §ä§à§Ô§à, §Ó CnWizards §ä§Ñ§Ü§Ø§Ö §Ó§Ü§Ý§ð§é§Ö§ß§í §ã§Ý§Ö§Õ§å§ð§ë§Ú§Ö §ß§Ö§Ù§Ñ§Ó§Ú§ã§Ú§Þ§í§Ö §Ú§ß§ã§ä§â§å§Þ§Ö§ß§ä§í:
 
@@ -206,13 +211,17 @@ CnWizards §ñ§Ó§Ý§ñ§Ö§ä§ã§ñ §ã§Ó§à§Ò§à§Õ§ß§í§Þ §Ú§ß§ã§ä§â§å§Þ§Ö§ß§ä§à§Þ §ã §à§ä§Ü
 
 §¬§à§Þ§Ñ§ß§Õ§Ñ CnPack §ã§à§ã§ä§à§Ú§ä §Ú§Ù §Ü§Ú§ä§Ñ§Û§ã§Ü§Ú§ç §á§â§à§Ô§â§Ñ§Þ§Þ§Ú§ã§ä§à§Ó §Ú §á§à§Ü§Ý§à§ß§ß§Ú§Ü§à§Ó Delphi/C++ Builder §Ó §Ú§ß§ä§Ö§â§ß§Ö§ä§Ö. §¯§Ñ§ê§Ñ §á§â§à§Õ§å§Ü§è§Ú§ñ §Ó§Ü§Ý§ð§é§Ñ§Ö§ä §Ó §ã§Ö§Ò§ñ CnPack IDE Wizards, §ß§Ñ§Ò§à§â §Ü§à§Þ§á§à§ß§Ö§ß§ä§à§Ó CnPack §Ú CVSTracNT.
 
-CnPack §ã§Ñ§Û§ä: http://www.cnpack.org
+CnPack §ã§Ñ§Û§ä: https://www.cnpack.org
 
-CnPack BBS: http://bbs.cnpack.org
+CnPack BBS: https://bbs.cnpack.org
 
-§¯§à§é§ß§í§Ö §ã§Ò§à§â§Ü§Ú: http://www.cnpack.org/downbuilds.php
+§¯§à§é§ß§í§Ö §ã§Ò§à§â§Ü§Ú: https://www.cnpack.org/downbuilds.php
 
 §¿§Ý§Ö§Ü§ä§â§à§ß§ß§Ñ§ñ §á§à§é§ä§Ñ (§Ñ§ß§Ô§Ý.): master@cnpack.org
+
+§Ñ§Õ§â§Ö§ã §Ú§ã§ç§à§Õ§ß§à§Ô§à §Ü§à§Õ§Ñ:
+https://github.com/cnpack
+https://gitee.com/cnpack
 
 ==================================
 * 5. §° CnPack Wizards §ß§Ñ §â§å§ã§ã§Ü§à§Þ *

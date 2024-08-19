@@ -8,6 +8,10 @@
 	<param name="FrameName" value="right">
 </OBJECT>
 <UL>
+  <LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="AI 编码辅助专家">
+		<param name="Local" value="wizards\aicoderwizard.htm">
+		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="ASCII 字符表">
 		<param name="Local" value="wizards\toolset\asciichart.htm">
@@ -129,6 +133,10 @@
 		<param name="Local" value="wizards\projext\projectexwizard.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="抽取字符串工具">
+		<param name="Local" value="wizards\toolset\extractstring.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="窗口置顶与折叠扩展专家">
 		<param name="Local" value="ideenhance\wintoproller.htm">
 		</OBJECT>
@@ -207,6 +215,10 @@
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="多行文本编辑器">
 		<param name="Local" value="propeditor\propstring.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="赋值对齐工具">
+		<param name="Local" value="wizards\toolset\editorevalalign.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="赋值交换工具">
@@ -337,6 +349,10 @@
 		<param name="Local" value="wizards\toolset\editorfontdec.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="调试增强工具">
+		<param name="Local" value="ideenhance\debugenh.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="跳至后一标识符工具">
 		<param name="Local" value="wizards\editor\editorjumpnextident.htm">
 		</OBJECT>
@@ -427,10 +443,6 @@
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="源码模块关系分析">
 		<param name="Local" value="cnsmr\cnsmr.htm">
-		</OBJECT>
-	<LI> <OBJECT type="text/sitemap">
-		<param name="Name" value="源阅读专家">
-		<param name="Local" value="wizards\feedreader.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="在 IDE Insight 中搜索">

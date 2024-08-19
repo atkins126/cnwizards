@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnStatWizard;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：源代码统计专家
-* 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：源码统计专家实现模块
 * 开发平台：Windows 98 + Delphi 6
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
@@ -77,7 +77,7 @@ type
     procedure ProcessAFile(const FileName: string; const Level: Integer;
       IsDirMode: Boolean = False; const Dir: string = '');
     procedure StatAStream(inStream: TStream; PStatRec: PSourceStatRec;
-      IsCPPSource: Boolean); virtual;
+      IsCppSource: Boolean); virtual;
     function GetDefFileMask: string; virtual;
   public
     constructor Create; override;
@@ -174,7 +174,7 @@ begin
       CnStatResultForm.Icon := Self.Icon;
     end;
     CnStatResultForm.StaticEnd := False;
-    
+
     if CnStatResultForm.WindowState = wsMinimized then
       CnStatResultForm.WindowState := wsNormal;
     if not CnStatResultForm.Visible then
@@ -298,7 +298,7 @@ begin
   if Trim(FileName) = '' then
     Exit;
 
-  // 不处理工程组文件（D5下无法处理）及 BCB 工程文件，只生成一个记录。
+  // 不处理工程组文件（D5 下无法处理）及 BCB 工程文件，只生成一个记录。
   if (CnStatResultForm.StatStyle = ssProjectGroup) and (Level = 0) or
     IsBpr(FileName) then
   begin
@@ -328,8 +328,8 @@ begin
       PRec^.FileName := _CnExtractFileName(FileName);
       PRec^.FileDir := _CnExtractFileDir(FileName);
       PRec^.IsValidSource := True;
-      Self.StatAStream(inStream, PRec, not (IsDelphiSourceModule(FileName) or IsDpk(FileName)));
 
+      StatAStream(inStream, PRec, not (IsDelphiSourceModule(FileName) or IsDpk(FileName)));
     finally
       InStream.Free;
       Reader.Free;
@@ -391,15 +391,15 @@ begin
 end;
 
 procedure TCnStatWizard.StatAStream(inStream: TStream;
-  PStatRec: PSourceStatRec; IsCPPSource: Boolean);
+  PStatRec: PSourceStatRec; IsCppSource: Boolean);
 var
   Parser: TCnLineParser;
 begin
   PStatRec^.Bytes := inStream.Size;
   Parser := nil;
   try
-    if IsCPPSource then
-      Parser := TCnCPPLineParser.Create
+    if IsCppSource then
+      Parser := TCnCppLineParser.Create
     else
       Parser := TCnPasLineParser.Create; 
     Parser.InStream := inStream;
@@ -423,7 +423,7 @@ var
   I: Integer;
   Dir: string;
 begin
-  { 这里应该自己获取文件名列表，不应该放到StatFrm中处理}
+  { 这里应该自己获取文件名列表，不应该放到 StatFrm 中处理}
   Dir := Trim(CnStatForm.cbbDir.Text);
   if Dir = '' then
   begin
@@ -727,7 +727,7 @@ procedure TCnStatWizard.StatUnit;
 begin
   CnStatResultForm.ClearResult;
   if (CnOtaGetCurrentSourceEditor <> nil) and (CnOtaGetCurrentSourceEditor.FileName <> '') then
-    Self.ProcessAFile(CnOtaGetCurrentSourceEditor.FileName, 0)
+    ProcessAFile(CnOtaGetCurrentSourceEditor.FileName, 0)
   else
     ErrorDlg(SCnErrorNoFile);
 end;

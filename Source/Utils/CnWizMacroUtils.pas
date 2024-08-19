@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,14 +13,14 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
 
 {******************************************************************************}
 { Unit Note:                                                                   }
-{    This file is derived from GExperts 1.2                                    }
+{    This file is partly derived from GExperts 1.2                             }
 {                                                                              }
 { Original author:                                                             }
 {    GExperts, Inc  http://www.gexperts.org/                                   }
@@ -53,7 +53,7 @@ uses
 {$I CnWizards.inc}
 
 type
-  TEditorInsertPos = (ipCurrPos, ipBOL, ipEOL, ipBOF, ipEOF, ipProcHead);
+  TCnEditorInsertPos = (ipCurrPos, ipBOL, ipEOL, ipBOF, ipEOF, ipProcHead);
 
   TCnProcArgument = record
     ArgKind: string;
@@ -62,13 +62,6 @@ type
     ArgDefault: string;
   end;
   TCnProcArguments = array of TCnProcArgument;
-
-const
-  csArgKind = '$k';
-  csArgName = '$n';
-  csArgType = '$t';
-  csArgDefault = '$d';
-  csRetType = '$t';
 
 function EdtGetProjectDir: string;
 function EdtGetProjectName: string;
@@ -90,8 +83,8 @@ function EdtGetProcInfo(var Name: string; var Args: TCnProcArguments;
 {* 从当前光标往后找第一个函数的声明内容}
 
 procedure EdtInsertTextToCurSource(const AContent: string;
-  InsertPos: TEditorInsertPos; ASavePos: Boolean; PosInText: Integer = 0);
-{* AContent 是待插入的内容；InsertPos是待插入的位置
+  InsertPos: TCnEditorInsertPos; ASavePos: Boolean; PosInText: Integer = 0);
+{* AContent 是待插入的内容；InsertPos 是待插入的位置
    ASavePos 是否插入后光标回到原处，如为 False，则根据 PosInText 调整光标位置}
 
 implementation
@@ -100,17 +93,84 @@ uses
 {$IFDEF DEBUG}
   CnDebug,
 {$ENDIF}
-  CnCommon, CnWizUtils, CnWizConsts, CnWizIdeUtils, mPasLex;
+  CnNative, CnCommon, CnWizUtils, CnWizConsts, CnWizIdeUtils, mPasLex;
+
+const
+  csArgKind = '$k';
+  csArgName = '$n';
+  csArgType = '$t';
+  csArgDefault = '$d';
+  csRetType = '$t';
 
 function IsParseSource: Boolean;
 begin
   Result := CurrentIsDelphiSource;
 end;
 
+// 从 Ansi/Utf16/Utf16 的源码地址开始搜索后面的过程函数名、参数列表及返回值
+function ParseNameArgsResult(Source: Pointer; var Name, Args, ResultType: string;
+  IgnoreCompDir: Boolean = False): Integer;
+var
+  Parser: TCnGeneralWidePasLex; // Ansi/Utf16/Utf16
+begin
+  Result := 0;
+  Parser := TCnGeneralWidePasLex.Create;
+  try
+    Parser.Origin := Source;
+    while not (Parser.TokenID in [tkNull, tkProcedure, tkFunction, tkConstructor, tkDestructor]) do
+      Parser.NextNoJunk;
+    if Parser.TokenID in [tkProcedure, tkFunction, tkConstructor, tkDestructor] then
+    begin
+      Parser.NextNoJunk; // Get the proc/class identifier
+      if Parser.TokenID in [tkIdentifier, tkRegister] then
+        Name := string(Parser.Token);
+      Parser.NextNoJunk; // Skip to the open paren or the '.'
+      if Parser.TokenID = tkPoint then
+      begin
+        Parser.NextNoJunk; // Get the proc identifier
+        Name := Name + '.' + string(Parser.Token);
+        Parser.NextNoJunk; // skip past the procedure identifier
+      end;
+
+      if Parser.TokenID = tkRoundOpen then
+      begin
+        Parser.NextNoJunk;
+        Args := '';
+        while not (Parser.TokenID in [tkNull, tkRoundClose]) do
+        begin
+          if Parser.TokenID in [tkCRLF, tkCRLFCo, tkSlashesComment,
+            tkBorComment, tkAnsiComment, tkSpace] then
+            Args := Args + ' '
+          else if IgnoreCompDir and (Parser.TokenID = tkCompDirect) then
+            Args := Args + ' '
+          else
+            Args := Args + string(Parser.Token);
+          Parser.Next;
+        end;
+        Args := CompressWhiteSpace(Args);
+        // Skip to the colon or semicolon after the ')'
+        Parser.NextNoJunk;
+      end;
+      if Parser.TokenID in [tkAnsiComment, tkBorComment, tkCRLF, tkCRLFCo, tkSpace] then
+        Parser.NextNoJunk;
+      // If a colon is found, find the next token
+      if Parser.TokenID = tkColon then
+      begin
+        Parser.NextNoJunk;
+        ResultType := string(Parser.Token);
+      end;
+
+      // 返回最后一个 Token 的尾部在 Source 中的线性字符位置
+      Result := Parser.TokenPos + Parser.TokenLength;
+    end;
+  finally
+    Parser.Free;
+  end;
+end;
+
 procedure GetNameArgsResult(var Name, Args, ResultType: string;
   RetEmpty: Boolean = False; IgnoreCompDir: Boolean = False);
 var
-  Parser: TCnGeneralWidePasLex; // Ansi/Utf16/Utf16
   MemStream: TMemoryStream;
 begin
   if RetEmpty then
@@ -129,55 +189,7 @@ begin
   MemStream := TMemoryStream.Create;
   try
     CnGeneralSaveEditorToStream(nil, MemStream, True); // Ansi/Utf16/Utf16
-    Parser := TCnGeneralWidePasLex.Create;
-    try
-      Parser.Origin := MemStream.Memory;
-      while not (Parser.TokenID in [tkNull, tkProcedure, tkFunction, tkConstructor, tkDestructor]) do
-        Parser.NextNoJunk;
-      if Parser.TokenID in [tkProcedure, tkFunction, tkConstructor, tkDestructor] then
-      begin
-        Parser.NextNoJunk; // Get the proc/class identifier
-        if Parser.TokenID in [tkIdentifier, tkRegister] then
-          Name := string(Parser.Token);
-        Parser.NextNoJunk; // Skip to the open paren or the '.'
-        if Parser.TokenID = tkPoint then
-        begin
-          Parser.NextNoJunk; // Get the proc identifier
-          Name := Name + '.' + string(Parser.Token);
-          Parser.NextNoJunk; // skip past the procedure identifier
-        end;
-
-        if Parser.TokenID = tkRoundOpen then
-        begin
-          Parser.NextNoJunk;
-          Args := '';
-          while not (Parser.TokenID in [tkNull, tkRoundClose]) do
-          begin
-            if Parser.TokenID in [tkCRLF, tkCRLFCo, tkSlashesComment,
-              tkBorComment, tkAnsiComment, tkSpace] then
-              Args := Args + ' '
-            else if IgnoreCompDir and (Parser.TokenID = tkCompDirect) then
-              Args := Args + ' '
-            else
-              Args := Args + string(Parser.Token);
-            Parser.Next;
-          end;
-          Args := CompressWhiteSpace(Args);
-          // Skip to the colon or semicolon after the ')'
-          Parser.NextNoJunk;
-        end;
-        if Parser.TokenID in [tkAnsiComment, tkBorComment, tkCRLF, tkCRLFCo, tkSpace] then
-          Parser.NextNoJunk;
-        // If a colon is found, find the next token
-        if Parser.TokenID = tkColon then
-        begin
-          Parser.NextNoJunk;
-          ResultType := string(Parser.Token);
-        end;
-      end;
-    finally
-      Parser.Free;
-    end;
+    ParseNameArgsResult(MemStream.Memory, Name, Args, ResultType, IgnoreCompDir);
   finally
     MemStream.Free;
   end;
@@ -247,8 +259,61 @@ begin
 end;
 
 function EdtGetCurrProcName: string;
+var
+  Stream: TMemoryStream;
+  CurrLinear, LastProcLinear, EndPos: Integer;
+  Parser: TCnGeneralWidePasLex; // Ansi/Utf16/Utf16
+  Name, Args, ResultType: string;
+  P: Pointer;
 begin
   Result := CnOtaGetCurrentProcedure;
+  if Result = '' then
+  begin
+    Parser := nil;
+    Stream := nil;
+
+    // 处理在声明区域内的情形。全 Save 到 MemStream 中，从头 Parse，
+    // 往前找到最近一个 function/procedure/constructor/destructor 再开找函数结尾，
+    // 看是否超过了光标处，超过了说明光标在这个函数声明内
+
+    try
+      Stream := TMemoryStream.Create;
+      CnGeneralSaveEditorToStream(nil, Stream); // Ansi/Utf16/Utf16
+      CurrLinear := CnGeneralGetCurrLinearPos;
+
+      Parser := TCnGeneralWidePasLex.Create;;
+      Parser.Origin := Stream.Memory;
+
+      LastProcLinear := 0;
+      while (Parser.TokenID <> tkNull) and (Parser.TokenPos <= CurrLinear) do
+      begin
+        if Parser.TokenID in [tkProcedure, tkFunction, tkConstructor, tkDestructor] then
+          LastProcLinear := Parser.TokenPos;
+        Parser.NextNoJunk;
+      end;
+
+      if LastProcLinear > 0 then
+      begin
+        // 找到了最近一个，从此处再解析往后找函数结尾，看看是否超过光标
+{$IFDEF BDS}
+        P := Pointer(TCnNativeInt(Stream.Memory) + LastProcLinear * SizeOf(Char));
+{$ELSE}
+        P := Pointer(TCnNativeInt(Stream.Memory) + LastProcLinear);
+{$ENDIF}
+        EndPos := LastProcLinear + ParseNameArgsResult(P, Name, Args, ResultType);
+
+        if EndPos >= CurrLinear then
+        begin
+          Result := Name;
+          Exit;
+        end;
+      end;
+    finally
+      Stream.Free;
+      Parser.Free;
+    end;
+  end;
+
   if Result = '' then
     Result := SCnUnknownNameResult;
 end;
@@ -285,18 +350,18 @@ var
   Args: TCnProcArguments;
   RetType: string;
   Text: string;
-  i: Integer;
+  I: Integer;
 begin
   Result := '';
   if (FormatStr <> '') and EdtGetProcInfo(Name, Args, RetType) then
   begin
-    for i := Low(Args) to High(Args) do
+    for I := Low(Args) to High(Args) do
     begin
       Text := FormatStr;
-      Text := StringReplace(Text, csArgKind, Args[i].ArgKind, [rfReplaceAll]);
-      Text := StringReplace(Text, csArgName, Args[i].ArgName, [rfReplaceAll]);
-      Text := StringReplace(Text, csArgType, Args[i].ArgType, [rfReplaceAll]);
-      Text := StringReplace(Text, csArgDefault, Args[i].ArgDefault, [rfReplaceAll]);
+      Text := StringReplace(Text, csArgKind, Args[I].ArgKind, [rfReplaceAll]);
+      Text := StringReplace(Text, csArgName, Args[I].ArgName, [rfReplaceAll]);
+      Text := StringReplace(Text, csArgType, Args[I].ArgType, [rfReplaceAll]);
+      Text := StringReplace(Text, csArgDefault, Args[I].ArgDefault, [rfReplaceAll]);
       Result := Result + Text;
     end;
   end;
@@ -347,14 +412,14 @@ var
 
   function ParseArgs(DoAdd: Boolean): Integer;
   var
-    i, j, Idx: Integer;
+    I, J, Idx: Integer;
     Text, ArgKind, ArgType, ArgDefault: string;
   begin
     Result := 0;
     Lines.Text := StringReplace(ProcArgs, ';', CRLF, [rfReplaceAll]);
-    for i := 0 to Lines.Count - 1 do
+    for I := 0 to Lines.Count - 1 do
     begin
-      Text := Trim(Lines[i]);
+      Text := Trim(Lines[I]);
     {$IFDEF DEBUG}
       if DoAdd then
         CnDebugger.LogFmt('Line: %s', [Text]);
@@ -403,12 +468,12 @@ var
 
       // 取参数名
       Params.Text := StringReplace(Text, ',', CRLF, [rfReplaceAll]);
-      for j := 0 to Params.Count - 1 do
+      for J := 0 to Params.Count - 1 do
       begin
         if DoAdd then
         begin
           Args[Result].ArgKind := ArgKind;
-          Args[Result].ArgName := Trim(Params[j]);
+          Args[Result].ArgName := Trim(Params[J]);
           Args[Result].ArgType := ArgType;
           Args[Result].ArgDefault := ArgDefault;
         end;
@@ -450,7 +515,7 @@ begin
 end;
 
 procedure EdtInsertTextToCurSource(const AContent: string;
-  InsertPos: TEditorInsertPos; ASavePos: Boolean; PosInText: Integer);
+  InsertPos: TCnEditorInsertPos; ASavePos: Boolean; PosInText: Integer);
 var
   EditView: IOTAEditView;
   SavePos: Integer;
@@ -486,13 +551,13 @@ var
           ClassPos := Parser.TokenPos; // 先记录 class 保留字的开始位置
           Parser.NextNoJunk;
           if Parser.TokenID in [tkProcedure, tkFunction] then
-            CnOtaGotoPosition(CnOtaGetCurrLinePos + ClassPos, nil, False)
+            CnOtaGotoPosition(CnOtaGetCurrLinearPos + ClassPos, nil, False)
           else // class 保留字后未跟有 procedure 或 function，则重新找过程头
             goto BeginFindProcHead;  
         end
         else if Parser.TokenID in [tkProcedure, tkFunction,
           tkConstructor, tkDestructor] then
-          CnOtaGotoPosition(CnOtaGetCurrLinePos + Parser.TokenPos, nil, False);
+          CnOtaGotoPosition(CnOtaGetCurrLinearPos + Parser.TokenPos, nil, False);
       finally
         Parser.Free;
       end;
@@ -501,7 +566,7 @@ var
     end;
   end;
 begin
-  SavePos := CnOtaGetCurrLinePos;
+  SavePos := CnOtaGetCurrLinearPos;
   case InsertPos of
     ipBOL:
       begin

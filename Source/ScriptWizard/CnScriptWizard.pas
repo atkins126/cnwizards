@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -187,13 +187,15 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure hkShortCutExit(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure FormShow(Sender: TObject);
   private
     FUpdating: Boolean;
-    procedure UpdateList;
+    procedure UpdateList(Sender: TObject);
     procedure UpdateControls;
     procedure SetItemToControls(Item: TCnScriptItem);
     procedure GetItemFromControls(Item: TCnScriptItem);
     function CheckCurrentShortCutContinue: Boolean;
+    procedure InitTreeAndList;
   protected
     function GetHelpTopic: string; override;
   public
@@ -405,7 +407,7 @@ end;
 
 { TCnScriptWizardForm }
 
-procedure TCnScriptWizardForm.FormCreate(Sender: TObject);
+procedure TCnScriptWizardForm.InitTreeAndList;
 var
   Mode: TCnScriptMode;
   Node: TTreeNode;
@@ -414,12 +416,6 @@ var
   FormEditorNotifyType: TCnWizFormEditorNotifyType;
   AppEventType: TCnWizAppEventType;
 begin
-  inherited;
-  WizOptions.ResetToolbarWithLargeIcons(tlb1);
-
-  TempScripts := TCnScriptCollection.Create;
-  EnlargeListViewColumns(lvList);
-
   chktvMode.BeginUpdate;
   try
     chktvMode.Items.Clear;
@@ -432,7 +428,7 @@ begin
             for FileNotifyCode := Low(FileNotifyCode) to High(FileNotifyCode) do
               chktvMode.Items.AddChild(Node, GetEnumName(TypeInfo(TOTAFileNotification),
                 Ord(FileNotifyCode)));
-          end;  
+          end;
         smSourceEditorNotify:
           begin
             for SourceEditorNotifyType := Low(SourceEditorNotifyType) to High(SourceEditorNotifyType) do
@@ -458,6 +454,25 @@ begin
   finally
     chktvMode.EndUpdate;
   end;
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('InitTreeAndList Nodes ' + IntToStr(chktvMode.items.Count));
+{$ENDIF}
+{$IFDEF DELPHI120_ATHENS_UP}
+  CnWizNotifierServices.ExecuteOnApplicationIdle(UpdateList);
+{$ENDIF}
+end;
+
+procedure TCnScriptWizardForm.FormCreate(Sender: TObject);
+begin
+  inherited;
+  WizOptions.ResetToolbarWithLargeIcons(tlb1);
+
+  TempScripts := TCnScriptCollection.Create;
+  EnlargeListViewColumns(lvList);
+
+{$IFNDEF DELPHI120_ATHENS_UP}
+  InitTreeAndList;
+{$ENDIF}
 end;
 
 procedure TCnScriptWizardForm.FormClose(Sender: TObject;
@@ -470,7 +485,7 @@ begin
   Action := caHide;
 end;
 
-procedure TCnScriptWizardForm.UpdateList;
+procedure TCnScriptWizardForm.UpdateList(Sender: TObject);
 begin
   lvList.Items.Count := TempScripts.Count;
   lvList.Invalidate;
@@ -509,7 +524,7 @@ end;
 procedure TCnScriptWizardForm.actAddExecute(Sender: TObject);
 begin
   TempScripts.Add;
-  UpdateList;
+  UpdateList(Self);
   lvList.Selected := lvList.Items[TempScripts.Count - 1];
 end;
 
@@ -521,7 +536,7 @@ begin
   begin
     Idx := lvList.Selected.Index;
     TempScripts.Delete(Idx);
-    UpdateList;
+    UpdateList(Self);
     if TempScripts.Count > 0 then
       lvList.Selected := lvList.Items[TrimInt(Idx, 0, TempScripts.Count - 1)];
   end;
@@ -532,8 +547,8 @@ begin
   if QueryDlg(SCnClearConfirm) then
   begin
     TempScripts.Clear;
-    UpdateList;
-  end;  
+    UpdateList(Self);
+  end;
 end;
 
 procedure TCnScriptWizardForm.actMoveUpExecute(Sender: TObject);
@@ -575,7 +590,7 @@ begin
   begin
     if not TempScripts.LoadFromFile(dlgOpen.FileName, QueryDlg(SCnImportAppend)) then
       ErrorDlg(SCnImportError);
-    UpdateList;
+    UpdateList(Self);
   end;
 end;
 
@@ -630,7 +645,14 @@ begin
   SourceEditorNotifyTypeSet := [];
   FormEditorNotifyTypeSet := [];
   AppEventTypeSet := [];
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('GetItemFromControls Nodes ' + IntToStr(chktvMode.items.Count));
+{$ENDIF}
+
   Node := chktvMode.Items.GetFirstNode;
+  if Node = nil then
+    Exit;
+
   for Mode := Low(Mode) to High(Mode) do
   begin
     case Mode of
@@ -666,13 +688,16 @@ begin
           if AppEventTypeSet <> [] then
             Include(ModeSet, Mode);
         end;
-      else
-        begin
-          if chktvMode.Checked[Node] then
-            Include(ModeSet, Mode);
-        end;
+    else
+      begin
+        if chktvMode.Checked[Node] then
+          Include(ModeSet, Mode);
+      end;
     end;
+
     Node := Node.getNextSibling;
+    if Node = nil then
+      Break;
   end;
 
   Item.Mode := ModeSet;
@@ -701,6 +726,9 @@ begin
   chkExecConfirm.Checked := Item.Confirm;
 
   Node := chktvMode.Items.GetFirstNode;
+  if Node = nil then // 有可能未初始化
+    Exit;
+
   for Mode := Low(Mode) to High(Mode) do
   begin
     if Mode in Item.Mode then
@@ -730,13 +758,16 @@ begin
               chktvMode.Checked[Node[Ord(AppEventType)]] :=
                 AppEventType in Item.AppEventType;
           end;
-        else
-          chktvMode.Checked[Node] := True;
+      else
+        chktvMode.Checked[Node] := True;
       end;
     end
     else
       chktvMode.Checked[Node] := False;
     Node := Node.getNextSibling;
+
+    if Node = nil then
+      Exit;
   end;
 end;
 
@@ -1051,7 +1082,7 @@ begin
 {$ENDIF}
 
     mmoSearchPath.Lines.Assign(Self.FSearchPath);
-    UpdateList;
+    UpdateList(nil);
     
     if NewScript <> '' then
       AddNewScript(NewScript);
@@ -1352,6 +1383,13 @@ procedure TCnScriptWizardForm.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 begin
   CanClose := CheckCurrentShortCutContinue;
+end;
+
+procedure TCnScriptWizardForm.FormShow(Sender: TObject);
+begin
+{$IFDEF DELPHI120_ATHENS_UP}
+  InitTreeAndList;
+{$ENDIF}
 end;
 
 initialization

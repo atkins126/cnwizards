@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -241,7 +241,7 @@ type
     pfetUsesList, pfetThen, pfetDo, pfetRecordEnd, pfetCaseLabel, pfetCaseLabelList,
     pfetExprListRightBracket, pfetFormalParametersRightBracket, pfetFieldDecl,
     pfetClassField, pfetInGeneric, pfetRecVarFieldListRightBracket, pfetPackageBlock,
-    pfetCompoundEnd, pfetIfAfterElse);
+    pfetCompoundEnd, pfetIfAfterElse, pfetUnitName, pfetInlineVar);
 
   TCnPascalFormattingElementTypeSet = set of TCnPascalFormattingElementType;
 
@@ -267,7 +267,7 @@ const
     tokKeywordShr];
 
   ConstTokens = [tokInteger, tokFloat, tokChar, tokString, tokWString, tokMString,
-    tokTrue, tokFalse, tokKeywordNIL, tokSymbol];
+    tokTrue, tokFalse, tokKeywordNil, tokSymbol];
   FactorTokens = [tokSymbol, tokInteger, tokString, tokWString, tokMString, tokFloat,
     tokTrue, tokFalse, tokKeywordNOT, tokSLB]; //, tokTypeId
   
@@ -282,8 +282,9 @@ const
 
   StmtTokens = [tokKeywordLabel] + SimpStmtTokens + StructStmtTokens;
 
+  // 能够做语句中的内容的关键字
   StmtKeywordTokens = [tokKeywordIn, tokKeywordOut, tokKeywordString, tokKeywordAlign,
-    tokKeywordAt, tokKeywordContains, tokKeywordRequires];
+    tokKeywordAt, tokKeywordContains, tokKeywordRequires, tokKeywordOperator];
 
   RestrictedTypeTokens = [tokKeywordObject, tokKeywordClass, tokKeywordInterface,
     tokKeywordDispinterface];
@@ -324,7 +325,7 @@ const
        tokKeywordIn, tokKeywordAs, tokKeywordIs, tokKeywordDiv, tokKeywordMod];
        // 不包括符号形式的二元运算符
        
-  IdentTokens = SymbolTokens + ConstTokens;
+  IdentTokens = SymbolTokens + ConstTokens + ComplexTokens;
 
   // UpperFirstTypeTokens = [tokInteger, tokFloat, tokChar];
   ClassMemberSymbolTokens = ClassMemberTokens + ComplexTokens + DirectiveTokens;
@@ -462,7 +463,7 @@ const
     (Value: Integer(tokKeywordLabel);          Name: 'Label'),
     (Value: Integer(tokKeywordLibrary);        Name: 'Library'),
     (Value: Integer(tokKeywordMod);            Name: 'Mod'),
-    (Value: Integer(tokKeywordNil);            Name: ''),
+    (Value: Integer(tokKeywordNil);            Name: 'Nil'),
     (Value: Integer(tokKeywordNot);            Name: 'Not'),
     (Value: Integer(tokKeywordObject);         Name: 'Object'),
     (Value: Integer(tokKeywordOf);             Name: 'Of'),

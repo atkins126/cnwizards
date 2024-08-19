@@ -88,8 +88,8 @@ TCnMainViewer.actViewTime.Hint=显示/隐藏计时面板
 TCnMainViewer.actViewWatch.Caption=&W. 显示监视窗口
 TCnMainViewer.actViewWatch.Hint=显示监视窗口
 TCnMainViewer.Caption=CnDebugViewer 调试信息查看器
-TCnMainViewer.dlgOpen.Filter=XML 文件(*.xml)|*.xml|CnDebug Dump 文件(*.cdd)|*.cdd|所有文件(*.*)|*.*
-TCnMainViewer.dlgSave.Filter=XML 文件(*.xml)|*.xml|所有文件(*.*)|*.*
+TCnMainViewer.dlgOpen.Filter=XML 文件(*.xml)|*.xml|JSON 文件(*.json)|*.json|CnDebug Dump 文件(*.cdd)|*.cdd|所有文件(*.*)|*.*
+TCnMainViewer.dlgSave.Filter=XML 文件(*.xml)|*.xml|JSON 文件(*.json)|*.json|所有文件(*.*)|*.*
 TCnMainViewer.dlgSaveExport.Filter=文本文件(*.txt)|*.txt|CSV 文件(*.csv)|*.csv|HTML 文件(*.htm)|*.htm
 TCnMainViewer.dlgSaveMemDump.Filter=Bin 文件(*.bin)|*.bin|所有文件(*.*)|*.*
 TCnMainViewer.F1.Caption=&F. 文件
@@ -188,4 +188,4 @@ SCnHTMFormatCharset=gb2312
 SCnHTMFormatStyle=.tabletext   { font-family: 宋体; font-size: 9pt; text-align: left; line-height: 13pt;<BR>               color: #000000; background-color: #FFFFF8 }<BR>.tablehead   { font-family: 宋体; font-size: 9pt; text-align: center; line-height: 13pt;<BR>                   color: #0000FF; background-color: #DDEEFF }<BR>;
 SCnHTMFormatTableHead=<tr><BR><td width="24pt" class="tablehead" valign="top">序号</td><BR><td width="9pt" class="tablehead" valign="top">Level</td><BR><td width="28pt" class="tablehead" valign="top">类型</td><BR><td width="32pt" class="tablehead" valign="top">线程</td><BR><td width="32pt" class="tablehead" valign="top">进程</td><BR><td width="28pt" class="tablehead" valign="top">Tag</td><BR><td width="60pt" class="tablehead" valign="top">时间戳</td><BR><td class="tablehead">内容</td><BR></tr>
 SCnDebugViewerAboutCaption=关于
-SCnDebugViewerAbout=CnDebugViewer 调试信息查看工具 1.9<BR><BR>该工具用来查看 CnDebug 单元输出的调试信息。<BR><BR>软件作者 刘啸 liuxiao@cnpack.org<BR>版权所有 (C) 2001-2023 CnPack 开发组
+SCnDebugViewerAbout=CnDebugViewer 调试信息查看工具 1.9<BR><BR>该工具用来查看 CnDebug 单元输出的调试信息。<BR><BR>软件作者 刘啸 liuxiao@cnpack.org<BR>版权所有 (C) 2001-2024 CnPack 开发组

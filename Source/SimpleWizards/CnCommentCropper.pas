@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnCommentCropper;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：删除注释专家与窗体单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 *           dejoy
 * 备    注：删除注释专家与窗体单元
 * 开发平台：PWin2000Pro + Delphi 5.01
@@ -97,8 +97,8 @@ type
   private
     function GetCropStyle: TCropStyle;
     procedure SetCropStyle(const Value: TCropStyle);
-    function GetCropOption: TCropOption;
-    procedure SetCropOption(const Value: TCropOption);
+    function GetCropOption: TCnCropOption;
+    procedure SetCropOption(const Value: TCnCropOption);
     function GetCropDirective: Boolean;
     procedure SetCropDirective(const Value: Boolean);
     function GetCropTodoList: Boolean;
@@ -121,7 +121,7 @@ type
     function GetHelpTopic: string; override;
   public
     property CropStyle: TCropStyle read GetCropStyle write SetCropStyle;
-    property CropOption: TCropOption read GetCropOption write SetCropOption;
+    property CropOption: TCnCropOption read GetCropOption write SetCropOption;
     property CropDirective: Boolean read GetCropDirective write SetCropDirective;
     property CropTodoList: Boolean read GetCropTodoList write SetCropTodoList;
     property CropProjectSrc: Boolean read GetCropProjectSrc write SetCropProjectSrc;
@@ -140,7 +140,7 @@ type
     FCropTodoList: Boolean;
     FCropDirective: Boolean;
     FCropProjectSrc: Boolean;
-    FCropOption: TCropOption;
+    FCropOption: TCnCropOption;
     FCropStyle: TCropStyle;
     FCropCount: Integer;
     FReserve: Boolean;
@@ -183,7 +183,7 @@ type
     procedure CropInDirectories;
 
     property CropStyle: TCropStyle read FCropStyle write FCropStyle;
-    property CropOption: TCropOption read FCropOption write FCropOption;
+    property CropOption: TCnCropOption read FCropOption write FCropOption;
     property CropDirective: Boolean read FCropDirective write FCropDirective;
     property CropTodoList: Boolean read FCropTodoList write FCropTodoList;
     property CropProjectSrc: Boolean read FCropProjectSrc write FCropProjectSrc;
@@ -208,7 +208,7 @@ implementation
 uses
   CnDebug;
 {$ENDIF}
-  
+
 const
   csCropOption = 'CropOption';
   csCropDirective = 'CropDirective';
@@ -376,7 +376,7 @@ begin
         if IsDelphiSourceModule(CnOtaGetCurrentSourceFile) then
           Cropper := TCnPasCropper.Create
         else
-          Cropper := TCnCPPCropper.Create;
+          Cropper := TCnCppCropper.Create;
 
         Cropper.InStream := InStream;
         Cropper.OutStream := OutStream;
@@ -391,7 +391,7 @@ begin
         if FMergeBlank then
           MergeBlankStream(OutStream);
 {$IFDEF DEBUG}
-//      CnDebugger.LogMemDump(OutStream.Memory, OutStream.Size); 
+//      CnDebugger.LogMemDump(OutStream.Memory, OutStream.Size);
 {$ENDIF}
 
         CnOtaDeleteCurrentSelection;
@@ -503,7 +503,7 @@ begin
     IncludeSubDirs := ReadBool('', csIncludeSub, True);
     Reserve := ReadBool('', csReserve, True);
     ReserveStr := ReadString('', csReserveStr, csDefReserveStr);
-    CropOption := TCropOption(ReadInteger('', csCropOption, 0));
+    CropOption := TCnCropOption(ReadInteger('', csCropOption, 0));
     ReadStrings('', csDirsHistory, FDirsHistory);
     ReadStrings('', csFileMasksHistory, FFileMasksHistory);
     Free;
@@ -538,7 +538,7 @@ begin
   Result := chkCropDirective.Checked;
 end;
 
-function TCnCommentCropForm.GetCropOption: TCropOption;
+function TCnCommentCropForm.GetCropOption: TCnCropOption;
 begin
   if rbExAscii.Checked then
     Result := coExAscii
@@ -571,7 +571,7 @@ begin
   chkCropDirective.Checked := Value;
 end;
 
-procedure TCnCommentCropForm.SetCropOption(const Value: TCropOption);
+procedure TCnCommentCropForm.SetCropOption(const Value: TCnCropOption);
 begin
   case Value of
     coAll:     rbCropComment.Checked := True;
@@ -633,7 +633,7 @@ begin
   if IsDelphi then
     Cropper := TCnPasCropper.Create
   else
-    Cropper := TCnCPPCropper.Create;
+    Cropper := TCnCppCropper.Create;
 
   Cropper.InStream := InStream;
   Cropper.OutStream := OutStream;

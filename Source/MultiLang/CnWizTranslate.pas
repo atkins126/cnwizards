@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -25,6 +25,26 @@ unit CnWizTranslate;
 * 单元名称：资源字符串定义单元
 * 单元作者：CnPack开发组
 * 备    注：该单元对 CnWizards 用到的资源字符串进行翻译
+*
+*           从 CnWizConsts.pas 中将定义的变量字符串转换过来的 AI（如通义千问）提示词：
+
+            请帮我处理一批多语翻译字符串，原始字符串以 Pascal 变量的形式定义，
+            如这句定义代码 SCnTestName: string = '一个测试名称';
+            这一句代码我们会转换成翻译代码为 TranslateStr(SCnTestName, 'SCnTestName');
+            只需处理变量名，无需处理其值。如果你看明白了，请回答明白。
+
+            下一次把 CnWizConsts.pas 中将定义的变量字符串的代码贴过去即可。
+
+*           将 1033 目录里的英语翻译条目转换成俄、法、德、巴西的葡萄牙等的 AI （如通义千问）提示词：
+
+            你是一名熟练掌握英语、俄语、德语、法语、巴西的葡萄牙语的语言专家，
+            现在有几条程序里的语言条目需要翻译，每一行是一条单独的语言条目，
+            等号左边是标识，无需翻译，等号右边是具体的语言内容，目前是英文。
+            每一批这样的语言条目，需要你使用同样的格式将其翻译成俄语、德语、法语、巴西的葡萄牙语四批，
+            如果你明白了，请回答明白。
+
+            下一次把 1033 目录里的英语翻译条目贴过去即可。
+*
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
@@ -48,6 +68,7 @@ implementation
 
 procedure CnTranslateAuthorInfo;
 begin
+  TranslateStr(SCnPack_Team, 'SCnPack_Team');
   TranslateStr(SCnPack_Zjy, 'SCnPack_Zjy');
   TranslateStr(SCnPack_Shenloqi, 'SCnPack_Shenloqi');
   TranslateStr(SCnPack_xiaolv, 'SCnPack_xiaolv');
@@ -79,6 +100,8 @@ begin
   TranslateStr(SCnPack_ZiMin, 'SCnPack_ZiMin');
   TranslateStr(SCnPack_rarnu, 'SCnPack_rarnu');
   TranslateStr(SCnPack_dejoy, 'SCnPack_dejoy');
+  TranslateStr(SCnPack_Rain, 'SCnPack_Rain');
+  TranslateStr(SCnPack_cnwinds, 'SCnPack_cnwinds');
 end;
 
 procedure CnTranslateDesignConsts;
@@ -304,6 +327,11 @@ begin
   TranslateStr(SCnEditorCodeSwapMenuCaption, 'SCnEditorCodeSwapMenuCaption');
   TranslateStr(SCnEditorCodeSwapName, 'SCnEditorCodeSwapName');
   TranslateStr(SCnEditorCodeSwapMenuHint, 'SCnEditorCodeSwapMenuHint');
+
+  // CnEditorEvalAlign
+  TranslateStr(SCnEditorEvalAlignMenuCaption, 'SCnEditorEvalAlignMenuCaption');
+  TranslateStr(SCnEditorEvalAlignName, 'SCnEditorEvalAlignName');
+  TranslateStr(SCnEditorEvalAlignMenuHint, 'SCnEditorEvalAlignMenuHint');
 
   // CnEditorCodeToString
   TranslateStr(SCnEditorCodeToStringMenuCaption, 'SCnEditorCodeToStringMenuCaption');
@@ -673,7 +701,7 @@ begin
   TranslateStr(SCnStatExpFileCodeLines, 'SCnStatExpFileCodeLines');
   TranslateStr(SCnStatExpFileCommentLines, 'SCnStatExpFileCommentLines');
   TranslateStr(SCnStatExpFileCommentBlocks, 'SCnStatExpFileCommentBlocks');
-  TranslateStr(SCnStatExpSeperator, 'SCnStatExpSeperator');
+  TranslateStr(SCnStatExpSeparator, 'SCnStatExpSeparator');
 
   TranslateStr(SCnStatExpCSVTitleFmt, 'SCnStatExpCSVTitleFmt');
   TranslateStr(SCnStatExpCSVLineFmt, 'SCnStatExpCSVLineFmt');
@@ -702,7 +730,11 @@ begin
   TranslateStr(SCnPrefixDupName, 'SCnPrefixDupName');
   TranslateStr(SCnPrefixNoComp, 'SCnPrefixNoComp');
   TranslateStr(SCnPrefixAskToProcess, 'SCnPrefixAskToProcess');
+end;
 
+// 拆成两个，以躲过 2009/2010 下局部变量过多的问题
+procedure CnTranslateWizards2;
+begin
   // CnWizAbout
   // CnWizAboutForm
   TranslateStr(SCnWizAboutCaption, 'SCnWizAboutCaption');
@@ -827,10 +859,10 @@ begin
   TranslateStr(SCnEmbeddedDesignerNotSupport, 'SCnEmbeddedDesignerNotSupport');
 
   // CnDesignWizard
-  TranslateStr(SCnAlignSizeMenuCaption, 'SCnAlignSizeMenuCaption');
-  TranslateStr(SCnAlignSizeMenuHint, 'SCnAlignSizeMenuHint');
-  TranslateStr(SCnAlignSizeName, 'SCnAlignSizeName');
-  TranslateStr(SCnAlignSizeComment, 'SCnAlignSizeComment');
+  TranslateStr(SCnDesignWizardMenuCaption, 'SCnDesignWizardMenuCaption');
+  TranslateStr(SCnDesignWizardMenuHint, 'SCnDesignWizardMenuHint');
+  TranslateStr(SCnDesignWizardName, 'SCnDesignWizardName');
+  TranslateStr(SCnDesignWizardComment, 'SCnDesignWizardComment');
 
   TranslateStr(SCnAlignLeftCaption, 'SCnAlignLeftCaption');
   TranslateStr(SCnAlignLeftHint, 'SCnAlignLeftHint');
@@ -961,6 +993,55 @@ begin
   // CnVerEnhanceWizard
   TranslateStr(SCnVerEnhanceWizardName, 'SCnVerEnhanceWizardName');
   TranslateStr(SCnVerEnhanceWizardComment, 'SCnVerEnhanceWizardComment');
+
+  // CnDebugEnhanceWizard
+  TranslateStr(SCnDebugEnhanceWizardName, 'SCnDebugEnhanceWizardName');
+  TranslateStr(SCnDebugEnhanceWizardComment, 'SCnDebugEnhanceWizardComment');
+  TranslateStr(SCnDebugEnhanceWizardCaption, 'SCnDebugEnhanceWizardCaption');
+  TranslateStr(SCnDebugEnhanceWizardHint, 'SCnDebugEnhanceWizardHint');
+  TranslateStr(SCnDebugEvalAsStringsCaption, 'SCnDebugEvalAsStringsCaption');
+  TranslateStr(SCnDebugEvalAsStringsHint, 'SCnDebugEvalAsStringsHint');
+  TranslateStr(SCnDebugEvalAsBytesCaption, 'SCnDebugEvalAsBytesCaption');
+  TranslateStr(SCnDebugEvalAsBytesHint, 'SCnDebugEvalAsBytesHint');
+  TranslateStr(SCnDebugEvalAsWideCaption, 'SCnDebugEvalAsWideCaption');
+  TranslateStr(SCnDebugEvalAsWideHint, 'SCnDebugEvalAsWideHint');
+  TranslateStr(SCnDebugEvalAsMemoryStreamCaption, 'SCnDebugEvalAsMemoryStreamCaption');
+  TranslateStr(SCnDebugEvalAsMemoryStreamHint, 'SCnDebugEvalAsMemoryStreamHint');
+  TranslateStr(SCnDebugEvalAsDataSetCaption, 'SCnDebugEvalAsDataSetCaption');
+  TranslateStr(SCnDebugEvalAsDataSetHint, 'SCnDebugEvalAsDataSetHint');
+  TranslateStr(SCnDebugConfigCaption, 'SCnDebugConfigCaption');
+  TranslateStr(SCnDebugConfigHint, 'SCnDebugConfigHint');
+  TranslateStr(SCnDebugVisualizerName, 'SCnDebugVisualizerName');
+  TranslateStr(SCnDebugVisualizerDescription, 'SCnDebugVisualizerDescription');
+  TranslateStr(SCnDebugDataSetViewerName, 'SCnDebugDataSetViewerName');
+  TranslateStr(SCnDebugDataSetViewerDescription, 'SCnDebugDataSetViewerDescription');
+  TranslateStr(SCnDebugDataSetViewerMenuText, 'SCnDebugDataSetViewerMenuText');
+  TranslateStr(SCnDataSetViewerFormCaption, 'SCnDataSetViewerFormCaption');
+  TranslateStr(SCnDebugStringsViewerName, 'SCnDebugStringsViewerName');
+  TranslateStr(SCnDebugStringsViewerDescription, 'SCnDebugStringsViewerDescription');
+  TranslateStr(SCnDebugStringsViewerMenuText, 'SCnDebugStringsViewerMenuText');
+  TranslateStr(SCnStringsViewerFormCaption, 'SCnStringsViewerFormCaption');
+  TranslateStr(SCnDebugBytesViewerName, 'SCnDebugBytesViewerName');
+  TranslateStr(SCnDebugBytesViewerDescription, 'SCnDebugBytesViewerDescription');
+  TranslateStr(SCnDebugBytesViewerMenuText, 'SCnDebugBytesViewerMenuText');
+  TranslateStr(SCnBytesViewerFormCaption, 'SCnBytesViewerFormCaption');
+  TranslateStr(SCnDebugWideViewerName, 'SCnDebugWideViewerName');
+  TranslateStr(SCnDebugWideViewerDescription, 'SCnDebugWideViewerDescription');
+  TranslateStr(SCnDebugWideViewerMenuText, 'SCnDebugWideViewerMenuText');
+  TranslateStr(SCnWideViewerFormCaption, 'SCnWideViewerFormCaption');
+  TranslateStr(SCnDebugMemoryStreamViewerName, 'SCnDebugMemoryStreamViewerName');
+  TranslateStr(SCnDebugMemoryStreamViewerDescription, 'SCnDebugMemoryStreamViewerDescription');
+  TranslateStr(SCnDebugMemoryStreamViewerMenuText, 'SCnDebugMemoryStreamViewerMenuText');
+  TranslateStr(SCnMemoryStreamViewerFormCaption, 'SCnMemoryStreamViewerFormCaption');
+  TranslateStr(SCnDebugErrorProcessNotAccessible, 'SCnDebugErrorProcessNotAccessible');
+  TranslateStr(SCnDebugErrorValueNotAccessible, 'SCnDebugErrorValueNotAccessible');
+  TranslateStr(SCnDebugErrorOutOfScope, 'SCnDebugErrorOutOfScope');
+  TranslateStr(SCnDebugAddReplacerCaption, 'SCnDebugAddReplacerCaption');
+  TranslateStr(SCnDebugAddReplacerHint, 'SCnDebugAddReplacerHint');
+  TranslateStr(SCnDebugRemoveReplacerHint, 'SCnDebugRemoveReplacerHint');
+  TranslateStr(SCnDebugErrorReplacerFormat, 'SCnDebugErrorReplacerFormat');
+  TranslateStr(SCnDebugErrorExprNotAClass, 'SCnDebugErrorExprNotAClass');
+  TranslateStr(SCnDebugEnterExpression, 'SCnDebugEnterExpression');
 
   // CnCorPropWizard
   TranslateStr(SCnCorrectPropertyName, 'SCnCorrectPropertyName');
@@ -1241,6 +1322,7 @@ begin
 
   TranslateStr(SCnProcListJumpIntfHint, 'SCnProcListJumpIntfHint');
   TranslateStr(SCnProcListJumpImplHint, 'SCnProcListJumpImplHint');
+  TranslateStr(SCnProcListJumpsHintFmt, 'SCnProcListJumpsHintFmt');
   TranslateStr(SCnProcListClassComboHint, 'SCnProcListClassComboHint');
   TranslateStr(SCnProcListProcComboHint, 'SCnProcListProcComboHint');
 
@@ -1255,6 +1337,11 @@ begin
   TranslateStr(SCnProcListCloseToolBarHint, 'SCnProcListCloseToolBarHint');
   TranslateStr(SCnProcListErrorNoIntf, 'SCnProcListErrorNoIntf');
   TranslateStr(SCnProcListErrorNoImpl, 'SCnProcListErrorNoImpl');
+  TranslateStr(SCnProcListErrorNoUnit, 'SCnProcListErrorNoUnit');
+  TranslateStr(SCnProcListErrorNoEnd, 'SCnProcListErrorNoEnd');
+  TranslateStr(SCnProcListErrorNoInitialization, 'SCnProcListErrorNoInitialization');
+  TranslateStr(SCnProcListErrorNoFinalization, 'SCnProcListErrorNoFinalization');
+  TranslateStr(SCnProcListErrorNoProgramBegin, 'SCnProcListErrorNoProgramBegin');
 
   // CnUsesTools
   TranslateStr(SCnUsesToolsMenuCaption, 'SCnUsesToolsMenuCaption');
@@ -1265,8 +1352,6 @@ begin
   // CnUsesCleaner
   TranslateStr(SCnUsesCleanerMenuCaption, 'SCnUsesCleanerMenuCaption');
   TranslateStr(SCnUsesCleanerMenuHint, 'SCnUsesCleanerMenuHint');
-  TranslateStr(SCnUsesCleanerName, 'SCnUsesCleanerName');
-  TranslateStr(SCnUsesCleanerComment, 'SCnUsesCleanerComment');
   TranslateStr(SCnUsesCleanerCompileFail, 'SCnUsesCleanerCompileFail');
   TranslateStr(SCnUsesCleanerUnitError, 'SCnUsesCleanerUnitError');
   TranslateStr(SCnUsesCleanerProcessError, 'SCnUsesCleanerProcessError');
@@ -1302,6 +1387,8 @@ begin
   // CnSourceHighlight
   TranslateStr(SCnSourceHighlightWizardName, 'SCnSourceHighlightWizardName');
   TranslateStr(SCnSourceHighlightWizardComment, 'SCnSourceHighlightWizardComment');
+  TranslateStr(SCnSourceHighlightCustomIdentHint, 'SCnSourceHighlightCustomIdentHint');
+  TranslateStr(SCnSourceHighlightCustomIdentConfirm, 'SCnSourceHighlightCustomIdentConfirm');
 
   // CnIdeBRWizard
   TranslateStr(SCnIdeBRWizardMenuCaption, 'SCnIdeBRWizardMenuCaption');
@@ -1349,17 +1436,6 @@ begin
   TranslateStr(SCnScriptModeEditorFlatButton, 'SCnScriptModeEditorFlatButton');
   TranslateStr(SCnScriptModeDesignerContextMenu, 'SCnScriptModeDesignerContextMenu');
 
-  // CnFeedReaderWizard
-  TranslateStr(SCnFeedReaderWizardName, 'SCnFeedReaderWizardName');
-  TranslateStr(SCnFeedReaderWizardComment, 'SCnFeedReaderWizardComment');
-  TranslateStr(SCnFeedPrevFeedCaption, 'SCnFeedPrevFeedCaption');
-  TranslateStr(SCnFeedNextFeedCaption, 'SCnFeedNextFeedCaption');
-  TranslateStr(SCnFeedForceUpdateCaption, 'SCnFeedForceUpdateCaption');
-  TranslateStr(SCnFeedConfigCaption, 'SCnFeedConfigCaption');
-  TranslateStr(SCnFeedCloseCaption, 'SCnFeedCloseCaption');
-  TranslateStr(SCnFeedCloseQuery, 'SCnFeedCloseQuery');
-  TranslateStr(SCnFeedNewItem, 'SCnFeedNewItem');
-
   // CnCodeFormatterWizard
   TranslateStr(SCnCodeFormatterWizardName, 'SCnCodeFormatterWizardName');
   TranslateStr(SCnCodeFormatterWizardComment, 'SCnCodeFormatterWizardComment');
@@ -1373,6 +1449,7 @@ begin
   TranslateStr(SCnCodeFormatterWizardErrSelection, 'SCnCodeFormatterWizardErrSelection');
   TranslateStr(SCnCodeFormatterErrUnknown, 'SCnCodeFormatterErrUnknown');
   TranslateStr(SCnCodeFormatterErrPascalFmt, 'SCnCodeFormatterErrPascalFmt');
+  TranslateStr(SCnCodeFormatterErrMaybeComment, 'SCnCodeFormatterErrMaybeComment');
   TranslateStr(SCnCodeFormatterErrPascalIdentExp, 'SCnCodeFormatterErrPascalIdentExp');
   TranslateStr(SCnCodeFormatterErrPascalStringExp, 'SCnCodeFormatterErrPascalStringExp');
   TranslateStr(SCnCodeFormatterErrPascalNumberExp, 'SCnCodeFormatterErrPascalNumberExp');
@@ -1395,6 +1472,26 @@ begin
   TranslateStr(SCnCodeFormatterErrPascalUnknownGoal, 'SCnCodeFormatterErrPascalUnknownGoal');
   TranslateStr(SCnCodeFormatterErrPascalErrorInterface, 'SCnCodeFormatterErrPascalErrorInterface');
   TranslateStr(SCnCodeFormatterErrPascalInvalidStatement, 'SCnCodeFormatterErrPascalInvalidStatement');
+
+  // CnAICoderWizard
+  TranslateStr(SCnAICoderWizardName, 'SCnAICoderWizardName');
+  TranslateStr(SCnAICoderWizardComment, 'SCnAICoderWizardComment');
+  TranslateStr(SCnAICoderWizardMenuCaption, 'SCnAICoderWizardMenuCaption');
+  TranslateStr(SCnAICoderWizardMenuHint, 'SCnAICoderWizardMenuHint');
+  TranslateStr(SCnAICoderWizardExplainCodeCaption, 'SCnAICoderWizardExplainCodeCaption');
+  TranslateStr(SCnAICoderWizardExplainCodeHint, 'SCnAICoderWizardExplainCodeHint');
+  TranslateStr(SCnAICoderWizardReviewCodeCaption, 'SCnAICoderWizardReviewCodeCaption');
+  TranslateStr(SCnAICoderWizardReviewCodeHint, 'SCnAICoderWizardReviewCodeHint');
+  TranslateStr(SCnAICoderWizardChatWindowCaption, 'SCnAICoderWizardChatWindowCaption');
+  TranslateStr(SCnAICoderWizardChatWindowHint, 'SCnAICoderWizardChatWindowHint');
+  TranslateStr(SCnAICoderWizardConfigCaption, 'SCnAICoderWizardConfigCaption');
+  TranslateStr(SCnAICoderWizardConfigHint, 'SCnAICoderWizardConfigHint');
+  TranslateStr(SCnAICoderWizardSystemMessageFmt, 'SCnAICoderWizardSystemMessageFmt');
+  TranslateStr(SCnAICoderWizardUserMessageExplainFmt, 'SCnAICoderWizardUserMessageExplainFmt');
+  TranslateStr(SCnAICoderWizardUserMessageReviewFmt, 'SCnAICoderWizardUserMessageReviewFmt');
+  TranslateStr(SCnAICoderWizardErrorNoEngine, 'SCnAICoderWizardErrorNoEngine');
+  TranslateStr(SCnAICoderWizardErrorURLFmt, 'SCnAICoderWizardErrorURLFmt');
+  TranslateStr(SCnAICoderWizardErrorAPIKeyFmt, 'SCnAICoderWizardErrorAPIKeyFmt');
 
   // CnMatchButtonFrame
   TranslateStr(SCnMatchButtonFrameMenuStartCaption, 'SCnMatchButtonFrameMenuStartCaption');
@@ -1432,45 +1529,46 @@ begin
   //  Feedback
   //----------------------------------------------------------------------------
 
-  TranslateStr(STypeDescription, 'STypeDescription');
-  TranslateStr(SBugDescriptionDescription, 'SBugDescriptionDescription');
-  TranslateStr(SFeatureDescriptionDescription, 'SFeatureDescriptionDescription');
-  TranslateStr(SDetailsDescription, 'SDetailsDescription');
-  TranslateStr(SStepsDescription, 'SStepsDescription');
-  TranslateStr(SBugConfigurationDescription, 'SBugConfigurationDescription');
-  TranslateStr(SFeatureConfigurationDescription, 'SFeatureConfigurationDescription');
-  TranslateStr(SReportDescription, 'SReportDescription');
-  TranslateStr(STypeExample, 'STypeExample');
-  TranslateStr(SBugDescriptionExample, 'SBugDescriptionExample');
-  TranslateStr(SFeatureDescriptionExample, 'SFeatureDescriptionExample');
-  TranslateStr(SDetailsExample, 'SDetailsExample');
-  TranslateStr(SStepsExample, 'SStepsExample');
-  TranslateStr(SFinish, 'SFinish');
-  TranslateStr(SNext, 'SNext');
-  TranslateStr(STitle, 'STitle');
-  TranslateStr(SBugReport, 'SBugReport');
-  TranslateStr(SFeatureRequest, 'SFeatureRequest');
-  TranslateStr(SDescription, 'SDescription');
-  TranslateStr(SSteps, 'SSteps');
-  TranslateStr(SBugDetails, 'SBugDetails');
-  TranslateStr(SBugIsReproducible, 'SBugIsReproducible');
-  TranslateStr(SBugIsNotReproducible, 'SBugIsNotReproducible');
-  TranslateStr(SFillInReminder, 'SFillInReminder');
-  TranslateStr(SFillInReminderPaste, 'SFillInReminderPaste');
-  TranslateStr(SFillInReminderAttach, 'SFillInReminderAttach');
-  TranslateStr(SBugSteps, 'SBugSteps');
-  TranslateStr(SUnknown, 'SUnknown');
-  TranslateStr(SOutKeyboard, 'SOutKeyboard');
-  TranslateStr(SOutLocale, 'SOutLocale');
-  TranslateStr(SOutExperts, 'SOutExperts');
-  TranslateStr(SOutPackages, 'SOutPackages');
-  TranslateStr(SOutIDEPackages, 'SOutIDEPackages');
-  TranslateStr(SOutCnWizardsActive, 'SOutCnWizardsActive');
-  TranslateStr(SOutCnWizardsCreated, 'SOutCnWizardsCreated');
-  TranslateStr(SOutConfig, 'SOutConfig');
+  TranslateStr(SCnTypeDescription, 'SCnTypeDescription');
+  TranslateStr(SCnBugDescriptionDescription, 'SCnBugDescriptionDescription');
+  TranslateStr(SCnFeatureDescriptionDescription, 'SCnFeatureDescriptionDescription');
+  TranslateStr(SCnDetailsDescription, 'SCnDetailsDescription');
+  TranslateStr(SCnStepsDescription, 'SCnStepsDescription');
+  TranslateStr(SCnBugConfigurationDescription, 'SCnBugConfigurationDescription');
+  TranslateStr(SCnFeatureConfigurationDescription, 'SCnFeatureConfigurationDescription');
+  TranslateStr(SCnReportDescription, 'SCnReportDescription');
+  TranslateStr(SCnTypeExample, 'SCnTypeExample');
+  TranslateStr(SCnBugDescriptionExample, 'SCnBugDescriptionExample');
+  TranslateStr(SCnFeatureDescriptionExample, 'SCnFeatureDescriptionExample');
+  TranslateStr(SCnDetailsExample, 'SCnDetailsExample');
+  TranslateStr(SCnStepsExample, 'SCnStepsExample');
+  TranslateStr(SCnFinish, 'SCnFinish');
+  TranslateStr(SCnNext, 'SCnNext');
+  TranslateStr(SCnTitle, 'SCnTitle');
+  TranslateStr(SCnBugReport, 'SCnBugReport');
+  TranslateStr(SCnFeatureRequest, 'SCnFeatureRequest');
+  TranslateStr(SCnDescription, 'SCnDescription');
+  TranslateStr(SCnSteps, 'SCnSteps');
+  TranslateStr(SCnBugDetails, 'SCnBugDetails');
+  TranslateStr(SCnBugIsReproducible, 'SCnBugIsReproducible');
+  TranslateStr(SCnBugIsNotReproducible, 'SCnBugIsNotReproducible');
+  TranslateStr(SCnFillInReminder, 'SCnFillInReminder');
+  TranslateStr(SCnFillInReminderPaste, 'SCnFillInReminderPaste');
+  TranslateStr(SCnFillInReminderAttach, 'SCnFillInReminderAttach');
+  TranslateStr(SCnBugSteps, 'SCnBugSteps');
+  TranslateStr(SCnUnknown, 'SCnUnknown');
+  TranslateStr(SCnOutKeyboard, 'SCnOutKeyboard');
+  TranslateStr(SCnOutLocale, 'SCnOutLocale');
+  TranslateStr(SCnOutExperts, 'SCnOutExperts');
+  TranslateStr(SCnOutPackages, 'SCnOutPackages');
+  TranslateStr(SCnOutIDEPackages, 'SCnOutIDEPackages');
+  TranslateStr(SCnOutCnWizardsActive, 'SCnOutCnWizardsActive');
+  TranslateStr(SCnOutCnWizardsCreated, 'SCnOutCnWizardsCreated');
+  TranslateStr(SCnOutConfig, 'SCnOutConfig');
   TranslateStr(SCnKeyMappingConflictsHint, 'SCnKeyMappingConflictsHint');
 
   CnTranslateWizards;
+  CnTranslateWizards2;
   CnTranslateDesignConsts;
 end;
 

@@ -2,7 +2,7 @@ object FormDcu32: TFormDcu32
   Left = 240
   Top = 201
   BorderStyle = bsDialog
-  Caption = 'Test Dcu32 Intf/Impl Parsing'
+  Caption = 'Test Dcu32 Intf/Impl Parsing in D5~10.4 Unicode/Non-Unicode'
   ClientHeight = 512
   ClientWidth = 622
   Color = clBtnFace
@@ -24,12 +24,12 @@ object FormDcu32: TFormDcu32
   end
   object lblNote: TLabel
     Left = 24
-    Top = 64
-    Width = 467
+    Top = 60
+    Width = 434
     Height = 13
-    Caption = 
-      'Note: This Test Should Run OK from Delphi 5 ~ Above all. Parse O' +
-      'K for Delphi 5 ~ Above all Units.'
+    Caption =
+      'Note: This Test Should Run OK from Delphi 5 ~ 10.4. Parse OK for' +
+      ' Delphi 5 ~ 10.4 all Units.'
   end
   object edtDcuFile: TEdit
     Left = 80

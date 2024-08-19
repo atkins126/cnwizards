@@ -91,6 +91,8 @@ type
     mmoCppText: TMemo;
     pm1: TPopupMenu;
     ShowString1: TMenuItem;
+    btnExternalFunction: TButton;
+    btnGeneric: TButton;
     procedure FormDestroy(Sender: TObject);
     procedure btnUsesClauseClick(Sender: TObject);
     procedure btnUsesDeclClick(Sender: TObject);
@@ -152,6 +154,10 @@ type
     procedure btnAsmBlockClick(Sender: TObject);
     procedure tvPasChange(Sender: TObject; Node: TTreeNode);
     procedure ShowString1Click(Sender: TObject);
+    procedure btnGotoClick(Sender: TObject);
+    procedure btnInheritedClick(Sender: TObject);
+    procedure btnExternalFunctionClick(Sender: TObject);
+    procedure btnGenericClick(Sender: TObject);
   private
     FAST: TCnPasAstGenerator;
     procedure SaveANode(ALeaf: TCnLeaf; ATreeNode: TTreeNode; var Valid: Boolean);
@@ -267,6 +273,20 @@ begin
   SynTree;
 end;
 
+procedure TFormAST.btnGotoClick(Sender: TObject);
+begin
+  ReInitAst('goto aaaa;');
+  FAST.BuildSimpleStatement;
+  SynTree;
+end;
+
+procedure TFormAST.btnInheritedClick(Sender: TObject);
+begin
+  ReInitAst('Result := inherited click;');
+  FAST.BuildSimpleStatement;
+  SynTree;
+end;
+
 procedure TFormAST.btnExpressionListClick(Sender: TObject);
 begin
   ReInitAst('(Windows.SetSource as TBig)[3, 5]^^.Pig, [1..33]');
@@ -276,7 +296,7 @@ end;
 
 procedure TFormAST.btnArrayTypeClick(Sender: TObject);
 begin
-  ReInitAst('array[0..33] of Integer');
+  ReInitAst('array[Low(Integer)..High(Integer)] of Integer');
   FAST.BuildArrayType;
   SynTree;
 end;
@@ -623,7 +643,7 @@ end;
 
 procedure TFormAST.btnRaiseClick(Sender: TObject);
 begin
-  ReInitAst('raise EReadError.CreateRes(@SReadError);');
+  ReInitAst('raise EStringListError.CreateFmt(string(Msg), [Data]) at ReturnAddr;');
   FAST.BuildRaiseStatement;
   SynTree;
 end;
@@ -740,7 +760,7 @@ begin
 '{******************************************************************************}' + #13#10 +
 '{                       CnPack For Delphi/C++Builder                           }' + #13#10 + 
 '{                     中国人自己的开放源码第三方开发包                         }' + #13#10 + 
-'{                   (C)Copyright 2001-2023 CnPack 开发组                       }' + #13#10 + 
+'{                   (C)Copyright 2001-2024 CnPack 开发组                       }' + #13#10 + 
 '{                   ------------------------------------                       }' + #13#10 + 
 '{******************************************************************************}' + #13#10 + 
 'unit CnCodeFormaterTest;' + #13#10 + 
@@ -871,7 +891,7 @@ end;
 procedure TFormAST.btnFunctionClick(Sender: TObject);
 begin
   ReInitAst(
-    'function Help(A: Int64; B: array of const; var DivRes: Integer): Boolean; assembler;' + #13#10 +
+    'function Help(A, C: Int64; B: array of const; var DivRes: Integer): Boolean; assembler;' + #13#10 +
     'begin' + #13#10 +
       'WinApi.Windows.CommonFlag := True;' + #13#10 +
     'end;'
@@ -940,6 +960,20 @@ begin
     if Leaf <> nil then
       mmoPasRes.Text := Leaf.GetPascalCode;
   end;
+end;
+
+procedure TFormAST.btnExternalFunctionClick(Sender: TObject);
+begin
+  ReInitAst('function Help: Boolean; external ADVAPI32 name ''CryptAcquireContextA'';');
+  FAST.BuildDeclSection;
+  SynTree;
+end;
+
+procedure TFormAST.btnGenericClick(Sender: TObject);
+begin
+  ReInitAst('TTest<T: Test> = class(TPair<string, TObject<TPersistent>>) end;');
+  FAST.BuildTypeDecl;
+  SynTree;
 end;
 
 end.

@@ -16,6 +16,7 @@ object CnMainViewer: TCnMainViewer
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
   object statMain: TStatusBar
@@ -3918,13 +3919,13 @@ object CnMainViewer: TCnMainViewer
   end
   object dlgOpen: TOpenDialog
     Filter = 
-      'XML File (*.xml)|*.xml|CnDebug Dump File(*.cdd)|*.cdd|All Files ' +
-      '(*.*)|*.*'
+      'XML File (*.xml)|*.xml|JSON File (*.json)|*.json|CnDebug Dump File(*.cdd)' +
+        '|*.cdd|All Files (*.*)|*.*'
     Left = 504
     Top = 40
   end
   object dlgSave: TSaveDialog
-    Filter = 'XML File (*.xml)|*.xml|All Files (*.*)|*.*'
+    Filter = 'XML File (*.xml)|*.xml|JSON File (*.json)|*.json|All Files (*.*)'
     Left = 544
     Top = 40
   end

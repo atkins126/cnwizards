@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnPaletteEnhancements;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：主窗体扩展专家（原组件面板扩展）单元
-* 单元作者：刘啸（LiuXiao）
+* 单元作者：CnPack 开发组
 * 备    注：
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
@@ -67,7 +67,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, ToolsAPI, IniFiles,
   Forms, ExtCtrls, Menus, ComCtrls, Contnrs, StdCtrls, Buttons, ActnList,
-  CnWizMethodHook,
+  CnWizMethodHook, Registry,
   CnCommon, CnWizUtils, CnWizNotifier, CnWizIdeUtils, CnWizConsts, CnMenuHook,
   CnConsts, CnCompUtils, CnWizClasses, CnWizMenuAction, CnWizManager, 
   {$IFDEF COMPILER7_UP}
@@ -87,6 +87,7 @@ type
   private
     FMenuLine: Boolean;
     FLockToolbar: Boolean;
+    FClearRegSession: Boolean;
     FTempDisableLock: Boolean;
     FHookedToolbarMouseDown: Boolean;
     FOldMouseDown: TMouseEvent;
@@ -96,7 +97,7 @@ type
 
   {$IFDEF COMPILER7_UP}
     FMenuBar: TActionMainMenuBar;
-  {$ENDIF COMPILER7_UP}
+  {$ENDIF}
 
     FEnableWizMenu: Boolean;
     FWizMenuNames: TStringList;
@@ -133,17 +134,17 @@ type
     FTabsMenu: Boolean;
     FHooked: Boolean;
     FMenuHook: TCnMenuHook;
-  {$IFDEF COMPILER5}
+    {$IFDEF COMPILER5}
     FTabMenuItem: TCnMenuItemDef;
-  {$ENDIF COMPILER5}
+    {$ENDIF}
     FMultiLineMenuItem: TCnMenuItemDef;
     FSepMenuItem: TCnSepMenuItemDef;
 
     FDivTab: Boolean;
-  {$IFDEF COMPILER6_UP}
+    {$IFDEF COMPILER6_UP}
     FTabPopupItem: TMenuItem;
     FTabOnClick: TNotifyEvent;
-  {$ENDIF COMPILER6_UP}
+    {$ENDIF}
   {$ELSE}
     FNewComponentPalette: TWinControl;
   {$ENDIF}
@@ -164,7 +165,7 @@ type
     procedure OnTabMenuCreated(Sender: TObject; MenuItem: TMenuItem);
   {$ELSE}
     procedure OnMenuAfterPopup(Sender: TObject; Menu: TPopupMenu);
-  {$ENDIF COMPILER5}
+  {$ENDIF}
 
     procedure OnActiveFormChanged(Sender: TObject);
     procedure OnMultiLineItemClick(Sender: TObject);
@@ -189,7 +190,7 @@ type
   {$IFDEF COMPILER7_UP}
     procedure InitMenuBar;
     procedure FinalMenuBar;
-  {$ENDIF COMPILER7_UP}
+  {$ENDIF}
 
   {$IFDEF FIX_EDITORLINEENDS_BUG}
     procedure SetFixEditorLineEndsBug(const Value: Boolean);
@@ -263,6 +264,7 @@ type
   {$ENDIF}
     property MenuLine: Boolean read FMenuLine write FMenuLine;
     property LockToolbar: Boolean read FLockToolbar write SetLockToolbar;
+    property ClearRegSession: Boolean read FClearRegSession write FClearRegSession;
   published
     property TempDisableLock: Boolean read FTempDisableLock write SetTempDisableLock;
     {* 外部其他模块使用，供修补工具栏显示不全的问题，不开放给用户}
@@ -310,6 +312,7 @@ const
   csUseSmallImg = 'UseSmallImg';
   csShowDetails = 'ShowDetails';
   csAutoSelect = 'AutoSelect';
+  csClearRegSession = 'ClearRegSession';
 
   SCN_EDITORLINEENDS_FILE = 'EditorLineEnds.ttr';
 
@@ -351,6 +354,9 @@ var
 var
   FixEditorLineEndsBugGlobal: Boolean = True;
 {$ENDIF}
+
+var
+  GlobalClearRegSession: Boolean = False;
 
 {$IFDEF FIX_NP_FMX_DESIGN_CLIPBOARD_BUG}
 
@@ -485,6 +491,40 @@ end;
 
 {$ENDIF}
 
+procedure ClearRegistrySessionProject;
+const
+  SCnProject = 'Project';
+var
+  S: string;
+  Reg: TRegistry;
+begin
+  if not GlobalClearRegSession then
+    Exit;
+
+  S := SCnIDERegPaths[Compiler] + '\Session';
+{$IFDEF DEBUG}
+  CnDebugger.LogFmt('To ClearRegistrySessionProject: %s', [S]);
+{$ENDIF}
+
+  Reg := nil;
+
+  try
+    Reg := TRegistry.Create;
+    Reg.RootKey := HKEY_CURRENT_USER;
+
+    if Reg.OpenKey(S, False) then
+    begin
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('ClearRegistrySessionProject to Delete Value %s', [SCnProject]);
+{$ENDIF}
+      if Reg.ValueExists(SCnProject) then
+        Reg.DeleteValue(SCnProject);
+    end;
+  finally
+    Reg.Free;
+  end;
+end;
+
 //==============================================================================
 // 组件面板扩展专家
 //==============================================================================
@@ -542,6 +582,7 @@ begin
 
   FControlBarMenuHook.Free;
   FinalWizMenus;
+  GlobalClearRegSession := FClearRegSession;
   inherited;
 end;
 
@@ -1049,7 +1090,7 @@ const
   sMenuBar = 'MenuBar';
 var
   List: TList;
-  i, j: Integer;
+  I, J: Integer;
   ViewBar, MenuBar: TToolBar;
   ControlBar: TControlBar;
   LeftCtrl: TControl;
@@ -1063,10 +1104,10 @@ begin
   begin
     ControlBar := TControlBar(ViewBar.Parent);
     MenuBar := nil;
-    for i := 0 to ControlBar.ControlCount - 1 do
-      if SameText(ControlBar.Controls[i].Name, sMenuBar) then
+    for I := 0 to ControlBar.ControlCount - 1 do
+      if SameText(ControlBar.Controls[I].Name, sMenuBar) then
       begin
-        MenuBar := TToolBar(ControlBar.Controls[i]);
+        MenuBar := TToolBar(ControlBar.Controls[I]);
         Break;
       end;
 
@@ -1076,24 +1117,24 @@ begin
     // 把菜单栏同样高度的右边的控件靠左挤过去，避免出现空隙
     List := TList.Create;
     try
-      for i := 0 to ControlBar.ControlCount - 1 do
-        if (ControlBar.Controls[i] <> MenuBar) and
-          (ControlBar.Controls[i].Top = MenuBar.Top) then
+      for I := 0 to ControlBar.ControlCount - 1 do
+        if (ControlBar.Controls[I] <> MenuBar) and
+          (ControlBar.Controls[I].Top = MenuBar.Top) then
         begin
-          j := 0;
-          while (j < List.Count) and (ControlBar.Controls[i].Left >
-            TControl(List[j]).Left) do
-            Inc(j);
-          List.Insert(j, ControlBar.Controls[i]);
+          J := 0;
+          while (J < List.Count) and (ControlBar.Controls[I].Left >
+            TControl(List[J]).Left) do
+            Inc(J);
+          List.Insert(J, ControlBar.Controls[I]);
         end;
 
-      for i := 0 to List.Count - 1 do
+      for I := 0 to List.Count - 1 do
       begin
-        if i = 0 then
+        if I = 0 then
           LeftCtrl := MenuBar
         else
-          LeftCtrl := TControl(List[i - 1]);
-        TControl(List[i]).Left := LeftCtrl.Left + LeftCtrl.Width;
+          LeftCtrl := TControl(List[I - 1]);
+        TControl(List[I]).Left := LeftCtrl.Left + LeftCtrl.Width;
       end;  
     finally
       List.Free;
@@ -1104,17 +1145,17 @@ end;
 procedure TCnPaletteEnhanceWizard.UpdateWizMenus;
 var
   MainMenu: TMainMenu;
-  i: Integer;
+  I: Integer;
 
   procedure DoInsertMenu(AMenu: TMenuItem; const AName: string);
   var
-    i: Integer;
+    I: Integer;
     MenuItem: TMenuItem;
   begin
-    for i := MainMenu.Items.Count - 1 downto 0 do
-      if SameText(MainMenu.Items[i].Name, AName) then
+    for I := MainMenu.Items.Count - 1 downto 0 do
+      if SameText(MainMenu.Items[I].Name, AName) then
       begin
-        MenuItem := MainMenu.Items[i];
+        MenuItem := MainMenu.Items[I];
         MainMenu.Items.Remove(MenuItem);
         AMenu.Insert(0, MenuItem);
         Break;
@@ -1131,9 +1172,9 @@ begin
   if Assigned(MainMenu) and Active and FEnableWizMenu and
     (FWizMenuNames.Count > 0) then
   begin
-    for i := FWizMenuNames.Count - 1 downto 0 do    // 把设置中要独立出来的菜单项先挑出来挂 FWizMenu 下
+    for I := FWizMenuNames.Count - 1 downto 0 do    // 把设置中要独立出来的菜单项先挑出来挂 FWizMenu 下
     begin
-      DoInsertMenu(FWizMenu, FWizMenuNames[i]);
+      DoInsertMenu(FWizMenu, FWizMenuNames[I]);
     end;
     MainMenu.Items.Insert(GetMenuInsertIndex + 1, FWizMenu); // 再把 FWizMenu 挂主菜单下
 
@@ -1176,6 +1217,7 @@ begin
 {$ENDIF}
   FMenuLine := Ini.ReadBool('', csIDEMenuLine, False);
   FLockToolbar := Ini.ReadBool('', csLockToolbar, False);
+  FClearRegSession := Ini.ReadBool('', csClearRegSession, False);
 
   FEnableWizMenu := Ini.ReadBool(WizOptions.CompilerID, csEnableWizMenu, FEnableWizMenu);
   FWizMenuNames.CommaText := Ini.ReadString(WizOptions.CompilerID, csWizMenuNames, FWizMenuNames.CommaText);
@@ -1186,6 +1228,12 @@ begin
   UpdateCompPalette;
   if FLockToolbar then
     UpdateToolbarLock;
+
+  if FClearRegSession then
+  begin
+    GlobalClearRegSession := True;
+    ClearRegistrySessionProject; // 如设置了，载入时也清除一次
+  end;
 end;
 
 procedure TCnPaletteEnhanceWizard.SaveSettings(Ini: TCustomIniFile);
@@ -1195,7 +1243,7 @@ begin
   Ini.WriteBool('', csPalMultiLine, FMultiLine);
   Ini.WriteBool('', csPalButtonStyle, FButtonStyle);
   Ini.WriteBool('', csDivTabMenu, FDivTab);
-{$ENDIF COMPILER8_UP}
+{$ENDIF}
 
 {$IFDEF SUPPORT_PALETTE_ENHANCE}
   Ini.WriteBool('', csCompFilter, FCompFilter);
@@ -1208,6 +1256,7 @@ begin
 
   Ini.WriteBool('', csIDEMenuLine, FMenuLine);
   Ini.WriteBool('', csLockToolbar, FLockToolbar);
+  Ini.WriteBool('', csClearRegSession, FClearRegSession);
 
   Ini.WriteBool(WizOptions.CompilerID, csEnableWizMenu, FEnableWizMenu);
   Ini.WriteString(WizOptions.CompilerID, csWizMenuNames, FWizMenuNames.CommaText);
@@ -1264,6 +1313,7 @@ begin
 
     chkMenuLine.Checked := MenuLine;
     chkLockToolbar.Checked := LockToolbar;
+    chkClearRegSessionProject.Checked := ClearRegSession;
 
     chkMoveWizMenus.Checked := FEnableWizMenu;
     edtMoveToUser.Text := FWizMenu.Caption;
@@ -1285,6 +1335,7 @@ begin
 
       MenuLine := chkMenuLine.Checked;
       LockToolbar := chkLockToolbar.Checked;
+      ClearRegSession := chkClearRegSessionProject.Checked;
 
       FEnableWizMenu := chkMoveWizMenus.Checked;
       FWizMenu.Caption := edtMoveToUser.Text;
@@ -1720,6 +1771,8 @@ finalization
     ;
   end;
 {$ENDIF}
+
+  ClearRegistrySessionProject; // 退出时也清除一次
 
 {$IFDEF FIX_NP_FMX_DESIGN_CLIPBOARD_BUG}
   FreeAndNil(FCutMethodHook);

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnViewMain;
 ================================================================================
 * 软件名称：CnDebugViewer
 * 单元名称：主窗体单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7
@@ -256,6 +256,7 @@ type
     procedure actCopyTextExecute(Sender: TObject);
     procedure actSwtAddToBlackExecute(Sender: TObject);
     procedure actSwtAddToWhiteExecute(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     FUpdatingSwitch: Boolean;
     FClickingSwitch: Boolean;
@@ -282,6 +283,7 @@ type
     procedure OnHotKey(var Message: TMessage); message WM_HOTKEY;
     procedure OnTabMakeVisible(var Message: TMessage); message WM_TAB_MAKE_VISIBLE;
     procedure OnSetCaptionGlobalLocal(var Message: TMessage); message WM_USER_SET_CAPTION;
+    procedure OnShowChild(var Message: TMessage); message WM_USER_SHOW_CHILD;
   protected
     procedure DoCreate; override;
     procedure ThreadTerminated(Sender: TObject);
@@ -609,6 +611,8 @@ begin
   else if (Action = actSwtClose) or (Action = actSwtCloseOther) or (Action = actSwtCloseAll) or
     (Action = actSwtAddToBlack) or (Action = actSwtAddToWhite) then
     (Action as TCustomAction).Enabled := tsSwitch.Tabs.Count > 0
+  else if (Action = actSave) or (Action = actClose) then
+    (Action as TCustomAction).Enabled := CurrentChild <> nil
   else if (Action = actViewTime) then
   begin
     (Action as TCustomAction).Enabled := CurrentChild <> nil;
@@ -1317,7 +1321,11 @@ begin
       if not (csDestroying in Application.MainForm.ComponentState) then
       begin
         AStore := CnMsgManager.AddStore(ProcId, ProcName);
+{$IFDEF WIN64}
+        PostMessage(Application.MainForm.Handle, WM_USER_NEW_FORM, NativeInt(AStore), 0);
+{$ELSE}
         PostMessage(Application.MainForm.Handle, WM_USER_NEW_FORM, Integer(AStore), 0);
+{$ENDIF}
       end;
   end;
 
@@ -1522,6 +1530,18 @@ begin
     FThread := nil
   else if Sender = FDbgThread then
     FDbgThread := nil;
+end;
+
+procedure TCnMainViewer.FormShow(Sender: TObject);
+begin
+  if CurrentChild <> nil then
+    PostMessage(Handle, WM_USER_SHOW_CHILD, 0, 0);
+end;
+
+procedure TCnMainViewer.OnShowChild(var Message: TMessage);
+begin
+  if CurrentChild <> nil then
+    CurrentChild.pnlTree.OnResize(CurrentChild.pnlTree);
 end;
 
 end.

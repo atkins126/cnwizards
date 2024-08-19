@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,9 +23,10 @@ unit CnPascalAST;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：Pascal 代码抽象语法树生成单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org; http://www.cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：同时支持 Unicode 和非 Unicode 编译器
-*           不支持 Attribute，不支持匿名函数，不支持 class 内的 var/const 等
+*           不支持 Attribute，不支持匿名函数，不支持 class 内的 var/const/type 等
+*           不支持泛型、不支持内联 var
 *           不支持 asm（仅跳过），注释还原度较低
 * 开发平台：2023.07.29 V1.3
 *               加入对多行字符串的支持
@@ -130,6 +131,7 @@ type
     cntOn,
     cntThen,
     cntUntil,
+    cntAt,
     cntCaseSelector,
     cntCaseLabel,
     cntOut,
@@ -139,6 +141,14 @@ type
     cntUsesDecl,
     cntTypeSection,
     cntTypeDecl,
+
+    // 泛型声明的支持
+    cntTypeParams,
+    cntTypeParamDeclList,
+    cntTypeParamDecl,
+    cntTypeParamList,
+    cntTypeParamIdentList,
+
     cntTypeKeyword,
     cntTypeID,
     cntRestrictedType,
@@ -252,11 +262,11 @@ type
     property TokenKind: TTokenKind read FTokenKind write FTokenKind;
     {* Pascal Token 类型，注意有的节点本身没有实际对应的 Token，用 tkNone 代替}
     property Return: Boolean read FReturn write FReturn;
-    {* 该 Token 后是否应换行}
+    {* 该 Token 后是否应换行，默认不换}
     property NoSpaceBehind: Boolean read FNoSpaceBehind write FNoSpaceBehind;
-    {* 该 Token 后是否无空格}
+    {* 该 Token 后是否无空格，默认有}
     property NoSpaceBefore: Boolean read FNoSpaceBefore write FNoSpaceBefore;
-    {* 该 Token 前是否无空格}
+    {* 该 Token 前是否无空格，默认有}
   end;
 
   TCnPasAstTree = class(TCnTree)
@@ -351,6 +361,21 @@ type
     {* 碰上 type 关键字时被调用，新建 type 节点，其下是多个 typedecl 加分号，每个 typedecl 是新节点}
     procedure BuildTypeDecl;
     {* 被 BuildTypeSection 循环调用，每次新增一个节点并在下面增加 typedecl 内部各元素的子节点，不包括分号}
+
+    procedure BuildTypeParams;
+    {* 被 BuildTypeDecl 等调用，作为泛型的初步支持，内部是 <BuildTypeParamDeclList>}
+    procedure BuildTypeParamDeclList;
+    {* 被 BuildTypeParams 调用，作为泛型的初步支持，内部是分号分隔的 BuildTypeParamDecl}
+    procedure BuildTypeParamDecl;
+    {* 被 BuildTypeParamDeclList 调用，作为泛型的初步支持，内部是 BuildTypeParamList: IdentList 声明格式}
+    procedure BuildTypeParamList;
+    {* 被 BuildTypeParamDecl 调用，作为泛型的初步支持，内部是逗号分隔的 Ident<TypeParams>，因而又可能调用 BuildTypeParams}
+
+    procedure BuildTypeParamIdentList;
+    {* 类似于 IdentList 但内部循环调用的是 BuildTypeParamIdent，目前仅在声明内部调用，未在语句中和大小于号混淆 }
+    procedure BuildTypeParamIdent;
+    {* 类似于 Ident 但每个 Ident 后面允许加泛型的 <> 支持}
+
     procedure BulidRestrictedType;
     {* 受限类型}
     procedure BuildCommonType;
@@ -502,6 +527,7 @@ type
     {* 组装一个 QualId，主要是 Ident 以及 (Designator as Type)，作为 Designator 的起始部分}
 
     procedure BuildIdentList;
+    {* 组装一个标识符列表，逗号分隔}
     procedure BuildIdent;
     {* 组装一个标识符，可以带点号}
 
@@ -626,6 +652,7 @@ begin
     tkOn: Result := cntOn;
     tkThen: Result := cntThen;
     tkUntil: Result := cntUntil;
+    tkAt: Result := cntAt;
 
     tkOut: Result := cntOut;
     tkObject: Result := cntObject;
@@ -921,7 +948,7 @@ begin
       else if FLex.TokenID = tkPoint then
       begin
         MatchCreateLeafAndStep(FLex.TokenID);
-        BuildIdent;
+        BuildExpression;
       end
       else if FLex.TokenID = tkSquareOpen then
       begin
@@ -977,7 +1004,7 @@ begin
             PopLeaf;
           end;
         end;
-      tkIdentifier, tkNil, tkKeyString: // TODO: 还有部分关键字可以做变量名
+      tkIdentifier, tkNil, tkKeyString, tkIndex: // TODO: 还有部分关键字可以做变量名
         begin
           BuildDesignator;
           if FLex.TokenID = tkRoundOpen then
@@ -1059,15 +1086,18 @@ procedure TCnPasAstGenerator.BuildIdent;
 var
   T: TCnPasAstLeaf;
 begin
+  if FLex.TokenID = tkAmpersand then
+    MatchCreateLeafAndStep(FLex.TokenID);
+
   if FLex.TokenID = tkNil then // nil 单独处理
   begin
     MatchCreateLeafAndStep(FLex.TokenID);
     Exit;
   end;
 
-  if FLex.TokenID in CanBeIdentifierTokens then  // 其他可以做变量名的关键字
+  if FLex.TokenID in CanBeIdentifierTokens + [tkKeyString] then  // 其他可以做变量名的关键字
   begin
-    T := MatchCreateLeafAndStep(tkIdentifier);   // 头一个变量名，指明是 tkIdentifier，抹杀掉其他关键字
+    T := MatchCreateLeafAndStep(FLex.TokenID);
     if FLex.TokenID <> tkPoint then              // 后面没点就退出
       Exit;
 
@@ -1108,7 +1138,7 @@ var
   begin
     repeat
       FLex.NextNoJunk;
-    until not (FLex.TokenID in [tkIdentifier, tkPoint, tkInteger, tkString, tkRoundOpen, tkSquareOpen,
+    until not (FLex.TokenID in [tkIdentifier, tkPoint, tkInteger, tkString, tkRoundOpen, tkRoundClose,
       tkPlus, tkMinus, tkStar, tkSlash, tkDiv, tkMod]);
   end;
 
@@ -1175,7 +1205,7 @@ begin
     case FLex.TokenID of
       tkKeyString:
         MatchCreateLeafAndStep(FLex.TokenID); // TODO: 还有一些关键字可以做强制类型转换或函数调用名
-      tkNil, tkIdentifier:
+      tkNil, tkIdentifier, tkIndex, tkAmpersand:           // TODO: 还有一些关键字可以做变量名
         BuildIdent;
       tkRoundOpen:
         begin
@@ -1504,9 +1534,13 @@ begin
 
   try
     BuildIdent;
+
+    if FLex.TokenID = tkLower then
+      BuildTypeParams;
+
     MatchCreateLeafAndStep(tkEqual);
     if FLex.TokenID = tkType then
-      MatchCreateLeafAndStep(tkNone, cntTypeKeyword);
+      MatchCreateLeafAndStep(tkType, cntTypeKeyword);
 
     // 要分开 RestrictType 和普通 Type，前者包括 class/object/interface，部分场合不允许出现
     if FLex.TokenID in [tkClass, tkObject, tkInterface, tkDispInterface] then
@@ -1518,13 +1552,143 @@ begin
   end;
 end;
 
+procedure TCnPasAstGenerator.BuildTypeParams;
+begin
+  MatchCreateLeafAndPush(tkNone, cntTypeParams);
+  try
+    MatchCreateLeafAndStep(tkLower);
+
+    BuildTypeParamDeclList;
+
+    MatchCreateLeafAndStep(tkGreater);
+  finally
+    PopLeaf;
+  end;
+end;
+
+procedure TCnPasAstGenerator.BuildTypeParamDeclList;
+begin
+  MatchCreateLeafAndPush(tkNone, cntTypeParamDeclList);
+  try
+    BuildTypeParamDecl;
+    while Flex.TokenID = tkSemicolon do
+    begin
+      MatchCreateLeafAndStep(tkSemicolon);
+      BuildTypeParamDecl;
+    end;
+  finally
+    PopLeaf;
+  end;
+end;
+
+procedure TCnPasAstGenerator.BuildTypeParamDecl;
+begin
+  MatchCreateLeafAndPush(tkNone, cntTypeParamDecl);
+  try
+    BuildTypeParamList;
+    while Flex.TokenID = tkColon do
+    begin
+      MatchCreateLeafAndStep(tkColon);
+      BuildIdentList;
+    end;
+  finally
+    PopLeaf;
+  end;
+end;
+
+procedure TCnPasAstGenerator.BuildTypeParamList;
+begin
+  MatchCreateLeafAndPush(tkNone, cntTypeParamList);
+  try
+    BuildIdent;
+
+    // 可能再套泛型
+    if FLex.TokenID = tkLower then
+      BuildTypeParams;
+
+    while Flex.TokenID = tkComma do
+    begin
+      MatchCreateLeafAndStep(tkComma);
+      BuildIdent;
+
+      // 可能再套泛型
+      if FLex.TokenID = tkLower then
+        BuildTypeParams;
+    end;
+  finally
+    PopLeaf;
+  end;
+end;
+
+procedure TCnPasAstGenerator.BuildTypeParamIdentList;
+begin
+  MatchCreateLeafAndPush(tkNone, cntTypeParamIdentList);
+
+  try
+    repeat
+      BuildTypeParamIdent;
+
+      if FLex.TokenID = tkComma then
+        MatchCreateLeafAndStep(tkComma)
+      else
+        Break;
+    until False;
+  finally
+    PopLeaf;
+  end;
+end;
+
+procedure TCnPasAstGenerator.BuildTypeParamIdent;
+var
+  T: TCnPasAstLeaf;
+begin
+  if FLex.TokenID = tkAmpersand then
+    MatchCreateLeafAndStep(FLex.TokenID);
+
+  if FLex.TokenID = tkNil then // nil 单独处理，没有泛型的说法，不考虑 &nil.DoSome 的情况
+  begin
+    MatchCreateLeafAndStep(FLex.TokenID);
+    Exit;
+  end;
+
+  if FLex.TokenID in CanBeIdentifierTokens then  // 其他可以做变量名的关键字
+  begin
+    T := MatchCreateLeafAndStep(FLex.TokenID);
+
+    if FLex.TokenID = tkPoint then               // 后面没点就去处理泛型
+    begin
+      if T <> nil then                             // 有点就加点并步进
+        T.Text := T.Text + FLex.Token;
+      NextToken;
+
+      while FLex.TokenID in CanBeIdentifierTokens do
+      begin
+        if T <> nil then                           // 又有变量名
+          T.Text := T.Text + FLex.Token;
+        NextToken;
+
+        if FLex.TokenID <> tkPoint then            // 后面没点就退出
+          Break;
+
+        if T <> nil then                           // 有点就加点并步进
+          T.Text := T.Text + FLex.Token;
+        NextToken;
+      end;
+    end;
+  end;
+
+  // 以上和 BuildIdent 几乎严格相等除了 Exit 部分，仅增加这一步处理
+  if FLex.TokenID = tkLower then
+    BuildTypeParams;
+end;
+
 procedure TCnPasAstGenerator.BuildTypeSection;
 begin
   MarkReturnFlag(MatchCreateLeafAndPush(tkType));
   // Pop 之前，内部添加的节点均为 type 节点之子
 
   try
-    while FLex.TokenID = tkIdentifier do
+    while FLex.TokenID in [tkIdentifier, tkAmpersand] do
     begin
       BuildTypeDecl;
       MarkReturnFlag(MatchCreateLeafAndStep(tkSemiColon));
@@ -1621,10 +1785,19 @@ function TCnPasAstGenerator.MatchCreateLeaf(AToken: TTokenKind;
 begin
   Result := nil;
   if (AToken <> tkNone) and (AToken <> FLex.TokenID) then
+  begin
+{$IFDEF SUPPORT_WIDECHAR_IDENTIFIER}
     raise ECnPascalAstException.CreateFmt(SCnErrorTokenNotMatchFmt,
       [GetEnumName(TypeInfo(TTokenKind), Ord(AToken)),
        GetEnumName(TypeInfo(TTokenKind), Ord(FLex.TokenID)),
-       FLex.Token, FLex.LineNumber, FLex.TokenPos - FLex.LinePos]);
+       FLex.Token, FLex.LineNumber + 1, FLex.TokenPos - FLex.LineStartOffset]);
+{$ELSE}
+    raise ECnPascalAstException.CreateFmt(SCnErrorTokenNotMatchFmt,
+      [GetEnumName(TypeInfo(TTokenKind), Ord(AToken)),
+       GetEnumName(TypeInfo(TTokenKind), Ord(FLex.TokenID)),
+       FLex.Token, FLex.LineNumber + 1, FLex.TokenPos - FLex.LinePos]);
+{$ENDIF}
+  end;
 
   if NodeType = cntInvalid then
     NodeType := NodeTypeFromToken(AToken);
@@ -1865,8 +2038,15 @@ begin
   MatchCreateLeafAndPush(tkFunction);
 
   try
-    if FLex.TokenID = tkIdentifier then
-      BuildIdent;
+    if FLex.TokenID in [tkIdentifier, tkAmpersand] then
+    begin
+      BuildTypeParamIdent;
+      if FLex.TokenID = tkPoint then
+      begin
+        MatchCreateLeafAndStep(tkPoint);
+        BuildTypeParamIdent;
+      end;
+    end;
 
     if FLex.TokenID = tkRoundOpen then
       BuildFormalParameters;
@@ -1884,8 +2064,15 @@ begin
     MatchCreateLeafAndPush(FLex.TokenID);
 
   try
-    if FLex.TokenID = tkIdentifier then
-      BuildIdent;
+    if FLex.TokenID in [tkIdentifier, tkAmpersand] then
+    begin
+      BuildTypeParamIdent;
+      if FLex.TokenID = tkPoint then
+      begin
+        MatchCreateLeafAndStep(tkPoint);
+        BuildTypeParamIdent;
+      end;
+    end;
 
     if FLex.TokenID = tkRoundOpen then
       BuildFormalParameters;
@@ -1905,7 +2092,7 @@ begin
   MatchCreateLeafAndPush(tkConst);
 
   try
-    while FLex.TokenID = tkIdentifier do
+    while FLex.TokenID in [tkIdentifier, tkAmpersand] do
       BuildClassConstantDecl;
 
     MatchCreateLeafAndStep(tkSemiColon);
@@ -1938,7 +2125,7 @@ begin
   MarkReturnFlag(MatchCreateLeafAndPush(tkType));
 
   try
-    while FLex.TokenID = tkIdentifier do
+    while FLex.TokenID in [tkIdentifier, tkAmpersand] do
     begin
       BuildTypeDecl; // 类似于 BuildTypeSection，复用之
       MarkReturnFlag(MatchCreateLeafAndStep(tkSemiColon));
@@ -2004,7 +2191,7 @@ begin
     MarkReturnFlag(MatchCreateLeafAndPush(FLex.TokenID));
 
   try
-    while FLex.TokenID in [tkIdentifier] do
+    while FLex.TokenID in [tkIdentifier, tkAmpersand] do
     begin
       BuildVarDecl;
       MarkReturnFlag(MatchCreateLeafAndStep(tkSemiColon));
@@ -2438,9 +2625,9 @@ begin
   MatchCreateLeafAndPush(tkNone, cntClassHeritage);
 
   try
-    MatchCreateLeafAndPush(tkRoundOpen);
+    MarkNoSpaceBeforeFlag(MatchCreateLeafAndPush(tkRoundOpen));
     try
-      BuildIdentList;
+      BuildTypeParamIdentList;
     finally
       PopLeaf;
     end;
@@ -2538,7 +2725,7 @@ begin
     MarkReturnFlag(MatchCreateLeafAndPush(tkResourcestring));
 
   try
-    while FLex.TokenID = tkIdentifier do
+    while FLex.TokenID in [tkIdentifier, tkAmpersand] do
     begin
       BuildConstDecl;
       MarkReturnFlag(MatchCreateLeafAndStep(tkSemiColon));
@@ -2787,9 +2974,12 @@ begin
     MatchCreateLeafAndStep(FLex.TokenID);
 
   repeat
+    while FLex.TokenID = tkSemiColon do
+      MarkReturnFlag(MatchCreateLeafAndStep(FLex.TokenID));
+
     BuildStatement;
 
-    if FLex.TokenID = tkSemiColon then
+    while FLex.TokenID = tkSemiColon do
       MarkReturnFlag(MatchCreateLeafAndStep(FLex.TokenID));
 
     if not (FLex.TokenID in StatementTokens) then
@@ -3529,10 +3719,11 @@ function TCnPasAstLeaf.GetPascalCode: string;
 var
   I: Integer;
   S: string;
-  Son: TTokenKind;
+  Prev, Son: TTokenKind;
+  NSP: Boolean;
 begin
   if FReturn or (FTokenKind in [tkBorComment, tkAnsiComment, tkSlashesComment, // 注释都暂且先换行
-    tkBegin, tkThen, tkDo, tkRepeat,
+    tkBegin, tkThen, tkDo, tkRepeat,                                           // 这些后面都换行
     tkExcept, tkExports, tkFinally, tkInitialization, tkFinalization, tkAsm,
     tkImplementation, tkRecord, tkPrivate, tkProtected, tkPublic, tkPublished]) then
     Result := Text + #13#10
@@ -3547,10 +3738,25 @@ begin
       Result := S
     else if S <> '' then
     begin
-      if FNoSpaceBehind or Items[I].NoSpaceBefore or    // 如果本节点后面不要空格，或子节点前面不要空格
-        (FTokenKind in [tkRoundOpen, tkSquareOpen, tkPoint]) or            // 本节点这些后面不要空格
-        (Son in [tkPoint, tkDotdot, tkPointerSymbol, tkSemiColon, tkColon, // 子节点这些前面不要空格
-        tkRoundClose, tkSquareClose]) then
+      if I = 0 then
+        Prev := FTokenKind
+      else
+        Prev := Items[I - 1].TokenKind;
+
+      NSP := FNoSpaceBehind or Items[I].NoSpaceBefore or    // 如果本节点后面不要空格，或当前子节点前面不要空格
+        (Prev in [tkRoundOpen, tkSquareOpen, tkPoint, tkDotDot]) or            // 前一个节点如果是这些，则前一个节点后面不要空格
+        (Son in [tkPoint, tkDotdot, tkPointerSymbol, tkSemiColon, tkColon, // 当前子节点如果是这些，则当前子节点前面不要空格
+        tkRoundClose, tkSquareClose, tkComma]);
+
+      if not NSP then
+      begin
+        // 还有些 FuncCall(  class(  array[ 的不要空格，没法单独处理，这里额外处理
+        if ((Prev in [tkClass, tkIdentifier]) and (Son in [tkRoundOpen]))
+          or ((Prev in [tkArray]) and (Son in [tkSquareOpen])) then
+          NSP := True;
+      end;
+
+      if NSP then
         Result := Result + S
       else
         Result := Result + ' ' + S;

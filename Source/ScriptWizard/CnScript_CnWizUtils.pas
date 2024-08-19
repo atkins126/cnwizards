@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -102,6 +102,7 @@ begin
   CL.AddConstantN('_DELPHI103_RIO', 'Boolean').SetUInt(Ord(_DELPHI103_RIO));
   CL.AddConstantN('_DELPHI104_SYDNEY', 'Boolean').SetUInt(Ord(_DELPHI104_SYDNEY));
   CL.AddConstantN('_DELPHI110_ALEXANDRIA', 'Boolean').SetUInt(Ord(_DELPHI110_ALEXANDRIA));
+  CL.AddConstantN('_DELPHI120_ATHENS', 'Boolean').SetUInt(Ord(_DELPHI120_ATHENS));
 
   CL.AddConstantN('_DELPHI1_UP', 'Boolean').SetUInt(Ord(_DELPHI1_UP));
   CL.AddConstantN('_DELPHI2_UP', 'Boolean').SetUInt(Ord(_DELPHI2_UP));
@@ -130,6 +131,7 @@ begin
   CL.AddConstantN('_DELPHI103_RIO_UP', 'Boolean').SetUInt(Ord(_DELPHI103_RIO_UP));
   CL.AddConstantN('_DELPHI104_SYDNEY_UP', 'Boolean').SetUInt(Ord(_DELPHI104_SYDNEY_UP));
   CL.AddConstantN('_DELPHI110_ALEXANDRIA_UP', 'Boolean').SetUInt(Ord(_DELPHI110_ALEXANDRIA_UP));
+  CL.AddConstantN('_DELPHI120_ATHENS_UP', 'Boolean').SetUInt(Ord(_DELPHI120_ATHENS_UP));
 
   CL.AddConstantN('_BCB1', 'Boolean').SetUInt(Ord(_BCB1));
   CL.AddConstantN('_BCB3', 'Boolean').SetUInt(Ord(_BCB3));
@@ -155,6 +157,7 @@ begin
   CL.AddConstantN('_BCB103_RIO', 'Boolean').SetUInt(Ord(_BCB103_RIO));
   CL.AddConstantN('_BCB104_SYDNEY', 'Boolean').SetUInt(Ord(_BCB104_SYDNEY));
   CL.AddConstantN('_BCB110_ALEXANDRIA', 'Boolean').SetUInt(Ord(_BCB110_ALEXANDRIA));
+  CL.AddConstantN('_BCB120_ATHENS', 'Boolean').SetUInt(Ord(_BCB120_ATHENS));
 
   CL.AddConstantN('_BCB1_UP', 'Boolean').SetUInt(Ord(_BCB1_UP));
   CL.AddConstantN('_BCB3_UP', 'Boolean').SetUInt(Ord(_BCB3_UP));
@@ -180,6 +183,7 @@ begin
   CL.AddConstantN('_BCB103_RIO_UP', 'Boolean').SetUInt(Ord(_BCB103_RIO_UP));
   CL.AddConstantN('_BCB104_SYDNEY_UP', 'Boolean').SetUInt(Ord(_BCB104_SYDNEY_UP));
   CL.AddConstantN('_BCB110_ALEXANDRIA_UP', 'Boolean').SetUInt(Ord(_BCB110_ALEXANDRIA_UP));
+  CL.AddConstantN('_BCB120_ATHENS_UP', 'Boolean').SetUInt(Ord(_BCB120_ATHENS_UP));
 
   CL.AddConstantN('_KYLIX1', 'Boolean').SetUInt(Ord(_KYLIX1));
   CL.AddConstantN('_KYLIX2', 'Boolean').SetUInt(Ord(_KYLIX2));
@@ -207,6 +211,7 @@ begin
   CL.AddConstantN('_BDS20', 'Boolean').SetUInt(Ord(_BDS20));
   CL.AddConstantN('_BDS21', 'Boolean').SetUInt(Ord(_BDS21));
   CL.AddConstantN('_BDS22', 'Boolean').SetUInt(Ord(_BDS22));
+  CL.AddConstantN('_BDS23', 'Boolean').SetUInt(Ord(_BDS23));
 
   CL.AddConstantN('_BDS2_UP', 'Boolean').SetUInt(Ord(_BDS2_UP));
   CL.AddConstantN('_BDS3_UP', 'Boolean').SetUInt(Ord(_BDS3_UP));
@@ -228,6 +233,7 @@ begin
   CL.AddConstantN('_BDS20_UP', 'Boolean').SetUInt(Ord(_BDS20_UP));
   CL.AddConstantN('_BDS21_UP', 'Boolean').SetUInt(Ord(_BDS21_UP));
   CL.AddConstantN('_BDS22_UP', 'Boolean').SetUInt(Ord(_BDS22_UP));
+  CL.AddConstantN('_BDS23_UP', 'Boolean').SetUInt(Ord(_BDS23_UP));
 
   CL.AddConstantN('_COMPILER1', 'Boolean').SetUInt(Ord(_COMPILER1));
   CL.AddConstantN('_COMPILER2', 'Boolean').SetUInt(Ord(_COMPILER2));
@@ -257,6 +263,7 @@ begin
   CL.AddConstantN('_COMPILER26', 'Boolean').SetUInt(Ord(_COMPILER26));
   CL.AddConstantN('_COMPILER27', 'Boolean').SetUInt(Ord(_COMPILER27));
   CL.AddConstantN('_COMPILER28', 'Boolean').SetUInt(Ord(_COMPILER28));
+  CL.AddConstantN('_COMPILER29', 'Boolean').SetUInt(Ord(_COMPILER29));
 
   CL.AddConstantN('_COMPILER1_UP', 'Boolean').SetUInt(Ord(_COMPILER1_UP));
   CL.AddConstantN('_COMPILER2_UP', 'Boolean').SetUInt(Ord(_COMPILER2_UP));
@@ -286,6 +293,7 @@ begin
   CL.AddConstantN('_COMPILER26_UP', 'Boolean').SetUInt(Ord(_COMPILER26_UP));
   CL.AddConstantN('_COMPILER27_UP', 'Boolean').SetUInt(Ord(_COMPILER27_UP));
   CL.AddConstantN('_COMPILER28_UP', 'Boolean').SetUInt(Ord(_COMPILER28_UP));
+  CL.AddConstantN('_COMPILER29_UP', 'Boolean').SetUInt(Ord(_COMPILER29_UP));
 
   CL.AddConstantN('_SUPPORT_OTA_PROJECT_CONFIGURATION', 'Boolean').SetUInt(Ord(_SUPPORT_OTA_PROJECT_CONFIGURATION));
   CL.AddConstantN('_SUPPORT_CROSS_PLATFORM', 'Boolean').SetUInt(Ord(_SUPPORT_CROSS_PLATFORM));
@@ -511,7 +519,7 @@ begin
   CL.AddDelphiFunction('Function CnOtaSetCurSourceCol( Col : Integer) : Boolean');
   CL.AddDelphiFunction('Function CnOtaSetCurSourceRow( Row : Integer) : Boolean');
   CL.AddDelphiFunction('Function CnOtaMovePosInCurSource( Pos : TInsertPos; OffsetRow, OffsetCol : Integer) : Boolean');
-  CL.AddDelphiFunction('Function CnOtaGetCurrLinePos( SourceEditor : IOTASourceEditor) : Integer');
+  CL.AddDelphiFunction('Function CnOtaGetCurrLinearPos( SourceEditor : IOTASourceEditor) : Integer');
   CL.AddDelphiFunction('Function CnOtaGetLinePosFromEditPos( EditPos : TOTAEditPos; SourceEditor : IOTASourceEditor) : Integer');
   CL.AddDelphiFunction('Function CnOtaGetCurrCharPos( SourceEditor : IOTASourceEditor) : TOTACharPos');
   CL.AddDelphiFunction('Function CnOtaEditPosToLinePos( EditPos : TOTAEditPos; EditView : IOTAEditView) : Integer');
@@ -784,7 +792,7 @@ begin
   S.RegisterDelphiFunction(@CnOtaSetCurSourceCol, 'CnOtaSetCurSourceCol', cdRegister);
   S.RegisterDelphiFunction(@CnOtaSetCurSourceRow, 'CnOtaSetCurSourceRow', cdRegister);
   S.RegisterDelphiFunction(@CnOtaMovePosInCurSource, 'CnOtaMovePosInCurSource', cdRegister);
-  S.RegisterDelphiFunction(@CnOtaGetCurrLinePos, 'CnOtaGetCurrLinePos', cdRegister);
+  S.RegisterDelphiFunction(@CnOtaGetCurrLinearPos, 'CnOtaGetCurrLinearPos', cdRegister);
   S.RegisterDelphiFunction(@CnOtaGetLinePosFromEditPos, 'CnOtaGetLinePosFromEditPos', cdRegister);
   S.RegisterDelphiFunction(@CnOtaGetCurrCharPos, 'CnOtaGetCurrCharPos', cdRegister);
   S.RegisterDelphiFunction(@CnOtaEditPosToLinePos, 'CnOtaEditPosToLinePos', cdRegister);

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnPasCodeDoc;
 ================================================================================
 * 软件名称：CnPack 公共单元
 * 单元名称：从 CnPack 的代码中抽取注释形成文档的工具单元
-* 单元作者：刘啸 (liuxiao@cnpack.org)
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：
 * 开发平台：PWin7 + Delphi 5
 * 兼容测试：
@@ -63,6 +63,9 @@ type
     function GetItem(Index: Integer): TCnDocBaseItem;
     procedure SetItem(Index: Integer; const Value: TCnDocBaseItem);
     function GetCount: Integer;
+  protected
+    procedure Sort; virtual;
+    {* 内部排序}
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -79,13 +82,16 @@ type
     procedure DumpToStrings(Strs: TStrings; Indent: Integer = 0);
     {* 将内容保存到字符串列表中}
 
+    function GetScopeStr: string;
+    {* 返回 FScope 对应的字符串}
+
     property DocType: TCnDocType read FDocType;
     {* 文档元素类型}
 
     property DeclareName: string read FDeclareName write FDeclareName;
     {* 待解释的对象名称，不同的子类有不同的规定}
     property DeclareType: string read FDeclareType write FDeclareType;
-    {* 待解释的对象类型，不同的子类也有不同的用途}
+    {* 待解释的对象类型，不同的子类也有不同的用途，常用于存储完整声明}
     property Comment: string read FComment write FComment;
     {* 该元素的注释文档}
     property Scope: TCnDocScope read FScope write FScope;
@@ -101,8 +107,18 @@ type
 
   TCnDocUnit = class(TCnDocBaseItem)
   {* 描述一代码帮助文档中的单元的对象}
+  private
+    FUnitBrief: string;
+  protected
+    procedure Sort; override;
+    {* 按常量、类型声明、函数过程、变量排序}
   public
     constructor Create; override;
+
+    procedure ParseBrief;
+    {* 从注释中解析出单元简介，以及用备注字段内容替换 Comment 属性内容}
+    property UnitBrief: string read FUnitBrief write FUnitBrief;
+    {* 单元简介，也就是注释头部的单元名称字段内容}
   end;
 
   TCnConstDocItem = class(TCnDocBaseItem)
@@ -157,12 +173,9 @@ const
   SCOPE_STRS: array[TCnDocScope] of string =
     ('', 'private', 'protected', 'public', 'published');
 
-procedure SortDocUnit(RootItem: TCnDocUnit); forward;
-{* 文档内部排序}
-
 // 从 ParentLeaf 的第 0 个子节点开始越过注释找符合的节点，返回符合的节点，不符合则抛出异常且返回 nil
 function DocSkipCommentToChild(ParentLeaf: TCnPasAstLeaf;
-  MatchedNodeTypes: TCnPasNodeTypes): TCnPasAstLeaf;
+  MatchedNodeTypes: TCnPasNodeTypes; NeedRaise: Boolean = True): TCnPasAstLeaf;
 var
   I: Integer;
 begin
@@ -176,7 +189,8 @@ begin
     end;
 
     if not (ParentLeaf[I].NodeType in COMMENT_SKIP_NODE_TYPE) then
-      raise ECnPasCodeDocException.Create('Skip Comment To Node Error.');
+      if NeedRaise then
+        raise ECnPasCodeDocException.Create('Skip Comment To Node Error.');
   end;
 end;
 
@@ -261,7 +275,11 @@ begin
   begin
     Leaf := DocSkipToChild(ParentLeaf, K, [cntConstDecl], [tkNone]);
     if Leaf = nil then
-      raise ECnPasCodeDocException.Create('NO Const Decl Exists.');
+    begin
+      Inc(K);
+      Continue;
+    end;
+    //  raise ECnPasCodeDocException.Create('NO Const Decl Exists.');
 
     Item := TCnConstDocItem.Create;
     if Leaf.Count > 0 then
@@ -293,7 +311,11 @@ begin
   begin
     Leaf := DocSkipToChild(ParentLeaf, K, [cntVarDecl], [tkNone]);
     if Leaf = nil then
-      raise ECnPasCodeDocException.Create('NO Var Decl Exists.');
+    begin
+      Inc(K);
+      Continue;
+    end;
+    // raise ECnPasCodeDocException.Create('NO Var Decl Exists.');
 
     Item := TCnVarDocItem.Create;
     if Leaf.Count > 0 then
@@ -603,7 +625,7 @@ end;
 procedure DocFindTypes(ParentLeaf: TCnPasAstLeaf; OwnerItem: TCnDocBaseItem);
 var
   K, M: Integer;
-  Leaf, DeclLeaf, CIRRoot: TCnPasAstLeaf;
+  Leaf, DeclLeaf, CIRRoot, Tmp: TCnPasAstLeaf;
   Item: TCnTypeDocItem;
   IsIntf, IsClass, IsRecord: Boolean;
 begin
@@ -611,8 +633,12 @@ begin
   while K < ParentLeaf.Count do
   begin
     Leaf := DocSkipToChild(ParentLeaf, K, [cntTypeDecl], [tkNone]);
-    if Leaf = nil then
-      raise ECnPasCodeDocException.Create('NO Type Decl Exists.');
+    if Leaf = nil then // 没找到可能说明到尾巴了可能碰上注释了？
+    begin
+      Inc(K);
+      Continue;
+    end;
+    // raise ECnPasCodeDocException.Create('NO Type Decl Exists.');
 
     DeclLeaf := Leaf;
     Item := TCnTypeDocItem.Create;
@@ -637,7 +663,15 @@ begin
         begin
           IsClass := True;
           if CIRRoot.Count > 0 then
-            CIRRoot := DocSkipCommentToChild(CIRRoot, [cntClassBody]);
+          begin
+            Tmp := DocSkipCommentToChild(CIRRoot, [cntClassBody], False);
+            if Tmp <> nil then
+              CIRRoot := Tmp
+            else
+            begin
+              // 返回 nil 表示是 class of xxxx 这种，似乎也不用做啥
+            end;
+          end;
         end;
 
         if IsIntf or IsClass then
@@ -784,7 +818,8 @@ begin
       Inc(I);
     end;
 
-    SortDocUnit(Result);
+    Result.Sort;
+    Result.ParseBrief;
   finally
     SL.Free;
     AST.Free;
@@ -815,7 +850,7 @@ procedure SortDocUnit(RootItem: TCnDocUnit);
 var
   I: Integer;
 begin
-  // Unit 的下一级，0 到 Count - 1 个，按 const、type、procedure、var 的顺序排序
+  // Unit 的下一级，0 到 Count - 1 个，按 const、type、procedure、var 的顺序排序合并
   DocTypeBubbleSort(RootItem); // 用冒泡而不用快排是因为需要保持原位稳定
 
   // 每个类或接口，下面的按 Scope 排序
@@ -901,10 +936,20 @@ begin
   Result := TCnDocBaseItem(FItems[Index]);
 end;
 
+function TCnDocBaseItem.GetScopeStr: string;
+begin
+  Result := SCOPE_STRS[FScope];
+end;
+
 procedure TCnDocBaseItem.SetItem(Index: Integer;
   const Value: TCnDocBaseItem);
 begin
   FItems[Index] := Value;
+end;
+
+procedure TCnDocBaseItem.Sort;
+begin
+  // 基类啥都不做
 end;
 
 { TCnDocUnit }
@@ -913,6 +958,57 @@ constructor TCnDocUnit.Create;
 begin
   inherited;
   FDocType := dtUnit;
+end;
+
+procedure TCnDocUnit.ParseBrief;
+const
+  UNIT_NAME = '* 单元名称：';
+  MEMO_START = '* 备    注：';
+  MEMO_BODY = '*   ';
+var
+  I: Integer;
+  SL, MO: TStringList;
+  MF: Boolean;
+begin
+  // Comment 属性里找合适的内容
+  SL := TStringList.Create;
+  MO := TStringList.Create;
+
+  try
+    SL.Text := FComment;
+    MF := False;
+
+    for I := 0 to SL.Count - 1 do
+    begin
+      if Pos(UNIT_NAME, SL[I]) = 1 then
+        FDeclareType := Copy(SL[I], Length(UNIT_NAME) + 1, MaxInt)
+      else if Pos(MEMO_START, SL[I]) = 1 then
+      begin
+        MO.Add(Copy(SL[I], Length(MEMO_START) + 1, MaxInt));
+        MF := True;
+      end
+      else if MF then
+      begin
+        if Pos(MEMO_BODY, SL[I]) = 1 then
+          MO.Add(Copy(SL[I], Length(MEMO_BODY) + 1, MaxInt))
+        else if Trim(SL[I]) = '*' then // 注释中的空行，留着做硬回车
+          MO.Add('')
+        else
+          Break;
+      end;
+    end;
+
+    FComment := MO.Text;
+    FComment := StringReplace(FComment, #13#10#13#10, '<br><br>', [rfReplaceAll]);
+  finally
+    MO.Free;
+    SL.Free;
+  end;
+end;
+
+procedure TCnDocUnit.Sort;
+begin
+  SortDocUnit(Self);
 end;
 
 { TCnConstDocItem }

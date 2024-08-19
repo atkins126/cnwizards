@@ -72,7 +72,7 @@
 			<DCC_UnitSearchPath>..\..\cnvcl\Source\Common;..\..\cnvcl\Source\Crypto;..\..\cnvcl\Source\NonVisual;..\..\cnvcl\Source\MultiLang;..\..\cnvcl\Source\Graphics;..\..\cnvcl\Source\NetComm;..\..\cnvcl\Source\ObjRep;ThirdParty;ThirdParty\DCU32;ThirdParty\DDetours;ThirdParty\PascalScript_2009;ThirdParty\FastCode;Utils;CodeFormatter;ScriptWizard;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
 			<DCC_DcuOutput>..\Dcu</DCC_DcuOutput>
 			<DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
-			<DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
+			<DCC_Define>RELEASE;ENABLE_UIINTERACT;$(DCC_Define)</DCC_Define>
 			<DCC_DependencyCheckOutputName>..\Bin\CnWizards_DXE2.dll</DCC_DependencyCheckOutputName>
 			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
 			<DCC_DebugInformation>false</DCC_DebugInformation>
@@ -83,12 +83,12 @@
 			<DCC_UnitSearchPath>..\..\cnvcl\Source\Common;..\..\cnvcl\Source\Crypto;..\..\cnvcl\Source\NonVisual;..\..\cnvcl\Source\MultiLang;..\..\cnvcl\Source\Graphics;..\..\cnvcl\Source\NetComm;..\..\cnvcl\Source\ObjRep;ThirdParty;ThirdParty\DCU32;ThirdParty\DDetours;ThirdParty\PascalScript_2009;ThirdParty\FastCode;Utils;CodeFormatter;ScriptWizard;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
 			<DCC_DcuOutput>..\Dcu</DCC_DcuOutput>
 			<DCC_Optimize>false</DCC_Optimize>
-			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
+			<DCC_Define>DEBUG;ENABLE_UIINTERACT;$(DCC_Define)</DCC_Define>
 			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
 			<DCC_DependencyCheckOutputName>..\Bin\CnWizards_DXE2.dll</DCC_DependencyCheckOutputName>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-			<DCC_Define>USE_JCL;$(DCC_Define)</DCC_Define>
+			<DCC_Define>CAPTURE_STACK;ENABLE_UIINTERACT;$(DCC_Define)</DCC_Define>
 			<DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
 		</PropertyGroup>
 		<ItemGroup>
@@ -130,6 +130,10 @@
 			<DCCReference Include="Misc\CnIDEVersion.pas"/>
 			<DCCReference Include="MultiLang\CnWizMultiLang.pas">
 				<Form>CnTranslateForm</Form>
+			</DCCReference>
+			<DCCReference Include="MultiLang\CnWizMultiLangFrame.pas">
+				<Form>CnTranslateFrame</Form>
+				<DesignClass>TFrame</DesignClass>
 			</DCCReference>
 			<DCCReference Include="MultiLang\CnWizTranslate.pas"/>
 			<DCCReference Include="Utils\CnWizUtils.pas"/>
@@ -418,15 +422,15 @@
 			<DCCReference Include="EditorTabSet\CnWizEdtTabSetFrm.pas">
 				<Form>CnWizEdtTabSetForm</Form>
 			</DCCReference>
-			<DCCReference Include="IdeEnhancements\CnInputHelper.pas"/>
-			<DCCReference Include="IdeEnhancements\CnInputHelperFrm.pas">
+			<DCCReference Include="InputHelper\CnInputHelper.pas"/>
+			<DCCReference Include="InputHelper\CnInputHelperFrm.pas">
 				<Form>CnInputHelperForm</Form>
 			</DCCReference>
-			<DCCReference Include="IdeEnhancements\CnInputHelperEditFrm.pas">
+			<DCCReference Include="InputHelper\CnInputHelperEditFrm.pas">
 				<Form>CnInputHelperEditForm</Form>
 			</DCCReference>
-			<DCCReference Include="IdeEnhancements\CnInputSymbolList.pas"/>
-			<DCCReference Include="IdeEnhancements\CnInputIdeSymbolList.pas"/>
+			<DCCReference Include="InputHelper\CnInputSymbolList.pas"/>
+			<DCCReference Include="InputHelper\CnInputIdeSymbolList.pas"/>
 			<DCCReference Include="Utils\CnWizIdeHooks.pas"/>
 			<DCCReference Include="Utils\CnEditControlWrapper.pas"/>
 			<DCCReference Include="SrcEditorEnhance\CnSrcEditorGutter.pas"/>
@@ -459,15 +463,18 @@
 				<Form>CnIdentRenameForm</Form>
 			</DCCReference>
 			<DCCReference Include="Utils\CnWizFlatButton.pas"/>
-			<DCCReference Include="IdeEnhancements\CnSourceHighlight.pas"/>
-			<DCCReference Include="IdeEnhancements\CnSourceHighlightFrm.pas">
+			<DCCReference Include="SourceHighlight\CnSourceHighlight.pas"/>
+			<DCCReference Include="SourceHighlight\CnSourceHighlightFrm.pas">
 				<Form>CnSourceHighlightForm</Form>
 			</DCCReference>
-			<DCCReference Include="IdeEnhancements\CnHighlightLineFrm.pas">
+			<DCCReference Include="SourceHighlight\CnHighlightLineFrm.pas">
 				<Form>CnHighlightLineForm</Form>
 			</DCCReference>
-			<DCCReference Include="IdeEnhancements\CnHighlightSeparateLineFrm.pas">
+			<DCCReference Include="SourceHighlight\CnHighlightSeparateLineFrm.pas">
 				<Form>CnHighlightSeparateLineForm</Form>
+			</DCCReference>
+			<DCCReference Include="SourceHighlight\CnHighlightCustomIdentFrm.pas">
+				<Form>CnHighlightCustomIdentForm</Form>
 			</DCCReference>
 			<DCCReference Include="SimpleWizards\CnProcListWizard.pas">
 				<Form>CnProcListForm</Form>
@@ -475,6 +482,29 @@
 			<DCCReference Include="IdeEnhancements\CnVerEnhancements.pas"/>
 			<DCCReference Include="IdeEnhancements\CnVerEnhanceFrm.pas">
 				<Form>CnVerEnhanceForm</Form>
+			</DCCReference>
+			<DCCReference Include="DebugEnhance\CnDebugEnhancements.pas">
+				<Form>CnDebugEnhanceForm</Form>
+			</DCCReference>
+			<DCCReference Include="DebugEnhance\CnDataSetVisualizer.pas">
+				<Form>CnDataSetViewerFrame</Form>
+				<DesignClass>TFrame</DesignClass>
+			</DCCReference>
+			<DCCReference Include="DebugEnhance\CnStringsVisualizer.pas">
+				<Form>CnStringsViewerFrame</Form>
+				<DesignClass>TFrame</DesignClass>
+			</DCCReference>
+			<DCCReference Include="DebugEnhance\CnBytesVisualizer.pas">
+				<Form>CnBytesViewerFrame</Form>
+				<DesignClass>TFrame</DesignClass>
+			</DCCReference>
+			<DCCReference Include="DebugEnhance\CnWideVisualizer.pas">
+				<Form>CnWideViewerFrame</Form>
+				<DesignClass>TFrame</DesignClass>
+			</DCCReference>
+			<DCCReference Include="DebugEnhance\CnMemoryStreamVisualizer.pas">
+				<Form>CnMemoryStreamViewerFrame</Form>
+				<DesignClass>TFrame</DesignClass>
 			</DCCReference>
 			<DCCReference Include="ProjectExtWizard\CnProjectDirBuilderFrm.pas">
 				<Form>CnProjectDirBuilderForm</Form>
@@ -516,6 +546,20 @@
 			<DCCReference Include="CodeFormatter\CnFormatterIntf.pas"/>
 			<DCCReference Include="CodeFormatter\CnCodeFormatterWizard.pas">
 				<Form>CnCodeFormatterForm</Form>
+			</DCCReference>
+			<DCCReference Include="AICoder\CnAICoderWizard.pas">
+				<Form>CnAICoderConfigForm</Form>
+			</DCCReference>
+			<DCCReference Include="AICoder\CnAICoderConfig.pas"/>
+			<DCCReference Include="AICoder\CnAICoderNetClient.pas"/>
+			<DCCReference Include="AICoder\CnAICoderEngine.pas"/>
+			<DCCReference Include="AICoder\CnAICoderEngineImpl.pas"/>
+			<DCCReference Include="AICoder\CnAICoderChatFrm.pas">
+				<Form>CnAICoderChatForm</Form>
+			</DCCReference>
+			<DCCReference Include="AICoder\CnFrmAICoderOption.pas">
+				<Form>CnAICoderOptionFrame</Form>
+				<DesignClass>TFrame</DesignClass>
 			</DCCReference>
 			<BuildConfiguration Include="Debug">
 				<Key>Cfg_2</Key>

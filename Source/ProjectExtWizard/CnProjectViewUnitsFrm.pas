@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -302,15 +302,19 @@ var
   procedure OpenItem(const FilePath: string);
   begin
     // CnOtaMakeSourceVisible(FilePath);  // 这样打开可能会导致无 ctView 通知
-    // CnOtaOpenFile(FilePath); // 但这样打开Project文件时会导致重新打开所有文件
+    // CnOtaOpenFile(FilePath); // 但这样打开 Project 文件时会导致重新打开所有文件
                                 // 并且 BCB 5/6 下会只打开窗体而不打开 CPP 文件
 
-    // 所以必须加上这样的判断，也牺牲了打开Project Source与BCB 5/6 CPP打开时的通知
+    // 所以必须加上这样的判断，也牺牲了打开 Project Source 与 BCB 5/6 CPP 打开时的通知
     if IsDpr(FilePath) or IsPackage(FilePath) or IsBdsProject(FilePath) or
       IsDProject(FilePath) or IsBpr(FilePath) or IsCbProject(FilePath) or IsBpg(FilePath)
       {$IFNDEF BDS} or IsCppSourceModule(FilePath) {$ENDIF} then
     begin
-      CnOtaMakeSourceVisible(FilePath);
+      // 如果是 dproj 或 bdsproj，换成 dpr 打开
+      if IsDProject(FilePath) or IsBdsProject(FilePath) then
+        CnOtaMakeSourceVisible(_CnChangeFileExt(FilePath, '.dpr'))
+      else
+        CnOtaMakeSourceVisible(FilePath);
     end
     else
     begin
@@ -404,6 +408,7 @@ begin
         ProjectInfo := TCnProjectInfo.Create;
         ProjectInfo.Name := _CnExtractFileName(IProject.FileName);
         ProjectInfo.FileName := IProject.FileName;
+        // 注意高版本的工程文件这里得到的是 dproj，而没有 dpr
 
         // 将 Project 信息添加到 UnitInfo
         UnitInfo := TCnUnitInfo.Create;
@@ -411,7 +416,7 @@ begin
         begin
           Text := _CnChangeFileExt(_CnExtractFileName(IProject.FileName), '');
           FileName := IProject.FileName;
-          Project := _CnExtractFileName(IProject.FileName);;
+          Project := _CnExtractFileName(IProject.FileName);
           
         {$IFDEF SUPPORT_MODULETYPE}
           // TODO: Check ModuleInfo.ModuleType
@@ -438,7 +443,7 @@ begin
           IModuleInfo := IProject.GetModule(J);
           UnitFileName := IModuleInfo.FileName;
 
-          if UnitFileName = '' then
+          if UnitFileName = '' then // 注意可能有空文件，不知道来源
             Continue;
 
           if SameText(UpperCase(_CnExtractFileExt(UnitFileName)), '.RES') then

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -575,8 +575,32 @@ procedure EndWait;
 function CheckWindows9598: Boolean;
 {* 检测是否Win95/98平台}
 
+function CheckWindowsNT: Boolean;
+{* 检测是否 WinNT 平台}
+
 function CheckWinXP: Boolean;
 {* 检测是否WinXP以上平台}
+
+function CheckWinVista: Boolean;
+{* 检查是否 Vista/Windows 7 或以上系统}
+
+function CheckWin8: Boolean;
+{* 检查是否 Windows 8 或以上系统}
+
+function CheckWin10: Boolean;
+{* 检查是否 Windows 10 或以上系统}
+
+function CheckWin64: Boolean;
+{* 检查是否是 64 位 Windows}
+
+function CheckWow64: Boolean;
+{* 检查当前进程是否是 32 位进程跑在 64 位子系统里}
+
+function CheckProcess64(ProcessHandle: THandle): Boolean;
+{* 检查指定进程是否 64 位，参数为进程句柄（并非进程号）。如传 0 ，则判断当前进程}
+
+function CheckProcessWow64(ProcessHandle: THandle): Boolean;
+{* 检查指定进程是否是 32 位进程跑在 64 位子系统里。参数为进程句柄（并非进程号）}
 
 function GetOSString: string;
 {* 返回操作系统标识串}
@@ -663,6 +687,9 @@ function InheritsFromClassName(AObject: TObject; const AClass: string): Boolean;
 
 procedure KillProcessByFileName(const FileName: String);
 {* 根据文件名结束进程，不区分路径}
+
+function KillProcessByFullFileName(const FullFileName: string): Boolean;
+{* 根据完整文件名结束进程，区分路径}
 
 function IndexStr(AText: string; AValues: array of string; IgCase: Boolean = True): Integer;
 {* 查找字符串在动态数组中的索引，用于string类型使用Case语句}
@@ -1336,7 +1363,39 @@ function CheckWindows9598: Boolean;
 begin
 end;
 
+function CheckWindowsNT: Boolean;
+begin
+end;
+
 function CheckWinXP: Boolean;
+begin
+end;
+
+function CheckWinVista: Boolean;
+begin
+end;
+
+function CheckWin8: Boolean;
+begin
+end;
+
+function CheckWin10: Boolean;
+begin
+end;
+
+function CheckWin64: Boolean;
+begin
+end;
+
+function CheckWow64: Boolean;
+begin
+end;
+
+function CheckProcess64(ProcessHandle: THandle): Boolean;
+begin
+end;
+
+function CheckProcessWow64(ProcessHandle: THandle): Boolean;
 begin
 end;
 
@@ -1444,7 +1503,11 @@ function InheritsFromClassName(AObject: TObject; const AClass: string): Boolean;
 begin
 end;
 
-procedure KillProcessByFileName(const FileName: String);
+procedure KillProcessByFileName(const FileName: string);
+begin
+end;
+
+function KillProcessByFullFileName(const FullFileName: string): Boolean;
 begin
 end;
 

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -254,77 +254,21 @@ procedure TCnProjectExtWizard.ExploreExe;
 var
   Project: IOTAProject;
   Dir, ProjectFileName, OutName: string;
-{$IFNDEF DELPHIXE_UP}
-  OutExt, IntermediaDir: string;
-  Val: Variant;
-{$ENDIF}
 begin
   Project := CnOtaGetCurrentProject;
   if not Assigned(Project) then
     Exit;
 
-  ProjectFileName := Project.GetFileName;
-  if ProjectFileName <> '' then
+  OutName := CnOtaGetProjectOutputTarget(Project);
+  if (OutName <> '') and FileExists(OutName) then
+    ExploreFile(OutName)
+  else
   begin
-    Dir := CnOtaGetProjectOutputDirectory(Project);
-    if Dir <> '' then
+    ProjectFileName := Project.GetFileName;
+    if ProjectFileName <> '' then
     begin
-{$IFDEF DELPHIXE_UP}
-      if CnOtaGetActiveProjectOptions <> nil then
-        OutName := CnOtaGetActiveProjectOptions.TargetName;
-{$ELSE}
-      { TODO : 自定义的输出扩展名暂不支持 }
-      try
-        if CnOtaGetActiveProjectOption('GenPackage', Val) and Val then
-          OutExt := '.bpl';
-      except
-        ;
-      end;
-
-      try
-        if (OutExt = '') and CnOtaGetActiveProjectOption('GenStaticLibrary', Val) and Val then
-          OutExt := '.lib';
-      except
-        ;
-      end;
-
-      try
-        if (OutExt = '') and CnOtaGetActiveProjectOption('GenDll', Val) and Val then
-          OutExt := '.dll';
-      except
-        ;
-      end;
-
-      if OutExt = '' then
-        OutExt := '.exe';
-
-{$IFDEF IDE_CONF_MANAGER}
-      if not IsDelphiRuntime then
-      begin
-{$IFDEF BDS2009_UP}
-        if CnOtaGetActiveProjectOptionsConfigurations <> nil then
-        begin
-          if CnOtaGetActiveProjectOptionsConfigurations.GetActiveConfiguration <> nil then
-          begin
-            IntermediaDir := MakePath(CnOtaGetActiveProjectOptionsConfigurations.GetActiveConfiguration.GetName);
-          end;
-        end;
-{$ELSE}
-        // TODO: BCB2007 下无 OTA 接口得到 Configuration，得想别的法子
-        try
-          if CnOtaGetActiveProjectOption('UnitOutputDir', Val) then
-            IntermediaDir := MakePath(VarToStr(Val));
-        except
-          ;
-        end;
-{$ENDIF}
-      end;
-{$ENDIF}
-      OutName := MakePath(Dir) + IntermediaDir + _CnChangeFileExt(_CnExtractFileName(ProjectFileName), OutExt);
-{$ENDIF}
-      if FileExists(OutName) then
-        ExploreFile(OutName)
-      else if DirectoryExists(Dir) then
+      Dir := CnOtaGetProjectOutputDirectory(Project);
+      if (Dir <> '') and DirectoryExists(Dir) then
         ExploreDir(Dir);
     end;
   end;

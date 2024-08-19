@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -71,7 +71,7 @@ uses
   Vcl.BaseImageCollection, Vcl.ImageCollection, {$ENDIF}
   {$IFDEF IDE_SUPPORT_THEMING} CnIDEMirrorIntf, {$ENDIF}
   RegExpr, mPasLex, mwBCBTokenList,
-  Clipbrd, TypInfo, ComCtrls, StdCtrls, Imm, Contnrs,
+  Clipbrd, TypInfo, ComCtrls, StdCtrls, Imm, Contnrs, CnIDEStrings,
   CnPasWideLex, CnBCBWideTokenList, CnStrings, CnWizCompilerConst, CnWizConsts,
   CnCommon, CnConsts, CnWideStrings, CnWizClasses, CnWizIni, CnSearchCombo,
   CnPasCodeParser, CnCppCodeParser, CnWidePasParser, CnWideCppParser;
@@ -90,24 +90,6 @@ type
   IDesigner = IFormDesigner;
 {$ENDIF}
 
-{$IFDEF IDE_STRING_ANSI_UTF8}
-  TCnIdeTokenString = WideString; // WideString for Utf8 Conversion
-  PCnIdeTokenChar = PWideChar;
-  TCnIdeTokenChar = WideChar;
-  TCnIdeStringList = TCnWideStringList;
-  TCnIdeTokenInt = Word;
-{$ELSE}
-  TCnIdeTokenString = string;     // Ansi/Utf16
-  PCnIdeTokenChar = PChar;
-  TCnIdeTokenChar = Char;
-  TCnIdeStringList = TStringList;
-  {$IFDEF UNICODE}
-  TCnIdeTokenInt = Word;
-  {$ELSE}
-  TCnIdeTokenInt = Byte;
-  {$ENDIF}
-{$ENDIF}
-  PCnIdeTokenInt = ^TCnIdeTokenInt;
 
   // Ansi/Utf16/Utf16，配合 CnGeneralSaveEditorToStream 系列使用，对应 Ansi/Utf16/Utf16
 {$IFDEF SUPPORT_WIDECHAR_IDENTIFIER}  // 2005 以上
@@ -116,18 +98,22 @@ type
   TCnGeneralPasStructParser = TCnWidePasStructParser;
   TCnGeneralCppStructParser = TCnWideCppStructParser;
   TCnGeneralWidePasLex = TCnPasWideLex;
+  TCnGeneralWideBCBTokenList = TCnBCBWideTokenList;
 {$ELSE}                               // 5 6 7
   TCnGeneralPasToken = TCnPasToken;
   TCnGeneralCppToken = TCnCppToken;
   TCnGeneralPasStructParser = TCnPasStructureParser;
   TCnGeneralCppStructParser = TCnCppStructureParser;
   TCnGeneralWidePasLex = TmwPasLex;
+  TCnGeneralWideBCBTokenList = TBCBTokenList;
 {$ENDIF}
 
 {$IFDEF UNICODE}
   TCnGeneralPasLex = TCnPasWideLex; // TCnGeneralPasLex 在 2005~2007 下仍用 TmwPasLex
+  TCnGeneralBCBTokenList = TCnBCBWideTokenList; // TCnGeneralBCBTokenList 也类似
 {$ELSE}
   TCnGeneralPasLex = TmwPasLex;     // 配合 EditFilerSaveFileToStream 系列使用，Ansi/Ansi/Utf16
+  TCnGeneralBCBTokenList = TBCBTokenList;
 {$ENDIF}
 
   TCnBookmarkObject = class
@@ -329,7 +315,7 @@ procedure ListViewSelectItems(AListView: TListView; Mode: TCnSelectMode);
 {* 修改 ListView 当前选择项}
 
 function GetListViewWidthString2(AListView: TListView; DivFactor: Single = 1.0): string;
-{* 转换 ListView 子项宽度为字符串，允许设缩小倍数，内部会处理 D11.3 带来的宽度误乘以 HDPI 放大倍数的 Bug}
+{* 转换 ListView 子项宽度为字符串，允许设缩小倍数，内部会处理 D11.3 及以上版本带来的宽度误乘以 HDPI 放大倍数的 Bug}
 
 
 //==============================================================================
@@ -355,17 +341,17 @@ resourcestring
   SCnDefSourceMask = '.PAS;.DPR;CPP;.C;.HPP;.H;.CXX;.CC;.HXX;.HH;.ASM';
 
 function CurrentIsDelphiSource: Boolean;
-{* 当前编辑的文件是Delphi源文件}
+{* 当前编辑的文件是 Delphi 源文件}
 function CurrentIsCSource: Boolean;
-{* 当前编辑的文件是C源文件}
+{* 当前编辑的文件是 C/C++ 源文件}
 function CurrentIsSource: Boolean;
-{* 当前编辑的文件是Delphi或C源文件}
+{* 当前编辑的文件是 Delphi 或 C/C++ 源文件}
 function CurrentSourceIsDelphi: Boolean;
-{* 当前编辑的源文件（非窗体）是Delphi源文件}
+{* 当前编辑的源文件（非窗体）是 Delphi 源文件}
 function CurrentSourceIsC: Boolean;
-{* 当前编辑的源文件（非窗体）是C源文件}
+{* 当前编辑的源文件（非窗体）是 C/C++ 源文件}
 function CurrentSourceIsDelphiOrCSource: Boolean;
-{* 当前编辑的源文件（非窗体）是Delphi或C源文件}
+{* 当前编辑的源文件（非窗体）是 Delphi 或 C/C++ 源文件}
 function CurrentIsForm: Boolean;
 {* 当前编辑的文件是窗体文件}
 function IsVCLFormEditor(FormEditor: IOTAFormEditor = nil): Boolean;
@@ -373,65 +359,65 @@ function IsVCLFormEditor(FormEditor: IOTAFormEditor = nil): Boolean;
 function ExtractUpperFileExt(const FileName: string): string;
 {* 取大写文件扩展名}
 procedure AssertIsDprOrPas(const FileName: string);
-{* 假定是.Dpr或.Pas文件}
+{* 假定是 .dpr或.pas文件}
 procedure AssertIsDprOrPasOrInc(const FileName: string);
-{* 假定是.Dpr、.Pas或.Inc文件}
+{* 假定是 .dpr、.pas 或 .inc文件}
 procedure AssertIsPasOrInc(const FileName: string);
-{* 假定是.Pas或.Inc文件}
+{* 假定是 .pas 或 .inc文件}
 function IsSourceModule(const FileName: string): Boolean;
-{* 判断是否Delphi或C++源文件}
+{* 判断是否 Delphi 或 C/C++ 源文件}
 function IsDelphiSourceModule(const FileName: string): Boolean;
-{* 判断是否Delphi源文件}
+{* 判断是否 Delphi 源文件}
 function IsDprOrPas(const FileName: string): Boolean;
-{* 判断是否.Dpr或.Pas文件}
+{* 判断是否 .dpr或.pas 文件}
 function IsDpr(const FileName: string): Boolean;
-{* 判断是否.Dpr文件}
+{* 判断是否 .dpr 文件}
 function IsBpr(const FileName: string): Boolean;
-{* 判断是否.Bpr文件}
+{* 判断是否 .bpr 文件}
 function IsProject(const FileName: string): Boolean;
-{* 判断是否.Bpr或.Dpr文件}
+{* 判断是否 .bpr或 .dpr文件}
 function IsBdsProject(const FileName: string): Boolean;
-{* 判断是否.bdsproj文件}
+{* 判断是否 .bdsproj 文件}
 function IsDProject(const FileName: string): Boolean;
-{* 判断是否.dproj文件}
+{* 判断是否 .dproj 文件}
 function IsCbProject(const FileName: string): Boolean;
-{* 判断是否.cbproj文件}
+{* 判断是否 .cbproj 文件}
 function IsDpk(const FileName: string): Boolean;
 {* 判断是否.Dpk文件}
 function IsBpk(const FileName: string): Boolean;
-{* 判断是否.Bpk文件}
+{* 判断是否 .bpk 文件}
 function IsPackage(const FileName: string): Boolean;
-{* 判断是否.Dpk或.Bpk文件}
+{* 判断是否 .dpk或.bpk 文件}
 function IsBpg(const FileName: string): Boolean;
-{* 判断是否.Bpg文件}
+{* 判断是否 .bpg 文件}
 function IsPas(const FileName: string): Boolean;
-{* 判断是否.Pas文件}
+{* 判断是否 .pas 文件}
 function IsDcu(const FileName: string): Boolean;
-{* 判断是否.Dcu文件}
+{* 判断是否 .dcu 文件}
 function IsInc(const FileName: string): Boolean;
-{* 判断是否.Inc文件}
+{* 判断是否 .inc 文件}
 function IsDfm(const FileName: string): Boolean;
-{* 判断是否.Dfm文件}
+{* 判断是否 .dfm 文件}
 function IsForm(const FileName: string): Boolean;
 {* 判断是否窗体文件}
 function IsXfm(const FileName: string): Boolean;
-{* 判断是否.Xfm文件}
+{* 判断是否 .xfm 文件}
 function IsFmx(const FileName: string): Boolean;
-{* 判断是否.fmx文件}
+{* 判断是否 .fmx 文件}
 function IsCppSourceModule(const FileName: string): Boolean;
-{* 判断是否所有类型的C++源文件}
+{* 判断是否所有类型的 C/C++ 源文件，不依赖于 WizOptions 中的设置}
 function IsHpp(const FileName: string): Boolean;
-{* 判断是否.Hpp文件}
+{* 判断是否 .hpp 文件}
 function IsCpp(const FileName: string): Boolean;
-{* 判断是否.Cpp文件}
+{* 判断是否 .cpp 文件}
 function IsC(const FileName: string): Boolean;
-{* 判断是否.C文件}
+{* 判断是否 .c 文件}
 function IsH(const FileName: string): Boolean;
-{* 判断是否.H文件}
+{* 判断是否 .h 文件}
 function IsAsm(const FileName: string): Boolean;
-{* 判断是否.ASM文件}
+{* 判断是否 .asm 文件}
 function IsRC(const FileName: string): Boolean;
-{* 判断是否.RC文件}
+{* 判断是否 .rc 文件}
 function IsKnownSourceFile(const FileName: string): Boolean;
 {* 判断是否未知文件}
 function IsTypeLibrary(const FileName: string): Boolean;
@@ -561,6 +547,8 @@ procedure CnOtaGetPlatformsFromBuildConfiguration(BuildConfig: IOTABuildConfigur
 
 function CnOtaGetProjectOutputDirectory(Project: IOTAProject): string;
 {* 获得项目的二进制文件输出目录}
+function CnOtaGetProjectOutputTarget(Project: IOTAProject): string;
+{* 获得项目的二进制文件输出完整路径}
 procedure CnOtaGetProjectList(const List: TInterfaceList);
 {* 取得所有工程列表}
 function CnOtaGetCurrentProjectName: string;
@@ -629,7 +617,7 @@ procedure CnOtaEditDelete(Many: Integer);
 {$IFNDEF CNWIZARDS_MINIMUM}
 
 function CnOtaGetCurrentProcedure: string;
-{* 获取当前光标所在的过程或函数名}
+{* 获取当前光标所在的过程或函数名，必须是实现区域，不包括声明区域}
 function CnOtaGetCurrentOuterBlock: string;
 {* 获取当前光标所在的类名或声明}
 function CnOtaGetLineText(LineNum: Integer; EditBuffer: IOTAEditBuffer = nil;
@@ -655,7 +643,8 @@ function CnNtaGetCurrLineTextW(var Text: string; var LineNo: Integer;
    不适用于 ConvertPos 转成 EditPos。只能将 CharIndex 转成 Ansi 后 + 1 赋给 EditPos.Col。
    Utf16CharIndex 是当前光标在 Text 中的 Utf16 真实位置，0 开始，+ 1 便可下标
    PreciseMode 为 True 时使用 Canvas.TextWidth 来衡量宽字符的实际宽度，准确但略慢
-   为 False 时直接判断字符是否大于 $FF 来决定其是一字符宽还是二字符宽，碰上部分古怪 Unicode 字符会产生偏差}
+   为 False 时直接判断字符 Unicode 编码是否大于 $1100 来决定其是一字符宽还是二字符宽，
+   碰上部分古怪 Unicode 字符时会产生偏差}
 {$ENDIF}
 
 function CnOtaGetCurrLineInfo(var LineNo, CharIndex, LineLen: Integer): Boolean;
@@ -685,7 +674,7 @@ function CnOtaGetCurrPosTokenW(var Token: string; var CurrIndex: Integer;
 {* 取当前光标下的标识符及光标在标识符中的索引号的 Unicode 版本，允许 Unicode 标识符，
   可用于 2009 或以上。CurrIndex 0 开始，根据 IndexUsingWide 参数返回 Ansi 或 Wide 偏移
   PreciseMode 为 True 时使用 Canvas.TextWidth 来衡量宽字符的实际宽度，准确但略慢
-   为 False 时直接判断字符是否大于 $FF 来决定其是一字符宽还是二字符宽，碰上部分古怪 Unicode 字符会产生偏差}
+   为 False 时直接判断字符是否大于 $1100 来决定其是一字符宽还是二字符宽，碰上部分古怪 Unicode 字符会产生偏差}
 {$ENDIF}
 
 function CnOtaGeneralGetCurrPosToken(var Token: TCnIdeTokenString; var CurrIndex: Integer;
@@ -830,9 +819,13 @@ function CnOtaGetCurrentSourceFileName: string;
 procedure CnOtaPositionInsertText(EditPosition: IOTAEditPosition; const Text: string);
 {* 在 EditPosition 中插入一段文本，支持 D2005 下使用 utf-8 格式}
 
+{$IFNDEF CNWIZARDS_MINIMUM}
+
 function CnOtaGetLinesElideInfo(Infos: TList; EditControl: TControl = nil): Boolean;
 {* 拿一编辑器中的行折叠信息，Infos 这个 List 里顺序放入折叠的开始行和结束行
   无折叠或不支持折叠时返回 False，注意暂时无法区分紧邻的两个折叠块}
+
+{$ENDIF}
 
 type
   TInsertPos = (ipCur, ipFileHead, ipFileEnd, ipLineHead, ipLineEnd);
@@ -881,7 +874,11 @@ function CnOtaMovePosInCurSource(Pos: TInsertPos; OffsetRow, OffsetCol: Integer)
    Offset: Integer        - 偏移量
  |</PRE>}
 
-function CnOtaGetCurrLinePos(SourceEditor: IOTASourceEditor = nil): Integer;
+function CnGeneralGetCurrLinearPos(SourceEditor: IOTASourceEditor = nil): Integer;
+{* 与 CnGeneralSaveEditorToStream 且 FromCurrPos 为 False 时配合使用的、
+  返回当前光标在 Stream 中的字符偏移量，0 开始，与 Stream 格式对应为 Ansi/Utf16/Utf16}
+
+function CnOtaGetCurrLinearPos(SourceEditor: IOTASourceEditor = nil): Integer;
 {* 返回 SourceEditor 当前光标位置的线性地址，均为 0 开始的 Ansi/Utf8/Utf8，
   本来在 Unicode 环境下当前位置之前有宽字符时 CharPosToPos 其值不靠谱，但函数中
   做了处理，将当前行的 Utf8 偏移量单独计算了，凑合着保证了 Unicode 环境下的 Utf8}
@@ -929,7 +926,9 @@ function CnOtaGetCurrentEditorSource(CheckUtf8: Boolean = True): string;
 function CnGeneralSaveEditorToStream(Editor: IOTASourceEditor;
   Stream: TMemoryStream; FromCurrPos: Boolean = False): Boolean;
 {* 封装的一通用方法保存编辑器文本到流中，BDS 以上均使用 WideChar，D567 使用 AnsiChar，均不带 UTF8
-  也就是 Ansi/Utf16/Utf16，末尾均有结束字符 #0}
+  也就是 Ansi/Utf16/Utf16，末尾均有结束字符 #0
+  如果要在 FromCurrPos 为 False 的情况下获取当前光标在 Stream 中的偏移量
+  需用 CnGeneralGetCurrLinearPos 函数，偏移量也符合 Ansi/Utf16/Utf16}
 
 {$IFDEF IDE_STRING_ANSI_UTF8}
 
@@ -1094,6 +1093,10 @@ procedure CnCppParserParseSource(Parser: TCnGeneralCppStructParser;
 {* 封装的解析器解析 Cpp 代码的过程，包括了对当前光标的处理。
    Line 和 Col 为 Cpp 解析器使用的 Ansi/Wide/Wide 偏移，1 开始}
 
+procedure CnCppParserParseString(Parser: TCnGeneralCppStructParser;
+  Stream: TMemoryStream);
+{* 封装的解析器解析 C/C++ 代码中的字符串的过程，不包括对当前光标的处理}
+
 procedure CnConvertPasTokenPositionToCharPos(EditViewPtr: Pointer;
   Token: TCnGeneralPasToken; out CharPos: TOTACharPos);
 {* 封装的把 Pascal Token 解析出来的 Ansi/Wide 位置参数转换成 IDE 所需的 CharPos 的过程
@@ -1240,10 +1243,10 @@ uses
 {$IFDEF SUPPORT_FMX}
   CnFmxUtils,
 {$ENDIF}
-  Math, CnWizOptions, CnWizEditFiler, CnWizScaler, CnGraphUtils
+  Math, CnWizOptions, CnWizEditFiler, CnWizScaler, CnGraphUtils, CnWizIdeUtils, CnWizShortCut
 {$IFNDEF CNWIZARDS_MINIMUM}
-  , CnWizMultiLang, CnLangMgr, CnWizIdeUtils, CnWizDebuggerNotifier, CnEditControlWrapper,
-  CnLangStorage, CnHashLangStorage, CnWizHelp, CnWizShortCut, CnIDEVersion
+  , CnWizMultiLang, CnLangMgr, CnWizDebuggerNotifier, CnEditControlWrapper,
+  CnLangStorage, CnHashLangStorage, CnWizHelp, CnIDEVersion
 {$ENDIF}
   ;
 
@@ -2048,7 +2051,9 @@ var
 begin
   IL := GetIDEImageList;
   if (IL <> nil) and (IL is TVirtualImageList) then
-    Result := (IL as TVirtualImageList).ImageCollection;
+    Result := (IL as TVirtualImageList).ImageCollection
+  else
+    Result := nil;
 end;
 
 {$ENDIF}
@@ -2739,14 +2744,17 @@ end;
 
 function GetListViewWidthString2(AListView: TListView; DivFactor: Single = 1.0): string;
 {$IFDEF IDE_SUPPORT_HDPI}
+{$IFNDEF CNWIZARDS_MINIMUM}
 var
   I: Integer;
   Lines: TStringList;
   HdpiFactor: Single;
 {$ENDIF}
+{$ENDIF}
 begin
 {$IFDEF IDE_SUPPORT_HDPI}
-  if CnIsDelphi11GEDot3 then
+  {$IFNDEF CNWIZARDS_MINIMUM}
+  if CnIsGEDelphi11Dot3 then
   begin
     Lines := TStringList.Create;
 
@@ -2767,6 +2775,9 @@ begin
   end
   else
     Result := GetListViewWidthString(AListView, DivFactor);
+  {$ELSE}
+    Result := GetListViewWidthString(AListView, DivFactor);
+  {$ENDIF}
 {$ELSE}
   Result := GetListViewWidthString(AListView, DivFactor);
 {$ENDIF}
@@ -2850,13 +2861,13 @@ begin
   Result := WizOptions.IsDelphiSource(CnOtaGetCurrentSourceFile);
 end;
 
-// 当前编辑的文件是 C 源文件
+// 当前编辑的文件是 C/C++ 源文件
 function CurrentIsCSource: Boolean;
 begin
   Result := WizOptions.IsCSource(CnOtaGetCurrentSourceFile);
 end;
 
-// 当前编辑的文件是 Delphi 或 C 源文件
+// 当前编辑的文件是 Delphi 或 C/C++ 源文件
 function CurrentIsSource: Boolean;
 begin
 {$IFDEF BDS}
@@ -2873,13 +2884,13 @@ begin
   Result := WizOptions.IsDelphiSource(CnOtaGetCurrentSourceFileName);
 end;
 
-// 当前编辑的源文件（非窗体）是 C 源文件
+// 当前编辑的源文件（非窗体）是 C/C++ 源文件
 function CurrentSourceIsC: Boolean;
 begin
   Result := WizOptions.IsCSource(CnOtaGetCurrentSourceFileName);
 end;
 
-// 当前编辑的源文件（非窗体）是 Delphi 或 C 源文件
+// 当前编辑的源文件（非窗体）是 Delphi 或 C/C++ 源文件
 function CurrentSourceIsDelphiOrCSource: Boolean;
 begin
   Result := CurrentSourceIsDelphi or CurrentSourceIsC;
@@ -4293,6 +4304,82 @@ begin
 {$ENDIF}
 end;
 
+// 获得项目的二进制文件输出完整路径
+function CnOtaGetProjectOutputTarget(Project: IOTAProject): string;
+var
+  Dir, ProjectFileName: string;
+{$IFNDEF DELPHIXE_UP}
+  OutExt, IntermediaDir: string;
+  Val: Variant;
+{$ENDIF}
+begin
+  Result := '';
+  if Project = nil then
+    Exit;
+
+  ProjectFileName := Project.GetFileName;
+  if ProjectFileName = '' then
+    Exit;
+
+  Dir := CnOtaGetProjectOutputDirectory(Project);
+  if Dir = '' then
+    Exit;
+
+{$IFDEF DELPHIXE_UP}
+  if CnOtaGetActiveProjectOptions <> nil then
+    Result := CnOtaGetActiveProjectOptions.TargetName;
+{$ELSE}
+  { TODO : 自定义的输出扩展名暂不支持 }
+  try
+    if CnOtaGetActiveProjectOption('GenPackage', Val) and Val then
+      OutExt := '.bpl';
+  except
+    ;
+  end;
+
+  try
+    if (OutExt = '') and CnOtaGetActiveProjectOption('GenStaticLibrary', Val) and Val then
+      OutExt := '.lib';
+  except
+    ;
+  end;
+
+  try
+    if (OutExt = '') and CnOtaGetActiveProjectOption('GenDll', Val) and Val then
+      OutExt := '.dll';
+  except
+    ;
+  end;
+
+  if OutExt = '' then
+    OutExt := '.exe';
+
+{$IFDEF IDE_CONF_MANAGER}
+  if not IsDelphiRuntime then
+  begin
+{$IFDEF BDS2009_UP}
+    if CnOtaGetActiveProjectOptionsConfigurations <> nil then
+    begin
+      if CnOtaGetActiveProjectOptionsConfigurations.GetActiveConfiguration <> nil then
+      begin
+        IntermediaDir := MakePath(CnOtaGetActiveProjectOptionsConfigurations.GetActiveConfiguration.GetName);
+      end;
+    end;
+{$ELSE}
+    // TODO: BCB2007 下无 OTA 接口得到 Configuration，得想别的法子
+    try
+      if CnOtaGetActiveProjectOption('UnitOutputDir', Val) then
+        IntermediaDir := MakePath(VarToStr(Val));
+    except
+      ;
+    end;
+{$ENDIF}
+  end;
+{$ENDIF}
+  Result := MakePath(Dir) + IntermediaDir + _CnChangeFileExt(_CnExtractFileName(ProjectFileName), OutExt);
+{$ENDIF}
+end;
+
 // 取得所有工程列表
 procedure CnOtaGetProjectList(const List: TInterfaceList);
 var
@@ -4875,7 +4962,7 @@ end;
 
 {$IFNDEF CNWIZARDS_MINIMUM}
 
-// 获取当前光标所在的过程或函数名
+// 获取当前光标所在的过程或函数名，必须是实现区域，不包括声明区域
 function CnOtaGetCurrentProcedure: string;
 var
   EditView: IOTAEditView;
@@ -5104,7 +5191,8 @@ begin
     begin
 {$IFDEF UNICODE}
       // 转换成 Ansi 长度来计算，不直接转 AnsiString 以避免英文平台丢字符
-      CharIndex := Min(View.CursorPos.Col - 1, CalcAnsiLengthFromWideString(PWideChar(Text)));
+      CharIndex := Min(View.CursorPos.Col - 1,
+        CalcAnsiDisplayLengthFromWideString(PWideChar(Text), @IDEWideCharIsWideLength));
 {$ELSE}
       CharIndex := Min(View.CursorPos.Col - 1, Length(Text));
 {$ENDIF}
@@ -5180,11 +5268,12 @@ begin
   begin
     Text := GetStrProp(EditControl, 'LineText');
 
-    // CursorPos 在 Unicode IDE 下反映的是 Ansi（非UTF8）方式的列，
+    // CursorPos 在 Unicode IDE 下反映的是 Ansi（非 UTF8）方式的列，
     // 需要把 string 转成 Ansi 后才能得到光标对应到 Text 中的真实位置
     AnsiCharIndex := View.CursorPos.Col - 1;
     if not PreciseMode then
-      Utf16CharIndex := CalcWideStringLengthFromAnsiOffset(PWideChar(Text), AnsiCharIndex)
+      Utf16CharIndex := CalcWideStringDisplayLengthFromAnsiOffset(PWideChar(Text),
+        AnsiCharIndex, False, @IDEWideCharIsWideLength)
     else
       Utf16CharIndex := CalcWideStringLengthFromAnsiOffsetOnCanvas(PWideChar(Text),
         AnsiCharIndex);
@@ -5379,7 +5468,7 @@ begin
     begin
       // CurrIndex 是 WideString 的，需要转换回 Ansi 的
       WideText := Copy(WideText, 1, CurrIndex);
-      CurrIndex := CalcAnsiLengthFromWideString(PWideChar(WideText));
+      CurrIndex := CalcAnsiDisplayLengthFromWideString(PWideChar(WideText));
     end;
   end;
 
@@ -5513,8 +5602,13 @@ function CnOtaGeneralGetCurrPosToken(var Token: TCnIdeTokenString; var CurrIndex
   EditView: IOTAEditView): Boolean;
 begin
 {$IFDEF UNICODE}
+  {$IFDEF DELPHI110_ALEXANDRIA_UP}
+  Result := CnOtaGetCurrPosTokenW(Token, CurrIndex, CheckCursorOutOfLineEnd,
+    FirstSet, CharSet, EditView, _SUPPORT_WIDECHAR_IDENTIFIER, True, False); // D110 以上改成固定宽度了
+  {$ELSE}
   Result := CnOtaGetCurrPosTokenW(Token, CurrIndex, CheckCursorOutOfLineEnd,
     FirstSet, CharSet, EditView, _SUPPORT_WIDECHAR_IDENTIFIER, True, True); // 使用精确模式来计算字符宽度
+{$ENDIF}
 {$ELSE}
   {$IFDEF IDE_STRING_ANSI_UTF8}
   Result := CnOtaGetCurrPosTokenUtf8(Token, CurrIndex, CheckCursorOutOfLineEnd,
@@ -6285,14 +6379,14 @@ begin
 {$IFDEF UNICODE}
   // D2009 或以上
   if UseAlterChar then // 纯英文 Unicode 环境下不能直接转 Ansi
-    Result := ConvertUtf16ToAlterAnsi(PWideChar(LineText), 'C')
+    Result := ConvertUtf16ToAlterDisplayAnsi(PWideChar(LineText), 'C')
   else
     Result := AnsiString(LineText);
 {$ELSE}
   {$IFDEF IDE_STRING_ANSI_UTF8}
      // D2005 ~ 2007 Utf8 to Ansi
      if UseAlterChar then // 纯英文环境下 Utf8 不能直接转 Ansi
-       Result := ConvertUtf8ToAlterAnsi(PAnsiChar(LineText), 'C')
+       Result := ConvertUtf8ToAlterDisplayAnsi(PAnsiChar(LineText), 'C')
      else
        Result := Utf8ToAnsi(LineText);
   {$ELSE}
@@ -6600,7 +6694,7 @@ begin
     end;
   end;
   Result := '';
-  {$IFDEF BCB}  // BCB 下可能存在无法获得当前工程的cpp文件的问题，特此加上此功能
+  {$IFDEF BCB}  // BCB 下可能存在无法获得当前工程的 cpp 文件的问题，特此加上此功能
   if (Result = '') and (CnOtaGetEditBuffer <> nil) then
     Result := CnOtaGetEditBuffer.FileName;
   {$ENDIF}
@@ -6667,6 +6761,8 @@ begin
 {$ENDIF}
 end;
 
+{$IFNDEF CNWIZARDS_MINIMUM}
+
 // 拿一编辑器中的行折叠信息，Infos 这个 List 里顺序放入折叠的开始行和结束行，无折叠或不支持折叠时返回 False
 function CnOtaGetLinesElideInfo(Infos: TList; EditControl: TControl): Boolean;
 {$IFDEF IDE_EDITOR_ELIDE}
@@ -6704,6 +6800,8 @@ begin
 
   Result := Infos.Count > 0;
 end;
+
+{$ENDIF}
 
 // 插入一段文本到当前正在编辑的源文件中，返回成功标志
 function CnOtaInsertTextToCurSource(const Text: string; InsertPos: TInsertPos): Boolean;
@@ -6814,8 +6912,41 @@ begin
   end;
 end;
 
+function CnGeneralGetCurrLinearPos(SourceEditor: IOTASourceEditor = nil): Integer;
+{$IFDEF BDS}
+var
+  Stream: TMemoryStream;
+  Utf8Text: AnsiString;
+  WideText: WideString;
+{$ENDIF}
+begin
+  Result := CnOtaGetCurrLinearPos(SourceEditor);
+{$IFDEF BDS}
+  // Utf8 偏移量需转换成 Utf16 偏移量，等于取 1 到 Utf8 偏移量的子串，转 UnicodeString 再求字符长度
+  if Result <= 0 then
+    Exit;
+
+  Stream := TMemoryStream.Create;
+  try
+    CnGeneralSaveEditorToStream(SourceEditor, Stream);
+    if Stream.Size <= 0 then
+      Exit;
+
+    if Stream.Size < Result then
+      Result := Stream.Size;
+
+    SetLength(Utf8Text, Result);
+    Move(Stream.Memory^, Utf8Text[1], Result);
+    WideText := CnUtf8DecodeToWideString(Utf8Text);
+    Result := Length(WideText);
+  finally
+    Stream.Free;
+  end;
+{$ENDIF}
+end;
+
 // 返回 SourceEditor 当前光标位置的线性地址，均为 0 开始的 Ansi/Utf8/Utf8
-function CnOtaGetCurrLinePos(SourceEditor: IOTASourceEditor): Integer;
+function CnOtaGetCurrLinearPos(SourceEditor: IOTASourceEditor): Integer;
 var
   IEditView: IOTAEditView;
   EditPos: TOTAEditPos;
@@ -6840,10 +6971,12 @@ var
   CharPos: TOTACharPos;
   IEditView: IOTAEditView;
 {$IFDEF UNICODE}
+{$IFNDEF CNWIZARDS_MINIMUM}
   Text: string;
   LineNo: Integer;
   CharIdx: Integer;
   EditControl: TControl;
+{$ENDIF}
 {$ENDIF}
 begin
   if not Assigned(SourceEditor) then
@@ -6944,7 +7077,7 @@ begin
   end;
 end;
 
-// 保存 EditReader 内容到流中，流中的内容默认为 Ansi 格式
+// 保存 EditReader 内容到流中，流中的内容 CheckUtf8 时默认为 Ansi，否则 Ansi/Utf8/Utf8 格式
 procedure CnOtaSaveReaderToStream(EditReader: IOTAEditReader; Stream:
   TMemoryStream; StartPos: Integer = 0; EndPos: Integer = 0;
   PreSize: Integer = 0; CheckUtf8: Boolean = True; AlternativeWideChar: Boolean = False);
@@ -6960,11 +7093,9 @@ var
 {$IFDEF IDE_WIDECONTROL}
   Text: AnsiString;
 {$ENDIF}
-
 {$IFDEF UNICODE}
   UniText: string;
 {$ENDIF}
-
 begin
   Assert(EditReader <> nil);
   Assert(Stream <> nil);
@@ -7020,7 +7151,7 @@ begin
       // Unicode 环境里在纯英文 OS 下不能按照后面的转 Ansi，以免丢字符。
       // 需要转成 UTF16 的再硬替成 Ansi。
       UniText := Utf8Decode(PAnsiChar(Stream.Memory));
-      Text := ConvertUtf16ToAlterAnsi(PWideChar(UniText));
+      Text := ConvertUtf16ToAlterDisplayAnsi(PWideChar(UniText));
 {$ELSE}
       Text := CnUtf8ToAnsi(PAnsiChar(Stream.Memory));
 {$ENDIF}
@@ -7073,7 +7204,7 @@ begin
   if Editor.EditViewCount > 0 then
   begin
     if FromCurrPos then
-      IPos := CnOtaGetCurrLinePos(Editor)
+      IPos := CnOtaGetCurrLinearPos(Editor)
     else
       IPos := 0;
 
@@ -7231,7 +7362,7 @@ begin
   if Editor.EditViewCount > 0 then
   begin
     if FromCurrPos then
-      IPos := CnOtaGetCurrLinePos(Editor)
+      IPos := CnOtaGetCurrLinearPos(Editor)
     else
       IPos := 0;
 
@@ -7392,7 +7523,7 @@ begin
   if Editor.EditViewCount > 0 then
   begin
     if FromCurrPos then
-      IPos := CnOtaGetCurrLinePos(Editor)
+      IPos := CnOtaGetCurrLinearPos(Editor)
     else
       IPos := 0;
 
@@ -7929,9 +8060,23 @@ begin
     Exit;
 
 {$IFDEF SUPPORT_WIDECHAR_IDENTIFIER}
-  Parser.ParseSource(PWideChar(Stream.Memory), Stream.Size, CurrLine, CurCol, ParseCurrent);
+  Parser.ParseSource(PWideChar(Stream.Memory), Stream.Size div SizeOf(WideChar), CurrLine, CurCol, ParseCurrent);
 {$ELSE}
   Parser.ParseSource(PAnsiChar(Stream.Memory), Stream.Size, CurrLine, CurCol, ParseCurrent);
+{$ENDIF}
+end;
+
+// 封装的解析器解析 C/C++ 代码中的字符串的过程，不包括对当前光标的处理
+procedure CnCppParserParseString(Parser: TCnGeneralCppStructParser;
+  Stream: TMemoryStream);
+begin
+  if (Parser = nil) or (Stream = nil) then
+    Exit;
+
+{$IFDEF SUPPORT_WIDECHAR_IDENTIFIER}
+  Parser.ParseString(PWideChar(Stream.Memory), Stream.Size div SizeOf(WideChar));
+{$ELSE}
+  Parser.ParseString(PAnsiChar(Stream.Memory), Stream.Size);
 {$ENDIF}
 end;
 

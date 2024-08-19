@@ -88,8 +88,8 @@ TCnMainViewer.actViewTime.Hint=Mostrar/Ocultar Tempo
 TCnMainViewer.actViewWatch.Caption=&Assistir
 TCnMainViewer.actViewWatch.Hint=Mostrar janela de observação
 TCnMainViewer.Caption=CnDebugViewer
-TCnMainViewer.dlgOpen.Filter=Arquivo XML (*.xml)|*.xml|CnDebug Dump File(*.cdd)|*.cdd|All Files (*.*)|*.*
-TCnMainViewer.dlgSave.Filter=Arquivo XML (*.xml)|*.xml|Todos os Arquivos (*.*)|*.*
+TCnMainViewer.dlgOpen.Filter=Arquivo XML (*.xml)|*.xml|Arquivo JSON (*.json)|*.json|CnDebug Dump File(*.cdd)|*.cdd|All Files (*.*)|*.*
+TCnMainViewer.dlgSave.Filter=Arquivo XML (*.xml)|*.xml|Arquivo JSON (*.json)|*.json|Todos os Arquivos (*.*)|*.*
 TCnMainViewer.dlgSaveExport.Filter=Arquivo de Texto(*.txt)|*.txt|Arquivo Separado por Vírgula(*.csv)|*.csv|Arquivo HTML(*.htm)|*.htm
 TCnMainViewer.dlgSaveMemDump.Filter=Arquivo Bin (*.bin)|*.bin|Todos os Arquivos (*.*)|*.*
 TCnMainViewer.F1.Caption=&Arquivo
@@ -188,4 +188,4 @@ SCnHTMFormatCharset=iso-8859-1
 SCnHTMFormatStyle=.tabletext { font-family: Tahoma; tamanho da fonte: 8pt; alinhamento de texto: esquerda; altura da linha: 13pt;<BR> cor: #000000; background-color: #FFFFF8 }<BR>.tablehead { font-family: Tahoma; tamanho da fonte: 8pt; alinhamento de texto: centro; altura da linha: 13pt;<BR> cor: #0000FF; cor de fundo: #DDEEFF }<BR>;
 SCnHTMFormatTableHead=<tr><BR><td width="24pt" class="tablehead" valign="top">Índice</td><BR><td width="9pt" class="tablehead" valign="top ">Nível</td><BR><td width="28pt" class="tablehead" valign="top">Tipo</td><BR><td width="32pt" class="tablehead" valign= "top">ThreadID</td><BR><td width="32pt" class="tablehead" valign="top">ProcessID</td><BR><td width="28pt" class="tablehead" valign="top">Tag</td><BR><td width="60pt" class="tablehead" valign="top">TimeStamp</td><BR><td class="tablehead">Mensagem< /td><BR></tr>
 SCnDebugViewerAboutCaption=Sobre
-SCnDebugViewerAbout=CnDebugViewer 1.9<BR><BR>Esta ferramenta é usada para mostrar as informações de saída de depuração do CnDebug.<BR><BR>Autor: Liu Xiao (liuxiao@cnpack.org)<BR>Copyright (C) 2001-2023 Equipe CnPack
+SCnDebugViewerAbout=CnDebugViewer 1.9<BR><BR>Esta ferramenta é usada para mostrar as informações de saída de depuração do CnDebug.<BR><BR>Autor: Liu Xiao (liuxiao@cnpack.org)<BR>Copyright (C) 2001-2024 Equipe CnPack

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnMemProfWizard;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：CnMemProfWizard 工程向导和窗体
-* 单元作者：LiuXiao (刘啸)
+* 单元作者：CnPack 开发组
 * 备    注：由 LiuXiao 移植。
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7
@@ -64,11 +64,11 @@ type
     procedure FormCreate(Sender: TObject);
     procedure btnHelpClick(Sender: TObject);
   private
-    { Private declarations }
+
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
+
   end;
 
   TCnMemProfWizard = class(TCnProjectWizard)
@@ -102,7 +102,12 @@ type
     constructor Create; override;
     destructor Destroy; override;
     procedure NewDefaultModule; override;
-    {* 新建项目时建立默认模块 }
+    {* 新建项目时建立默认模块，注意仅在 D5 ~7 下有效 }
+
+{$IFDEF BDS}
+    procedure NewDefaultProjectModule(const Project: IOTAProject);
+    {* 新建缺省模块 }
+{$ENDIF}
 
     property PopupMsg: Boolean read FPopupMsg write FPopupMsg;
     property UseObjList: Boolean read FUseObjList write FUseObjList;
@@ -160,8 +165,8 @@ end;
 
 procedure TCnMemProfForm.btnBrowseClick(Sender: TObject);
 begin
-  if Self.dlgSave.Execute then
-    Self.edtLogFile.Text := Self.dlgSave.FileName;
+  if dlgSave.Execute then
+    edtLogFile.Text := dlgSave.FileName;
 end;
 
 procedure TCnMemProfForm.UpdateContents(Sender: TObject);
@@ -174,7 +179,7 @@ end;
 
 procedure TCnMemProfForm.FormCreate(Sender: TObject);
 begin
-  Self.UpdateContents(nil);
+  UpdateContents(nil);
 end;
 
 procedure TCnMemProfForm.btnHelpClick(Sender: TObject);
@@ -192,8 +197,8 @@ end;
 
 destructor TCnMemProfWizard.Destroy;
 begin
-  inherited;
 
+  inherited;
 end;
 
 procedure TCnMemProfWizard.Execute;
@@ -237,8 +242,8 @@ end;
 
 destructor TCnMemProfProjectCreator.Destroy;
 begin
-  inherited;
 
+  inherited;
 end;
 
 procedure TCnMemProfProjectCreator.DoReplaceTagsSource(
@@ -281,6 +286,16 @@ begin
   (BorlandIDEServices as IOTAModuleServices).CreateModule(UnitCreator);
 end;
 
+{$IFDEF BDS}
+
+procedure TCnMemProfProjectCreator.NewDefaultProjectModule(
+  const Project: IOTAProject);
+begin
+  // 照 ToolsAPI 中说的，本应该在此创建 Unit1 的 pas 和 dfm，但无效
+end;
+
+{$ENDIF}
+
 { TCnMemProfUnit1Creator }
 
 constructor TCnMemProfUnit1Creator.Create;
@@ -291,8 +306,8 @@ end;
 
 destructor TCnMemProfUnit1Creator.Destroy;
 begin
-  inherited;
 
+  inherited;
 end;
 
 function TCnMemProfUnit1Creator.GetCreatorType: string;

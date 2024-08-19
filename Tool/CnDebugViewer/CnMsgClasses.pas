@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnMsgClasses;
 ================================================================================
 * 软件名称：CnDebugViewer
 * 单元名称：消息类单元
-* 单元作者：刘啸（LiuXiao） liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：Msgs 等的列表以 0 开头，而 VirtualTree 中的 Node 的 AbsoluteIndex
 *           以 1 开头，使用时应该注意 
 * 开发平台：PWin2000Pro + Delphi 5.01
@@ -43,6 +43,7 @@ const
   WM_USER_UPDATE_STORE = WM_USER + $C;
   WM_USER_NEW_FORM     = WM_USER + $D;
   WM_USER_SET_CAPTION  = WM_USER + $E;
+  WM_USER_SHOW_CHILD   = WM_USER + $F;
 
 type
 

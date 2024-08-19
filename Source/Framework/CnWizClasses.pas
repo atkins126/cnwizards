@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -102,7 +102,8 @@ type
     FDefaultsMap: TCnStrToVariantHashMap;
   protected
     procedure SetActive(Value: Boolean); virtual;
-    {* Active 属性写方法，子类重载该方法处理 Active 属性变更事件 }
+    {* Active 属性写方法，子类重载该方法处理 Active 属性变更事件
+       启动时该方法会在 LoadSettings 之后调用，以确保加载设置内容后再变更活动状态 }
     function GetHasConfig: Boolean; virtual;
     {* HasConfig 属性读方法，子类重载该方法返回是否存在可配置内容 }
     function GetIcon: TIcon; virtual; abstract;
@@ -535,6 +536,9 @@ function GetCnWizardTypeName(AWizard: TCnBaseWizard): string;
 procedure GetCnWizardInfoStrs(AWizard: TCnBaseWizard; Infos: TStrings);
 {* 获取专家实例的描述字符串列表，供信息输出用}
 
+procedure AdjustCnWizardsClassOrder;
+{* 供专家管理器启动时调整已注册的专家类顺序，以便优化最初的菜单排列顺序}
+
 implementation
 
 uses
@@ -567,7 +571,8 @@ begin
   for I := 0 to CnWizardClassList.Count - 1 do
   begin
     Result := CnWizardClassList[I];
-    if Result.ClassNameIs(ClassName) then Exit;
+    if Result.ClassNameIs(ClassName) then
+      Exit;
   end;
   Result := nil;
 end;
@@ -634,6 +639,60 @@ begin
       Infos.Add('Action Hint: ' + (AWizard as TCnActionWizard).Action.Hint);
       Infos.Add('Action ImageIndex: ' + IntToStr((AWizard as TCnActionWizard).Action.ImageIndex));
       Infos.Add('Action ShortCut: ' + ShortCutToText((AWizard as TCnActionWizard).Action.ShortCut));
+    end;
+  end;
+end;
+
+procedure AdjustCnWizardsClassOrder;
+var
+  I: Integer;
+  W: TCnWizardClass;
+begin
+  // 编码工具集先搁最上面
+  for I := 0 to CnWizardClassList.Count - 1 do
+  begin
+    W := TCnWizardClass(CnWizardClassList[I]);
+    if W.ClassNameIs('TCnCodingToolsetWizard') then
+    begin
+      CnWizardClassList.Delete(I);
+      CnWizardClassList.Insert(0, W);
+      Break;
+    end;
+  end;
+
+  // 窗体设计专家搁最上面，挤下编码工具集
+  for I := 0 to CnWizardClassList.Count - 1 do
+  begin
+    W := TCnWizardClass(CnWizardClassList[I]);
+    if W.ClassNameIs('TCnAlignSizeWizard') then
+    begin
+      CnWizardClassList.Delete(I);
+      CnWizardClassList.Insert(0, W);
+      Break;
+    end;
+  end;
+
+  // AI 辅助编码先搁最后
+  for I := 0 to CnWizardClassList.Count - 1 do
+  begin
+    W := TCnWizardClass(CnWizardClassList[I]);
+    if W.ClassNameIs('TCnAICoderWizard') then
+    begin
+      CnWizardClassList.Delete(I);
+      CnWizardClassList.Add(W);
+      Break;
+    end;
+  end;
+
+  // 脚本专家搁最后，挤上 AI 辅助编码
+  for I := 0 to CnWizardClassList.Count - 1 do
+  begin
+    W := TCnWizardClass(CnWizardClassList[I]);
+    if W.ClassNameIs('TCnScriptWizard') then
+    begin
+      CnWizardClassList.Delete(I);
+      CnWizardClassList.Add(W);
+      Break;
     end;
   end;
 end;
@@ -1335,11 +1394,13 @@ var
 begin
   Result := -1;
   for I := 0 to FList.Count - 1 do
+  begin
     if SubActions[I] = SubAction then
     begin
       Result := I;
       Exit;
     end;
+  end;
 end;
 
 function TCnSubMenuWizard.ActionByCommand(const ACommand: string): TCnWizAction;
@@ -1411,11 +1472,13 @@ var
 begin
   OnActionUpdate(nil);
   for I := 0 to FList.Count - 1 do
+  begin
     if TObject(FList[I]) = Sender then
     begin
       SubActionUpdate(I);
       Exit;
     end;
+  end;
 end;
 
 // 显示快捷键设置对话框
@@ -1429,12 +1492,13 @@ begin
 end;
 
 procedure TCnSubMenuWizard.SetActive(Value: Boolean);
+var
+  Old: Boolean;
 begin
-  if FActive <> Value then
-  begin
-    inherited;
+  Old := FActive;
+  inherited;             // 确保无论是否改变，基类也被调用
+  if Old <> Value then
     RefreshSubActions;
-  end;
 end;
 
 procedure TCnSubMenuWizard.OnActionUpdate(Sender: TObject);

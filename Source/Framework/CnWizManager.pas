@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -26,6 +26,11 @@ unit CnWizManager;
 * 单元作者：周劲羽 (zjy@cnpack.org)
 * 备    注：该单元为 CnWizards 框架的一部分，定义了 CnWizardMgr 专家管理器。
 *           单元实现了专家 DLL 的入口导出函数，创建专家管理并初始化所有的专家。
+*
+*           注意专家们实例的启动顺序是 Create LoadSettings SetActive
+*           所以宜在 Create 时初始化做准备，LoadSettings 时载入设置的静态内容，
+*           在 SetActive 时使其有效或无效
+*
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
@@ -644,7 +649,7 @@ begin
     else
       MainMenu.Items.Add(Menu);
   {$IFDEF DEBUG}
-    CnDebugger.LogMsg('Install menu succeed');
+    CnDebugger.LogMsg('Install Menu Succeed');
   {$ENDIF}
   end;
 end;
@@ -654,9 +659,14 @@ procedure TCnWizardMgr.RefreshLanguage;
 var
   I: Integer;
 begin
-  FConfigAction.Caption := SCnWizConfigCaption;
-  FConfigAction.Hint := SCnWizConfigHint;
-  FWizAbout.RefreshAction;
+  if FConfigAction <> nil then
+  begin
+    FConfigAction.Caption := SCnWizConfigCaption;
+    FConfigAction.Hint := SCnWizConfigHint;
+  end;
+
+  if FWizAbout <> nil then
+    FWizAbout.RefreshAction;
 
   WizActionMgr.MoreAction.Caption := SCnMoreMenu;
   WizActionMgr.MoreAction.Hint := StripHotkey(SCnMoreMenu);
@@ -778,11 +788,13 @@ var
   I: Integer;
 begin
   for I := 0 to WizardCount - 1 do
+  begin
     if Wizards[I] is AClass then
     begin
       Result := Wizards[I];
       Exit;
     end;
+  end;
   Result := nil;
 end;
 
@@ -792,11 +804,13 @@ var
   I: Integer;
 begin
   for I := 0 to WizardCount - 1 do
+  begin
     if Wizards[I].ClassNameIs(AClassName) then
     begin
       Result := Wizards[I];
       Exit;
     end;
+  end;
   Result := nil;
 end;
 
@@ -844,11 +858,13 @@ var
   I: Integer;
 begin
   for I := 0 to WizardCount - 1 do
+  begin
     if Wizards[I] = Wizard then
     begin
       Result := I;
       Exit;
     end;
+  end;
   Result := -1;
 end;
 
@@ -858,11 +874,13 @@ var
   I: Integer;
 begin
   for I := 0 to WizardCount - 1 do
+  begin
     if SameText(Wizards[I].WizardName, WizardName) then
     begin
       Result := Wizards[I];
       Exit;
     end;
+  end;
   Result := nil;
 end;
 
@@ -890,25 +908,30 @@ var
   RepositoryWizard: TCnRepositoryWizard;
   WizardSvcs: IOTAWizardServices;
 {$IFNDEF CNWIZARDS_MINIMUM}
-  frmBoot: TCnWizBootForm;
+  FrmBoot: TCnWizBootForm;
   KeyState: TKeyboardState;
 {$ENDIF}
-  bUserBoot: Boolean;
+  UserBoot: Boolean;
   BootList: array of Boolean;
 begin
   if not QuerySvcs(BorlandIDEServices, IOTAWizardServices, WizardSvcs) then
   begin
   {$IFDEF DEBUG}
-    CnDebugger.LogMsgWithType('Query IOTAWizardServices fail', cmtError);
+    CnDebugger.LogMsgWithType('Query IOTAWizardServices Fail', cmtError);
   {$ENDIF}
     Exit;
   end;
 
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('Begin installing wizards');
+  CnDebugger.LogMsg('Adjust Wizards Class Order');
+{$ENDIF}
+  AdjustCnWizardsClassOrder;
+
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('Begin Installing Wizards');
 {$ENDIF}
 
-  bUserBoot := False;
+  UserBoot := False;
 
 {$IFNDEF CNWIZARDS_MINIMUM}
   GetKeyboardState(KeyState);
@@ -916,24 +939,24 @@ begin
   if (KeyState[BootShortCutKey] and $80 <> 0) or // 是否由用户引导专家
     FindCmdLineSwitch(SCnShowBootFormSwitch, ['/', '-'], True) then
   begin
-    frmBoot := TCnWizBootForm.Create(Application);
+    FrmBoot := TCnWizBootForm.Create(Application);
     try
-      if frmBoot.ShowModal = mrOK then
+      if FrmBoot.ShowModal = mrOK then
       begin
-        bUserBoot := True;
+        UserBoot := True;
         SetLength(BootList, GetCnWizardClassCount);
-        frmBoot.GetBootList(BootList);
+        FrmBoot.GetBootList(BootList);
       end;
     finally
-      frmBoot.Free;
+      FrmBoot.Free;
     end;
   end;
 {$ENDIF}
 
   for I := 0 to GetCnWizardClassCount - 1 do
   begin
-    if ((not bUserBoot) and WizardCanCreate[TCnWizardClass(GetCnWizardClassByIndex(I)).ClassName]) or
-       (bUserBoot and BootList[I]) then
+    if ((not UserBoot) and WizardCanCreate[TCnWizardClass(GetCnWizardClassByIndex(I)).ClassName]) or
+       (UserBoot and BootList[I]) then
     begin
       try
         Wizard := TCnWizardClass(GetCnWizardClassByIndex(I)).Create;
@@ -948,7 +971,8 @@ begin
         Wizard := nil;
       end;
 
-      if Wizard = nil then Continue;
+      if Wizard = nil then
+        Continue;
 
       if Wizard is TCnRepositoryWizard then
       begin
@@ -970,7 +994,7 @@ begin
         FWizards.Add(Wizard);
 
     {$IFDEF DEBUG}
-      CnDebugger.LogFmt('Wizard [%d] installed: %s', [I, Wizard.ClassName]);
+      CnDebugger.LogFmt('Wizard [%d] Installed: %s', [I, Wizard.ClassName]);
     {$ENDIF}
     end;
   end;
@@ -980,7 +1004,8 @@ begin
   FOffSet[1] := FOffSet[0] + FMenuWizards.Count;
   FOffSet[2] := FOffSet[1] + FIDEEnhanceWizards.Count;
   FOffSet[3] := FOffSet[2] + FRepositoryWizards.Count;
-  if bUserBoot then SetLength(BootList, 0);
+  if UserBoot then
+    SetLength(BootList, 0);
 end;
 
 function TCnWizardMgr.GetOffSet(Index: Integer): Integer;
@@ -1087,7 +1112,7 @@ begin
       end;
     end;
 
-    // 装载专家设置
+    // 装载专家设置，并确保加载设置内容后再设置专家的活动状态
     for I := 0 to WizardCount - 1 do
     begin
       Wizards[I].DoLoadSettings;
@@ -1170,7 +1195,7 @@ end;
 procedure TCnWizardMgr.InstallMiscMenu;
 begin
 {$IFDEF DEBUG}
-  CnDebugger.LogEnter('Install misc menu Entered.');
+  CnDebugger.LogEnter('Install Misc Menu Entered.');
 {$ENDIF}
   if Menu.Count > 0 then
   begin
@@ -1188,7 +1213,7 @@ begin
   Menu.Add(FWizAbout.Menu);
 {$ENDIF}
 {$IFDEF DEBUG}
-  CnDebugger.LogLeave('Install misc menu Leave successed.');
+  CnDebugger.LogLeave('Install Misc Menu Leave Successed.');
 {$ENDIF}
 end;
 
@@ -1200,7 +1225,7 @@ begin
   FWizAbout.Free;
   FSepMenu.Free;
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('Free misc menu succeed');
+  CnDebugger.LogMsg('Free Misc Menu Succeed');
 {$ENDIF}
 end;
 
@@ -1212,7 +1237,7 @@ var
 {$ENDIF}
 begin
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('Begin installing component editors');
+  CnDebugger.LogMsg('Begin Installing Component Editors');
 {$ENDIF}
 {$IFNDEF CNWIZARDS_MINIMUM}
   with WizOptions.CreateRegIniFile(WizOptions.CompEditorRegPath) do
@@ -1223,7 +1248,7 @@ begin
         Active := ReadBool(SCnActiveSection, IDStr, True);
       {$IFDEF DEBUG}
         if Active then
-          CnDebugger.LogMsg('Component editors installed: ' + IDStr);
+          CnDebugger.LogMsg('Component Editors Installed: ' + IDStr);
       {$ENDIF}
         DoLoadSettings;
       end;
@@ -1232,7 +1257,7 @@ begin
   end;
 {$ENDIF}
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('Installing component editors succeed');
+  CnDebugger.LogMsg('Installing Component Editors Succeed');
 {$ENDIF}
 end;
 
@@ -1244,7 +1269,7 @@ var
 {$ENDIF}
 begin
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('Begin installing property editors');
+  CnDebugger.LogMsg('Begin Installing Property Editors');
 {$ENDIF}
 {$IFNDEF CNWIZARDS_MINIMUM}
   with WizOptions.CreateRegIniFile(WizOptions.PropEditorRegPath) do
@@ -1255,7 +1280,7 @@ begin
         Active := ReadBool(SCnActiveSection, IDStr, True);
       {$IFDEF DEBUG}
         if Active then
-          CnDebugger.LogMsg('Property editors installed: ' + IDStr);
+          CnDebugger.LogMsg('Property Editors Installed: ' + IDStr);
       {$ENDIF}
         DoLoadSettings;
       end;
@@ -1264,7 +1289,7 @@ begin
   end;
 {$ENDIF}
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('Installing property editors succeed');
+  CnDebugger.LogMsg('Installing Property Editors Succeed');
 {$ENDIF}
 end;
 
@@ -1287,10 +1312,13 @@ end;
 
 // 检查 IDE 版本并提示
 procedure TCnWizardMgr.CheckIDEVersion;
+var
+  LatestUpdate: string;
 begin
 {$IFNDEF CNWIZARDS_MINIMUM}
-  if not IsIdeVersionLatest then
-    ShowSimpleCommentForm('', SCnIDENOTLatest, SCnCheckIDEVersion + CompilerShortName);
+  if not IsIdeVersionLatest(LatestUpdate) then
+    ShowSimpleCommentForm('', Format(SCnIDENOTLatest, [LatestUpdate]),
+      SCnCheckIDEVersion + CompilerShortName);
 {$ENDIF}
 end;
 

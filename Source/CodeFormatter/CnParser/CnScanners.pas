@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -25,6 +25,7 @@ unit CnScanners;
 * 单元名称：Object Pascal 词法分析器
 * 单元作者：CnPack开发组
 * 备    注：该单元实现了 Object Pascal 词法分析器
+*
 *    缓冲区机制：一块固定长度的缓冲区，读入代码内容后找到最后一个换行，以此为结尾。
 *    扫描至结尾后，重新 ReadBuffer，把本区域结尾到缓冲区尾的内容重新填回缓冲区首，
 *    再在其后跟读满缓冲区，再找最后一个换行并标记结尾。
@@ -33,6 +34,7 @@ unit CnScanners;
 *    ”整个缓冲区全是注释“导致 FSourcePtr 没有步进从而无法读入新内容的情况。
 *           唯一办法：使用足够大的单块缓冲区！
 *           另外，Unicode 编译器中，才支持 Unicode 标识符和全角空格
+*
 * 开发平台：Win2003 + Delphi 5.0
 * 兼容测试：not test yet
 * 本 地 化：not test hell
@@ -50,7 +52,7 @@ interface
 {$I CnPack.inc}
 
 uses
-  Classes, SysUtils, Contnrs, CnFormatterIntf,
+  Classes, SysUtils, Contnrs, CnFormatterIntf, CnNative,
   CnParseConsts, CnTokens, CnCodeGenerators, CnCodeFormatRules;
 
 type
@@ -386,21 +388,23 @@ procedure TAbstractScanner.ReadBuffer;
 var
   Count: Integer;
 begin
-  Inc(FOrigin, Integer(FSourcePtr) - Integer(FBuffer));
+  Inc(FOrigin, TCnNativeInt(FSourcePtr) - TCnNativeInt(FBuffer));
   FSourceEnd[0] := FSaveChar;
-  Count := Integer(FBufPtr) - Integer(FSourcePtr);
-  if Count <> 0 then Move(FSourcePtr[0], FBuffer[0], Count);
-  FBufPtr := PChar(Integer(FBuffer) + Count);
+  Count := TCnNativeInt(FBufPtr) - TCnNativeInt(FSourcePtr);
+  if Count <> 0 then
+    Move(FSourcePtr[0], FBuffer[0], Count);
+  FBufPtr := PChar(TCnNativeInt(FBuffer) + Count);
 
-  Count := FStream.Read(FBufPtr[0], (Integer(FBufEnd) - Integer(FBufPtr))); // 读进来的 Byte 数
-  FBufPtr := PChar(Integer(FBufPtr) + Count);
+  Count := FStream.Read(FBufPtr[0], (TCnNativeInt(FBufEnd) - TCnNativeInt(FBufPtr))); // 读进来的 Byte 数
+  FBufPtr := PChar(TCnNativeInt(FBufPtr) + Count);
 
   FSourcePtr := FBuffer;
   FSourceEnd := FBufPtr;
   if FSourceEnd = FBufEnd then
   begin
     FSourceEnd := LineStart(FBuffer, FSourceEnd - 1);
-    if FSourceEnd = FBuffer then Error(CN_ERRCODE_PASCAL_LINE_TOOLONG);
+    if FSourceEnd = FBuffer then
+      Error(CN_ERRCODE_PASCAL_LINE_TOOLONG);
   end;
   FSaveChar := FSourceEnd[0];
   FSourceEnd[0] := #0;
@@ -418,7 +422,7 @@ begin
     FBufPtr := FBuffer;
 
     Count := FStream.Read(FBuffer[0], FBufSize);
-    FBufPtr := PChar(Integer(FBufPtr) + Count);
+    FBufPtr := PChar(TCnNativeInt(FBufPtr) + Count);
 
     FSourcePtr := FBuffer;
     FSourceEnd := FBufPtr;
@@ -753,10 +757,21 @@ begin
   // 如果前一个有效 Token 是标识符，就得判断当前或靠后（如果当前的是注释）的有效 Token 是不是 End 和 Else
   // 如果靠后一个是，表示语句已经结束，现状已经在语句外了。以应对 End 或 Else 前的语句无分号的问题
   if not FIsForwarding then
+  begin
     Result := (FPrevEffectiveToken in [tokSemicolon, tokKeywordFinally, tokKeywordExcept,
       tokKeywordOf, tokKeywordElse, tokKeywordDo] + StructStmtTokens +
       RelOpTokens + AddOPTokens + MulOpTokens + ShiftOpTokens)
-      or not (ForwardActualToken() in [tokKeywordEnd, tokKeywordElse]) // 这句对性能有所影响
+      or not (ForwardActualToken() in [tokKeywordEnd, tokKeywordElse]); // 这句对性能有所影响
+
+    if Result then
+    begin
+      // 如果出现 “Symbol 编译指令 Symbol” 连续的情况，说明可能是被编译指令隔开的合法语句但看上去不合法了
+      // 这里强行让前者变成语句外部
+      if (FPrevEffectiveToken = tokSymbol) and (FToken = tokCompDirective) and
+        (ForwardActualToken() in [tokSymbol]) then
+        Result := False;
+    end;
+  end
   else
     Result := FPrevEffectiveToken in [tokSemicolon] + StructStmtTokens;
   // 在 ForwardToken 调用中不要再重入了
@@ -773,8 +788,8 @@ begin
     Exit;
   end;
 
-  Result := FPrevEffectiveToken in OpTokens + [tokLB, tokSLB, tokKeywordVar];
-  // 双目运算符后，或左括号后。或 inline var 的 var 后
+  Result := FPrevEffectiveToken in OpTokens + [tokLB, tokSLB, tokKeywordVar, tokComma];
+  // 双目运算符后，或左括号后。或 inline var 的 var 后，或 Enum 的逗号后
 
   if not Result and not FIsForwarding then
     Result := ForwardActualToken() in OpTokens + [tokSemicolon, tokRB, tokSRB,
@@ -923,10 +938,23 @@ begin
         Result := tokNoToken;
 
         // 回溯一下，如果 ^ 之前越过空白是字母数字或 )]^，就表示不是字符串而是 Hat
+        // 但前面如果是块注释呢？
         if OldP > FBuffer then
         begin
           repeat
             Dec(OldP);
+
+            // 如果 OldP 是块注释尾，跳到块注释头，注意没处理 (* *) 这种格式的块注释，真碰到也认了
+            while OldP^ = '}' do
+            begin
+              repeat
+                Dec(OldP);
+              until (OldP^ = '{') or (OldP <= FBuffer);
+
+              if OldP^ = '{' then
+                Dec(OldP);
+            end;
+
           until (not (OldP^ in [' ', #10, #13, #9])) or (OldP <= FBuffer);
 
           if OldP^ in ['A'..'Z', 'a'..'z', '0'..'9', '^', ')', ']'] then
@@ -1141,7 +1169,7 @@ begin
         if P^ = '}' then
         begin
           // 判断 IgnoreP 与 P 之间是否是 IgnoreFormat 标记
-          if (Result = tokBlockComment) and (Integer(P) - Integer(IgnoreP) = 3 * SizeOf(Char)) then // 3 means '{(*}'
+          if (Result = tokBlockComment) and (TCnNativeInt(P) - TCnNativeInt(IgnoreP) = 3 * SizeOf(Char)) then // 3 means '{(*}'
           begin
             Inc(IgnoreP);
             if IgnoreP^ = '(' then
@@ -1438,14 +1466,15 @@ begin
             Result := tokFloat;
           end;
 
-          if (P^ in ['c', 'C', 'd', 'D', 's', 'S']) then
-          begin
-            Result := tokFloat;
-            FFloatType := P^;
-            Inc(P);
-          end
-          else
-            FFloatType := #0;
+//          if (P^ in ['c', 'C', 'd', 'D', 's', 'S']) then
+//          begin
+//            Result := tokFloat;
+//            FFloatType := P^;
+//            Inc(P);
+//          end
+//          else
+
+          FFloatType := #0; // 去除对浮点数后一个字母的处理，貌似 Delphi 不支持
         end;
       end;
     #10:  // 如果有回车则处理，以 #10 为准
@@ -1498,6 +1527,7 @@ begin
           if BlankStr <> '' then
           begin
             FCodeGen.BackSpaceLastSpaces;
+            // 四处相同之第一处：
             // 如果当前是保留单个空行模式，且不是语句中，则 BlankStr 开头的空格与回车要省略，避免出现多余的换行
             // 如语句中的判断有误，则可能出现该换行的行注释拼到同一行的情况
             // 行注释回车回车块注释，这种模式下写完行注释并第一个回车后，递归到此处写 BlankStr 第二个回车时，该回车会被误删
@@ -1569,6 +1599,7 @@ begin
     begin
       // 只要当前不是 Comment 就设置非第一个 Comment 的标记
       FFirstCommentInBlock := False;
+      FJustWroteBlockComment := False;
 
       if FPreviousIsComment then // 上一个是 Comment，记录这个到 上一个Comment的空行数
       begin
@@ -1615,6 +1646,7 @@ begin
           if BlankStr <> '' then
           begin
             FCodeGen.BackSpaceLastSpaces;
+            // 四处相同之第二处：
             // 如果当前是保留单个空行模式，且不是语句中，则 BlankStr 开头的空格与回车要省略，避免出现多余的换行
             // 如语句中的判断有误，则可能出现该换行的行注释拼到同一行的情况
             // 行注释回车回车块注释，这种模式下写完行注释并第一个回车后，递归到此处写 BlankStr 第二个回车时，该回车会被误删
@@ -1705,10 +1737,18 @@ begin
           if BlankStr <> '' then
           begin
             FCodeGen.BackSpaceLastSpaces;
+            // 四处相同之第三处：
             // 如果当前是保留单个空行模式，且不是语句中，则 BlankStr 开头的空格与回车要省略，避免出现多余的换行
             // 如语句中的判断有误，则可能出现该换行的行注释拼到同一行的情况
-            if FKeepOneBlankLine and IsStringStartWithSpacesCRLF(BlankStr) and not IsInStatement then
+            // 行注释回车回车块注释，这种模式下写完行注释并第一个回车后，递归到此处写 BlankStr 第二个回车时，该回车会被误删
+            // 因而需要用 FNestedIsComment 变量控制，该变量在碰到注释递归进入时会被设置为 True
+            if FKeepOneBlankLine and not FNestedIsComment and IsStringStartWithSpacesCRLF(BlankStr)
+              and GetCanLineBreakFromOut and not IsInStatement
+              or (IsInOpStatement and GetCanLineBreakFromOut) then
             begin
+              // 另外，如果当前是语句内保留换行模式，且在开区间的语句内部，尤其是双目运算符后回车，
+              // 那么这个回车对应换行后，本次会写入换行与注释，导致多一行，也得删掉
+
               Idx := Pos(#13#10, BlankStr);
               if Idx > 0 then
                 Delete(BlankStr, 1, Idx + 1); // -1 + #13#10 的长度 2
@@ -1745,10 +1785,18 @@ begin
               if BlankStr <> '' then
               begin
                 FCodeGen.BackSpaceLastSpaces;
+                // 四处相同之第四处：
                 // 如果当前是保留单个空行模式，且不是语句中，则 BlankStr 开头的空格与回车要省略，避免出现多余的换行
                 // 如语句中的判断有误，则可能出现该换行的行注释拼到同一行的情况
-                if FKeepOneBlankLine and IsStringStartWithSpacesCRLF(BlankStr) and not IsInStatement then
+                // 行注释回车回车块注释，这种模式下写完行注释并第一个回车后，递归到此处写 BlankStr 第二个回车时，该回车会被误删
+                // 因而需要用 FNestedIsComment 变量控制，该变量在碰到注释递归进入时会被设置为 True
+                if FKeepOneBlankLine and not FNestedIsComment and IsStringStartWithSpacesCRLF(BlankStr)
+                  and GetCanLineBreakFromOut and not IsInStatement
+                  or (IsInOpStatement and GetCanLineBreakFromOut) then
                 begin
+                  // 另外，如果当前是语句内保留换行模式，且在开区间的语句内部，尤其是双目运算符后回车，
+                  // 那么这个回车对应换行后，本次会写入换行与注释，导致多一行，也得删掉
+
                   Idx := Pos(#13#10, BlankStr);
                   if Idx > 0 then
                     Delete(BlankStr, 1, Idx + 1); // -1 + #13#10 的长度 2
@@ -1814,6 +1862,7 @@ begin
     begin
       // 只要当前不是 Comment 就设置非第一个 Comment 的标记
       FFirstCommentInBlock := False;
+      FJustWroteBlockComment := False;
 
       if FPreviousIsComment then // 上一个是 Comment，记录这个到 上一个Comment的空行数
       begin

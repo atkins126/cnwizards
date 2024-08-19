@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -100,6 +100,7 @@ type
     edtCVBpkAdd1: TEdit;
     btnCVBpkAdd1: TButton;
     lblCVBpkAdd1: TLabel;
+    lbl2: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure btnCWBrowseClick(Sender: TObject);
     procedure btnCWDprAddClick(Sender: TObject);
@@ -169,7 +170,7 @@ begin
   edtCWRootDir.Text := S + '\Source\';
 
   S := ExtractFileDir(S);
-  edtCVRootDir.Text := S + '\cnvcl\Packages\';
+  edtCVRootDir.Text := S + '\cnvcl\Package\';
   edtCVSortRootDir.Text := edtCVRootDir.Text;
 
   FBefores := TStringList.Create;
@@ -311,11 +312,11 @@ begin
         begin // 挨个插入
           if IsTab and (Length(FAdds[K]) > 0) and (FAdds[K][1] = ' ') then
           begin
-            PutToList(L, I + FBefores.Count - 1, S + #9 + FAdds[K]);
+            PutToList(L, I + FBefores.Count - 1, S + #9 + Trim(FAdds[K]));
           end
           else if not IsTab and (Length(FAdds[K]) > 0) and (FAdds[K][1] = ' ') then
           begin
-            PutToList(L, I + FBefores.Count - 1, S + '    ' + FAdds[K]); // 没法判断几个空格，只能先用四个代替
+            PutToList(L, I + FBefores.Count - 1, S + '    ' + Trim(FAdds[K])); // 没法判断几个空格，只能先用四个代替
           end
           else
             PutToList(L, I + FBefores.Count - 1, S + FAdds[K]);

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,13 +23,20 @@ unit CnWizDebuggerNotifier;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：IDE Debugger 通知服务单元
-* 单元作者：刘啸 (liuxiao@cnpack.org)
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：该单元提供了 IDE Debugger 通知事件服务。
-            Debugger 系列通知服务因为结构的复杂性，特写成独立单元中的独立服务接口
+*           Debugger 系列通知服务因为结构的复杂性，特写成独立单元中的独立服务接口
+*           目标线程求值返回值说明：如果是对象，则其地址在 ResultAddr 中，([csInheritable]) 之类的放入 ResultStr
+*           如果是字符串值或数值，则内容已被转换成字符串存放在传入的 ResultStr 缓冲区中
+*           如果表达式出错，则 ResultAddr 会被赋值成 -1, ResultStr 赋值为 Inaccessable...
 * 开发平台：PWin2000Pro + Delphi 5.0
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2013.06.03
+* 修改记录：2024.03.09
+*               重构求值类
+*           2024.01.09
+*               简化求值方法并封装在一个全局接口中
+*           2013.06.03
 *               增加获取当前断点信息的方法
 *           2006.11.10
 *               增加 Evaluate 的相关求值方法
@@ -47,27 +54,30 @@ uses
   Contnrs, Consts, CnWizUtils, CnClasses;
 
 type
-  // 进程通知的类型，自定义
-  TCnProcessNotifyReason = (cprCreated, cprDestroyed);
+  TCnAvailableState = (asAvailable, asProcRunning, asOutOfScope, asNotAvailable);
+  {* 求值时的目标状态}
 
-  // 线程通知的类型，较 TOTANotifyReason 多了自定义的后两项
+  TCnProcessNotifyReason = (cprCreated, cprDestroyed);
+  {* 进程通知的类型，自定义}
+
   TCnThreadNotifyReason = (ctrOther, ctrRunning, ctrStopped, ctrException,
     ctrFault, ctrCreated, ctrDestroyed);
+  {* 线程通知的类型，较 TOTANotifyReason 多了自定义的后两项}
 
-  // 断点通知的类型，自定义
   TCnBreakpointNotifyReason = (cbrAdded, cbrDeleted);
+  {* 断点通知的类型，自定义}
 
-  // 进程通知器事件原型
   TCnProcessNotifier = procedure (Process: IOTAProcess;
     Reason: TCnProcessNotifyReason) of object;
+  {* 进程通知器事件原型}
 
-  // 线程通知器事件原型
   TCnThreadNotifier = procedure (Process: IOTAProcess; Thread: IOTAThread;
     Reason: TCnThreadNotifyReason) of object;
+  {* 线程通知器事件原型}
 
-  // 断点通知器事件原型
   TCnBreakpointNotifier = procedure (Breakpoint: IOTABreakpoint;
     Reason: TCnBreakpointNotifyReason) of object;
+  {* 断点通知器事件原型}
 
   ICnWizDebuggerNotifierServices = interface(IUnknown)
   {* IDE Debugger 通知服务接口}
@@ -106,34 +116,81 @@ type
     property LineNumber: Integer read FLineNumber write FLineNumber;
   end;
 
+{$IFDEF SUPPORT_32_AND_64}
+  TCnOTAAddress = UInt64;
+{$ELSE}
+  TCnOTAAddress = Cardinal;
+{$ENDIF}
+  PCnOTAAddress = ^TCnOTAAddress;
+
+  TCnRemoteProcessEvaluator = class(TCnSingletonInterfacedObject, IOTAThreadNotifier
+    {$IFDEF SUPPORT_32_AND_64}, IOTAThreadNotifier160 {$ENDIF})
+  {* 被调试进程的远程求值类，可按需实例化使用，也可用本单元的全局函数 CnInProcessEvaluator
+    因内部有消息循环，所以使用 TCnSingletonInterfacedObject 为基类以尽量避免接口释放问题}
+  private
+    FNotifierIndex: Integer;
+    FCompleted: Boolean;
+    FDeferredResult: string;
+    FDeferredError: Boolean;
+    FResultAddress: TCnOTAAddress;
+  protected
+    { IOTAThreadNotifier }
+    procedure AfterSave;
+    procedure BeforeSave;
+    procedure Destroyed;
+    procedure Modified;
+    procedure ThreadNotify(Reason: TOTANotifyReason);
+{$IFDEF DELPHI104_SYDNEY_UP}  // The typo is fixed in D104S
+    procedure EvaluateComplete(const ExprStr, ResultStr: string; CanModify: Boolean;
+      ResultAddress, ResultSize: LongWord; ReturnCode: Integer); overload;
+{$ELSE}
+    procedure EvaluteComplete(const ExprStr, ResultStr: string; CanModify: Boolean;
+      ResultAddress, ResultSize: LongWord; ReturnCode: Integer);
+{$ENDIF}
+    procedure ModifyComplete(const ExprStr, ResultStr: string; ReturnCode: Integer);
+
+{$IFDEF SUPPORT_32_AND_64}
+    { IOTAThreadNotifier160 }
+    // 因为 XE2 及以后版本支持 64 位目标进程，因而 ResultAddress 得是 64 位
+    procedure EvaluateComplete(const ExprStr, ResultStr: string; CanModify: Boolean;
+      ResultAddress: TOTAAddress; ResultSize: LongWord; ReturnCode: Integer); overload;
+{$ENDIF}
+  public
+    constructor Create; virtual;
+    destructor Destroy; override;
+
+    function CurrentProcessIs32: Boolean;
+    {* 返回被调试进程是否 Win32 或 OSX 的 32 位，如果否，是 Win64 或其他平台的 64 位或者是不支持的 32 位}
+
+    function EvaluateExpression(const Expression: string;
+      ObjectAddr: PCnOTAAddress = nil): string;
+    {* 求表达式的值，返回字符串结果；如果出错，则返回空字符串
+       如果结果是对象，则返回 ([csInheritable]) 这种字符串，
+       如果同时传入了 ObjectAddr 地址，则额外在 ObjectAddr 所指处返回该对象的远程地址}
+
+    function ReadProcessMemory(Address: TCnOTAAddress; ByteCount: Integer; var Buffer): Integer;
+    {* 读目标进程的内存地址，Address 为目标进程地址空间内的虚拟地址，
+       ByteCount 为待读取字节数，Buffer 为存放空间，返回读取成功的字节数}
+  end;
+
+function CnWizDebuggerObjectInheritsFrom(const Obj, BaseClassName: string;
+  Eval: TCnRemoteProcessEvaluator = nil; IsCpp: Boolean = False): Boolean;
+{* 通过远程求值判断父类名称的方式，判断某对象名是否继承自指定父类
+  允许外部传入求值工具实例，如果不传则内部创建并释放
+  IsCpp 表示外部要求求值环境是 C/C++ 语言，影响内部表达式，默认 False}
+
 function CnWizDebuggerNotifierServices: ICnWizDebuggerNotifierServices;
 {* 获取 IDE Debugger 通知服务接口}
 
-function EvaluateExpression(AThreadIntf: IOTAThread; const ExprStr: string;
-  ResultStr: PChar; ResultStrSize: LongWord; out CanModify: Boolean;
-  AllowSideEffects: Boolean; FormatSpecifiers: PAnsiChar; out ResultAddr: LongWord;
-  out ResultSize, ResultVal: LongWord; WaitMilliSec: Cardinal = 1000): Boolean;
-{* 以阻塞方式求目标线程内的表达式值，返回的结果如下：
-   如果是对象，则其地址在 ResultAddr 中，([csInheritable]) 之类的放入 ResultStr
-   如果是字符串值或数值，则内容已被转换成字符串存放在传入的 ResultStr 缓冲区中
-   如果表达式出错，则 ResultAddr 会被赋值成 -1, ResultStr 赋值为 Inaccessable...}
+function CnRemoteProcessEvaluator: TCnRemoteProcessEvaluator;
+{* 全局求值实例}
 
 implementation
 
 uses
-  {$IFDEF DEBUG} CnDebug, {$ENDIF}CnWizNotifier;
+  {$IFDEF DEBUG} CnDebug, {$ENDIF} CnWizNotifier;
 
 type
-  TCnEvaluateResult = packed record
-    EvaluateCompleted: Boolean;
-    ExprStr: string;
-    ResultStr: string;
-    CanModify: Boolean;
-    ResultAddress: LongWord;
-    ResultSize: LongWord;
-    ReturnCode: Integer;
-  end;
-
   TCnOTAProcess = class;
   TCnOTAThread = class;
   TCnWizDebuggerNotifierServices = class;
@@ -220,7 +277,7 @@ type
     property ThreadNotifierIndex: Integer read FThreadNotifierIndex;
   end;
 
-  TCnWizDebuggerNotifierServices = class(TSingletonInterfacedObject,
+  TCnWizDebuggerNotifierServices = class(TCnSingletonInterfacedObject,
     ICnWizDebuggerNotifierServices)
   {* 实现 IDE 的 Debugger 事件通知服务接口的私有类}
   private
@@ -265,48 +322,29 @@ type
 
 var
   FCnWizDebuggerNotifierServices: TCnWizDebuggerNotifierServices = nil;
+  FRemoteProcessEvaluator: TCnRemoteProcessEvaluator = nil;
 
-  EvaluateResult: TCnEvaluateResult;
-  CSInited: Boolean = False;
-  CSEvaluate: TRTLCriticalSection;
-
-// 去掉 PChar 字符串中两头的单引号引用
-procedure CropQuota(Str: PChar);
-var
-  Len, I: Integer;
-  // Idx: PChar;
+function CnRemoteProcessEvaluator: TCnRemoteProcessEvaluator;
 begin
-  if Str <> nil then
-  begin
-    // PChar 的下标从 0 开始，不同于 string 的从 1 开始
-    Len := StrLen(Str);
-    if (Str[0] = '''') and (Str[Len - 1] = '''') then // 得两头都是引号才行
-    begin
-      Str[Len - 1] := #0; // 去掉末尾的单引号
-      Dec(Len);
+  if FRemoteProcessEvaluator = nil then
+    FRemoteProcessEvaluator := TCnRemoteProcessEvaluator.Create;
+  Result := FRemoteProcessEvaluator;
+end;
 
-      if Str[0] = '''' then  // 移动，去掉头的单引号
-      begin
-        Dec(Len);
-        for I := 0 to Len - 1 do
-          Str[I] := Str[I + 1];
-        Str[Len] := #0;
-      end;
-    end;
+// 去掉字符串中两头的单引号引用
+function CropDebugQuotaStr(const Str: string): string;
+var
+  L: Integer;
+begin
+  Result := Str;
+  if Length(Str) <= 1 then
+    Exit;
 
-{   Idx := StrPos(Str, '''''');
-    while Idx <> nil do
-    begin
-      Len := StrLen(Idx);
-      for I := 0 to Len - 1 do
-        Idx[I] := Idx[I + 1];
-      Idx[Len] := #0;
+  L := Length(Result);
+  if (Result[1] = '''') and (Result[L] = '''') then // 得两头都是引号才行
+    Result := Copy(Result, 2, L - 2); // 去掉头尾的单引号
 
-      Idx := StrPos(Str, '''''');
-
-    end; }
-    // 无需找俩连续的单引号再移动以挤掉一个，因为 IDE 不会将单个引号换成两个
-  end;
+  // 无需找俩连续的单引号再移动以挤掉一个，因为 IDE 不会将单个引号换成两个
 end;
 
 // 获取 IDE Debugger 通知服务接口
@@ -315,86 +353,6 @@ begin
   if not Assigned(FCnWizDebuggerNotifierServices) then
     FCnWizDebuggerNotifierServices := TCnWizDebuggerNotifierServices.Create;
   Result := FCnWizDebuggerNotifierServices as ICnWizDebuggerNotifierServices;
-end;
-
-// 以阻塞方式求线程内的表达式值
-function EvaluateExpression(AThreadIntf: IOTAThread; const ExprStr: string;
-  ResultStr: PChar; ResultStrSize: LongWord; out CanModify: Boolean;
-  AllowSideEffects: Boolean; FormatSpecifiers: PAnsiChar; out ResultAddr: LongWord;
-  out ResultSize, ResultVal: LongWord; WaitMilliSec: Cardinal): Boolean;
-const
-  SEvaluateTimeout = 'Evaluate Time Out.';
-var
-  Er: TOTAEvaluateResult;
-  Len: LongWord;
-  Ticks: DWORD;
-begin
-  Result := False;
-  if (AThreadIntf <> nil) and (AThreadIntf.State in [tsStopped, tsBlocked]) then
-  begin
-    try
-      EvaluateResult.EvaluateCompleted := False;
-      Er := AThreadIntf.Evaluate(ExprStr, ResultStr, ResultStrSize, CanModify,
-        AllowSideEffects, FormatSpecifiers, ResultAddr, ResultSize, ResultVal);
-
-      Result := (Er <> erError);
-      if Er = erOK then
-      begin
-        // OK, 去掉返回值两头的单引号后直接返回
-{$IFDEF DEBUG}
-        CnDebugger.LogFmt('EvaluateExpression %s. Get the Result %s.', [ExprStr, ResultStr]);
-{$ENDIF}
-        CropQuota(ResultStr); 
-        EvaluateResult.EvaluateCompleted := True;
-      end
-      else if Er = erDeferred then
-      begin
-{$IFDEF DEBUG}
-        CnDebugger.LogFmt('EvaluateExpression %s. Waiting For Result.', [ExprStr]);
-{$ENDIF}
-        EvaluateResult.EvaluateCompleted := False;
-
-        // 超时机制
-        if WaitMilliSec <= 0 then WaitMilliSec := 1000;
-        Ticks := GetTickCount + WaitMilliSec;
-        while not EvaluateResult.EvaluateCompleted and (GetTickCount < Ticks) do
-          Application.ProcessMessages;
-
-        if not EvaluateResult.EvaluateCompleted then
-        begin
-          Result := False;
-          Len := Length(SEvaluateTimeout);
-          if Len > ResultStrSize - 1 then Len := ResultStrSize - 1;
-          StrLCopy(ResultStr, PChar(SEvaluateTimeout), Len);
-          Exit;
-        end;
-
-{$IFDEF DEBUG}
-        CnDebugger.LogMsg('Evaluate Result Comes.');
-{$ENDIF DEBUG}
-
-        // 照理应该折腾完了
-        CanModify := EvaluateResult.CanModify;
-        ResultAddr := EvaluateResult.ResultAddress;
-        ResultSize := EvaluateResult.ResultSize;
-        ResultVal := EvaluateResult.ReturnCode;
-
-        Len := Length(EvaluateResult.ResultStr);
-        if Len > ResultStrSize - 1 then Len := ResultStrSize - 1;
-        StrLCopy(ResultStr, PChar(EvaluateResult.ResultStr), Len);
-        CropQuota(ResultStr); // 去掉两头的单引号
-      end
-      else
-      begin
-        ; // 出错，错误信息照旧返回，此处无需干啥
-{$IFDEF DEBUG}
-        CnDebugger.LogErrorFmt('EvaluateExpression Error. %s.', [ExprStr]);
-{$ENDIF DEBUG}
-      end;
-    except
-
-    end;
-  end;
 end;
 
 { TCnWizDebuggerNotifierServices }
@@ -448,14 +406,14 @@ begin
   AProcess.FProcessNotifierIndex := Process.AddNotifier(AProcess.FProcessNotifier as IOTAProcessNotifier);
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('TCnWizDebuggerNotifierServices ProcessCreated Called %d %d', [Integer(AProcess.FProcessNotifier), AProcess.FProcessNotifierIndex ]);
-{$ENDIF DEBUG}
+{$ENDIF}
   FProcesses.Add(AProcess);
 
   if FProcessNotifiers <> nil then
   begin
 {$IFDEF DEBUG}
     CnDebugger.LogMsg('TCnWizDebuggerNotifierServices ProcessNotified, Reason Created.');
-{$ENDIF DEBUG}
+{$ENDIF}
     for I := FProcessNotifiers.Count - 1 downto 0 do
     try
       with PCnWizNotifierRecord(FProcessNotifiers[I])^ do
@@ -487,7 +445,7 @@ begin
   begin
 {$IFDEF DEBUG}
     CnDebugger.LogMsg('TCnWizDebuggerNotifierServices ProcessNotified, Reason Destroyed.');
-{$ENDIF DEBUG}
+{$ENDIF}
     for I := FProcessNotifiers.Count - 1 downto 0 do
     try
       with PCnWizNotifierRecord(FProcessNotifiers[I])^ do
@@ -507,7 +465,7 @@ begin
   begin
 {$IFDEF DEBUG}
     CnDebugger.LogMsg('TCnWizDebuggerNotifierServices BreakpointNotified, Reason Added.');
-{$ENDIF DEBUG}
+{$ENDIF}
     AddBreakpointDescriptor(Breakpoint.FileName, Breakpoint.LineNumber, Breakpoint.Enabled);
 
     for I := FBreakpointNotifiers.Count - 1 downto 0 do
@@ -529,7 +487,7 @@ begin
   begin
 {$IFDEF DEBUG}
     CnDebugger.LogMsg('TCnWizDebuggerNotifierServices BreakpointNotified, Reason Deleted.');
-{$ENDIF DEBUG}
+{$ENDIF}
     RemoveBreakpointDescriptor(Breakpoint.FileName, Breakpoint.LineNumber);
 
     for I := FBreakpointNotifiers.Count - 1 downto 0 do
@@ -579,7 +537,7 @@ begin
   begin
 {$IFDEF DEBUG}
     CnDebugger.LogMsg('TCnWizDebuggerNotifierServices ThreadNotified, Reason ' + IntToStr(Ord(Reason)));
-{$ENDIF DEBUG}
+{$ENDIF}
     for I := FThreadNotifiers.Count - 1 downto 0 do
     try
       with PCnWizNotifierRecord(FThreadNotifiers[I])^ do
@@ -743,7 +701,7 @@ begin
   FProcessNotifier := TCnOTAProcessNotifier.Create(Self);
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnOTAProcess.Created.');
-{$ENDIF DEBUG}
+{$ENDIF}
 end;
 
 destructor TCnOTAProcess.Destroy;
@@ -756,11 +714,11 @@ begin
   for I := FThreads.Count - 1 downto 0 do
     if FThreads[I] <> nil then
       TCnOTAThread(FThreads[I]).Free;
-      
+
   FThreads.Free;
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnOTAProcess.Destroyed.');
-{$ENDIF DEBUG}
+{$ENDIF}
   inherited;
 end;
 
@@ -774,13 +732,13 @@ begin
     begin
 {$IFDEF DEBUG}
       CnDebugger.LogMsg('TCnOTAProcess.RemoveThread. ThreadNotifierIndex = '+ InttoStr(TCnOTAThread(FThreads[I]).FThreadNotifierIndex));
-{$ENDIF DEBUG}
+{$ENDIF}
       Thread.RemoveNotifier(TCnOTAThread(FThreads[I]).FThreadNotifierIndex);
       // RemoveNotifier 会由于引用计数导致 FThreads[I] 的 ThreadNotifier 被释放
       TCnOTAThread(FThreads[I]).FThreadNotifierIndex := -1;
 {$IFDEF DEBUG}
       CnDebugger.LogMsg('TCnOTAProcess.RemoveThread. To Free FThreads ' + InttoStr(I));
-{$ENDIF DEBUG}
+{$ENDIF}
       TCnOTAThread(FThreads[I]).Free;
       FThreads.Delete(I);
       Break;
@@ -798,7 +756,7 @@ begin
   FDebuggerNotifierServices := AProcess.FDebuggerNotifierServices;
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnOTAProcessNotifier Created. Process Intf '+ InttoStr(Integer(FProcessIntf)));
-{$ENDIF DEBUG}
+{$ENDIF}
   // 保证 Notifier 拿到层层下放的接口实例
 end;
 
@@ -808,7 +766,7 @@ begin
   FProcessIntf := nil;
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnOTAProcessNotifier Destroyed.');
-{$ENDIF DEBUG}
+{$ENDIF}
   inherited;
 end;
 
@@ -828,7 +786,7 @@ procedure TCnOTAProcessNotifier.ThreadCreated({$IFDEF BDS} const {$ENDIF}Thread:
 begin
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('TCnOTAProcessNotifier ThreadCreated. FProcess = %d', [Integer(FProcess)]);
-{$ENDIF DEBUG}
+{$ENDIF}
   FProcess.AddThread(Thread);
   FDebuggerNotifierServices.ThreadNotify(FProcessIntf, Thread, ctrCreated);
 end;
@@ -851,7 +809,7 @@ begin
   FThreadNotifier := TCnOTAThreadNotifier.Create(Self);
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnOTAThread Created.');
-{$ENDIF DEBUG}
+{$ENDIF}
 end;
 
 destructor TCnOTAThread.Destroy;
@@ -862,7 +820,7 @@ begin
   FThread := nil;
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnOTAThread Destroyed.');
-{$ENDIF DEBUG}
+{$ENDIF}
   inherited;
 end;
 
@@ -879,7 +837,7 @@ begin
   // 保证 Notifier 拿到层层下放的接口实例
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnOTAThreadNotifier Created.');
-{$ENDIF DEBUG}
+{$ENDIF}
 end;
 
 destructor TCnOTAThreadNotifier.Destroy;
@@ -888,36 +846,29 @@ begin
   NoRefCount(FProcessIntf) := nil;
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnOTAThreadNotifier Destroyed.');
-{$ENDIF DEBUG}
+{$ENDIF}
   inherited;
 end;
 
 {$IFDEF DELPHI104_SYDNEY_UP}
+
 procedure TCnOTAThreadNotifier.EvaluateComplete(const ExprStr,
   ResultStr: string; CanModify: Boolean; ResultAddress,
   ResultSize: LongWord; ReturnCode: Integer);
+begin
+
+end;
+
 {$ELSE}
+
 procedure TCnOTAThreadNotifier.EvaluteComplete(const ExprStr,
   ResultStr: string; CanModify: Boolean; ResultAddress,
   ResultSize: LongWord; ReturnCode: Integer);
-{$ENDIF}
 begin
-{$IFDEF DEBUG}
-  CnDebugger.LogFmt('EvaluateExpression Result Returned. %s.', [ExprStr]);
-{$ENDIF DEBUG}
-  // 不支持多个表达式或多个线程交叉计算
-  EvaluateResult.ExprStr := ExprStr;
-  EvaluateResult.ResultStr := ResultStr;
-  EvaluateResult.CanModify := CanModify;
-  EvaluateResult.ResultAddress := ResultAddress;
-  EvaluateResult.ResultSize := ResultSize;
-  EvaluateResult.ReturnCode := ReturnCode;
 
-  EvaluateResult.EvaluateCompleted := True;
-{$IFDEF DEBUG}
-  CnDebugger.LogFmt('ResultStr %s, ResAddr %x, ResSize %x, ResVal %x.', [ResultStr, ResultAddress, ResultSize, ReturnCode]);
-{$ENDIF DEBUG}
 end;
+
+{$ENDIF}
 
 procedure TCnOTAThreadNotifier.ModifyComplete(const ExprStr,
   ResultStr: string; ReturnCode: Integer);
@@ -929,8 +880,9 @@ procedure TCnOTAThreadNotifier.ThreadNotify(Reason: TOTANotifyReason);
 begin
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('Thread Notified. Reason. %d.', [Ord(Reason)]);
-{$ENDIF DEBUG}
-  FDebuggerNotifierServices.ThreadNotify(FProcessIntf, FThreadIntf, TCnThreadNotifyReason(Ord(Reason)));
+{$ENDIF}
+  FDebuggerNotifierServices.ThreadNotify(FProcessIntf, FThreadIntf,
+    TCnThreadNotifyReason(Ord(Reason)));
 end;
 
 { TCnBreakpointDescriptor }
@@ -947,7 +899,278 @@ end;
 
 function TCnBreakpointDescriptor.ToString: string;
 begin
-  Result := Format('Enabled %d. Line: %d. File: %s', [Integer(FEnabled), FLineNumber, FFileName]);
+  Result := Format('Enabled %d. Line: %d. File: %s',
+    [Integer(FEnabled), FLineNumber, FFileName]);
+end;
+
+{ TCnRemoteProcessEvaluator }
+
+procedure TCnRemoteProcessEvaluator.AfterSave;
+begin
+
+end;
+
+procedure TCnRemoteProcessEvaluator.BeforeSave;
+begin
+
+end;
+
+constructor TCnRemoteProcessEvaluator.Create;
+begin
+  inherited;
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('TCnRemoteProcessEvaluator.Create');
+{$ENDIF}
+end;
+
+destructor TCnRemoteProcessEvaluator.Destroy;
+begin
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('TCnRemoteProcessEvaluator.Destroy: ');
+{$ENDIF}
+  inherited;
+end;
+
+procedure TCnRemoteProcessEvaluator.Destroyed;
+begin
+
+end;
+
+function TCnRemoteProcessEvaluator.EvaluateExpression(const Expression: string;
+  ObjectAddr: PCnOTAAddress): string;
+var
+  CurProcess: IOTAProcess;
+  CurThread: IOTAThread;
+  ResultStr: array[0..4095] of Char;
+  CanModify: Boolean;
+  Done: Boolean;
+  ResultAddr, ResultSize, ResultVal: LongWord;
+  EvalRes: TOTAEvaluateResult;
+  DebugSvcs: IOTADebuggerServices;
+
+  function EvalResultToString(ER: TOTAEvaluateResult): string;
+  begin
+    case ER of
+      erOK: Result := 'OK';
+      erError: Result := 'Error';
+      erDeferred: Result := 'Deferred';
+{$IFDEF OTA_DEBUG_HAS_ERBUSY}
+      erBusy: Result := 'Busy';
+{$ENDIF}
+    else
+      Result := 'Error Result';
+    end;
+  end;
+
+begin
+  Result := '';
+  if Supports(BorlandIDEServices, IOTADebuggerServices, DebugSvcs) then
+    CurProcess := DebugSvcs.CurrentProcess;
+
+  if CurProcess = nil then
+    Exit;
+  CurThread := CurProcess.CurrentThread;
+  if CurThread = nil then
+    Exit;
+
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('TCnRemoteProcessEvaluator.EvaluateExpression: ' + Expression);
+{$ENDIF}
+
+  repeat
+    Done := True; // 按需调 64 位版本，且 2005 后参数有新改动
+    EvalRes := CurThread.Evaluate(Expression, @ResultStr, Length(ResultStr),
+      CanModify, {$IFDEF BDS} eseAll, {$ELSE} True, {$ENDIF} '', ResultAddr,
+      ResultSize, ResultVal {$IFDEF BDS} , '', 0 {$ENDIF});
+
+{$IFDEF DEBUG}
+      CnDebugger.LogMsg('TCnRemoteProcessEvaluator.EvaluateExpression Res ' + EvalResultToString(EvalRes));
+{$ENDIF}
+
+    case EvalRes of
+      erOK: Result := ResultStr;
+      erError:
+        begin
+{$IFDEF DEBUG}
+          CnDebugger.LogMsg('TCnRemoteProcessEvaluator.EvaluateExpression Error: ' + ResultStr);
+{$ENDIF}
+        end;
+      erDeferred:
+        begin
+          FCompleted := False;
+          FDeferredResult := '';
+          FDeferredError := False;
+          FResultAddress := 0;
+
+          FNotifierIndex := CurThread.AddNotifier(Self);
+          while not FCompleted do
+          begin
+{$IFDEF OTA_DEBUG_HAS_EVENTS}
+            DebugSvcs.ProcessDebugEvents;
+{$ELSE}
+            Application.ProcessMessages;
+{$ENDIF}
+          end;
+          CurThread.RemoveNotifier(FNotifierIndex);
+          FNotifierIndex := -1;
+          if not FDeferredError then
+          begin
+            if FDeferredResult <> '' then
+              Result := FDeferredResult
+            else
+              Result := ResultStr;
+
+            if ObjectAddr <> nil then
+              ObjectAddr^ := FResultAddress;
+          end;
+        end;
+{$IFDEF OTA_DEBUG_HAS_ERBUSY}
+      erBusy:
+        begin
+{$IFDEF OTA_DEBUG_HAS_EVENTS}
+          DebugSvcs.ProcessDebugEvents;
+{$ELSE}
+          Application.ProcessMessages;
+{$ENDIF}
+          Done := False;
+        end;
+{$ENDIF}
+    end;
+  until Done;
+  Result := CropDebugQuotaStr(Result);
+end;
+
+{$IFDEF SUPPORT_32_AND_64}
+
+procedure TCnRemoteProcessEvaluator.EvaluateComplete(const ExprStr, ResultStr: string;
+  CanModify: Boolean; ResultAddress: TOTAAddress; ResultSize: LongWord;
+  ReturnCode: Integer);
+begin
+  // 高版本的拼写正确的 32/64 位回调，手动结束
+  FCompleted := True;
+  FDeferredResult := ResultStr;
+  FDeferredError := ReturnCode <> 0;
+  FResultAddress := ResultAddress;
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('High32/64 EvaluateComplete: ' + ResultStr);
+{$ENDIF}
+end;
+
+{$ENDIF}
+
+{$IFDEF DELPHI104_SYDNEY_UP}
+
+procedure TCnRemoteProcessEvaluator.EvaluateComplete(const ExprStr, ResultStr: string;
+  CanModify: Boolean; ResultAddress, ResultSize: LongWord; ReturnCode: Integer);
+begin
+  // 高一点的版本的拼写正确的 32 位回调，调用拼写正确的 32/64 位版本
+  EvaluateComplete(ExprStr, ResultStr, CanModify, TOTAAddress(ResultAddress), ResultSize, ReturnCode);
+end;
+
+{$ELSE}
+
+procedure TCnRemoteProcessEvaluator.EvaluteComplete(const ExprStr,
+  ResultStr: string; CanModify: Boolean; ResultAddress, ResultSize: LongWord;
+  ReturnCode: Integer);
+begin
+{$IFDEF SUPPORT_32_AND_64}
+  // 高一点的版本的拼写错误的 32 位回调，调用拼写正确的 32/64 位版本
+  EvaluateComplete(ExprStr, ResultStr, CanModify, TOTAAddress(ResultAddress), ResultSize, ReturnCode);
+{$ELSE}
+  // 低版本的拼写错误的调用 32 位的回调，手动结束
+  FCompleted := True;
+  FDeferredResult := ResultStr;
+  FDeferredError := ReturnCode <> 0;
+  FResultAddress := ResultAddress;
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('Low32 Typo EvaluateComplete: ' + ResultStr);
+{$ENDIF}
+{$ENDIF}
+end;
+
+{$ENDIF}
+
+procedure TCnRemoteProcessEvaluator.Modified;
+begin
+
+end;
+
+procedure TCnRemoteProcessEvaluator.ModifyComplete(const ExprStr, ResultStr: string;
+  ReturnCode: Integer);
+begin
+
+end;
+
+procedure TCnRemoteProcessEvaluator.ThreadNotify(Reason: TOTANotifyReason);
+begin
+
+end;
+
+function CnWizDebuggerObjectInheritsFrom(const Obj, BaseClassName: string;
+  Eval: TCnRemoteProcessEvaluator; IsCpp: Boolean): Boolean;
+var
+  S: string;
+begin
+  Result := False;
+  if (Obj = '') or (BaseClassName = '') then
+    Exit;
+
+  if Eval = nil then
+    Eval := CnRemoteProcessEvaluator;
+
+  if IsCpp then
+    S := Eval.EvaluateExpression(Format('(%s)->InheritsFrom(__classid(%s))', [Obj, BaseClassName]))
+  else
+    S := Eval.EvaluateExpression(Format('(%s).InheritsFrom(%s)', [Obj, BaseClassName]));
+
+  Result := LowerCase(S) = 'true';
+end;
+
+function TCnRemoteProcessEvaluator.ReadProcessMemory(Address: TCnOTAAddress;
+  ByteCount: Integer; var Buffer): Integer;
+var
+  CurProcess: IOTAProcess;
+  CurThread: IOTAThread;
+  DebugSvcs: IOTADebuggerServices;
+begin
+  Result := 0;
+  if ByteCount <= 0 then
+    Exit;
+
+  if Supports(BorlandIDEServices, IOTADebuggerServices, DebugSvcs) then
+    CurProcess := DebugSvcs.CurrentProcess;
+
+  if CurProcess = nil then
+    Exit;
+  CurThread := CurProcess.CurrentThread;
+  if CurThread = nil then
+    Exit;
+
+{$IFDEF DEBUG}
+  CnDebugger.LogPointer(Pointer(Address), 'TCnRemoteProcessEvaluator.ReadProcessMemory: ');
+{$ENDIF}
+
+  Result := CurProcess.ReadProcessMemory(Address, ByteCount, Buffer);
+end;
+
+function TCnRemoteProcessEvaluator.CurrentProcessIs32: Boolean;
+var
+  CurProcess: IOTAProcess;
+  DebugSvcs: IOTADebuggerServices;
+begin
+  Result := True;
+
+  if Supports(BorlandIDEServices, IOTADebuggerServices, DebugSvcs) then
+    CurProcess := DebugSvcs.CurrentProcess;
+
+  if CurProcess = nil then
+    Exit;
+
+{$IFDEF SUPPORT_32_AND_64}
+  Result := CurProcess.GetProcessType in [optWin32, optOSX32];
+{$ELSE}
+  Result := True;
+{$ENDIF}
 end;
 
 initialization
@@ -955,8 +1178,7 @@ initialization
 finalization
   if FCnWizDebuggerNotifierServices <> nil then
     FreeAndNil(FCnWizDebuggerNotifierServices);
-
-  if CSInited then
-    DeleteCriticalSection(CSEvaluate);
+  if FRemoteProcessEvaluator <> nil then
+    FreeAndNil(FRemoteProcessEvaluator);
 
 end.

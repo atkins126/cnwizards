@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -30,23 +30,23 @@ unit CnMultiLineEditorFrm;
 * 本 地 化：该单元和窗体中的字符串已经本地化处理方式
 * 修改记录：
 *           2005.08.01
-*               修正SetFont时每次都创建一个新的TFontDialog的BUG
+*               修正 SetFont 时每次都创建一个新的 TFontDialog 的 BUG
 *               调整 自动换行 为 隐藏/显示水平滚动条
 *           2003.10.31
-*               增加了Reload功能
+*               增加了 Reload 功能
 *               修正块左移包含空行出错的BUG
 *               自定义格式化前后缀只要有一个不为空就可以生效
 *           2003.10.29
-*               增加了去除引用工具，采用GetSelText以便更好的适应不同环境
+*               增加了去除引用工具，采用 GetSelText 以便更好的适应不同环境
 *           2003.10.18
 *               增加了一些辅助工具
 *           2003.09.17 V1.4
-*               修改了全部替换死循环的BUG
+*               修改了全部替换死循环的 BUG
 *           2003.06.28 V1.3
-*               在memEdit的EM_SETSEL中更新光标的位置
+*               在 memEdit 的 EM_SETSEL 中更新光标的位置
 *           2003.03.14 V1.2
-*               注释了Font对话框的文字设定
-*               增加了Height,Weight的save,load
+*               注释了 Font 对话框的文字设定
+*               增加了 Height, Weight 的 save, load
 *               字符串符合了本地化处理方式
 *               增加了光标位置指示
 *               增加了使用Delphi的Editor进行编辑
@@ -464,6 +464,7 @@ begin
     Free;
   end;
 
+  WizOptions.ResetToolbarWithLargeIcons(tbrMain);
   FOldMemoWndProc := memEdit.WindowProc;
   memEdit.WindowProc := MemoWndProc;
 end;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnPasCodeSample;
 ================================================================================
 * 软件名称：CnPack 公共单元
 * 单元名称：供测试代码文档生成的示例单元
-* 单元作者：刘啸 (liuxiao@cnpack.org)
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：该单元为测试代码文档生成的示例，应有各种声明
 * 开发平台：PWin7 + Delphi 5
 * 兼容测试：
@@ -132,12 +132,12 @@ type
     {* 构造函数}
     destructor Destroy; override;
     {* 析构函数}
-
+  private
     procedure Init;
     {* 初始化函数}
     function IsReady: Boolean;
     {* 返回是否准备好}
-
+  protected
     property Items[Index: Integer]: string read GetItem write SetItem; default;
     {* 某索引属性}
 

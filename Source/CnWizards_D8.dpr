@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -39,6 +39,7 @@ uses
   CnWizUpgradeFrm in 'Misc\CnWizUpgradeFrm.pas' {CnWizUpgradeForm},
   CnIDEVersion in 'Misc\CnIDEVersion.pas',
   CnWizMultiLang in 'MultiLang\CnWizMultiLang.pas' {CnTranslateForm},
+  CnWizMultiLangFrame in 'MultiLang\CnWizMultiLangFrame.pas' {CnTranslateFrame: TFrame},
   CnWizTranslate in 'MultiLang\CnWizTranslate.pas',
   CnWizUtils in 'Utils\CnWizUtils.pas',
   CnWizNotifier in 'Utils\CnWizNotifier.pas',
@@ -163,11 +164,11 @@ uses
   CnWinTopRoller in 'IdeEnhancements\CnWinTopRoller.pas' {CnTopRollerForm},
   CnWizEdtTabSetHook in 'EditorTabSet\CnWizEdtTabSetHook.pas',
   CnWizEdtTabSetFrm in 'EditorTabSet\CnWizEdtTabSetFrm.pas' {CnWizEdtTabSetForm},
-  CnInputHelper in 'IdeEnhancements\CnInputHelper.pas',
-  CnInputHelperFrm in 'IdeEnhancements\CnInputHelperFrm.pas' {CnInputHelperForm},
-  CnInputHelperEditFrm in 'IdeEnhancements\CnInputHelperEditFrm.pas' {CnInputHelperEditForm},
-  CnInputSymbolList in 'IdeEnhancements\CnInputSymbolList.pas',
-  CnInputIdeSymbolList in 'IdeEnhancements\CnInputIdeSymbolList.pas',
+  CnInputHelper in 'InputHelper\CnInputHelper.pas',
+  CnInputHelperFrm in 'InputHelper\CnInputHelperFrm.pas' {CnInputHelperForm},
+  CnInputHelperEditFrm in 'InputHelper\CnInputHelperEditFrm.pas' {CnInputHelperEditForm},
+  CnInputSymbolList in 'InputHelper\CnInputSymbolList.pas',
+  CnInputIdeSymbolList in 'InputHelper\CnInputIdeSymbolList.pas',
   CnWizIdeHooks in 'Utils\CnWizIdeHooks.pas',
   CnEditControlWrapper in 'Utils\CnEditControlWrapper.pas',
   CnSrcEditorGutter in 'SrcEditorEnhance\CnSrcEditorGutter.pas',
@@ -185,10 +186,11 @@ uses
   CnSrcEditorKey in 'SrcEditorEnhance\CnSrcEditorKey.pas',
   CnIdentRenameFrm in 'SrcEditorEnhance\CnIdentRenameFrm.pas' {CnIdentRenameForm},
   CnWizFlatButton in 'Utils\CnWizFlatButton.pas',
-  CnSourceHighlight in 'IdeEnhancements\CnSourceHighlight.pas',
-  CnSourceHighlightFrm in 'IdeEnhancements\CnSourceHighlightFrm.pas' {CnSourceHighlightForm},
-  CnHighlightLineFrm in 'IdeEnhancements\CnHighlightLineFrm.pas' {CnHighlightLineForm},
-  CnHighlightSeparateLineFrm in 'IdeEnhancements\CnHighlightSeparateLineFrm.pas' {CnHighlightSeparateLineForm},
+  CnSourceHighlight in 'SourceHighlight\CnSourceHighlight.pas',
+  CnSourceHighlightFrm in 'SourceHighlight\CnSourceHighlightFrm.pas' {CnSourceHighlightForm},
+  CnHighlightLineFrm in 'SourceHighlight\CnHighlightLineFrm.pas' {CnHighlightLineForm},
+  CnHighlightSeparateLineFrm in 'SourceHighlight\CnHighlightSeparateLineFrm.pas' {CnHighlightSeparateLineForm},
+  CnHighlightCustomIdentFrm in 'SourceHighlight\CnHighlightCustomIdentFrm.pas' {CnHighlightCustomIdentForm},
   CnProcListWizard in 'SimpleWizards\CnProcListWizard.pas' {CnProcListForm},
   CnVerEnhancements in 'IdeEnhancements\CnVerEnhancements.pas',
   CnVerEnhanceFrm in 'IdeEnhancements\CnVerEnhanceFrm.pas' {CnVerEnhanceForm},

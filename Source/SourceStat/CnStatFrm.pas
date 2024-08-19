@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ unit CnStatFrm;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：统计询问对话框窗体
-* 单元作者：刘啸(LiuXiao) liuxiao@cnpack.org
+* 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：模块
 * 开发平台：Windows 98 + Delphi 6
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
@@ -66,13 +66,11 @@ type
     function GetStatStyle: TStatStyle;
     procedure LoadSettings;
     procedure SaveSettings;
-    { Private declarations }
   protected
     function GetHelpTopic: string; override;
   public
     constructor CreateEx(AOwner: TComponent; AIni: TCustomIniFile);  
     property StatStyle: TStatStyle read GetStatStyle;
-    { Public declarations }
   end;
 
 var
@@ -84,7 +82,7 @@ implementation
 
 {$IFDEF CNWIZARDS_CNSTATWIZARD}
 
-{$R *.dfm}
+{$R *.DFM}
 
 function TCnStatForm.GetStatStyle: TStatStyle;
 begin
@@ -93,11 +91,11 @@ end;
 
 procedure TCnStatForm.rgStatStyleClick(Sender: TObject);
 var
-  i: Integer;
+  I: Integer;
 begin
   gbDir.Enabled := StatStyle = ssDir;
-  for i := 0 to gbDir.ControlCount - 1 do
-    gbDir.Controls[i].Enabled := StatStyle = ssDir;
+  for I := 0 to gbDir.ControlCount - 1 do
+    gbDir.Controls[I].Enabled := StatStyle = ssDir;
 end;
 
 procedure TCnStatForm.btnSelectDirClick(Sender: TObject);
@@ -144,11 +142,11 @@ end;
 
 procedure TCnStatForm.SaveSettings;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to ComponentCount - 1 do
-    if Components[i] is TComboBox then
-      AddComboBoxTextToItems(TComboBox(Components[i]));
+  for I := 0 to ComponentCount - 1 do
+    if Components[I] is TComboBox then
+      AddComboBoxTextToItems(TComboBox(Components[I]));
 
   with TCnIniFile.Create(FIni) do
   try

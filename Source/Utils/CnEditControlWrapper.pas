@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -69,7 +69,7 @@ type
 
 { TCnEditControlWrapper }
 
-  TEditControlInfo = record
+  TCnEditControlInfo = record
   {* 代码编辑器位置信息 }
     TopLine: Integer;         // 顶行号
     LinesInWindow: Integer;   // 窗口显示行数
@@ -105,7 +105,7 @@ type
 
   TEditorChangeTypes = set of TEditorChangeType;
 
-  TEditorContext = record
+  TCnEditorContext = record
     TopRow: Integer;               // 视觉上第一行的行号
     BottomRow: Integer;            // 视觉上最下面一行的行号
     LeftColumn: Integer;
@@ -132,7 +132,7 @@ type
     FLastBottomElided: Boolean;
     FLinesChanged: Boolean;
     FTopControl: TControl;
-    FContext: TEditorContext;
+    FContext: TCnEditorContext;
     FEditControl: TControl;
     FEditWindow: TCustomForm;
     FEditView: IOTAEditView;
@@ -149,8 +149,9 @@ type
     constructor Create(AEditControl: TControl; AEditView: IOTAEditView);
     destructor Destroy; override;
     function EditorIsOnTop: Boolean;
-    procedure IDEShowLineNumberChanged;
-    property Context: TEditorContext read FContext;
+    procedure NotifyIDEGutterChanged;
+
+    property Context: TCnEditorContext read FContext;
     property EditControl: TControl read FEditControl;
     property EditWindow: TCustomForm read FEditWindow;
     property EditView: IOTAEditView read FEditView;
@@ -260,7 +261,7 @@ type
     FMouseLeaveNotifiers: TList;
     FNcPaintNotifiers: TList;
     FVScrollNotifiers: TList;
-
+    FBackgroundColor: TColor;
     FEditorList: TObjectList;
     FEditControlList: TList;
     FOptionChanged: Boolean;
@@ -290,8 +291,8 @@ type
       TControl; Context: Pointer);
     procedure UpdateEditControlList;
     procedure CheckOptionDlg;
-    function GetEditorContext(Editor: TEditorObject): TEditorContext;
-    function CheckViewLinesChange(Editor: TEditorObject; Context: TEditorContext): Boolean;
+    function GetEditorContext(Editor: TEditorObject): TCnEditorContext;
+    function CheckViewLinesChange(Editor: TEditorObject; Context: TCnEditorContext): Boolean;
     // 检查某个 View 中的具体行号分布有无改变，包括纵向滚动、纵向伸缩、折叠等，不包括单行内改动
 
     function CheckEditorChanges(Editor: TEditorObject): TEditorChangeTypes;
@@ -313,6 +314,7 @@ type
     procedure ResetFontsFromBasic(ABasicFont: TFont);
     function GetFonts(Index: Integer): TFont;
     procedure SetFonts(const Index: Integer; const Value: TFont);
+    function GetBackgroundColor: TColor;
   protected
     procedure DoAfterPaintLine(Editor: TEditorObject; LineNum, LogicLineNum: Integer);
     procedure DoBeforePaintLine(Editor: TEditorObject; LineNum, LogicLineNum: Integer);
@@ -360,7 +362,7 @@ type
     {* 返回编辑器字宽 }
     function GetCharSize: TSize;
     {* 返回编辑器行高和字宽 }
-    function GetEditControlInfo(EditControl: TControl): TEditControlInfo;
+    function GetEditControlInfo(EditControl: TControl): TCnEditControlInfo;
     {* 返回编辑器当前信息 }
     function GetEditControlCharHeight(EditControl: TControl): Integer;
     {* 返回编辑器内的字符高度也就是行高}
@@ -511,6 +513,9 @@ type
     property FontSpace: TFont index 7 read GetFonts write SetFonts;
     property FontString: TFont index 8 read GetFonts write SetFonts;
     property FontSymbol: TFont index 9 read GetFonts write SetFonts;
+
+    property BackgroundColor: TColor read GetBackgroundColor;
+    {* 编辑器的文字背景色，实际上是 WhiteSpace 字体的背景色}
   end;
 
 function EditControlWrapper: TCnEditControlWrapper;
@@ -586,18 +591,22 @@ function TEditorObject.GetGutterWidth: Integer;
 begin
   if FGutterChanged and Assigned(FEditView) then
   begin
-  {$IFDEF BDS}
+{$IFDEF BDS}
     FGutterWidth := EditControlWrapper.GetPointFromEdPos(FEditControl,
       OTAEditPos(1, 1)).X;
     FGutterWidth := FGutterWidth + (FEditView.LeftColumn - 1) *
       FEditControlWrapper.FCharSize.cx;
-  {$ELSE}
+{$ELSE}
     FGutterWidth := FEditView.Buffer.BufferOptions.LeftGutterWidth;
-  {$ENDIF}
+{$ENDIF}
 
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('EditorObject GetGutterWidth. Control Left %d. ReCalc to %d',
+      [FEditControl.Left, FGutterWidth]);
+{$ENDIF}
     FGutterChanged := False;
   end;
-  Result := FGutterWidth;  
+  Result := FGutterWidth;
 end;
 
 function TEditorObject.GetViewBottomLine: Integer;
@@ -638,12 +647,12 @@ begin
       begin
         Result := ACtrl;
         Exit;
-      end;  
-    end;  
-  end;  
+      end;
+    end;
+  end;
 end;
 
-procedure TEditorObject.IDEShowLineNumberChanged;
+procedure TEditorObject.NotifyIDEGutterChanged;
 begin
   FGutterChanged := True;
 end;
@@ -895,6 +904,7 @@ begin
 
   for I := Low(Self.FFontArray) to High(FFontArray) do
     FFontArray[I] := TFont.Create;
+  FBackgroundColor := clWhite;
 
   CnWizNotifierServices.AddSourceEditorNotifier(OnSourceEditorNotify);
   CnWizNotifierServices.AddActiveFormNotifier(OnActiveFormChange);
@@ -1078,9 +1088,9 @@ begin
 end;
 
 function TCnEditControlWrapper.GetEditorContext(Editor: TEditorObject):
-  TEditorContext;
+  TCnEditorContext;
 begin
-  FillChar(Result, SizeOf(TEditorContext), 0);
+  FillChar(Result, SizeOf(TCnEditorContext), 0);
   if (Editor <> nil) and (Editor.EditView <> nil) and (Editor.EditControl <> nil) then
   begin
     Result.TopRow := Editor.EditView.TopRow;
@@ -1156,7 +1166,7 @@ begin
 end;
 
 function TCnEditControlWrapper.CheckViewLinesChange(Editor: TEditorObject;
-  Context: TEditorContext): Boolean;
+  Context: TCnEditorContext): Boolean;
 var
   I, Idx, LineCount: Integer;
 begin
@@ -1212,7 +1222,7 @@ end;
 function TCnEditControlWrapper.CheckEditorChanges(Editor: TEditorObject):
   TEditorChangeTypes;
 var
-  Context, OldContext: TEditorContext;
+  Context, OldContext: TCnEditorContext;
   ACtrl: TControl;
 begin
   Result := [];
@@ -1712,7 +1722,7 @@ begin
 end;
 
 function TCnEditControlWrapper.GetEditControlInfo(EditControl: TControl):
-  TEditControlInfo;
+  TCnEditControlInfo;
 begin
   try
     Result.TopLine := GetOrdProp(EditControl, 'TopLine');
@@ -2985,6 +2995,11 @@ begin
   Result := FFontArray[Index];
 end;
 
+function TCnEditControlWrapper.GetBackgroundColor: TColor;
+begin
+  Result := FBackgroundColor;
+end;
+
 procedure TCnEditControlWrapper.LoadFontFromRegistry;
 const
   arrRegItems: array [0..9] of string = ('', 'Assembler', 'Comment', 'Preprocessor',
@@ -2992,6 +3007,7 @@ const
 var
   I: Integer;
   AFont: TFont;
+  BColor: TColor;
 begin
   // 从注册表中载入 IDE 的字体供外界使用
   AFont := TFont.Create;
@@ -2999,14 +3015,25 @@ begin
     AFont.Name := 'Courier New';  {Do NOT Localize}
     AFont.Size := 10;
 
-    if GetIDERegistryFont(arrRegItems[0], AFont) then
+    BColor := clWhite;
+    if GetIDERegistryFont(arrRegItems[0], AFont, BColor) then
       ResetFontsFromBasic(AFont);
 
     for I := Low(FFontArray) + 1 to High(FFontArray) do
     begin
       try
-        if GetIDERegistryFont(arrRegItems[I], AFont) then
+        BColor := clWhite;
+        if GetIDERegistryFont(arrRegItems[I], AFont, BColor) then
+        begin
           FFontArray[I].Assign(AFont);
+          if I = 7 then // WhiteSpace 的背景色
+          begin
+            FBackgroundColor := BColor;
+{$IFDEF DEBUG} // 没有 EditControl 实例时可能会因为拿不到信息被 Idle 频繁调用，不打
+//          CnDebugger.LogColor(FBackgroundColor, 'LoadFontFromRegistry Get Background');
+{$ENDIF}
+          end;
+        end;
       except
         Continue;
       end;

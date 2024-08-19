@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -45,7 +45,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, mPasLex, CnPasWideLex, mwBCBTokenList,
-  Contnrs, CnFastList, CnPasCodeParser, CnContainers;
+  Contnrs, CnFastList, CnPasCodeParser, CnContainers, CnIDEStrings;
 
 type
   TCnWidePasToken = class(TPersistent)
@@ -233,7 +233,7 @@ type
 procedure ParsePasCodePosInfoW(const Source: CnWideString; Line, Col: Integer;
   var PosInfo: TCodePosInfo; TabWidth: Integer = 2; FullSource: Boolean = True);
 {* UNICODE 环境下的解析光标所在代码的位置，只用于 D2009 或以上
-  Line/Col 对应 View 的 CursorPos，均为 1 开始}
+  非 Unicode 编译器下貌似也行，Line/Col 对应 View 的 CursorPos，均为 1 开始}
 
 procedure ParseUnitUsesW(const Source: CnWideString; UsesList: TStrings;
   SupportUnicodeIdent: Boolean = False);
@@ -394,7 +394,7 @@ begin
     TObject(TokenPool[I]).Free;
 end;
 
-// NextNoJunk仅仅只跳过注释，而没跳过编译指令的情况。加此函数可过编译指令
+// NextNoJunk 仅仅只跳过注释，而没跳过编译指令的情况。加此函数可过编译指令
 procedure LexNextNoJunkWithoutCompDirect(Lex: TCnPasWideLex);
 begin
   repeat
@@ -464,8 +464,8 @@ begin
   Result := TCnWidePasToken(FList[Index]);
 end;
 
-procedure TCnWidePasStructParser.CalcCharIndexes(out ACharIndex: Integer; out AnAnsiIndex: Integer;
-  Lex: TCnPasWideLex; Source: PWideChar);
+procedure TCnWidePasStructParser.CalcCharIndexes(out ACharIndex: Integer;
+  out AnAnsiIndex: Integer; Lex: TCnPasWideLex; Source: PWideChar);
 var
   I, AnsiLen, WideLen: Integer;
 begin
@@ -486,7 +486,7 @@ begin
       else
       begin
         Inc(WideLen);
-        if Ord(Source[I]) > $900 then
+        if IDEWideCharIsWideLength(Source[I]) then
           Inc(AnsiLen, SizeOf(WideChar))
         else
           Inc(AnsiLen, SizeOf(AnsiChar));
@@ -511,12 +511,12 @@ begin
   Result := CreatePasToken;
   Result.FTokenPos := Lex.TokenPos;
 
-  Len := Lex.TokenLength;
+  Len := Lex.TokenLength;        
   Result.FTokenLength := Len;
   if Len > CN_TOKEN_MAX_SIZE then
     Len := CN_TOKEN_MAX_SIZE;
-  // FillChar(Token.FToken[0], SizeOf(Token.FToken), 0);
-  CopyMemory(@Result.FToken[0], Lex.TokenAddr, Len * SizeOf(WideChar));
+
+  Move(Lex.TokenAddr^, Result.FToken[0], Len * SizeOf(WideChar));
   Result.FToken[Len] := #0;
 
   Result.FLineNumber := Lex.LineNumber - 1;              // 1 开始变成 0 开始
@@ -1192,7 +1192,7 @@ begin
 
         // 需要时，普通标识符加，& 后的标识符也加
         if not AKeyOnly and ((PrevTokenID <> tkAmpersand) or (Lex.TokenID = tkIdentifier)) then
-          Token := NewToken(Lex, ASource, CurrBlock, CurrMethod, CurrBracketLevel);
+          NewToken(Lex, ASource, CurrBlock, CurrMethod, CurrBracketLevel);
       end;
 
       if Lex.TokenID = tkRoundOpen then
@@ -1515,6 +1515,7 @@ var
   Lex: TCnPasWideLex;
   ExpandCol: Integer;
   MyTokenID: TTokenKind;
+  Bookmark: TCnPasWideBookmark;
 
   function LexStillBeforeCursor: Boolean;
   begin
@@ -1567,6 +1568,7 @@ var
 begin
   Lex := nil;
   ProcStack := nil;
+  Bookmark := nil;
   PosInfo.IsPascal := True;
 
   try
@@ -1757,6 +1759,7 @@ begin
             end
             else
             begin
+              Lex.SaveToBookmark(Bookmark);
               DoNext(True);
               if LexStillBeforeCursor and (Lex.TokenID in [tkSealed, tkStrict,
                 tkPrivate, tkProtected, tkPublic, tkPublished, tkHelper, tkClass,
@@ -1765,6 +1768,11 @@ begin
                 PosInfo.PosKind := pkClass;
                 InClass := True;
                 Continue;
+              end
+              else
+              begin
+                // 不是，则要恢复，免得多 DoNext 一次
+                Lex.LoadFromBookmark(Bookmark);
               end;
             end;
           end;
@@ -1786,7 +1794,7 @@ begin
               PosInfo.PosKind := pkCompDirect;
             end;
           end;
-        tkString:
+        tkString, tkMultiLineString:
           begin
             if PosInfo.PosKind <> pkString then
             begin
@@ -1889,7 +1897,9 @@ begin
             if PosInfo.PosKind = pkConst then
               PosInfo.PosKind := pkConstTypeValue
             else if PosInfo.PosKind = pkType then
-              PosInfo.PosKind := pkTypeDecl;
+              PosInfo.PosKind := pkTypeDecl
+            else if PosInfo.PosKind = pkField then // 等号结束 Field
+              PosInfo.PosKind := SavePos;
           end;
         tkAssign:
           begin
@@ -1928,6 +1938,7 @@ begin
     end;
   finally
     Lex.Free;
+    Bookmark.Free; // 如已被 Load，则为 nil了，不怕重复 Free
     ProcStack.Free;
   end;
 end;

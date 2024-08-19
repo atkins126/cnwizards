@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -23,7 +23,7 @@ library CnWizLoader;
 ================================================================================
 * 软件名称：CnPack IDE 专家包
 * 单元名称：CnWizard 专家 DLL 加载器实现单元
-* 单元作者：刘啸 (liuxiao@cnpack.org)
+* 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：
 * 开发平台：PWin7 + Delphi 5.0
 * 兼容测试：所有版本的 Delphi
@@ -95,8 +95,9 @@ end;
 
 function GetWizardDll: string;
 const
-  RIO_13_2_RELEASE = 34749;
   XE2_UPDATE4_HOTFIX1_RELEASE = 4504;
+  XE8_UPDATE1_RELEASE = 19908;
+  RIO_13_2_RELEASE = 34749;
   SYDNEY_14_1_RELEASE = 38860;
 var
   FullPath: array[0..MAX_PATH - 1] of AnsiChar;
@@ -147,7 +148,13 @@ begin
     19: Result := Dir + 'CnWizards_DXE5.DLL';
     20: Result := Dir + 'CnWizards_DXE6.DLL';
     21: Result := Dir + 'CnWizards_DXE7.DLL';
-    22: Result := Dir + 'CnWizards_DXE8.DLL';
+    22:
+      begin
+        if V.Release < XE8_UPDATE1_RELEASE then
+          Result := Dir + 'CnWizards_DXE81.DLL' // XE8 Update 1 或以上的 FMX 不兼容无 Update 版，采用另一个低版本编译的 DLL
+        else
+          Result := Dir + 'CnWizards_DXE8.DLL';
+      end;
     23: Result := Dir + 'CnWizards_D10S.DLL';
     24: Result := Dir + 'CnWizards_D101B.DLL';
     25: Result := Dir + 'CnWizards_D102T.DLL';
@@ -166,6 +173,7 @@ begin
           Result := Dir + 'CnWizards_D104S.DLL';
       end;
     28: Result := Dir + 'CnWizards_D110A.DLL';
+    29: Result := Dir + 'CnWizards_D120A.DLL';
   end;
 end;
 
@@ -197,6 +205,8 @@ begin
 
   if (Dll <> '') and FileExists(Dll) then
   begin
+    OutputDebugString(PChar(Format('Get DLL: %s', [Dll])));
+
     DllInst := LoadLibraryA(PAnsiChar(Dll));
     if DllInst <> 0 then
     begin
@@ -209,10 +219,10 @@ begin
         Terminate := LoaderTerminate;
       end
       else
-        OutputDebugString(PChar(Format('DLL %s Corrupted!', [Dll])));
+        OutputDebugString(PChar(Format('DLL Corrupted! No Entry %s', [WizardEntryPoint])));
     end
     else
-      OutputDebugString(PChar(Format('DLL %s Loading Error!', [Dll])));
+      OutputDebugString(PChar(Format('DLL Loading Error! %d', [GetLastError])));
   end
   else
     OutputDebugString(PChar(Format('DLL %s NOT Found!', [Dll])));

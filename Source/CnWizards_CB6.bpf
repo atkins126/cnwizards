@@ -3,10 +3,11 @@ USEFORMNS("Misc\CnWizCommentFrm.pas", Cnwizcommentfrm, CnWizCommentForm);
 USEFORMNS("Misc\CnWizUpgradeFrm.pas", Cnwizupgradefrm, CnWizUpgradeForm);
 USEFORMNS("Misc\CnWizShareImages.pas", Cnwizshareimages, dmCnSharedImages); /* TDataModule: File Type */
 USEFORMNS("MultiLang\CnWizMultiLang.pas", Cnwizmultilang, CnTranslateForm);
+USEFORMNS("MultiLang\CnWizMultiLangFrame.pas", Cnwizmultilangframe, CnTranslateFrame); /* TFrame: File Type */
 USEFORMNS("Config\CnWizConfigFrm.pas", Cnwizconfigfrm, CnWizConfigForm);
 USEFORMNS("Config\CnWizSubActionShortCutFrm.pas", Cnwizsubactionshortcutfrm, CnWizSubActionShortCutForm);
 USEFORMNS("Config\CnWizMenuSortFrm.pas", Cnwizmenusortfrm, CnMenuSortFrm);
-USEFORMNS("DesignWizard\CnDesignWizard.pas", Cnalignsizewizard, CnNonArrangeForm);
+USEFORMNS("DesignWizard\CnDesignWizard.pas", Cndesignwizard, CnNonArrangeForm);
 USEFORMNS("CodingToolset\CnCodingToolsetWizard.pas", Cncodingtoolsetwizard, CnEditorToolsForm);
 USEFORMNS("DesignWizard\CnListCompFrm.pas", Cnlistcompfrm, CnListCompForm);
 USEFORMNS("DesignWizard\CnPropertyCompareFrm.pas", Cnpropertycomparefrm, CnPropertyCompareForm);
@@ -74,24 +75,35 @@ USEFORMNS("ProjectExtWizard\CnProjectBackupFrm.pas", Cnprojectbackupfrm, CnProje
 USEFORMNS("ProjectExtWizard\CnProjectBackupSaveFrm.pas", Cnprojectbackupsavefrm, CnProjectBackupSaveForm);
 USEFORMNS("SimpleWizards\CnProcListWizard.pas", Cnproclistwizard, CnProcListFrm);
 USEFORMNS("IdeEnhancements\CnVerEnhanceFrm.pas", Cnverenhancefrm, CnVerEnhanceForm);
+USEFORMNS("DebugEnhance\CnDebugEnhancements.pas", Cndebugenhancements, CnDebugEnhanceForm);
+USEFORMNS("DebugEnhance\CnDataSetVisualizer.pas", Cndatasetvisualizer, CnDataSetViewerFrame); /* TFrame: File Type */
+USEFORMNS("DebugEnhance\CnStringsVisualizer.pas", Cnstringsvisualizer, CnStringsViewerFrame); /* TFrame: File Type */
+USEFORMNS("DebugEnhance\CnBytesVisualizer.pas", Cnbytesvisualizer, CnBytesViewerFrame); /* TFrame: File Type */
+USEFORMNS("DebugEnhance\CnWideVisualizer.pas", Cnwidevisualizer, CnWideViewerFrame); /* TFrame: File Type */
+USEFORMNS("DebugEnhance\CnMemoryStreamVisualizer.pas", Cnmemorystreamvisualizer, CnMemoryStreamViewerFrame); /* TFrame: File Type */
 USEFORMNS("Utils\CnWizMacroFrm.pas", Cnwizmacrofrm, CnWizMacroForm);
 USEFORMNS("ProjectExtWizard\CnProjectDirImportFrm.pas", Cnprojectdirimportfrm, CnImportDirForm);
 USEFORMNS("SrcEditorEnhance\CnSrcEditorGroupReplace.pas", Cnsrceditorgroupreplace, CnSrcEditorGroupReplaceForm);
 USEFORMNS("SrcEditorEnhance\CnSrcEditorReplaceInBlock.pas", Cnsrceditorreplaceinblock, CnSrcEditorReplaceInBlockForm);
 USEFORMNS("CodingToolset\CnEditorInsertTime.pas", Cneditorinserttime, CnEditorInsertTimeForm);
 USEFORMNS("CodingToolset\CnEditorCollector.pas", Cneditorcollector, CnEditorCollectorForm);
+USEFORMNS("CodingToolset\CnEditorExtractString.pas", Cneditorextractstring, CnExtractStringForm);
 USEFORMNS("SrcEditorEnhance\CnIdentRenameFrm.pas", Cnidentrenamefrm, CnIdentRenameForm);
-USEFORMNS("IdeEnhancements\CnSourceHighlightFrm.pas", Cnsourcehighlightfrm, CnSourceHighlightForm);
-USEFORMNS("IdeEnhancements\CnHighlightLineFrm.pas", Cnhighlightlinefrm, CnHighlightLineForm);
-USEFORMNS("IdeEnhancements\CnHighlightSeparateLineFrm.pas", Cnhighlightseparatelinefrm, CnHighlightSeparateLineForm);
-USEFORMNS("IdeEnhancements\CnInputHelperEditFrm.pas", Cninputhelpereditfrm, CnInputHelperEditForm);
-USEFORMNS("IdeEnhancements\CnInputHelperFrm.pas", Cninputhelperfrm, CnInputHelperForm);
+USEFORMNS("SourceHighlight\CnSourceHighlightFrm.pas", Cnsourcehighlightfrm, CnSourceHighlightForm);
+USEFORMNS("SourceHighlight\CnHighlightLineFrm.pas", Cnhighlightlinefrm, CnHighlightLineForm);
+USEFORMNS("SourceHighlight\CnHighlightSeparateLineFrm.pas", Cnhighlightseparatelinefrm, CnHighlightSeparateLineForm);
+USEFORMNS("SourceHighlight\CnHighlightCustomIdentFrm.pas", Cnhighlightcustomidentfrm, CnHighlightCustomIdentForm);
+USEFORMNS("InputHelper\CnInputHelperEditFrm.pas", Cninputhelpereditfrm, CnInputHelperEditForm);
+USEFORMNS("InputHelper\CnInputHelperFrm.pas", Cninputhelperfrm, CnInputHelperForm);
 USEFORMNS("SrcEditorEnhance\CnSrcEditorWebSearch.pas", Cnsrceditorwebsearch, CnSrcEditorWebSearchForm);
 USEFORMNS("DesignEditors\CnPropEditorCustomizeFrm.pas", Cnpropeditorcustomizefrm, CnPropEditorCustomizeForm);
 USEFORMNS("ScriptWizard\CnScriptFrm.pas", Cnscriptfrm, CnScriptForm);
 USEFORMNS("ScriptWizard\CnScriptWizard.pas", Cnscriptwizard, CnScriptWizardForm);
 USEFORMNS("DesignEditors\CnImageListEditorFrm.pas", Cnimagelisteditorfrm, CnImageListEditorForm);
 USEFORMNS("CodeFormatter\CnCodeFormatterWizard.pas", Cncodeformatterwizard, CnCodeFormatterForm);
+USEFORMNS("AICoder\CnAICoderWizard.pas", Cnaicoderwizard, CnAICoderConfigForm);
+USEFORMNS("AICoder\CnAICoderChatFrm.pas", Cnaicoderchatfrm, CnAICoderChatForm);
+USEFORMNS("AICoder\CnFrmAICoderOption.pas", Cnfrmaicoderoption, CnAICoderOptionFrame); /* TFrame: File Type */
 //---------------------------------------------------------------------------
 This file is used by the project manager only and should be treated like the project file
 

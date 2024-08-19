@@ -75,7 +75,7 @@
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
         <DCC_DebugInformation>0</DCC_DebugInformation>
-        <DCC_Define>RELEASE;I64$(DCC_Define)</DCC_Define>
+        <DCC_Define>RELEASE;I64;ENABLE_UIINTERACT;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <VerInfo_Locale>1033</VerInfo_Locale>
@@ -88,12 +88,12 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
-        <DCC_Define>DEBUG;I64$(DCC_Define)</DCC_Define>
+        <DCC_Define>DEBUG;I64;ENABLE_UIINTERACT;$(DCC_Define)</DCC_Define>
         <DCC_Optimize>false</DCC_Optimize>
         <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-        <DCC_Define>I64;$(DCC_Define)</DCC_Define>
+        <DCC_Define>I64;ENABLE_UIINTERACT;$(DCC_Define)</DCC_Define>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName);FileDescription=$(MSBuildProjectName);ProductName=$(MSBuildProjectName)</VerInfo_Keys>
         <UsePackages>true</UsePackages>
@@ -141,6 +141,10 @@
         <DCCReference Include="Misc\CnIDEVersion.pas"/>
         <DCCReference Include="MultiLang\CnWizMultiLang.pas">
             <Form>CnTranslateForm</Form>
+        </DCCReference>
+        <DCCReference Include="MultiLang\CnWizMultiLangFrame.pas">
+            <Form>CnTranslateFrame</Form>
+            <DesignClass>TFrame</DesignClass>
         </DCCReference>
         <DCCReference Include="MultiLang\CnWizTranslate.pas"/>
         <DCCReference Include="Utils\CnWizUtils.pas"/>
@@ -429,15 +433,15 @@
         <DCCReference Include="EditorTabSet\CnWizEdtTabSetFrm.pas">
             <Form>CnWizEdtTabSetForm</Form>
         </DCCReference>
-        <DCCReference Include="IdeEnhancements\CnInputHelper.pas"/>
-        <DCCReference Include="IdeEnhancements\CnInputHelperFrm.pas">
+        <DCCReference Include="InputHelper\CnInputHelper.pas"/>
+        <DCCReference Include="InputHelper\CnInputHelperFrm.pas">
             <Form>CnInputHelperForm</Form>
         </DCCReference>
-        <DCCReference Include="IdeEnhancements\CnInputHelperEditFrm.pas">
+        <DCCReference Include="InputHelper\CnInputHelperEditFrm.pas">
             <Form>CnInputHelperEditForm</Form>
         </DCCReference>
-        <DCCReference Include="IdeEnhancements\CnInputSymbolList.pas"/>
-        <DCCReference Include="IdeEnhancements\CnInputIdeSymbolList.pas"/>
+        <DCCReference Include="InputHelper\CnInputSymbolList.pas"/>
+        <DCCReference Include="InputHelper\CnInputIdeSymbolList.pas"/>
         <DCCReference Include="Utils\CnWizIdeHooks.pas"/>
         <DCCReference Include="Utils\CnEditControlWrapper.pas"/>
         <DCCReference Include="SrcEditorEnhance\CnSrcEditorGutter.pas"/>
@@ -470,15 +474,18 @@
             <Form>CnIdentRenameForm</Form>
         </DCCReference>
         <DCCReference Include="Utils\CnWizFlatButton.pas"/>
-        <DCCReference Include="IdeEnhancements\CnSourceHighlight.pas"/>
-        <DCCReference Include="IdeEnhancements\CnSourceHighlightFrm.pas">
+        <DCCReference Include="SourceHighlight\CnSourceHighlight.pas"/>
+        <DCCReference Include="SourceHighlight\CnSourceHighlightFrm.pas">
             <Form>CnSourceHighlightForm</Form>
         </DCCReference>
-        <DCCReference Include="IdeEnhancements\CnHighlightLineFrm.pas">
+        <DCCReference Include="SourceHighlight\CnHighlightLineFrm.pas">
             <Form>CnHighlightLineForm</Form>
         </DCCReference>
-        <DCCReference Include="IdeEnhancements\CnHighlightSeparateLineFrm.pas">
+        <DCCReference Include="SourceHighlight\CnHighlightSeparateLineFrm.pas">
             <Form>CnHighlightSeparateLineForm</Form>
+        </DCCReference>
+        <DCCReference Include="SourceHighlight\CnHighlightCustomIdentFrm.pas">
+            <Form>CnHighlightCustomIdentForm</Form>
         </DCCReference>
         <DCCReference Include="SimpleWizards\CnProcListWizard.pas">
             <Form>CnProcListForm</Form>
@@ -486,6 +493,29 @@
         <DCCReference Include="IdeEnhancements\CnVerEnhancements.pas"/>
         <DCCReference Include="IdeEnhancements\CnVerEnhanceFrm.pas">
             <Form>CnVerEnhanceForm</Form>
+        </DCCReference>
+        <DCCReference Include="DebugEnhance\CnDebugEnhancements.pas">
+            <Form>CnDebugEnhanceForm</Form>
+        </DCCReference>
+        <DCCReference Include="DebugEnhance\CnDataSetVisualizer.pas">
+            <Form>CnDataSetViewerFrame</Form>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
+        <DCCReference Include="DebugEnhance\CnStringsVisualizer.pas">
+            <Form>CnStringsViewerFrame</Form>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
+        <DCCReference Include="DebugEnhance\CnBytesVisualizer.pas">
+            <Form>CnBytesViewerFrame</Form>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
+        <DCCReference Include="DebugEnhance\CnWideVisualizer.pas">
+            <Form>CnWideViewerFrame</Form>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
+        <DCCReference Include="DebugEnhance\CnMemoryStreamVisualizer.pas">
+            <Form>CnMemoryStreamViewerFrame</Form>
+            <DesignClass>TFrame</DesignClass>
         </DCCReference>
         <DCCReference Include="ProjectExtWizard\CnProjectDirBuilderFrm.pas">
             <Form>CnProjectDirBuilderForm</Form>
@@ -527,6 +557,20 @@
         <DCCReference Include="CodeFormatter\CnFormatterIntf.pas"/>
         <DCCReference Include="CodeFormatter\CnCodeFormatterWizard.pas">
             <Form>CnCodeFormatterForm</Form>
+        </DCCReference>
+        <DCCReference Include="AICoder\CnAICoderWizard.pas">
+            <Form>CnAICoderConfigForm</Form>
+        </DCCReference>
+        <DCCReference Include="AICoder\CnAICoderConfig.pas"/>
+        <DCCReference Include="AICoder\CnAICoderNetClient.pas"/>
+        <DCCReference Include="AICoder\CnAICoderEngine.pas"/>
+        <DCCReference Include="AICoder\CnAICoderEngineImpl.pas"/>
+        <DCCReference Include="AICoder\CnAICoderChatFrm.pas">
+            <Form>CnAICoderChatForm</Form>
+        </DCCReference>
+        <DCCReference Include="AICoder\CnFrmAICoderOption.pas">
+            <Form>CnAICoderOptionFrame</Form>
+            <DesignClass>TFrame</DesignClass>
         </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
@@ -584,10 +628,10 @@
                     <VersionInfoKeys Name="CFBundleExecutable"/>
                 </VersionInfoKeys>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\bcboffice2k240.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\bcbofficexp240.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k240.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp240.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\bcboffice2k280.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\bcbofficexp280.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k280.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp280.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Platforms>

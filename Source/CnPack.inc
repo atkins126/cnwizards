@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -105,10 +105,10 @@
     {$DEFINE VCL71}
   {$ENDIF}
   {$DEFINE DELPHI29}
-  {$DEFINE DELPHI120_YUKON}
+  {$DEFINE DELPHI120_ATHENS}
   {$DEFINE BCB28}
-  {$DEFINE BCB120_YUKON}
-  {$DEFINE BDS21}
+  {$DEFINE BCB120_ATHENS}
+  {$DEFINE BDS23}
 {$ENDIF}
 
 {$IFDEF VER350}
@@ -122,7 +122,7 @@
   {$DEFINE DELPHI110_ALEXANDRIA}
   {$DEFINE BCB28}
   {$DEFINE BCB110_ALEXANDRIA}
-  {$DEFINE BDS21}
+  {$DEFINE BDS22}
 {$ENDIF}
 
 {$IFDEF VER340}
@@ -505,8 +505,8 @@
   {$DEFINE DELPHI1_UP}
 {$ENDIF}
 
-{$IFDEF DELPHI120_YUKON}
-  {$DEFINE DELPHI120_YUKON_UP}
+{$IFDEF DELPHI120_ATHENS}
+  {$DEFINE DELPHI120_ATHENS_UP}
   {$DEFINE DELPHI110_ALEXANDRIA_UP}
   {$DEFINE DELPHI104_SYDNEY_UP}
   {$DEFINE DELPHI103_RIO_UP}
@@ -1367,8 +1367,8 @@
   {$DEFINE BCB1_UP}
 {$ENDIF}
 
-{$IFDEF BCB120_YUKON}
-  {$DEFINE BCB120_YUKON_UP}
+{$IFDEF BCB120_ATHENS}
+  {$DEFINE BCB120_ATHENS_UP}
   {$DEFINE BCB110_ALEXANDRIA_UP}
   {$DEFINE BCB104_SYDNEY_UP}
   {$DEFINE BCB103_RIO_UP}
@@ -2108,7 +2108,7 @@
 
 // BDSXX_UP from BDSXX mappings
 
-{$IFDEF BDS23}      // 12.0 YUKON
+{$IFDEF BDS23}      // 12.0 ATHENS
   {$DEFINE BDS}
   {$DEFINE BDS23_UP}
   {$DEFINE BDS22_UP}
@@ -2631,7 +2631,7 @@
 
 // COMPILERX_UP from COMPILERX mappings
 
-{$IFDEF COMPILER29}      // 12.0 YUKON
+{$IFDEF COMPILER29}      // 12.0 ATHENS
   {$DEFINE COMPILER29_UP}
   {$DEFINE COMPILER28_UP}
   {$DEFINE COMPILER27_UP}
@@ -3255,34 +3255,6 @@
 // 映射版本信息到更友好的指令
 //==============================================================================
 
-{$IFDEF COMPILER3_UP}
-  {$DEFINE SUPPORT_WIDESTRING}
-  {$DEFINE SUPPORT_INTERFACE}
-{$ENDIF}
-
-{$IFDEF COMPILER35_UP}
-  {$DEFINE SUPPORT_EXTSYM}
-  {$DEFINE SUPPORT_NODEFINE}
-{$ENDIF}
-
-{$IFDEF COMPILER4_UP}
-  {$DEFINE SUPPORT_INT64}
-  {$DEFINE SUPPORT_DYNAMICARRAYS}
-  {$DEFINE SUPPORT_DEFAULTPARAMS}
-  {$DEFINE SUPPORT_REINTRODUCE}
-  {$DEFINE SUPPORT_OVERLOAD}
-{$ENDIF}
-
-{$IFDEF COMPILER5}
-  {$DEFINE TSTREAM_LONGINT}      // D6 或以上的 TStream 是 Int64
-{$ENDIF}
-
-{$IFDEF COMPILER6_UP}
-  {$DEFINE SUPPORT_ENUMVALUES}
-  {$DEFINE SUPPORT_VARIANTS}
-  {$DEFINE SUPPORT_IFDIRECTIVE}
-{$ENDIF}
-
 {$IFDEF DELPHI}
   {$DEFINE SUPPORT_PASCAL}
 {$ENDIF}
@@ -3292,26 +3264,18 @@
   {$DEFINE SUPPORT_CPLUSPLUS}
 {$ENDIF}
 
-{$IFDEF BDS}
-  {$DEFINE SUPPORT_PASCAL}
-  {$DEFINE SUPPORT_CSHARP}
-  {$DEFINE SUPPORT_INLINE}
-  {$DEFINE SUPPORT_UINT64}
-  {$DEFINE IDE_WIDECONTROL}
-  {$DEFINE IDE_EDITOR_SUPPORT_FOLDING}  // 2005 以上的编辑器支持区域折叠
-  {$DEFINE OTA_NEW_BREAKPOINT_NOBUG}    // 2005 以上的 NewBreakpoint 才能工作
-  {$DEFINE IDE_ACTION_UPDATE_DELAY}     // IDE's Action Menu Update will Delay in 2005 or Up.
-  {$DEFINE SUPPORT_WIDECHAR_IDENTIFIER}
-
-  {$IFNDEF COMPILER12_UP}
-    // 2005~2007 Compiler is Ansi but Editor String is Utf8
-    {$DEFINE IDE_STRING_ANSI_UTF8}
-  {$ENDIF}
+{$IFDEF DELPHI120_ATHENS_UP}
+  {$DEFINE LIST_INDEX_NATIVEINT}        // Athens 12 TList use NativeInt for Index and Count instead of Integer
+  {$DEFINE IDE_HAS_TABMENU_COPY_PATH}   // Athens 12 editor tab menu has item to copy path or filename
+  {$DEFINE IDE_HAS_DBCLICK_HIGHLIGHT}   // Athens 12 editor double click selection highlight
 {$ENDIF}
 
 {$IFDEF DELPHI110_ALEXANDRIA_UP}
   {$DEFINE NO_OLDCREATEORDER}           // Alexandria 11 removed OldCreateOrder
   {$DEFINE IDE_SUPPORT_HDPI}            // Alexandria 11 supports HDPI using TVirtualImageList, etc.
+  {$DEFINE IDE_HAS_AUTO_READONLY}       // Alexandria 11 supports auto open VCL source readonly
+  {$DEFINE IDE_HAS_MEMORY_VISUALIZAER}  // Alexandria 11 has Memory Visualizer for Debug
+  {$DEFINE TSTRINGS_SETTEXTSTR_CANNULL} // Alexandria 11 TStrings.SetTextStr Ignore #0 Terminated Char
 {$ENDIF}
 
 {$IFDEF DELPHI104_SYDNEY_UP}
@@ -3329,12 +3293,31 @@
   {$DEFINE IDE_SUPPORT_THEMING}         // Tokyo 10.2.2 或以上支持 IDE 主题切换
 {$ENDIF}
 
-{$IFDEF DELPHIXE8_UP}
-  {$DEFINE INIFILE_READWRITE_INTEGER}   // XE8 的 IniFile 的 ReadInteger 和 WriteInteger 参数开始由 LongInt 改为 Integer
+{$IFDEF DELPHI101_BERLIN_UP}
+  {$DEFINE IDE_NEW_EMBEDDED_DESIGNER}   // 101B Re-opens "Embedded Designer" Option and Gives a New Container.
+{$ENDIF}
+
+{$IFDEF DELPHI10_SEATTLE_UP}
+  {$DEFINE IDE_HAS_OWN_STRUCTUAL_HIGHLIGHT}  // 10S has own Structual Highlight
+  {$DEFINE IDE_HAS_HIDE_NONVISUAL}      // 10S has "Hide Nonvisual" Feature.
 {$ENDIF}
 
 {$IFDEF DELPHIXE8_UP}
+  {$DEFINE INIFILE_READWRITE_INTEGER}   // XE8 的 IniFile 的 ReadInteger 和 WriteInteger 参数开始由 LongInt 改为 Integer
+  {$DEFINE IDE_INTEGRATE_CASTALIA}      // XE8/10S and above integrate Castalia.
+{$ENDIF}
+
+{$IFDEF COMPILER21_UP}                  // COMPILER21 = XE7
+  {$DEFINE NOT_SUPPORT_BDE}             // 不集成 BDE 了
+{$ENDIF}
+
+{$IFDEF DELPHIXE7_UP}
   {$DEFINE SUPPORT_TBYTES_OPERATION}    // XE7 的 TBytes 开始支持相加、插入等操作
+  {$DEFINE FMX_CONTROL_HAS_SIZE}        // XE7 的 FMX 的 Control 才有 Size 属性
+{$ENDIF}
+
+{$IFDEF DELPHIXE6_UP}
+  {$DEFINE SUPPORT_JSON}                // XE6 有 System.JSON 库，不考虑 DBX/REST 等
 {$ENDIF}
 
 {$IFDEF DELPHIXE5_UP}
@@ -3346,10 +3329,13 @@
   {$IFNDEF DISABLE_FMX}
     {$DEFINE SUPPORT_FMX_FRAME}         // XE4 FMX Supports FMX Frame
   {$ENDIF}
+{$ELSE}
+  {$DEFINE MEMO_CARETPOS_BUG}           // Memo CaretPos Get Negative Error Value for Large File under XE3 or below
 {$ENDIF}
 
 {$IFDEF DELPHIXE3_UP}
   {$DEFINE SUPPORT_ATOMIC}              // XE3 has Atomic Routines
+  {$DEFINE TCONTROL_HAS_STYLEELEMENTS}  // XE3 TControl has StyleElements Property
   {$DEFINE IDE_NP_FMX_DESIGN_BUG}       // XE3 FMX Designer Cut/Copy/Paste cause AV Bug for -np switch
 {$ENDIF}
 
@@ -3361,14 +3347,16 @@
   {$DEFINE SUPPORT_ZLIB_WINDOWBITS}            // XE2 ZLib Supports WindowBits
   {$DEFINE SUPPORT_GDIPLUS}                    // XE2 Supports GDI+
   {$DEFINE SUPPORT_INT64ARRAY}                 // XE2 Defined Int64Array
+  {$DEFINE SUPPORT_ALPHACOLOR}                 // XE2 System.UITypes Has TAlphaColors
 {$ENDIF}
 
 {$IFDEF DELPHIXE_UP}
   {$DEFINE TSTRINGS_HAS_WRITEBOM}              // XE TStrings has WriteBOM property.
   {$DEFINE IDE_HAS_DEBUGGERVISUALIZER}         // XE ToolsAPI has Debugger Visualizer Interfaces.
+  {$DEFINE IDE_HAS_STRINGS_VISUALIZAER}        // XE has TStrings Visualizer for Debug
 {$ENDIF}
 
-{$IFDEF BDS2012_UP}               // 2012 = XE2
+{$IFDEF BDS2012_UP}                        // 2012 = XE2
   {$DEFINE SUPPORT_32_AND_64}              // XE2 Support Win32 and Win64
   {$IFNDEF DISABLE_FMX}
     {$DEFINE SUPPORT_FMX}
@@ -3384,10 +3372,12 @@
   {$DEFINE SUPPORT_INTERFACE_AS_OBJECT}
   {$DEFINE SUPPORT_ENHANCED_RTTI}          // New enhanced RTTI.
   {$DEFINE SUPPORT_EXTERNAL_DELAYED}       // External functions can be declared as 'delayed'.
-  {$DEFINE IDE_HAS_NEW_COMPONENT_PALETTE}  // IDE has a new style Component Palette.
-  {$DEFINE IDE_HAS_EDITOR_SEARCHPANEL}     // Editor has a Search Panel
   {$DEFINE SUPPORT_CLASS_CONSTRUCTOR}      // 2010 and above Supports class constructor and destructor
   {$DEFINE SUPPORT_CLASS_DESTRUCTOR}
+  {$DEFINE OTA_DEBUG_HAS_EVENTS}           // 2010 下的 DebuggerService 有 ProcessDebugEvents
+  {$DEFINE IDE_HAS_NEW_COMPONENT_PALETTE}  // IDE has a new style Component Palette.
+  {$DEFINE IDE_HAS_EDITOR_SEARCHPANEL}     // Editor has a Search Panel
+  {$DEFINE IDE_HAS_DATETIME_HINT}          // TDate/TTime/TDateTime shows Normally in Debug Hint
 {$ENDIF}
 
 {$IFDEF BDS2010}
@@ -3397,16 +3387,16 @@
 
 {$IFDEF BDS2009_UP}
   {$DEFINE UNICODE_STRING}
-  {$DEFINE SUPPORT_ENCODING}        // Unicode with TEncoding
-  {$DEFINE SUPPORT_PUINT64}         // Has Pointer of UInt64
-  {$DEFINE OBJECT_HAS_TOSTRING}     // TObject.ToString Function
-  {$DEFINE OBJECT_HAS_EQUAL}        // TObject.Equal Function
-  {$DEFINE OBJECT_HAS_GETHASHCODE}  // TObject.GetHashCode Function
+  {$DEFINE SUPPORT_ATTRIBUTE}                    // 支持 Attribute
+  {$DEFINE SUPPORT_GENERIC}                      // 支持泛型
+  {$DEFINE SUPPORT_ANSISTRING_CODEPAGE}          // AnsiString 的声明支持指定代码页
+  {$DEFINE SUPPORT_ENCODING}                     // Unicode with TEncoding
+  {$DEFINE SUPPORT_PUINT64}                      // Has Pointer of UInt64
+  {$DEFINE OBJECT_HAS_TOSTRING}                  // TObject.ToString Function
+  {$DEFINE OBJECT_HAS_EQUAL}                     // TObject.Equal Function
+  {$DEFINE OBJECT_HAS_GETHASHCODE}               // TObject.GetHashCode Function
   {$DEFINE TGRAPHIC_SUPPORT_PARTIALTRANSPARENCY} // TGraphic 类支持 Alpha 通道透明
   {$DEFINE SUPPORT_OTA_PROJECT_CONFIGURATION}
-  {$DEFINE SUPPORT_GENERIC}         // 支持泛型
-  {$DEFINE SUPPORT_ANSISTRING_CODEPAGE}
-  // AnsiString 的声明支持指定代码页
 
   {$DEFINE IDE_MAINFORM_EAT_MOUSEWHEEL}
   // MainForm of 2009 or Above will eat Message in MouseWheelHandler
@@ -3421,6 +3411,8 @@
   {$DEFINE OTA_DPKOPTION_SETVALUE_CORRUPT_BUG}
   // A OpenTools API Bug IOTAProjectOptions.SetOptionValue under 2009 or above:
   // Set an Option Value to DPK Project Options maybe cause DPK Source Corrupt.
+{$ELSE}
+  {$DEFINE ZLIB_STREAM_NOSIZE}           // 2007 及以下的 Zlib 的解压缩流不支持 Size 操作
 {$ENDIF}
 
 {$IFDEF BDS2009}
@@ -3432,8 +3424,8 @@
 
 {$IFDEF BDS2007_UP}
   {$DEFINE IDE_CONF_MANAGER}
-  {$DEFINE TBYTES_DEFINED}    // 2007 Defined TBytes = array of Byte;
-  {$DEFINE PROJECT_FILENAME_DPROJ} // Project File is .dproj
+  {$DEFINE TBYTES_DEFINED}               // 2007 Defined TBytes = array of Byte;
+  {$DEFINE PROJECT_FILENAME_DPROJ}       // Project File is .dproj
 {$ENDIF}
 
 {$IFDEF BDS2007}
@@ -3442,56 +3434,71 @@
 {$ENDIF}
 
 {$IFDEF BDS2006_UP}
+  {$DEFINE SUPPORT_CLASS_VAR}            // 2006 and above Supports class var
   {$DEFINE TCONTROL_HAS_MARGINS}         // 2006 and above TControl has Margins
   {$DEFINE TCONTROL_HAS_EXPLICIT_BOUNDS} // 2006 and above TControl has Explicit Bounds
-  {$DEFINE IDE_HAS_GUIDE_LINE}    // 2006 and above has Designer Guide Line
-  {$DEFINE IDE_SYNC_EDIT_BLOCK}   // 2006 and above Editor Supports Sync Block Edit
-  {$DEFINE OTA_CODE_TEMPLATE_API} // 2006 and above Provides CodeTemplateAPI.
+  {$DEFINE TCONTROL_HAS_MOUSEENTERLEAVE} // 2006 and above TControl has Mouse Enter/Leave Events
+  {$DEFINE OTA_CODE_TEMPLATE_API}        // 2006 and above Provides CodeTemplateAPI.
+  {$DEFINE OTA_DEBUG_HAS_ERBUSY}         // 2006 下的 Evaluate 有返回值 erBusy
+  {$DEFINE IDE_HAS_GUIDE_LINE}           // 2006 and above has Designer Guide Line
+  {$DEFINE IDE_SYNC_EDIT_BLOCK}          // 2006 and above Editor Supports Sync Block Edit
   {$DEFINE EDITOR_TAB_ONLYFROM_WINCONTROL}
   // From BDS 2006 IDEGraident Editor Tab is Only From WinControl, not TabSet/TabControl
-  {$DEFINE SUPPORT_CLASS_VAR}     // 2006 and above Supports class var
 {$ENDIF}
 
 {$IFDEF BDS2005_UP}
-  {$DEFINE IDE_EDITOR_ELIDE}  // 2005 或以上编辑器支持折叠
-  {$DEFINE OTA_PALETTE_API}   // 2005 and above Provides PaletteAPI.
-  {$DEFINE IDE_FILE_HISTORY}  // 2005 或以上版本会存储文件历史版本
+  {$DEFINE OTA_PALETTE_API}              // 2005 and above Provides PaletteAPI.
+  {$DEFINE IDE_EDITOR_ELIDE}             // 2005 或以上编辑器支持折叠
+  {$DEFINE IDE_FILE_HISTORY}             // 2005 或以上版本会存储文件历史版本
 {$ENDIF}
 
 {$IFDEF BDS2006}
-  {$DEFINE PROJECT_FILENAME_BDSPROJ} // Project File is .bdsproj
+  {$DEFINE PROJECT_FILENAME_BDSPROJ}     // Project File is .bdsproj
 {$ENDIF}
 
 {$IFDEF BDS2005}
-  {$DEFINE PROJECT_FILENAME_BDSPROJ} // Project File is .bdsproj
+  {$DEFINE PROJECT_FILENAME_BDSPROJ}     // Project File is .bdsproj
 {$ENDIF}
 
-{$IFDEF DELPHI5_UP}
-  {$IFNDEF BDS2005_UP}
-    {$DEFINE PROJECT_FILENAME_DPR}   // Delphi 5/6/7 Project File is .dpr
+{$IFDEF BDS}                             // 2005 及以上
+  {$DEFINE SUPPORT_PASCAL}
+  {$DEFINE SUPPORT_CSHARP}
+  {$DEFINE SUPPORT_INLINE}
+  {$DEFINE SUPPORT_UINT64}
+  {$DEFINE IDE_WIDECONTROL}
+  {$DEFINE IDE_EDITOR_SUPPORT_FOLDING}   // 2005 以上的编辑器支持区域折叠
+  {$DEFINE OTA_NEW_BREAKPOINT_NOBUG}     // 2005 以上的 NewBreakpoint 才能工作
+  {$DEFINE IDE_ACTION_UPDATE_DELAY}      // IDE's Action Menu Update will Delay in 2005 or Up.
+  {$DEFINE SUPPORT_WIDECHAR_IDENTIFIER}
+
+  {$IFNDEF COMPILER12_UP}
+    // 2005~2007 Compiler is Ansi but Editor String is Utf8
+    {$DEFINE IDE_STRING_ANSI_UTF8}
   {$ENDIF}
+{$ENDIF}
+
+{$IFDEF DELPHI7_UP}
+  {$DEFINE SUPPORT_FORMAT_SETTINGS}      // Delphi 7 开始支持 FormatSettings
 {$ENDIF}
 
 {$IFDEF COMPILER6_UP}
   {$DEFINE SUPPORT_DEPRECATED}
 {$ENDIF}
 
-{$IFDEF COMPILER21_UP}
-  {$DEFINE NOT_SUPPORT_BDE}
+{$IFDEF COMPILER6_UP}
+  {$DEFINE SUPPORT_ENUMVALUES}
+  {$DEFINE SUPPORT_VARIANTS}
+  {$DEFINE SUPPORT_IFDIRECTIVE}
 {$ENDIF}
 
-{$IFDEF DELPHIXE8_UP}
-  {$DEFINE IDE_INTEGRATE_CASTALIA} // XE8/10S and above integrate Castalia.
+{$IFDEF DELPHI5_UP}
+  {$IFNDEF BDS2005_UP}
+    {$DEFINE PROJECT_FILENAME_DPR}       // Delphi 5/6/7 Project File is .dpr
+  {$ENDIF}
 {$ENDIF}
 
-{$IFDEF DELPHI10_SEATTLE_UP}
-  {$DEFINE IDE_HAS_OWN_STRUCTUAL_HIGHLIGHT}  // 10S has own Structual Highlight
-  {$DEFINE IDE_HAS_HIDE_NONVISUAL} // 10S has "Hide Nonvisual" Feature.
-{$ENDIF}
-
-{$IFDEF DELPHI101_BERLIN_UP}
-  {$DEFINE IDE_NEW_EMBEDDED_DESIGNER}
-  // 101B Re-opens "Embedded Designer" Option and Gives a New Container.
+{$IFDEF COMPILER5}
+  {$DEFINE TSTREAM_LONGINT}              // D6 或以上的 TStream 是 Int64
 {$ENDIF}
 
 {$IFDEF BCB5}
@@ -3502,12 +3509,34 @@
   {$DEFINE BCB5OR6}
 {$ENDIF}
 
+{$IFDEF BCB5OR6}
+  {$DEFINE NO_ZLIB}
+{$ENDIF}
+
 {$IFDEF DELPHI5}
   {$DEFINE DELPHI5OR6}  // 定义一个 DELPHI5OR6 以方便 DELPHI5 或 DELPHI6 使用
 {$ENDIF}
 
 {$IFDEF DELPHI6}
   {$DEFINE DELPHI5OR6}
+{$ENDIF}
+
+{$IFDEF COMPILER4_UP}
+  {$DEFINE SUPPORT_INT64}
+  {$DEFINE SUPPORT_DYNAMICARRAYS}
+  {$DEFINE SUPPORT_DEFAULTPARAMS}
+  {$DEFINE SUPPORT_REINTRODUCE}
+  {$DEFINE SUPPORT_OVERLOAD}
+{$ENDIF}
+
+{$IFDEF COMPILER35_UP}
+  {$DEFINE SUPPORT_EXTSYM}
+  {$DEFINE SUPPORT_NODEFINE}
+{$ENDIF}
+
+{$IFDEF COMPILER3_UP}
+  {$DEFINE SUPPORT_WIDESTRING}
+  {$DEFINE SUPPORT_INTERFACE}
 {$ENDIF}
 
 {$IFDEF WIN64}
@@ -3531,25 +3560,10 @@
 {$ENDIF}
 
 //==============================================================================
-// 调试设置
-//==============================================================================
-
-{.$DEFINE DEBUG}
-{.$DEFINE USE_JCL}
-
-{$IFDEF RELEASE}
-  {$UNDEF DEBUG}
-{$ENDIF}
-
-{.$IFDEF DELPHI2009_UP}
-  {.$UNDEF USE_JCL}
-{.$ENDIF}
-
-//==============================================================================
 // 针对 PascalScript 的调试设置
 //==============================================================================
 
-{$DEFINE ALLDEBUG}
+{.$DEFINE ALLDEBUG} // 貌似不需要，先禁用
 
 //==============================================================================
 // 开发包语种定义

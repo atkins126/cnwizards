@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2023 CnPack 开发组                       }
+{                   (C)Copyright 2001-2024 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -103,12 +103,12 @@ end;
 // 取帮助主题是否存在
 function TopicHelpFileExists(Url: string): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
-  i := AnsiPos('::/', Url);
-  if i > 0 then
+  I := AnsiPos('::/', Url);
+  if I > 0 then
   begin
-    Delete(Url, i, MaxInt);
+    Delete(Url, I, MaxInt);
     Result := FileExists(ModulePath + csHelpPath + Url);
   end
   else
@@ -119,8 +119,8 @@ end;
 function ShowHelp(const Topic: string; const Section: string): Boolean;
 var
   Url: string;
-  si: TStartupInfo;
-  pi: TProcessInformation;
+  Si: TStartupInfo;
+  Pi: TProcessInformation;
 begin
   Result := False;
   Url := GetTopicHelpUrl(Topic, Section);
@@ -129,13 +129,13 @@ begin
     if TopicHelpFileExists(Url) then
     begin
       Url := 'mk:@MSITStore:' + ModulePath + csHelpPath + Url;
-      ZeroMemory(@si, SizeOf(si));
-      si.cb := SizeOf(si);
-      ZeroMemory(@pi, SizeOf(pi));
+      ZeroMemory(@Si, SizeOf(Si));
+      Si.cb := SizeOf(Si);
+      ZeroMemory(@Pi, SizeOf(Pi));
       CreateProcess(nil, PChar('hh ' + Url),
-        nil, nil, False, 0, nil, nil, si, pi);
-      if pi.hProcess <> 0 then CloseHandle(pi.hProcess);
-      if pi.hThread <> 0 then CloseHandle(pi.hThread);
+        nil, nil, False, 0, nil, nil, Si, Pi);
+      if Pi.hProcess <> 0 then CloseHandle(Pi.hProcess);
+      if Pi.hThread <> 0 then CloseHandle(Pi.hThread);
     end
     else
       ShellExecute(0, nil, PChar(csCnWizOnlineHelpUrl + Url), nil, nil, SW_SHOWNORMAL);
