@@ -122,8 +122,8 @@ type
     FCorIdeModule: HModule;
     FMethodHook: TCnMethodHook;
     FOldViewDialogExecute: Pointer;
-    FPasUnitNameList: TUnitNameList;
-    FCppUnitNameList: TUnitNameList;
+    FPasUnitNameList: TCnUnitNameList;
+    FCppUnitNameList: TCnUnitNameList;
   {$IFNDEF BDS}
     procedure RunSeparately;
   {$ENDIF}
@@ -210,8 +210,8 @@ begin
   end;
 
   // Lazy to Let UI Create them to Optimize Starting-Up Speed.
-  // FPasUnitNameList := TUnitNameList.Create(True, False);
-  // FCppUnitNameList := TUnitNameList.Create(True, True);
+  // FPasUnitNameList := TUnitNameList.Create(True, False, False);
+  // FCppUnitNameList := TUnitNameList.Create(True, True, False);
 end;
 
 destructor TCnProjectExtWizard.Destroy;

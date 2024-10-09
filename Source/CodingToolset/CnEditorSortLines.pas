@@ -42,7 +42,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizUtils, CnConsts, CnCommon, CnCodingToolsetWizard,
-  CnWizConsts, CnEditorCodeTool, CnIni;
+  CnWizConsts, CnSelectionCodeTool, CnIni;
 
 type
 
@@ -52,7 +52,7 @@ type
 
 { TCnEditorSortLines }
 
-  TCnEditorSortLines = class(TCnEditorCodeTool)
+  TCnEditorSortLines = class(TCnSelectionCodeTool)
   protected
     function ProcessText(const Text: string): string; override;
     function GetStyle: TCnCodeToolStyle; override;
@@ -60,7 +60,7 @@ type
     constructor Create(AOwner: TCnCodingToolsetWizard); override;
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
   end;
 
 {$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
@@ -112,7 +112,7 @@ begin
   Result := SCnEditorSortLinesMenuHint;
 end;
 
-procedure TCnEditorSortLines.GetEditorInfo(var Name, Author, Email: string);
+procedure TCnEditorSortLines.GetToolsetInfo(var Name, Author, Email: string);
 begin
   Name := SCnEditorSortLinesName;
   Author := SCnPack_Zjy;

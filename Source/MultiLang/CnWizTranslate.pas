@@ -319,7 +319,7 @@ begin
   TranslateStr(SCnCodingToolsetWizardConfigCaption, 'SCnCodingToolsetWizardConfigCaption');
   TranslateStr(SCnCodingToolsetWizardConfigHint, 'SCnCodingToolsetWizardConfigHint');
 
-  // CnEditorCodeTool
+  // CnSelectionCodeTool
   TranslateStr(SCnEditorCodeToolSelIsEmpty, 'SCnEditorCodeToolSelIsEmpty');
   TranslateStr(SCnEditorCodeToolNoLine, 'SCnEditorCodeToolNoLine');
 
@@ -1492,6 +1492,7 @@ begin
   TranslateStr(SCnAICoderWizardErrorNoEngine, 'SCnAICoderWizardErrorNoEngine');
   TranslateStr(SCnAICoderWizardErrorURLFmt, 'SCnAICoderWizardErrorURLFmt');
   TranslateStr(SCnAICoderWizardErrorAPIKeyFmt, 'SCnAICoderWizardErrorAPIKeyFmt');
+  TranslateStr(SCnAICoderWizardErrorNoCode, 'SCnAICoderWizardErrorNoCode');
 
   // CnMatchButtonFrame
   TranslateStr(SCnMatchButtonFrameMenuStartCaption, 'SCnMatchButtonFrameMenuStartCaption');
@@ -1524,6 +1525,8 @@ begin
   TranslateStr(SCnMsgDlgNo, 'SCnMsgDlgNo');
   TranslateStr(SCnMsgDlgYesToAll, 'SCnMsgDlgYesToAll');
   TranslateStr(SCnMsgDlgNoToAll, 'SCnMsgDlgNoToAll');
+  TranslateStr(SCnVersion, 'SCnVersion');
+  TranslateStr(SCnNeedAdmin, 'SCnNeedAdmin');
   
   //----------------------------------------------------------------------------
   //  Feedback

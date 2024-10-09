@@ -44,7 +44,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizClasses, CnWizUtils, CnConsts, CnCommon,
-  Menus, CnCodingToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizMultiLang,
+  Menus, CnCodingToolsetWizard, CnWizConsts, CnSelectionCodeTool, CnWizMultiLang,
   ExtCtrls;
 
 type
@@ -57,14 +57,14 @@ type
 
 { TCnEditorCodeComment }
 
-  TCnEditorCodeComment = class(TCnEditorCodeTool)
+  TCnEditorCodeComment = class(TCnSelectionCodeTool)
   protected
     function ProcessLine(const Str: string): string; override;
     function GetStyle: TCnCodeToolStyle; override;
   public
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
   end;
 
 //==============================================================================
@@ -73,14 +73,14 @@ type
 
 { TCnEditorCodeUnComment }
 
-  TCnEditorCodeUnComment = class(TCnEditorCodeTool)
+  TCnEditorCodeUnComment = class(TCnSelectionCodeTool)
   protected
     function ProcessLine(const Str: string): string; override;
     function GetStyle: TCnCodeToolStyle; override;
   public
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
   end;
 
 //==============================================================================
@@ -89,7 +89,7 @@ type
 
 { TCnEditorCodeToggleComment }
 
-  TCnEditorCodeToggleComment = class(TCnEditorCodeTool)
+  TCnEditorCodeToggleComment = class(TCnSelectionCodeTool)
   private
     FAllIsCommented: Boolean;
     FMoveToNextLine: Boolean;
@@ -106,7 +106,7 @@ type
     constructor Create(AOwner: TCnCodingToolsetWizard); override;
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
     procedure Execute; override;
     procedure Config; override;
   published
@@ -224,7 +224,7 @@ begin
   Result := SCnEditorCodeCommentMenuHint;
 end;
 
-procedure TCnEditorCodeComment.GetEditorInfo(var Name, Author, Email: string);
+procedure TCnEditorCodeComment.GetToolsetInfo(var Name, Author, Email: string);
 begin
   Name := SCnEditorCodeCommentName;
   Author := SCnPack_LiuXiao;
@@ -253,7 +253,7 @@ begin
   Result := SCnEditorCodeUnCommentMenuHint;
 end;
 
-procedure TCnEditorCodeUnComment.GetEditorInfo(var Name, Author, Email: string);
+procedure TCnEditorCodeUnComment.GetToolsetInfo(var Name, Author, Email: string);
 begin
   Name := SCnEditorCodeUnCommentName;
   Author := SCnPack_LiuXiao;
@@ -292,7 +292,7 @@ begin
   Result := SCnEditorCodeToggleCommentMenuCaption;
 end;
 
-procedure TCnEditorCodeToggleComment.GetEditorInfo(var Name, Author,
+procedure TCnEditorCodeToggleComment.GetToolsetInfo(var Name, Author,
   Email: string);
 begin
   Name := SCnEditorCodeToggleCommentName;

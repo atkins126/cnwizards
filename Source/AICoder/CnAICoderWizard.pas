@@ -82,6 +82,8 @@ type
     function ValidateAIEngines: Boolean;
     {* 调用各个功能前检查 AI 引擎及配置}
     procedure EnsureChatWindowVisible;
+    {* 确保创建 ChatWindow 且其 Visible 为 True 及其所有 Parent 的 Visible 全为 True
+      以确保聊天窗口可见}
   protected
     function GetHasConfig: Boolean; override;
     procedure SubActionExecute(Index: Integer); override;
@@ -131,6 +133,9 @@ begin
       SaveToOptions;
 
       DoSaveSettings;
+
+      if CnAICoderChatForm <> nil then
+        CnAICoderChatForm.UpdateCaption;
     end;
     Free;
   end;
@@ -226,13 +231,10 @@ begin
     Config
   else if Index = FIdShowChatWindow then
   begin
-    if CnAICoderChatForm = nil then
-    begin
-      CnAICoderChatForm := TCnAICoderChatForm.Create(Application);
-      CnAICoderChatForm.Wizard := Self;
-    end;
-
-    CnAICoderChatForm.Visible := not CnAICoderChatForm.Visible;
+    if (CnAICoderChatForm <> nil) and CnAICoderChatForm.VisibleWithParent then
+      CnAICoderChatForm.VisibleWithParent := False
+    else
+      EnsureChatWindowVisible;
   end
   else
   begin
@@ -252,6 +254,7 @@ begin
         Msg.From := CnAIEngineManager.CurrentEngineName;
         Msg.FromType := cmtYou;
         Msg.Text := '...';
+        Msg.Waiting := True;
 
         if Index = FIdExplainCode then
           CnAIEngineManager.CurrentEngine.AskAIEngineForCode(S, Msg, artExplainCode, ForCodeAnswer)
@@ -267,7 +270,7 @@ begin
   if Index = FIdConfig then
     SubActions[Index].Enabled := Active
   else if Index = FIdShowChatWindow then
-    SubActions[Index].Checked := (CnAICoderChatForm <> nil) and CnAICoderChatForm.Visible
+    SubActions[Index].Checked := Active and (CnAICoderChatForm <> nil) and CnAICoderChatForm.VisibleWithParent
   else
     SubActions[Index].Enabled := Active and (CnOtaGetCurrentSelection <> '');
 end;
@@ -374,6 +377,7 @@ begin
 
   if (Tag <> nil) and (Tag is TCnChatMessage) then
   begin
+    TCnChatMessage(Tag).Waiting := False;
     if Success then
       TCnChatMessage(Tag).Text := Answer
     else
@@ -396,7 +400,7 @@ begin
     CnAICoderChatForm.Wizard := Self;
   end;
 
-  CnAICoderChatForm.Visible := True;
+  CnAICoderChatForm.VisibleWithParent := True;
   CnAICoderChatForm.BringToFront;
 end;
 

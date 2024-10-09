@@ -38,7 +38,7 @@ unit CnPasCodeDoc;
 interface
 
 uses
-  Classes, SysUtils, Contnrs;
+  Classes, SysUtils, Contnrs, CnPascalAst;
 
 type
   ECnPasCodeDocException = class(Exception);
@@ -49,6 +49,34 @@ type
 
   TCnDocScope = (dsNone, dsPrivate, dsProtected, dsPublic, dsPublished);
   {* 元素的可见性，无可见性的为 dsNone}
+
+  TCnScanProcDeclEvent = procedure (ProcLeaf: TCnPasAstLeaf; Visibility: TCnDocScope;
+    const CurrentTypeName: string) of object;
+  {* 扫描 Pascal 源文件时遇到函数过程声明时的回调，其中 ProcLeaf 下的结构类似如下：
+    function
+      <FunctionName>
+      FormalParameters
+        (
+          FormalParam
+            IdentList
+              A
+              ,
+              B
+            :
+            CommonType
+              TypeID
+                Int64
+          ;
+          FormalParam
+            ...
+          FormalParam
+            ...
+        )
+      :
+      COMMONTYPE
+        TypeID
+          Boolean
+  }
 
   TCnDocBaseItem = class(TObject)
   {* 描述文档元素的基类}
@@ -160,10 +188,50 @@ type
 function CnCreateUnitDocFromFileName(const FileName: string): TCnDocUnit;
 {* 根据源码文件，分析内部的代码注释，返回新创建的单元注释对象供输出}
 
+procedure CnScanFileProcDecls(const FileName: string; OnScan: TCnScanProcDeclEvent);
+{* 扫描 Pascal 源文件中的函数过程，包括独立的及类中的，并调用回调，传入 procedure 的 Leaf 供自定义处理
+  目前处理了以下两种情况：
+
+一：
+  interface
+    type
+      TYPEDECL 多个
+        TypeName
+        =
+        RESTRICTTYPE
+          class
+            CLASSBODY
+              CLASSHERITAGE
+              public
+                procedure/function/constructor/destructor
+
+二：
+  interface
+    function
+    procedure
+}
+
 implementation
 
 uses
-  CnPascalAst, mPasLex;
+  mPasLex;
+
+resourcestring
+  SCnErrorSkipCommentToNode = 'Skip Comment To Node Error.';
+  SCnErrorNoConstSemicolonExists = 'NO Const Semicolon Exists.';
+  SCnErrorNoVarSemicolonExists = 'NO Var Semicolon Exists.';
+  SCnErrorNoProcedureFunctionIdentExists = 'NO Procedure/Function Ident Exists.';
+  SCnErrorNoProcedureFunctionSemicolonExists = 'NO Procedure/Function Semicolon Exists.';
+  SCnErrorNoPropertyIdentExists = 'NO Property Ident Exists.';
+  SCnErrorNoPropertySemicolonExists = 'NO Property Semicolon Exists.';
+  SCnErrorNoClassFieldIdentExists = 'NO Class Field Ident Exists.';
+  SCnErrorNoClassFieldSemicolonExists = 'NO Class Field Semicolon Exists.';
+  SCnErrorNoClassInterfaceSemicolonExists = 'NO Class/Interface SemiColon Exists.';
+  SCnErrorNoTypeSemicolonExists = 'NO Type Semicolon Exists.';
+  SCnErrorNoUnitExists = 'NO Unit Exists.';
+  SCnErrorNoUnitSemicolonExists = 'NO Unit Semicolon Exists.';
+  SCnErrorNoInterfacesectionPartExists = 'NO InterfaceSection Part Exists.';
+  SCnBrBr = '<br><br>';
 
 const
   COMMENT_NODE_TYPE = [cntBlockComment];
@@ -172,6 +240,18 @@ const
 
   SCOPE_STRS: array[TCnDocScope] of string =
     ('', 'private', 'protected', 'public', 'published');
+
+function VisibilityTokenKindToDocScope(Token: TTokenKind): TCnDocScope;
+begin
+  case Token of
+    tkPrivate:   Result := dsPrivate;
+    tkProtected: Result := dsProtected;
+    tkPublic:    Result := dsPublic;
+    tkPublished: Result := dsPublished;
+  else
+    Result := dsNone;
+  end;
+end;
 
 // 从 ParentLeaf 的第 0 个子节点开始越过注释找符合的节点，返回符合的节点，不符合则抛出异常且返回 nil
 function DocSkipCommentToChild(ParentLeaf: TCnPasAstLeaf;
@@ -190,7 +270,7 @@ begin
 
     if not (ParentLeaf[I].NodeType in COMMENT_SKIP_NODE_TYPE) then
       if NeedRaise then
-        raise ECnPasCodeDocException.Create('Skip Comment To Node Error.');
+        raise ECnPasCodeDocException.Create(SCnErrorSkipCommentToNode);
   end;
 end;
 
@@ -290,7 +370,7 @@ begin
 
     Leaf := DocSkipToChild(ParentLeaf, K, [cntSemiColon], [tkSemiColon]);
     if Leaf = nil then
-      raise ECnPasCodeDocException.Create('NO Const Semicolon Exists.');
+      raise ECnPasCodeDocException.Create(SCnErrorNoConstSemicolonExists);
 
     Inc(K); // 步进到下一个可能是注释的地方，如果是注释，K 指向注释末尾，如果不是，K 会减一以抵消此次步进
     Item.Comment := DocCollectComments(ParentLeaf, K);
@@ -327,7 +407,7 @@ begin
 
     Leaf := DocSkipToChild(ParentLeaf, K, [cntSemiColon], [tkSemiColon]);
     if Leaf = nil then
-      raise ECnPasCodeDocException.Create('NO Var Semicolon Exists.');
+      raise ECnPasCodeDocException.Create(SCnErrorNoVarSemicolonExists);
 
     Inc(K); // 步进到下一个可能是注释的地方，如果是注释，K 指向注释末尾，如果不是，K 会减一以抵消此次步进
     Item.Comment := DocCollectComments(ParentLeaf, K);
@@ -348,7 +428,7 @@ begin
   K := 0;
   Leaf := DocSkipToChild(ParentLeaf, K, [cntIdent], [tkIdentifier]);
   if Leaf = nil then
-    raise ECnPasCodeDocException.Create('NO Procedure/Function Ident Exists.');
+    raise ECnPasCodeDocException.Create(SCnErrorNoProcedureFunctionIdentExists);
 
   Item := TCnProcedureDocItem.Create;
   Item.DeclareName := Leaf.Text; // 独立过程名
@@ -359,7 +439,7 @@ begin
   P := ParentLeaf.Parent;
   Leaf := DocSkipToChild(P, Index, [cntSemiColon], [tkSemiColon]);
   if Leaf = nil then
-    raise ECnPasCodeDocException.Create('NO Procedure/Function Semicolon Exists.');
+    raise ECnPasCodeDocException.Create(SCnErrorNoProcedureFunctionSemicolonExists);
 
   // 此处再跳过可能存在的 Directives 到最后一个分号
   DocSkipDirective(P, Index);
@@ -381,7 +461,7 @@ begin
   K := 0;
   Leaf := DocSkipToChild(ParentLeaf, K, [cntIdent], [tkIdentifier]);
   if Leaf = nil then
-    raise ECnPasCodeDocException.Create('NO Property Ident Exists.');
+    raise ECnPasCodeDocException.Create(SCnErrorNoPropertyIdentExists);
 
   Item := TCnPropertyDocItem.Create;
   Item.DeclareName := Leaf.Text;   // 属性名
@@ -392,7 +472,7 @@ begin
   P := ParentLeaf.Parent;
   Leaf := DocSkipToChild(P, Index, [cntSemiColon], [tkSemiColon]);
   if Leaf = nil then
-    raise ECnPasCodeDocException.Create('NO Property Semicolon Exists.');
+    raise ECnPasCodeDocException.Create(SCnErrorNoPropertySemicolonExists);
 
   // 此处再跳过可能存在的 Directives 到最后一个分号
   DocSkipDirective(P, Index);
@@ -412,7 +492,7 @@ begin
   if (ParentLeaf.Count > 0) and (ParentLeaf[0].Count > 0) then
     Leaf := ParentLeaf[0][0];
   if (Leaf = nil) or (Leaf.NodeType <> cntIdent) then
-    raise ECnPasCodeDocException.Create('NO Class Field Ident Exists.');
+    raise ECnPasCodeDocException.Create(SCnErrorNoClassFieldIdentExists);
 
   Item := TCnFieldDocItem.Create;
   Item.DeclareName := Leaf.Text; // 字段名
@@ -423,7 +503,7 @@ begin
   P := ParentLeaf.Parent;
   Leaf := DocSkipToChild(P, Index, [cntSemiColon], [tkSemiColon]);
   if Leaf = nil then
-    raise ECnPasCodeDocException.Create('NO Class Field Semicolon Exists.');
+    raise ECnPasCodeDocException.Create(SCnErrorNoClassFieldSemicolonExists);
 
   Inc(Index); // 步进到下一个可能是注释的地方，如果是注释，Index 指向注释末尾，如果不是，Index 会减一以抵消此次步进
   Item.Comment := DocCollectComments(P, Index);
@@ -479,13 +559,7 @@ begin
     end
     else if (Leaf.NodeType = cntVisibility) and (Leaf.TokenKind in [tkProtected, tkPublic, tkPublished]) then
     begin
-      case Leaf.TokenKind of
-        tkProtected: MyScope := dsProtected;
-        tkPublic:    MyScope := dsPublic;
-        tkPublished: MyScope := dsPublished;
-      else
-        MyScope := dsNone;
-      end;
+      MyScope := VisibilityTokenKindToDocScope(Leaf.TokenKind);
       DocFindMembers(Leaf, OwnerItem, MyScope);
       Inc(K);
     end
@@ -615,7 +689,7 @@ begin
   I := ParentLeaf.Index;
   TmpLeaf := DocSkipToChild(Leaf, I, [cntSemiColon], [tkSemiColon]);
   if TmpLeaf = nil then
-    raise ECnPasCodeDocException.Create('NO Class/Interface SemiColon Exists.');
+    raise ECnPasCodeDocException.Create(SCnErrorNoClassInterfaceSemicolonExists);
 
   Inc(I);
   Comment := DocCollectComments(Leaf, I);
@@ -711,7 +785,7 @@ begin
 
       Leaf := DocSkipToChild(ParentLeaf, K, [cntSemiColon], [tkSemiColon]);
       if Leaf = nil then
-        raise ECnPasCodeDocException.Create('NO Type Semicolon Exists.');
+        raise ECnPasCodeDocException.Create(SCnErrorNoTypeSemicolonExists);
       // 找分号，后没注释了
       Inc(K);
     end
@@ -719,7 +793,7 @@ begin
     begin
       Leaf := DocSkipToChild(ParentLeaf, K, [cntSemiColon], [tkSemiColon]);
       if Leaf = nil then
-        raise ECnPasCodeDocException.Create('NO Type Semicolon Exists.');
+        raise ECnPasCodeDocException.Create(SCnErrorNoTypeSemicolonExists);
 
       Item.DeclareType := DeclLeaf.GetPascalCode; // 简单类型的完整声明
 
@@ -766,7 +840,7 @@ begin
     end;
 
     if UnitLeaf = nil then
-      raise ECnPasCodeDocException.Create('NO Unit Exists.');
+      raise ECnPasCodeDocException.Create(SCnErrorNoUnitExists);
 
     Result := TCnDocUnit.Create;
 
@@ -779,7 +853,7 @@ begin
     // 找分号
     TempLeaf := DocSkipToChild(UnitLeaf, I, [cntSemiColon], [tkSemiColon]);
     if TempLeaf = nil then
-      raise ECnPasCodeDocException.Create('NO Unit Semicolon Exists.');
+      raise ECnPasCodeDocException.Create(SCnErrorNoUnitSemicolonExists);
 
     // 找分号后的一批注释
     Inc(I);
@@ -788,7 +862,7 @@ begin
     // 找 interface 节点
     IntfLeaf := DocSkipToChild(UnitLeaf, I, [cntInterfaceSection], [tkInterface]);
     if IntfLeaf = nil then
-      raise ECnPasCodeDocException.Create('NO InterfaceSection Part Exists.');
+      raise ECnPasCodeDocException.Create(SCnErrorNoInterfacesectionPartExists);
 
     // 找 interface 节点下的直属节点们并解析
     I := 0;
@@ -858,6 +932,111 @@ begin
   begin
     if RootItem[I].Count > 1 then
       DocScopeBubbleSort(RootItem[I]);
+  end;
+end;
+
+procedure CnScanFileProcDecls(const FileName: string; OnScan: TCnScanProcDeclEvent);
+var
+  AST: TCnPasAstGenerator;
+  SL, Pars: TStringList;
+  UnitLeaf, IntfLeaf, TypeLeaf, ClassLeaf, VisibilityLeaf: TCnPasAstLeaf;
+  I, I1, I2, I3, I4: Integer;
+  CurrTypeName: string;
+begin
+  SL := nil;
+  AST := nil;
+  Pars := nil;
+
+  try
+    SL := TStringList.Create;
+    SL.LoadFromFile(FileName);
+
+    AST := TCnPasAstGenerator.Create(SL.Text);
+    AST.Build;
+
+    UnitLeaf := nil;
+    Pars := TStringList.Create;
+    for I := 0 to AST.Tree.Root.Count - 1 do
+    begin
+      if (AST.Tree.Root.Items[I].NodeType = cntUnit) and (AST.Tree.Root.Items[I].TokenKind = tkUnit) then
+      begin
+        UnitLeaf := AST.Tree.Root.Items[I];
+        Break;
+      end;
+    end;
+
+    if UnitLeaf = nil then
+      Exit;
+
+    // 找 interface 节点
+    IntfLeaf := nil;
+    I := 0;
+    while I < UnitLeaf.Count do
+    begin
+      if (UnitLeaf[I].NodeType in [cntInterfaceSection]) and
+        (UnitLeaf[I].TokenKind in [tkInterface]) then
+      begin
+        IntfLeaf := UnitLeaf[I];
+        Break;
+      end;
+      Inc(I);
+    end;
+
+    if IntfLeaf = nil then
+      Exit;
+
+    // 找 interface 节点下的直属节点们并解析
+    I := 0;
+    while I < IntfLeaf.Count do
+    begin
+      case IntfLeaf[I].NodeType of
+        cntTypeSection:  // 类型区
+          begin
+            TypeLeaf := IntfLeaf[I];
+            for I1 := 0 to TypeLeaf.Count - 1 do
+            begin
+              if (TypeLeaf[I1].NodeType = cntTypeDecl) and (TypeLeaf[I1].Count >= 3) then
+              begin
+                // 记录 TypeName
+                CurrTypeName := TypeLeaf[I1][0].Text;
+                for I2 := 0 to TypeLeaf[I1].Count - 1 do
+                begin
+                  if (TypeLeaf[I1][I2].NodeType = cntRestrictedType) and (TypeLeaf[I1][I2].Count >= 1)
+                    and (TypeLeaf[I1][I2][0].NodeType = cntClassType) then
+                  begin
+                    ClassLeaf := TypeLeaf[I1][I2][0];
+                    if (ClassLeaf.Count > 0) and (ClassLeaf[0].NodeType = cntClassBody) then
+                    begin
+                      ClassLeaf := ClassLeaf[0];
+                      for I3 := 0 to ClassLeaf.Count - 1 do
+                      begin
+                        if (ClassLeaf[I3].NodeType = cntVisibility) {and (ClassLeaf[I3].TokenKind = tkPublic)} then
+                        begin
+                          VisibilityLeaf := ClassLeaf[I3];
+                          for I4 := 0 to VisibilityLeaf.Count - 1 do
+                          begin
+                            if VisibilityLeaf[I4].NodeType in [cntProcedure, cntFunction] then
+                              OnScan(VisibilityLeaf[I4], VisibilityTokenKindToDocScope(VisibilityLeaf.TokenKind), CurrTypeName);
+                          end;
+                        end;
+                      end;
+                    end;
+                  end;
+                end;
+              end;
+            end;
+          end;
+        cntProcedure, cntFunction:
+          begin
+            OnScan(IntfLeaf[I], dsNone, '');
+          end;
+      end;
+      Inc(I);
+    end;
+  finally
+    Pars.Free;
+    AST.Free;
+    SL.Free;
   end;
 end;
 
@@ -999,7 +1178,7 @@ begin
     end;
 
     FComment := MO.Text;
-    FComment := StringReplace(FComment, #13#10#13#10, '<br><br>', [rfReplaceAll]);
+    FComment := StringReplace(FComment, #13#10#13#10, SCnBrBr, [rfReplaceAll]);
   finally
     MO.Free;
     SL.Free;

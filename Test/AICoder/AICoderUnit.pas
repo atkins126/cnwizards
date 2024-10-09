@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ComCtrls, CnThreadPool, CnInetUtils, CnNative, CnContainers, CnJSON,
   CnAICoderConfig, CnAICoderEngine, CnWideStrings, FileCtrl, CnChatBox,
-  ExtCtrls;
+  ExtCtrls, Menus;
 
 type
   TFormAITest = class(TForm)
@@ -40,6 +40,10 @@ type
     btnAddMyLongMsg: TButton;
     pnlAIChat: TPanel;
     btnReviewCode: TButton;
+    pmChat: TPopupMenu;
+    Copy1: TMenuItem;
+    pmAIChat: TPopupMenu;
+    CopyCode1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAddHttpsClick(Sender: TObject);
@@ -162,6 +166,7 @@ begin
   FChatBox.ColorScrollButton := clRed;
   FChatBox.ColorYou := BK_COLOR;
   FChatBox.ColorMe := BK_COLOR;
+  FChatBox.PopupMenu := pmChat;
 
   FAIChatBox := TCnChatBox.Create(Self);
   FAIChatBox.Color := clWhite;
@@ -173,6 +178,7 @@ begin
   FAIChatBox.ColorScrollButton := clRed;
   FAIChatBox.ColorYou := BK_COLOR;
   FAIChatBox.ColorMe := BK_COLOR;
+  FAIChatBox.PopupMenu := pmAIChat;
 end;
 
 procedure TFormAITest.FormDestroy(Sender: TObject);
@@ -399,6 +405,15 @@ begin
   Msg.From := 'AI';
   Msg.FromType := cmtYou;
   Msg.Text := '...';
+  Msg.Waiting := True;
+
+  if Trim(edtProxy.Text) <> '' then
+  begin
+    CnAIEngineOptionManager.UseProxy := True;
+    CnAIEngineOptionManager.ProxyServer := Trim(edtProxy.Text);
+  end
+  else
+    CnAIEngineOptionManager.UseProxy := False;
 
   CnAIEngineManager.CurrentEngine.AskAIEngineForCode('Application.CreateForm(TForm1, Form1);',
     Msg, artExplainCode, AIOnExplainCodeAnswer);
@@ -416,6 +431,7 @@ begin
   if (Tag = nil) or not (Tag is TCnChatMessage) then
     Exit;
 
+  TCnChatMessage(Tag).Waiting := False;
   if Success then
     TCnChatMessage(Tag).Text := Answer
   else
@@ -483,6 +499,14 @@ begin
   Msg.From := 'AI';
   Msg.FromType := cmtYou;
   Msg.Text := '...';
+
+  if Trim(edtProxy.Text) <> '' then
+  begin
+    CnAIEngineOptionManager.UseProxy := True;
+    CnAIEngineOptionManager.ProxyServer := Trim(edtProxy.Text);
+  end
+  else
+    CnAIEngineOptionManager.UseProxy := False;
 
   CnAIEngineManager.CurrentEngine.AskAIEngineForCode('Application.CreateForm(TForm1, Form1);',
     Msg, artReviewCode, AIOnReviewCodeAnswer);

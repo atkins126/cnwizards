@@ -28,8 +28,10 @@ unit CnSrcEditorCodeWrap;
 * 开发平台：PWinXP SP2 + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串支持本地化处理方式
-* 修改记录：2013.09.01
-*               修正Unicode环境下可能乱码的问题
+* 修改记录：2024.09.24
+*               加入对 Pascal 或 C/++ 的设置及显示过滤
+*           2013.09.01
+*               修正 Unicode 环境下可能乱码的问题
 *           2005.06.14
 *               创建单元
 ================================================================================
@@ -39,6 +41,8 @@ interface
 
 {$I CnWizards.inc}
 
+{$IFDEF CNWIZARDS_CNSRCEDITORENHANCE}
+
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   CnWizMultiLang, StdCtrls, ComCtrls, Menus, ToolsApi, CnSpin, CnClasses,
@@ -46,7 +50,6 @@ uses
   CnWizShortCut, OmniXML, OmniXMLPersistent;
 
 type
-
   TCnCodeWrapItem = class(TCnAssignableCollectionItem)
   private
     FCaption: string;
@@ -59,6 +62,8 @@ type
     FTailText: string;
     FTailAutoIndent: Boolean;
     FTailIndentLevel: Integer;
+    FForPas: Boolean;
+    FForCpp: Boolean;
   public
     constructor Create(Collection: TCollection); override;
   published
@@ -72,6 +77,8 @@ type
     property TailText: string read FTailText write FTailText;
     property TailAutoIndent: Boolean read FTailAutoIndent write FTailAutoIndent;
     property TailIndentLevel: Integer read FTailIndentLevel write FTailIndentLevel;
+    property ForPas: Boolean read FForPas write FForPas;
+    property ForCpp: Boolean read FForCpp write FForCpp;
   end;
 
   TCnCodeWrapCollection = class(TCollection)
@@ -119,6 +126,9 @@ type
     btnDown: TButton;
     dlgOpen: TOpenDialog;
     dlgSave: TSaveDialog;
+    chkForPas: TCheckBox;
+    chkForCpp: TCheckBox;
+    btnReset: TButton;
     procedure ListViewData(Sender: TObject; Item: TListItem);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -137,8 +147,8 @@ type
     procedure ListViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure btnHelpClick(Sender: TObject);
+    procedure btnResetClick(Sender: TObject);
   private
-    { Private declarations }
     List: TCnCodeWrapCollection;
     IsUpdating: Boolean;
     procedure UpdateListView;
@@ -146,7 +156,6 @@ type
     procedure SetDataToControls;
     procedure GetDataFromControls;
   public
-    { Public declarations }
     function GetHelpTopic: string; override;
   end;
 
@@ -166,10 +175,17 @@ type
     function Config: Boolean;
     procedure Execute(Item: TCnCodeWrapItem);
     procedure InitMenuItems(AMenu: TMenuItem);
+    {* 初始化时被调用供创建菜单项}
+    procedure UpdateMenuItems(AMenu: TMenuItem);
+    {* 弹出时被调用供控制可见项}
     property Items: TCnCodeWrapCollection read FItems;
   end;
 
+{$ENDIF CNWIZARDS_CNSRCEDITORENHANCE}
+
 implementation
+
+{$IFDEF CNWIZARDS_CNSRCEDITORENHANCE}
 
 {$IFDEF DEBUG}
 uses
@@ -186,6 +202,8 @@ begin
   LineBlockMode := True;
   HeadAutoIndent := True;
   TailAutoIndent := True;
+  ForPas := True;
+  ForCpp := True;
 end;
 
 { TCnCodeWrapCollection }
@@ -274,11 +292,13 @@ begin
   try
     List.Assign(FItems);
     Result := ShowModal = mrOk;
+
     if Result then
     begin
       FItems.Assign(List);
       FItems.SaveToFile(WizOptions.GetUserFileName(SCnCodeWrapFile, False));
       WizOptions.CheckUserFile(SCnCodeWrapFile);
+
       if FMenu <> nil then
         InitMenuItems(FMenu);
     end;
@@ -570,6 +590,34 @@ begin
   end;
 end;
 
+procedure TCnSrcEditorCodeWrapTool.UpdateMenuItems(AMenu: TMenuItem);
+var
+  I: Integer;
+  MI: TMenuItem;
+  CI: TCnCodeWrapItem;
+  Pas, Cpp: Boolean;
+begin
+  // 避免不匹配
+  if (AMenu.Count <= 0) or (AMenu.Count < Items.Count) then
+    Exit;
+
+  Pas := CurrentIsDelphiSource;
+  Cpp := CurrentIsCSource;
+
+  for I := 0 to Items.Count - 1 do
+  begin
+    MI := AMenu.Items[I];
+    CI := Items[I];
+
+    if (CI.Caption = '-') or (not Pas and not Cpp) then
+      MI.Visible := True // 分隔条，以及不认识的扩展名，都显示
+    else if Pas then
+      MI.Visible := CI.ForPas
+    else if Cpp then
+      MI.Visible := CI.ForCpp;
+  end;
+end;
+
 procedure TCnSrcEditorCodeWrapTool.OnConfig(Sender: TObject);
 begin
   Config;
@@ -662,8 +710,11 @@ begin
   if (ListView.SelCount > 0) and QueryDlg(SCnDeleteConfirm) then
   begin
     for I := ListView.Items.Count - 1 downto 0 do
+    begin
       if ListView.Items[I].Selected then
         List.Delete(I);
+    end;
+
     UpdateListView;
     ListViewSelectItems(ListView, smNothing);
   end;
@@ -674,12 +725,14 @@ var
   I: Integer;
 begin
   for I := 1 to ListView.Items.Count - 1 do
+  begin
     if ListView.Items[I].Selected and not ListView.Items[I - 1].Selected then
     begin
       List.Items[I].Index := I - 1;
       ListView.Items[I - 1].Selected := True;
       ListView.Items[I].Selected := False;
     end;
+  end;
   ListView.Update;
 end;
 
@@ -688,12 +741,14 @@ var
   I: Integer;
 begin
   for I := ListView.Items.Count - 2 downto 0 do
+  begin
     if ListView.Items[I].Selected and not ListView.Items[I + 1].Selected then
     begin
       List.Items[I].Index := I + 1;
       ListView.Items[I + 1].Selected := True;
       ListView.Items[I].Selected := False;
     end;
+  end;
   ListView.Update;
 end;
 
@@ -758,6 +813,8 @@ begin
       Item.TailText := mmoTail.Lines.Text;
       Item.TailAutoIndent := chkTailIndent.Checked;
       Item.TailIndentLevel := seTailIndent.Value;
+      Item.ForPas := chkForPas.Checked;
+      Item.ForCpp := chkForCpp.Checked;
       ListView.Selected.Update;
     finally
       IsUpdating := False;
@@ -786,6 +843,8 @@ begin
         mmoTail.Lines.Text := Item.TailText;
         chkTailIndent.Checked := Item.TailAutoIndent;
         seTailIndent.Value := Item.TailIndentLevel;
+        chkForPas.Checked := Item.ForPas;
+        chkForCpp.Checked := Item.ForCpp;
       end
       else
       begin
@@ -799,6 +858,8 @@ begin
         mmoTail.Lines.Text := '';
         chkTailIndent.Checked := False;
         seTailIndent.Value := 0;
+        chkForPas.Checked := False;
+        chkForCpp.Checked := False;
       end;
     finally
       IsUpdating := False;
@@ -823,6 +884,24 @@ begin
   chkTailIndent.Enabled := (ListView.Selected <> nil) and chkLineBlock.Checked;
   seTailIndent.Enabled := (ListView.Selected <> nil) and chkLineBlock.Checked and
     chkTailIndent.Checked;
+  chkForPas.Enabled := ListView.Selected <> nil;
+  chkForCpp.Enabled := ListView.Selected <> nil;
 end;
 
+procedure TCnSrcEditorCodeWrapForm.btnResetClick(Sender: TObject);
+var
+  S: string;
+begin
+  // 删除旧配置文件并重新载入
+  S := WizOptions.GetAbsoluteUserFileName(SCnCodeWrapFile);
+  DeleteFile(S);
+
+  List.Clear;
+  S := WizOptions.GetUserFileName(SCnCodeWrapFile, True);
+  List.LoadFromFile(S);
+
+  UpdateListView;
+end;
+
+{$ENDIF CNWIZARDS_CNSRCEDITORENHANCE}
 end.

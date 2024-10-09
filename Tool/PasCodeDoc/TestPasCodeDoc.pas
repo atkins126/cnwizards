@@ -4,7 +4,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, CnCommon, ComCtrls, FileCtrl, CnPasCodeDoc, CnPasConvert;
+  StdCtrls, CnCommon, ComCtrls, FileCtrl, CnPasCodeDoc, CnPasConvert, CnPascalAST,
+  mPasLex;
 
 type
   TFormPasDoc = class(TForm)
@@ -15,12 +16,16 @@ type
     dlgSave1: TSaveDialog;
     tvPas: TTreeView;
     btnConvertDirectory: TButton;
+    btnCheckParamList: TButton;
+    btnGenParamList: TButton;
     procedure btnExtractFromFileClick(Sender: TObject);
     procedure btnCombineInterfaceClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure tvPasDblClick(Sender: TObject);
     procedure btnConvertDirectoryClick(Sender: TObject);
+    procedure btnCheckParamListClick(Sender: TObject);
+    procedure btnGenParamListClick(Sender: TObject);
   private
     FDoc: TCnDocUnit;
     FAllFile: TStringList;
@@ -29,9 +34,15 @@ type
     {* 处理掉说明的注释标记}
     class function PasCodeToHtml(const Code: string): string;
     {* 将 Pascal 代码加上 HTML 标记，对应格式外部预定义}
+
+    procedure OnProcedureCheck(ProcLeaf: TCnPasAstLeaf; Visibility: TCnDocScope;
+      const CurrentType: string);
+    procedure OnProcedureGenerate(ProcLeaf: TCnPasAstLeaf; Visibility: TCnDocScope;
+      const CurrentType: string);
   public
     procedure FileCallBack(const FileName: string; const Info: TSearchRec;
       var Abort: Boolean);
+
 
     class procedure DumpDocToHtml(Doc: TCnDocUnit; HtmlStrings: TStringList);
   end;
@@ -461,6 +472,123 @@ begin
     Delete(Result, 1, 3);
   if Pos('}', Result) = Length(Result) then
     Delete(Result, Length(Result), 1);
+end;
+
+procedure TFormPasDoc.btnCheckParamListClick(Sender: TObject);
+begin
+  if dlgOpen1.Execute then
+  begin
+    mmoResult.Lines.Clear;
+    CnScanFileProcDecls(dlgOpen1.FileName, OnProcedureCheck);
+  end;
+end;
+
+{
+function
+  <FunctionName>
+  FormalParameters
+    (
+      FormalParam
+        IdentList
+          A
+          ,
+          B
+        :
+        CommonType
+          TypeID
+            Int64
+      ;
+      FormalParam
+      ...
+      FormalParam
+      ...
+    )
+  :
+  COMMONTYPE
+    TypeID
+      Boolean
+}
+procedure TFormPasDoc.OnProcedureCheck(ProcLeaf: TCnPasAstLeaf; Visibility: TCnDocScope;
+  const CurrentType: string);
+var
+  L1, L2, L3: TCnPasAstLeaf;
+  J, K: Integer;
+begin
+  if ProcLeaf.Count < 2 then
+    Exit;
+
+  L1 := ProcLeaf[1]; // formalparameters
+  if L1.Count > 0 then
+  begin
+    L2 := L1[0];       // (
+    for J := 0 to L2.Count - 1 do
+    begin
+      K := 0;
+      if L2[J].Count = 0 then // 可能是用于分隔参数的分号
+        Continue;
+
+      if L2[J][K].NodeType <> cntIdentList then
+        Inc(K);
+      L3 := L2[J][K];  // identlist
+      if L3.Count > 1 then // 找出一段声明里包含两个同类型参数的
+      begin
+        if CurrentType <> '' then
+          mmoResult.Lines.Add(CurrentType + '.' + ProcLeaf[0].Text)
+        else
+          mmoResult.Lines.Add(ProcLeaf[0].Text);
+      end;
+    end;
+  end;
+end;
+
+procedure TFormPasDoc.OnProcedureGenerate(ProcLeaf: TCnPasAstLeaf;
+  Visibility: TCnDocScope; const CurrentType: string);
+var
+  L1, L2: TCnPasAstLeaf;
+  J, I: Integer;
+  S1, S2: string;
+begin
+  if ProcLeaf.Count < 2 then
+    Exit;
+
+  if CurrentType <> '' then
+    mmoResult.Lines.Add(CurrentType + '.' + ProcLeaf[0].Text)
+  else
+    mmoResult.Lines.Add(ProcLeaf[0].Text);
+
+  L1 := ProcLeaf[1]; // formalparameters
+  if L1.Count > 0 then
+  begin
+    L2 := L1[0];       // (
+    for J := 0 to L2.Count - 1 do // 找 ( 也就是 L2 下属的每一个 FormalParams
+    begin
+      if (L2[J].Count = 0) or (L2[J].NodeType <> cntFormalParam) then // 可能是用于分隔参数的分号
+        Continue;
+
+      // L2[J] 是 FormalParam，找它子树，凑成一行
+      S1 := '';
+      S2 := '';
+      for I := 0 to L2[J].Count - 1 do
+      begin
+        if L2[J][I].NodeType = cntIdentList then
+          S1 := L2[J][I].GetPascalCode;
+        if L2[J][I].NodeType = cntCommonType then
+          S2 := L2[J][I].GetPascalCode
+      end;
+
+      if (S1 <> '') and (S2 <> '') then
+        mmoResult.Lines.Add(Format('  %s: %s', [S1, S2]));
+    end;
+  end;
+end;
+
+procedure TFormPasDoc.btnGenParamListClick(Sender: TObject);
+begin
+  if dlgOpen1.Execute then
+  begin
+    mmoResult.Lines.Clear;
+    CnScanFileProcDecls(dlgOpen1.FileName, OnProcedureGenerate);
+  end;
 end;
 
 end.

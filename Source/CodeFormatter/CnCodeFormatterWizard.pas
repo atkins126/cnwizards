@@ -80,7 +80,7 @@ type
 
 {$IFDEF CNWIZARDS_CNINPUTHELPER}
     FInputHelper: TCnInputHelper;
-    FSymbolListMgr: TSymbolListMgr;
+    FSymbolListMgr: TCnSymbolListMgr;
     FPreNamesList: TCnAnsiStringList;  // Lazy Create
     FPreNamesArray: array of PAnsiChar;
     procedure CheckObtainIDESymbols;
@@ -545,7 +545,7 @@ end;
 
 procedure TCnCodeFormatterWizard.CheckObtainIDESymbols;
 var
-  IDESymbols, UnitNames: TSymbolList;
+  IDESymbols, UnitNames: TCnSymbolList;
   Buffer: IOTAEditBuffer;
   PosInfo: TCodePosInfo;
   I: Integer;
@@ -595,7 +595,7 @@ begin
 {$ENDIF}
   end;
 
-  UnitNames := FSymbolListMgr.ListByClass(TUnitNameList);
+  UnitNames := FSymbolListMgr.ListByClass(TCnUnitNameList);
   if UnitNames <> nil then
   begin
     PosInfo.PosKind := pkIntfUses;

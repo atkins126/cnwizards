@@ -42,7 +42,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizClasses, CnWizUtils, CnConsts, CnCommon,
-  Menus, CnCodingToolsetWizard, CnWizConsts, CnEditorCodeTool;
+  Menus, CnCodingToolsetWizard, CnWizConsts, CnSelectionCodeTool;
 
 type
 
@@ -52,12 +52,12 @@ type
 
 { TCnEditorFontInc }
 
-  TCnEditorFontInc = class(TCnEditorCodeTool)
+  TCnEditorFontInc = class(TCnSelectionCodeTool)
   public
     constructor Create(AOwner: TCnCodingToolsetWizard); override;
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
     procedure Execute; override;
   end;
 
@@ -67,12 +67,12 @@ type
 
 { TCnEditorFontDec }
 
-  TCnEditorFontDec = class(TCnEditorCodeTool)
+  TCnEditorFontDec = class(TCnSelectionCodeTool)
   public
     constructor Create(AOwner: TCnCodingToolsetWizard); override;
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
     procedure Execute; override;
   end;
 
@@ -101,7 +101,7 @@ begin
   Result := SCnEditorFontIncMenuHint;
 end;
 
-procedure TCnEditorFontInc.GetEditorInfo(var Name, Author, Email: string);
+procedure TCnEditorFontInc.GetToolsetInfo(var Name, Author, Email: string);
 begin
   Name := SCnEditorFontIncName;
   Author := SCnPack_Zjy;
@@ -136,7 +136,7 @@ begin
   Result := SCnEditorFontDecMenuHint;
 end;
 
-procedure TCnEditorFontDec.GetEditorInfo(var Name, Author, Email: string);
+procedure TCnEditorFontDec.GetToolsetInfo(var Name, Author, Email: string);
 begin
   Name := SCnEditorFontDecName;
   Author := SCnPack_Zjy;

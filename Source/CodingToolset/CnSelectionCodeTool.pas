@@ -18,13 +18,13 @@
 {                                                                              }
 {******************************************************************************}
 
-unit CnEditorCodeTool;
+unit CnSelectionCodeTool;
 { |<PRE>
 ================================================================================
 * 软件名称：CnPack IDE 专家包
-* 单元名称：选择文本代码编辑器基类
+* 单元名称：针对选择文本的编码工具基类
 * 单元作者：周劲羽 (zjy@cnpack.org)
-* 备    注：处理用户选择文本的代码编辑器基类
+* 备    注：处理用户选择文本的编码工具基类
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串支持本地化处理方式
@@ -51,15 +51,15 @@ uses
 type
 
 //==============================================================================
-// 选择文本代码编辑器基类
+// 针对选择文本的编码工具基类
 //==============================================================================
 
-{ TCnEditorCodeTool }
+{ TCnSelectionCodeTool }
 
   TCnCodeToolStyle = (csLine, csSelText, csAllText);
   {* 处理文本的方式，csLine 为选择行方式，csSelText/csAllText为选择/全部文本方式}
 
-  TCnEditorCodeTool = class(TCnBaseCodingToolset)
+  TCnSelectionCodeTool = class(TCnBaseCodingToolset)
   {* 选择代码处理工具基类。
      该基类用来处理用户选择的文本，当用户选择了代码后，执行该编辑器工具，对已
      选择的代码进行转换处理。}
@@ -106,29 +106,29 @@ uses
 {$ENDIF}
 
 //==============================================================================
-// 选择文本代码编辑器基类
+// 针对选择文本的编码工具基类
 //==============================================================================
 
-{ TCnEditorCodeTool }
+{ TCnSelectionCodeTool }
 
-constructor TCnEditorCodeTool.Create(AOwner: TCnCodingToolsetWizard);
+constructor TCnSelectionCodeTool.Create(AOwner: TCnCodingToolsetWizard);
 begin
   inherited;
   ValidInSource := True;
   BlockMustNotEmpty := False;
 end;
 
-procedure TCnEditorCodeTool.PrePreocessLine(const Str: string);
+procedure TCnSelectionCodeTool.PrePreocessLine(const Str: string);
 begin
   { do nothing }
 end;
 
-function TCnEditorCodeTool.ProcessLine(const Str: string): string;
+function TCnSelectionCodeTool.ProcessLine(const Str: string): string;
 begin
   { do nothing }
 end;
 
-function TCnEditorCodeTool.ProcessText(const Text: string): string;
+function TCnSelectionCodeTool.ProcessText(const Text: string): string;
 var
   Lines: TStrings;
   I: Integer;
@@ -137,7 +137,7 @@ begin
   try
     Lines.Text := Text;
 {$IFDEF DEBUG}
-    CnDebugger.LogFmt('TCnEditorCodeTool.ProcessText Default %d Lines.', [Lines.Count]);
+    CnDebugger.LogFmt('TCnSelectionCodeTool.ProcessText Default %d Lines.', [Lines.Count]);
 {$ENDIF}
 
     for I := 0 to Lines.Count - 1 do  // 预处理一下
@@ -151,7 +151,7 @@ begin
   end;
 end;
 
-procedure TCnEditorCodeTool.Execute;
+procedure TCnSelectionCodeTool.Execute;
 const
   SCnOtaBatchSize = $7FFF;
 var
@@ -184,9 +184,9 @@ begin
     begin
 {$IFDEF DEBUG}
       if Block = nil then
-        CnDebugger.LogMsg('TCnEditorCodeTool.Execute: Block is nil.')
+        CnDebugger.LogMsg('TCnSelectionCodeTool.Execute: Block is nil.')
       else if Block.IsValid then
-        CnDebugger.LogMsg('TCnEditorCodeTool.Execute: Block is Valid.');
+        CnDebugger.LogMsg('TCnSelectionCodeTool.Execute: Block is Valid.');
 {$ENDIF}
       if (Block <> nil) and Block.IsValid then
       begin             // 选择文本扩大到整行
@@ -270,7 +270,7 @@ begin
     if HasTab then
     begin
 {$IFDEF DEBUG}
-      CnDebugger.LogMsg('TCnEditorCodeTool.Execute has Tab Chars for Selection. Using Block Text.');
+      CnDebugger.LogMsg('TCnSelectionCodeTool.Execute has Tab Chars for Selection. Using Block Text.');
 {$ENDIF}
       // 直接得到 Ansi/Utf8/UnicodeString
       OrigText := AnsiString(BlockText);
@@ -280,7 +280,7 @@ begin
       // Reader 读出的是 Ansi/Utf8/Utf8
       Len := EndPos - StartPos;
 {$IFDEF DEBUG}
-      CnDebugger.LogFmt('TCnEditorCodeTool.Execute StartPos %d, EndPos %d.', [StartPos, EndPos]);
+      CnDebugger.LogFmt('TCnSelectionCodeTool.Execute StartPos %d, EndPos %d.', [StartPos, EndPos]);
 {$ENDIF}
       Assert(Len >= 0);
       SetLength(OrigText, Len);
@@ -352,7 +352,7 @@ begin
     ErrorDlg(SCnEditorCodeToolSelIsEmpty);
 end;
 
-function TCnEditorCodeTool.GetState: TWizardState;
+function TCnSelectionCodeTool.GetState: TWizardState;
 begin
   Result := inherited GetState;
   if wsEnabled in Result then
@@ -363,7 +363,7 @@ begin
   end;
 end;
 
-procedure TCnEditorCodeTool.GetNewPos(var ARow, ACol: Integer);
+procedure TCnSelectionCodeTool.GetNewPos(var ARow, ACol: Integer);
 begin
 // 基类啥都不做，不改变值
 end;

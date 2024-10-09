@@ -40,13 +40,57 @@ interface
 {$IFDEF CNWIZARDS_CNAICODERWIZARD}
 
 uses
-  SysUtils, Classes, CnNative, CnJSON, CnAICoderEngine, CnAICoderNetClient;
+  SysUtils, Classes, CnNative, CnJSON, CnAICoderEngine, CnAICoderNetClient,
+  CnAICoderConfig;
 
 type
   TCnOpenAIAIEngine = class(TCnAIBaseEngine)
   {* OpenAI 引擎}
   public
     class function EngineName: string; override;
+  end;
+
+  TCnMistralAIAIEngine = class(TCnAIBaseEngine)
+  {* MistralAI 引擎}
+  public
+    class function EngineName: string; override;
+  end;
+
+  TCnClaudeAIEngine = class(TCnAIBaseEngine)
+  {* Claude 引擎}
+  protected
+    // Claude 的身份验证头信息和其他几个不同
+    procedure PrepareRequestHeader(Headers: TStringList); override;
+
+    // Claude 的 HTTP 接口的 JSON 格式和其他几个有所不同
+    function ConstructRequest(RequestType: TCnAIRequestType; const Code: string): TBytes; override;
+
+    // Claude 的信息返回格式也不同
+    function ParseResponse(var Success: Boolean; var ErrorCode: Cardinal;
+      RequestType: TCnAIRequestType; const Response: TBytes): string; override;
+  public
+    class function EngineName: string; override;
+    class function OptionClass: TCnAIEngineOptionClass; override;
+  end;
+
+  TCnGeminiAIEngine = class(TCnAIBaseEngine)
+  {* Gemini 引擎}
+  protected
+    // Gemini 的 URL 和其他几个不同
+    function GetRequestURL(DataObj: TCnAINetRequestDataObject): string; override;
+
+    // Gemini 的身份验证头信息和其他几个不同
+    procedure PrepareRequestHeader(Headers: TStringList); override;
+
+    // Claude 的 HTTP 接口的 JSON 格式和其他几个有所不同
+    function ConstructRequest(RequestType: TCnAIRequestType; const Code: string): TBytes; override;
+
+    // Claude 的信息返回格式也不同
+    function ParseResponse(var Success: Boolean; var ErrorCode: Cardinal;
+      RequestType: TCnAIRequestType; const Response: TBytes): string; override;
+  public
+    class function EngineName: string; override;
+
   end;
 
   TCnQWenAIEngine = class(TCnAIBaseEngine)
@@ -159,8 +203,8 @@ begin
   RespRoot := CnJSONParse(S);
   if RespRoot = nil then
   begin
-    // 一类原始错误，如账号达到最大并发等
-    Result := BytesToAnsi(Response);
+    // 一类原始错误
+    Result := S;
   end
   else
   begin
@@ -241,8 +285,267 @@ begin
   Result := 'DeepSeek';
 end;
 
+{ TCnMistralAIAIEngine }
+
+class function TCnMistralAIAIEngine.EngineName: string;
+begin
+  Result := 'MistralAI';
+end;
+
+{ TCnClaudeAIEngine }
+
+function TCnClaudeAIEngine.ConstructRequest(RequestType: TCnAIRequestType;
+  const Code: string): TBytes;
+var
+  ReqRoot, Msg: TCnJSONObject;
+  Arr: TCnJSONArray;
+  S: AnsiString;
+begin
+  ReqRoot := TCnJSONObject.Create;
+  try
+    ReqRoot.AddPair('model', Option.Model);
+    ReqRoot.AddPair('temperature', Option.Temperature);
+    ReqRoot.AddPair('max_tokens', (Option as TCnClaudeAIEngineOption).MaxTokens);
+
+    ReqRoot.AddPair('system', Option.SystemMessage); // Claude 额外放 System 消息
+    Arr := ReqRoot.AddArray('messages');
+
+    Msg := TCnJSONObject.Create;
+    Msg.AddPair('role', 'user');
+    if RequestType = artExplainCode then
+      Msg.AddPair('content', Option.ExplainCodePrompt + #13#10 + Code)
+    else if RequestType = artReviewCode then
+      Msg.AddPair('content', Option.ReviewCodePrompt + #13#10 + Code)
+    else if RequestType = artRaw then
+      Msg.AddPair('content', Code);
+
+    Arr.AddValue(Msg);
+
+    S := ReqRoot.ToJSON;
+    Result := AnsiToBytes(S);
+  finally
+    ReqRoot.Free;
+  end;
+end;
+
+class function TCnClaudeAIEngine.EngineName: string;
+begin
+  Result := 'Claude';
+end;
+
+class function TCnClaudeAIEngine.OptionClass: TCnAIEngineOptionClass;
+begin
+  Result := TCnClaudeAIEngineOption;
+end;
+
+function TCnClaudeAIEngine.ParseResponse(var Success: Boolean;
+  var ErrorCode: Cardinal; RequestType: TCnAIRequestType;
+  const Response: TBytes): string;
+var
+  RespRoot, Msg: TCnJSONObject;
+  Arr: TCnJSONArray;
+  S: AnsiString;
+begin
+  Result := '';
+  S := BytesToAnsi(Response);
+  RespRoot := CnJSONParse(S);
+  if RespRoot = nil then
+  begin
+    // 一类原始错误
+    Result := S;
+  end
+  else
+  begin
+    try
+      // 正常回应
+      if (RespRoot['content'] <> nil) and (RespRoot['content'] is TCnJSONArray) then
+      begin
+        Arr := TCnJSONArray(RespRoot['content']);
+        if (Arr.Count > 0) and (Arr[0]['text'] <> nil) and (Arr[0]['text'] is TCnJSONString) then
+          Result := Arr[0]['text'].AsString;
+      end;
+
+      if Result = '' then
+      begin
+        // 只要没有正常回应，就说明出错了，但 Claude 的文档里没有说明，只能照着其他 AI 引擎写
+        Success := False;
+
+        // 一类业务错误，比如 Key 无效等
+        if (RespRoot['error'] <> nil) and (RespRoot['error'] is TCnJSONObject) then
+        begin
+          Msg := TCnJSONObject(RespRoot['error']);
+          Result := Msg['message'].AsString;
+        end;
+
+        // 一类网络错误，比如 URL 错了等
+        if (RespRoot['error'] <> nil) and (RespRoot['error'] is TCnJSONString) then
+          Result := RespRoot['error'].AsString;
+        if (RespRoot['message'] <> nil) and (RespRoot['message'] is TCnJSONString) then
+        begin
+          if Result = '' then
+            Result := RespRoot['message'].AsString
+          else
+            Result := Result + ', ' + RespRoot['message'].AsString;
+        end;
+      end;
+
+      // 兜底，所有解析都无效就直接用整个 JSON 作为返回信息
+      if Result = '' then
+        Result := S;
+
+    finally
+      RespRoot.Free;
+    end;
+  end;
+
+  // 处理一下回车换行
+  if Pos(CRLF, Result) <= 0 then
+    Result := StringReplace(Result, LF, CRLF, [rfReplaceAll]);
+end;
+
+procedure TCnClaudeAIEngine.PrepareRequestHeader(Headers: TStringList);
+begin
+  inherited;
+  Headers.Add('x-api-key: ' + Option.ApiKey);
+  // 原先的 Authorization: Bearer 暂时不删
+
+  Headers.Add('anthropic-version: ' + (Option as TCnClaudeAIEngineOption).AnthropicVersion);
+end;
+
+{ TCnGeminiAIEngine }
+
+function TCnGeminiAIEngine.ConstructRequest(RequestType: TCnAIRequestType;
+  const Code: string): TBytes;
+var
+  ReqRoot, Msg, Txt: TCnJSONObject;
+  Cont, Part: TCnJSONArray;
+  S: AnsiString;
+begin
+  ReqRoot := TCnJSONObject.Create;
+  try
+    Cont := ReqRoot.AddArray('contents');
+    Msg := TCnJSONObject.Create;
+
+    // Gemini 不支持 system role，一块搁 user 里
+    Msg := TCnJSONObject.Create;
+    Msg.AddPair('role', 'user');
+    Part := Msg.AddArray('parts');
+    Txt := TCnJSONObject.Create;
+
+    if RequestType = artExplainCode then
+      Txt.AddPair('text', Option.SystemMessage + #13#10 + Option.ExplainCodePrompt + #13#10 + Code)
+    else if RequestType = artReviewCode then
+      Txt.AddPair('text', Option.SystemMessage + #13#10 + Option.ReviewCodePrompt + #13#10 + Code)
+    else if RequestType = artRaw then
+      Txt.AddPair('text', Option.SystemMessage + #13#10 + Code);
+
+    Part.AddValue(Txt);
+    Cont.AddValue(Msg);
+
+    S := ReqRoot.ToJSON;
+    Result := AnsiToBytes(S);
+  finally
+    ReqRoot.Free;
+  end;
+end;
+
+class function TCnGeminiAIEngine.EngineName: string;
+begin
+  Result := 'Gemini';
+end;
+
+function TCnGeminiAIEngine.GetRequestURL(DataObj: TCnAINetRequestDataObject): string;
+begin
+  // 模型名和身份验证的 Key 均在 URL 里
+  Result := DataObj.URL + Option.Model + ':generateContent?key=' + Option.ApiKey;
+end;
+
+function TCnGeminiAIEngine.ParseResponse(var Success: Boolean;
+  var ErrorCode: Cardinal; RequestType: TCnAIRequestType;
+  const Response: TBytes): string;
+var
+  RespRoot, Parts, Msg: TCnJSONObject;
+  Arr: TCnJSONArray;
+  S: AnsiString;
+begin
+  Result := '';
+  S := BytesToAnsi(Response);
+  RespRoot := CnJSONParse(S);
+  if RespRoot = nil then
+  begin
+    // 一类原始错误，如账号达到最大并发等
+    Result := S;
+  end
+  else
+  begin
+    try
+      // 正常回应，Gemini 格式
+      if (RespRoot['candidates'] <> nil) and (RespRoot['candidates'] is TCnJSONArray) then
+      begin
+        Arr := TCnJSONArray(RespRoot['candidates']);
+        if (Arr.Count > 0) and (Arr[0]['content'] <> nil) and (Arr[0]['content'] is TCnJSONObject) then
+        begin
+          Parts := TCnJSONObject(Arr[0]['content']);
+          if (Parts['parts'] <> nil) and (Parts['parts'] is TCnJSONArray) then
+          begin
+            Arr := TCnJSONArray(Parts['parts']);
+            if (Arr.Count > 0) and (Arr[0]['text'] <> nil) and (Arr[0]['text'] is TCnJSONString) then
+            begin
+              Msg := TCnJSONObject(Arr[0]);
+              Result := Msg['text'].AsString;
+            end;
+          end;
+        end;
+      end;
+
+      if Result = '' then
+      begin
+        // 只要没有正常回应，就说明出错了
+        Success := False;
+
+        // 一类业务错误，比如 Key 无效等
+        if (RespRoot['error'] <> nil) and (RespRoot['error'] is TCnJSONObject) then
+        begin
+          Msg := TCnJSONObject(RespRoot['error']);
+          Result := Msg['message'].AsString;
+        end;
+
+        // 一类网络错误，比如 URL 错了等
+        if (RespRoot['error'] <> nil) and (RespRoot['error'] is TCnJSONString) then
+          Result := RespRoot['error'].AsString;
+        if (RespRoot['message'] <> nil) and (RespRoot['message'] is TCnJSONString) then
+        begin
+          if Result = '' then
+            Result := RespRoot['message'].AsString
+          else
+            Result := Result + ', ' + RespRoot['message'].AsString;
+        end;
+      end;
+
+      // 兜底，所有解析都无效就直接用整个 JSON 作为返回信息
+      if Result = '' then
+        Result := S;
+    finally
+      RespRoot.Free;
+    end;
+  end;
+
+  // 处理一下回车换行
+  if Pos(CRLF, Result) <= 0 then
+    Result := StringReplace(Result, LF, CRLF, [rfReplaceAll]);
+end;
+
+procedure TCnGeminiAIEngine.PrepareRequestHeader(Headers: TStringList);
+begin
+  inherited;
+  // 暂时不删别的，身份认证在 URL 里
+end;
+
 initialization
   RegisterAIEngine(TCnOpenAIAIEngine);
+  RegisterAIEngine(TCnMistralAIAIEngine);
+  RegisterAIEngine(TCnGeminiAIEngine);
+  RegisterAIEngine(TCnClaudeAIEngine);
   RegisterAIEngine(TCnQWenAIEngine);
   RegisterAIEngine(TCnMoonshotAIEngine);
   RegisterAIEngine(TCnChatGLMAIEngine);

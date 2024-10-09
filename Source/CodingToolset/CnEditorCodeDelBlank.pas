@@ -42,7 +42,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizClasses, CnWizUtils, CnConsts, CnCommon,
-  CnCodingToolsetWizard, CnWizConsts, CnEditorCodeTool, CnWizMultiLang;
+  CnCodingToolsetWizard, CnWizConsts, CnSelectionCodeTool, CnWizMultiLang;
 
 type
   TCnDelBlankForm = class(TCnTranslateForm)
@@ -72,7 +72,7 @@ type
 
   TCnDelBlankStyle = (dsMulti, dsAll);
 
-  TCnEditorCodeDelBlank = class(TCnEditorCodeTool)
+  TCnEditorCodeDelBlank = class(TCnSelectionCodeTool)
   private
     FStrings: TStrings;
     FStyle: TCnCodeToolStyle;
@@ -83,7 +83,7 @@ type
   public
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
     procedure Execute; override;
 
     property DelStyle: TCnDelBlankStyle read FDelStyle write FDelStyle;
@@ -136,7 +136,7 @@ begin
   Result := SCnEditorCodeDelBlankMenuCaption;
 end;
 
-procedure TCnEditorCodeDelBlank.GetEditorInfo(var Name, Author,
+procedure TCnEditorCodeDelBlank.GetToolsetInfo(var Name, Author,
   Email: string);
 begin
   Name := SCnEditorCodeDelBlankName;

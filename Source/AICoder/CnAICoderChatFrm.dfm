@@ -1,6 +1,6 @@
 object CnAICoderChatForm: TCnAICoderChatForm
-  Left = 744
-  Top = 141
+  Left = 700
+  Top = 110
   Width = 549
   Height = 704
   Caption = 'AI Coder Chat'
@@ -17,17 +17,17 @@ object CnAICoderChatForm: TCnAICoderChatForm
   TextHeight = 13
   object spl1: TSplitter
     Left = 0
-    Top = 137
+    Top = 567
     Width = 541
     Height = 3
     Cursor = crVSplit
-    Align = alTop
+    Align = alBottom
   end
   object pnlChat: TPanel
     Left = 0
-    Top = 140
+    Top = 30
     Width = 541
-    Height = 532
+    Height = 537
     Align = alClient
     BevelInner = bvLowered
     BevelOuter = bvNone
@@ -39,7 +39,6 @@ object CnAICoderChatForm: TCnAICoderChatForm
     Width = 541
     Height = 30
     BorderWidth = 1
-    Caption = 'tlbAICoder'
     EdgeBorders = [ebLeft, ebTop, ebRight, ebBottom]
     Flat = True
     Images = dmCnSharedImages.Images
@@ -51,36 +50,59 @@ object CnAICoderChatForm: TCnAICoderChatForm
       Top = 0
       Action = actToggleSend
     end
-    object btnCopyCode: TToolButton
+    object btnClear: TToolButton
       Left = 23
       Top = 0
-      Action = actCopyCode
+      Action = actClear
     end
     object btn1: TToolButton
       Left = 46
       Top = 0
       Width = 8
-      Caption = 'btn1'
       ImageIndex = 2
       Style = tbsSeparator
     end
-    object btnOption: TToolButton
+    object btnFont: TToolButton
       Left = 54
+      Top = 0
+      Action = actFont
+    end
+    object btnOption: TToolButton
+      Left = 77
       Top = 0
       Action = actOption
     end
     object btnHelp: TToolButton
-      Left = 77
+      Left = 100
       Top = 0
       Action = actHelp
+    end
+    object btn2: TToolButton
+      Left = 123
+      Top = 0
+      Width = 8
+      Caption = 'btn2'
+      ImageIndex = 2
+      Style = tbsSeparator
+    end
+    object cbbActiveEngine: TComboBox
+      Left = 131
+      Top = 0
+      Width = 126
+      Height = 21
+      Style = csDropDownList
+      Anchors = [akLeft, akTop, akRight]
+      ItemHeight = 13
+      TabOrder = 0
+      OnChange = cbbActiveEngineChange
     end
   end
   object pnlTop: TPanel
     Left = 0
-    Top = 30
+    Top = 570
     Width = 541
     Height = 107
-    Align = alTop
+    Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
     object btnMsgSend: TSpeedButton
@@ -88,7 +110,7 @@ object CnAICoderChatForm: TCnAICoderChatForm
       Top = 16
       Width = 65
       Height = 65
-      Hint = '发送'
+      Hint = 'Enter to Send, Ctrl+Enter to Make a New Line'
       Anchors = [akTop, akRight]
       Flat = True
       Glyph.Data = {
@@ -160,6 +182,8 @@ object CnAICoderChatForm: TCnAICoderChatForm
         FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
         FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
         FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF}
+      ParentShowHint = False
+      ShowHint = True
       OnClick = btnMsgSendClick
     end
     object mmoSelf: TMemo
@@ -176,28 +200,79 @@ object CnAICoderChatForm: TCnAICoderChatForm
   object actlstAICoder: TActionList
     Images = dmCnSharedImages.Images
     OnUpdate = actlstAICoderUpdate
-    Left = 48
-    Top = 505
+    Left = 40
+    Top = 497
     object actToggleSend: TAction
+      Caption = '&Toggle Send Area'
       Checked = True
-      Hint = '切换发送框的显示'
+      Hint = 'Toggle Send Area'
       ImageIndex = 34
       OnExecute = actToggleSendExecute
     end
-    object actCopyCode: TAction
-      Hint = '复制代码'
+    object actCopy: TAction
+      Caption = '&Copy'
+      Hint = 'Copy Chat Content'
       ImageIndex = 10
-      Visible = False
+      OnExecute = actCopyExecute
+    end
+    object actCopyCode: TAction
+      Caption = 'Copy Co&de'
+      Hint = 'Copy Code Content between ``` and ```'
+      ImageIndex = 56
+      OnExecute = actCopyCodeExecute
+    end
+    object actClear: TAction
+      Caption = 'C&lear'
+      Hint = 'Clear Messages'
+      ImageIndex = 13
+      OnExecute = actClearExecute
+    end
+    object actFont: TAction
+      Caption = '&Font'
+      Hint = 'Change Font'
+      ImageIndex = 29
+      OnExecute = actFontExecute
     end
     object actOption: TAction
-      Hint = '设置'
+      Caption = '&Options...'
+      Hint = 'Display Options'
       ImageIndex = 2
       OnExecute = actOptionExecute
     end
     object actHelp: TAction
-      Hint = '显示帮助'
+      Caption = '&Help'
+      Hint = 'Display Help'
       ImageIndex = 1
       OnExecute = actHelpExecute
     end
+  end
+  object pmChat: TPopupMenu
+    Images = dmCnSharedImages.Images
+    OnPopup = pmChatPopup
+    Left = 112
+    Top = 500
+    object N1: TMenuItem
+      Action = actCopy
+    end
+    object M1: TMenuItem
+      Action = actCopyCode
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
+    object Clear1: TMenuItem
+      Action = actClear
+    end
+  end
+  object dlgFont: TFontDialog
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    MinFontSize = 0
+    MaxFontSize = 0
+    Left = 56
+    Top = 594
   end
 end

@@ -153,7 +153,7 @@ type
     procedure ReInitShortCuts;
     procedure EditControlKeyDown(Key, ScanCode: Word; Shift: TShiftState;
       var Handled: Boolean);
-    procedure EditorChanged(Editor: TEditorObject; ChangeType: TEditorChangeTypes);
+    procedure EditorChanged(Editor: TCnEditorObject; ChangeType: TCnEditorChangeTypes);
   public
     constructor Create;
     destructor Destroy; override;
@@ -992,7 +992,11 @@ begin
   if FCommentMenu <> nil then
     FCommentMenu.Visible := (FCommentMenu.Count > 0) and CurrentIsSource;
   if FWrapMenu <> nil then
+  begin
     FWrapMenu.Visible := (FWrapMenu.Count > 0) and CurrentIsSource;
+    if FWrapMenu.Visible then
+      FCodeWrap.UpdateMenuItems(FWrapMenu); // 控制子菜单根据源码类型的可见
+  end;
   if FReplaceMenu <> nil then
     FReplaceMenu.Visible := FReplaceMenu.Count > 0;
   if FMiscMenu <> nil then
@@ -1001,7 +1005,7 @@ begin
     FHideStructMenu.Visible := CanShowDisableStructuralHighlight;
 end;
 
-procedure TCnSrcEditorBlockTools.ShowFlatButton(EditWindow: TCustomForm; 
+procedure TCnSrcEditorBlockTools.ShowFlatButton(EditWindow: TCustomForm;
   EditControl: TControl; EditView: IOTAEditView);
 var
   IsColor: Boolean;
@@ -1112,7 +1116,7 @@ begin
         if I < EndingRow then Inc(ElidedEndingRows);
       end;
     end;
-    
+
     // 计算得到实际起始行数
     Dec(StartingRow, ElidedStartingRows);
     Dec(EndingRow, ElidedEndingRows);
@@ -1206,8 +1210,8 @@ begin
   end;
 end;
 
-procedure TCnSrcEditorBlockTools.EditorChanged(Editor: TEditorObject;
-  ChangeType: TEditorChangeTypes);
+procedure TCnSrcEditorBlockTools.EditorChanged(Editor: TCnEditorObject;
+  ChangeType: TCnEditorChangeTypes);
 begin
   if CanShowButton and (ChangeType * [ctView, ctWindow, ctCurrLine, ctFont,
     ctVScroll, ctBlock] <> []) then

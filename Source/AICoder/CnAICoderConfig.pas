@@ -105,6 +105,21 @@ type
 
   TCnAIEngineOptionClass = class of TCnAIEngineOption;
 
+  TCnClaudeAIEngineOption = class(TCnAIEngineOption)
+  {* 给 Claude 专用的设置项，多了几个选项}
+  private
+    FAnthropicVersion: string;
+    FMaxTokens: Integer;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+  published
+    property MaxTokens: Integer read FMaxTokens write FMaxTokens;
+    {* 最大 Token 数，Claude 必须，其余默认}
+    property AnthropicVersion: string read FAnthropicVersion write FAnthropicVersion;
+    {* Claude 的版本}
+  end;
+
   TCnAIEngineOptionManager = class(TPersistent)
   {* AI 引擎配置管理类，持有并管理多个 TCnAIEngineOption 对象，数量顺序和 EngineManager 一致}
   private
@@ -114,6 +129,7 @@ type
     FProxyUserName: string;
     FProxyPassword: string;
     FUseProxy: Boolean;
+    FChatFontStr: string;
     function GetOptionCount: Integer;
     function GetOption(Index: Integer): TCnAIEngineOption;
   public
@@ -152,6 +168,9 @@ type
     property Options[Index: Integer]: TCnAIEngineOption read GetOption;
     {* 根据索引号获取持有的对象}
   published
+    property ChatFontStr: string read FChatFontStr write FChatFontStr;
+    {* 聊天窗口的字体}
+
     property ActiveEngine: string read FActiveEngine write FActiveEngine;
     {* 活动引擎名称，供存储载入后设置活动引擎，除此以外别无它用。}
 
@@ -518,6 +537,22 @@ begin
   finally
     FreeMem(PropList);
   end;
+end;
+
+{ TCnClaudeAIEngineOption }
+
+constructor TCnClaudeAIEngineOption.Create;
+begin
+  inherited;
+  Temperature := 1.0;
+  AnthropicVersion := '2023-06-01';
+  MaxTokens := 10240;
+end;
+
+destructor TCnClaudeAIEngineOption.Destroy;
+begin
+
+  inherited;
 end;
 
 initialization

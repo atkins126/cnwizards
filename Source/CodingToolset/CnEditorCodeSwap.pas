@@ -47,7 +47,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizClasses, CnWizUtils, CnConsts, CnCommon,
-  CnCodingToolsetWizard, CnWizConsts, CnEditorCodeTool;
+  CnCodingToolsetWizard, CnWizConsts, CnSelectionCodeTool;
 
 type
 
@@ -57,7 +57,7 @@ type
 
 { TCnEditorCodeSwap }
 
-  TCnEditorCodeSwap = class(TCnEditorCodeTool)
+  TCnEditorCodeSwap = class(TCnSelectionCodeTool)
   private
 
   protected
@@ -66,7 +66,7 @@ type
   public
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
   end;
 
 //==============================================================================
@@ -75,7 +75,7 @@ type
 
 { TCnEditorEvalAlign }
 
-  TCnEditorEvalAlign = class(TCnEditorCodeTool)
+  TCnEditorEvalAlign = class(TCnSelectionCodeTool)
   private
 
   protected
@@ -84,7 +84,7 @@ type
   public
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
   end;
 
 {$ENDIF CNWIZARDS_CNCODINGTOOLSETWIZARD}
@@ -220,7 +220,7 @@ begin
   Result := SCnEditorCodeSwapMenuHint;
 end;
 
-procedure TCnEditorCodeSwap.GetEditorInfo(var Name, Author, Email: string);
+procedure TCnEditorCodeSwap.GetToolsetInfo(var Name, Author, Email: string);
 begin
   Name := SCnEditorCodeSwapName;
   Author := SCnPack_Zjy + ';' + SCnPack_Beta;
@@ -234,7 +234,7 @@ begin
   Result := SCnEditorEvalAlignMenuCaption;
 end;
 
-procedure TCnEditorEvalAlign.GetEditorInfo(var Name, Author,
+procedure TCnEditorEvalAlign.GetToolsetInfo(var Name, Author,
   Email: string);
 begin
   Name := SCnEditorEvalAlignName;
@@ -254,24 +254,18 @@ end;
 
 function TCnEditorEvalAlign.ProcessText(const Text: string): string;
 var
-  I, P, EP: Integer;
   Lines: TStringList;
-  EquStr, L, R: string;
-begin
-  Lines := TStringList.Create;
-  try
-    Lines.Text := Text;
 
-    if IsDelphiSourceModule(CnOtaGetCurrentSourceFile) or
-      IsInc(CnOtaGetCurrentSourceFile) then
-      EquStr := ':='
-    else
-      EquStr := '=';
-
+  function ProcessEqualLines(const Equ: string): Boolean;
+  var
+    I, P, EP: Integer;
+    L, R: string;
+  begin
+    Result := False;
     EP := 0;
     for I := 0 to Lines.Count - 1 do
     begin
-      P := Pos(EquStr, Lines[I]);
+      P := Pos(Equ, Lines[I]);
       if P > EP then
       begin
         EP := P;
@@ -281,15 +275,16 @@ begin
     end;
 
 {$IFDEF DEBUG}
-    CnDebugger.LogFmt('TCnEditorEvalAlign.ProcessText. Got Eval Point at %d', [EP]);
+    CnDebugger.LogFmt('TCnEditorEvalAlign.ProcessEqualLines. Got Eval %s Point at %d', [Equ, EP]);
 {$ENDIF}
 
     // EP 是赋值号们应该对齐的位置，减 1 后也是左边字符串应该有的长度
     if EP > 0 then
     begin
+      Result := True;
       for I := 0 to Lines.Count - 1 do
       begin
-        P := Pos(EquStr, Lines[I]);
+        P := Pos(Equ, Lines[I]);
         if P > 0 then // 有赋值号的，去补
         begin
           L := Copy(Lines[I], 1, P - 1);
@@ -299,6 +294,21 @@ begin
         end;
       end;
     end;
+  end;
+
+begin
+  Lines := TStringList.Create;
+  try
+    Lines.Text := Text;
+
+    if IsDelphiSourceModule(CnOtaGetCurrentSourceFile) or
+      IsInc(CnOtaGetCurrentSourceFile) then
+    begin
+      if not ProcessEqualLines(':=') then // 变量赋值号
+        ProcessEqualLines('=');            // 常量赋值号
+    end
+    else
+      ProcessEqualLines('=');              // 赋值号
 
     Result := Lines.Text;
   finally

@@ -42,7 +42,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, IniFiles, ToolsAPI, CnWizUtils, CnConsts, CnCommon, CnCodingToolsetWizard,
-  CnWizConsts, CnEditorCodeTool, CnIni, CnWizMultiLang;
+  CnWizConsts, CnSelectionCodeTool, CnIni, CnWizMultiLang;
 
 type
 
@@ -60,7 +60,7 @@ type
     destructor Destroy; override;
     function GetCaption: string; override;
     function GetHint: string; override;
-    procedure GetEditorInfo(var Name, Author, Email: string); override;
+    procedure GetToolsetInfo(var Name, Author, Email: string); override;
     function GetState: TWizardState; override;
     procedure Execute; override;
   published
@@ -114,7 +114,7 @@ begin
   Result := SCnEditorInsertTimeMenuHint;
 end;
 
-procedure TCnEditorInsertTime.GetEditorInfo(var Name, Author, Email: string);
+procedure TCnEditorInsertTime.GetToolsetInfo(var Name, Author, Email: string);
 begin
   Name := SCnEditorInsertTimeName;
   Author := SCnPack_LiuXiao;

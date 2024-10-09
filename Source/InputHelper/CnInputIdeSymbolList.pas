@@ -88,6 +88,10 @@ uses
   {$UNDEF SYMBOL_LOCKHOOK}
 {$ENDIF}
 
+const
+  CN_IDESYMBOL_ASYNC_TIMEOUT = 3000;
+  {* 异步符号列表的超时时间，单位毫秒}
+
 type
 
 //==============================================================================
@@ -96,7 +100,7 @@ type
 
 { TIDESymbolList }
 
-  TIDESymbolList = class(TSymbolList)
+  TIDESymbolList = class(TCnSymbolList)
   private
   {$IFDEF IDE_SUPPORT_LSP}
      FKeepUnique: Boolean; // Name 是否可重复
@@ -104,6 +108,8 @@ type
      FAsyncResultGot: Boolean;
      FAsyncManagerObj: TObject;
      FAsyncIsPascal: Boolean;
+     FAsyncWaiting: Boolean;
+     FAnsycCancel: Boolean;
      procedure AsyncCodeCompletionCallBack(Sender: TObject; AId: Integer;
        AError: Boolean; const AMessage: string);
   {$ENDIF}
@@ -126,11 +132,14 @@ type
       TCodePosInfo): Boolean; override;
 
     // 以下俩函数在 LSP 模式下会做防重处理，注意 Add(Item: TSymbolItem) 未做
-    function Add(const AName: string; AKind: TSymbolKind; AScope: Integer; const
-      ADescription: string = ''; const AText: string = ''; AAutoIndent: Boolean = 
+    function Add(const AName: string; AKind: TCnSymbolKind; AScope: Integer; const
+      ADescription: string = ''; const AText: string = ''; AAutoIndent: Boolean =
       True; AMatchFirstOnly: Boolean = False; AAlwaysDisp: Boolean = False;
       ADescIsUtf8: Boolean = False): Integer; overload; override;
     procedure Clear; override;
+
+    procedure Cancel; override;
+    // 供外界按需通知中止异步等待
   end;
 
 const
@@ -274,7 +283,7 @@ end;
 
 {$IFDEF IDE_SUPPORT_LSP}
 
-function SymbolClassTextToKind(const ClassText: string): TSymbolKind;
+function SymbolClassTextToKind(const ClassText: string): TCnSymbolKind;
 begin
   Result := skUnknown;
   if Length(ClassText) >= 3 then
@@ -351,7 +360,7 @@ var
     Result := string(S);
   end;
 
-  function CppTypeToKind(V: Integer; const SName: string): TSymbolKind;
+  function CppTypeToKind(V: Integer; const SName: string): TCnSymbolKind;
   begin
     case V of
       1: Result := skKeyword;
@@ -380,6 +389,14 @@ begin
   try
     if not Assigned(FAsyncManagerObj) then
       Exit;
+
+    if FAnsycCancel then
+    begin
+{$IFDEF DEBUG}
+      CnDebugger.LogMsg('AsyncCodeCompletionCallBack. Got Cancel. Exit');
+{$ENDIF}
+      Exit;
+    end;
 
     if FAsyncIsPascal then
     begin
@@ -451,7 +468,11 @@ begin
       end;
     end;
   finally
-    FAsyncResultGot := True; // 最后才放，比较保险
+    if not FAnsycCancel then
+      FAsyncResultGot := True; // 最后才放，比较保险
+{$IFDEF DEBUG}
+    CnDebugger.LogBoolean(FAsyncResultGot, 'AsyncCodeCompletionCallBack. Finally Set AsyncResultGot');
+{$ENDIF}
   end;
 end;
 
@@ -468,9 +489,9 @@ var
   Index: Integer;
 
   function SymbolFlagsToKind(Flags: TOTAViewerSymbolFlags; const Description: string):
-    TSymbolKind;
+    TCnSymbolKind;
   begin
-    Result := TSymbolKind(Flags);
+    Result := TCnSymbolKind(Flags);
     if (Flags = vsfType) then
     begin
       if Copy(Description, 1, 8) = ' : class' then
@@ -514,7 +535,7 @@ var
     I, Idx: Integer;
     SymbolList: IOTACodeInsightSymbolList;
     Desc: string;
-    Kind: TSymbolKind;
+    Kind: TCnSymbolKind;
     Allow: Boolean;
     ValidChars: TSysCharSet;
     Name: string;
@@ -552,15 +573,33 @@ var
         CnDebugger.LogFmt('To Async Invoke %s.', [FAsyncManagerObj.ClassName]);
     {$ENDIF}
         FKeepUnique := True;
+        FAnsycCancel := False;
+        FAsyncWaiting := True;
+        // 标记开始异步等待
+
         AsyncManager.AsyncInvokeCodeCompletion(itAuto, Filter, EditView.CursorPos.Line,
           EditView.CursorPos.Col - 1, AsyncCodeCompletionCallBack);
 
         Tick := GetTickCount;
-        while not FAsyncResultGot and (GetTickCount - Tick < 1000) do // 得异步等待
-          Application.ProcessMessages;
-
+        try
+          // 得异步等待，注意外头的代码输入助手会继续处理 KeyDown 和 KeyUp 等事件
+          // 因此外头加了 Symbol 正在 Reloading 时的防重入，但没有主动 Cancel 本次
+          // 异步等待的机制
+          while not FAnsycCancel and not FAsyncResultGot and (GetTickCount - Tick < CN_IDESYMBOL_ASYNC_TIMEOUT) do
+            Application.ProcessMessages;
+        except
 {$IFDEF DEBUG}
-        if not FAsyncResultGot then
+          CnDebugger.LogMsgError('Async Result Exception when Waiting.');
+{$ENDIF}
+        end;
+
+        FAsyncWaiting := False; // 标记异步等待结束
+{$IFDEF DEBUG}
+        if FAnsycCancel then    // 被中止的优先级更高
+          CnDebugger.LogMsg('Async Result Canceled after ms ' + IntToStr(GetTickCount - Tick))
+        else if FAsyncResultGot then
+          CnDebugger.LogMsg('Async Result Got. Cost ms ' + IntToStr(GetTickCount - Tick))
+        else
           CnDebugger.LogMsg('Async Result Time out. Fail to Get Symbol List.');
 {$ENDIF}
       finally
@@ -690,7 +729,7 @@ begin
       + IntToStr(CodeInsightServices.CodeInsightManagerCount));
 {$ENDIF}
 
-  {$IFDEF IDE_SetQueryContext_Bug}
+{$IFDEF IDE_SetQueryContext_Bug}
     for Index := 0 to CodeInsightServices.CodeInsightManagerCount - 1 do
     begin
       CodeInsightManager := CodeInsightServices.CodeInsightManager[Index];
@@ -715,7 +754,7 @@ begin
         Break;
       end;
     end;
-  {$ELSE}
+{$ELSE}
     CodeInsightServices.GetCurrentCodeInsightManager(CodeInsightManager);
     if (CodeInsightManager = nil) then
     begin
@@ -735,7 +774,7 @@ begin
 {$ENDIF}
       AddToSymbolList(CodeInsightManager);
     end;
-  {$ENDIF}
+{$ENDIF}
   end;
 
   Result := Count > 0;
@@ -1072,7 +1111,7 @@ var
   var
     Idx, Len: Integer;
     AName, ADesc: string;
-    AKind: TSymbolKind;
+    AKind: TCnSymbolKind;
   begin
     if Length(AText) > 6 then
     begin
@@ -1267,7 +1306,7 @@ begin
 {$ENDIF SUPPORT_IDESYMBOLLIST}
 end;
 
-function TIDESymbolList.Add(const AName: string; AKind: TSymbolKind;
+function TIDESymbolList.Add(const AName: string; AKind: TCnSymbolKind;
   AScope: Integer; const ADescription, AText: string; AAutoIndent,
   AMatchFirstOnly, AAlwaysDisp, ADescIsUtf8: Boolean): Integer;
 {$IFDEF IDE_SUPPORT_LSP}
@@ -1290,6 +1329,16 @@ begin
 
   Result := inherited Add(AName, AKind, AScope, ADescription, AText, AAutoIndent,
     AMatchFirstOnly, AAlwaysDisp, ADescIsUtf8);
+end;
+
+procedure TIDESymbolList.Cancel;
+begin
+{$IFDEF IDE_SUPPORT_LSP}
+  FAnsycCancel := True;
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('IDE SymbolList Cancel.');
+{$ENDIF}
+{$ENDIF}
 end;
 
 procedure TIDESymbolList.Clear;
