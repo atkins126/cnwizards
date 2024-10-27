@@ -111,6 +111,8 @@ type
     {* 引擎的 ID，供存储保存用，根据类名运算而来}
     class function OptionClass: TCnAIEngineOptionClass; virtual;
     {* 引擎配置所对应的类，默认为基类 TCnAIEngineOption}
+    class function NeedApiKey: Boolean; virtual;
+    {* 引擎是否需要提供 API Key 才能调用，默认 True}
 
     constructor Create(ANetPool: TCnThreadPool); virtual;
     destructor Destroy; override;
@@ -565,7 +567,7 @@ begin
           Result := Msg['message'].AsString;
         end;
 
-        // 一类网络错误，比如 URL 错了等
+        // 一类业务返回的网络错误，比如 URL 错了等
         if (RespRoot['error'] <> nil) and (RespRoot['error'] is TCnJSONString) then
           Result := RespRoot['error'].AsString;
         if (RespRoot['message'] <> nil) and (RespRoot['message'] is TCnJSONString) then
@@ -629,6 +631,7 @@ begin
 
   if not Success then
     AnswerObj.ErrorCode := GetLastError;
+  // 典型的错误码中，12002 是超时，12029 是无法建立连接可能是 SSL 版本错等
 
   FAnswerQueue.Push(AnswerObj);
   TThreadHack(Thread).Synchronize(SyncCallback);
@@ -665,6 +668,13 @@ begin
 
   try
     HTTP := TCnHTTP.Create;
+
+    // 设置超时，默认 0 表示按系统来
+    HTTP.ConnectTimeOut := CnAIEngineOptionManager.TimeoutSec * 1000;
+    HTTP.SendTimeOut := CnAIEngineOptionManager.TimeoutSec * 1000;
+    HTTP.ReceiveTimeOut := CnAIEngineOptionManager.TimeoutSec * 1000;
+
+    // 如有就设置代理
     if CnAIEngineOptionManager.UseProxy then
     begin
       if Trim(CnAIEngineOptionManager.ProxyServer) <> '' then
@@ -677,7 +687,9 @@ begin
       else
         HTTP.ProxyMode := pmIE;
     end;
-    HTTP.HttpRequestHeaders.Add('Authorization: Bearer ' + FOption.ApiKey);
+
+    if FOption.ApiKey <> '' then
+      HTTP.HttpRequestHeaders.Add('Authorization: Bearer ' + FOption.ApiKey);
     // 大多数 AI 引擎的身份验证都是这句。少数不是的，可以在子类的 PrepareRequestHeader 里删掉这句再加
 
     PrepareRequestHeader(HTTP.HttpRequestHeaders);
@@ -744,6 +756,11 @@ end;
 function TCnAIBaseEngine.GetRequestURL(DataObj: TCnAINetRequestDataObject): string;
 begin
   Result := DataObj.URL;
+end;
+
+class function TCnAIBaseEngine.NeedApiKey: Boolean;
+begin
+  Result := True;
 end;
 
 initialization

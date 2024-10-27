@@ -1315,7 +1315,7 @@ begin
   end;
 end;
 
-{ TBracketInfo }
+{ TCnBracketInfo }
 
 constructor TCnBracketInfo.Create(AControl: TControl);
 begin
@@ -1323,7 +1323,7 @@ begin
   FControl := AControl;
 end;
 
-{ TBlockMatchInfo }
+{ TCnBlockMatchInfo }
 
 // 分析检查本 EditControl 中的结构高亮信息
 function TCnBlockMatchInfo.CheckBlockMatch(
@@ -2097,8 +2097,8 @@ begin
 
             Pair := TCnBlockLinePair(FStack.Pop);
 
-            // 解析器里把 namespace 的左括号设成了 Tag = 1
-            if IgnoreNamespace and (Pair.StartToken.Tag = 1) then
+            // 解析器里把 namespace 的左括号设成了 Tag = CN_CPP_BRACKET_NAMESPACE
+            if IgnoreNamespace and (Pair.StartToken.Tag = CN_CPP_BRACKET_NAMESPACE) then
             begin
               Pair.Free;
             end
@@ -5849,7 +5849,7 @@ begin
     + 'bracket,match,identifier,keyword,line,draw,structure,blank,compiler,directive,';
 end;
 
-{ TBlockLinePair }
+{ TCnBlockLinePair }
 
 procedure TCnBlockLinePair.AddMidToken(const Token: TCnGeneralPasToken;
   const LineLeft: Integer);
@@ -5920,7 +5920,7 @@ begin
   end;
 end;
 
-{ TBlockLineInfo }
+{ TCnBlockLineInfo }
 
 procedure TCnBlockLineInfo.AddPair(Pair: TCnBlockLinePair);
 begin
@@ -6138,7 +6138,7 @@ begin
   end;
 end;
 
-{ TCurLineInfo }
+{ TCnCurLineInfo }
 
 constructor TCnCurLineInfo.Create(AControl: TControl);
 begin
@@ -6151,7 +6151,7 @@ begin
 
 end;
 
-{ TCompDirectiveInfo }
+{ TCnCompDirectiveInfo }
 
 procedure TCnCompDirectiveInfo.FindCurrentPair(View: IOTAEditView;
   IsCppModule: Boolean);
