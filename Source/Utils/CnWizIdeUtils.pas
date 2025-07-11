@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -59,19 +59,21 @@ interface
 {$I CnWizards.inc}
 
 uses
-  Windows, Messages, Classes, Controls, SysUtils, Graphics, Forms, Tabs, Contnrs,
-  Menus, Buttons, ComCtrls, StdCtrls, ExtCtrls, TypInfo, ToolsAPI, ImgList,
+  Windows, Messages, Classes, Controls, SysUtils, Graphics, Forms, Contnrs,
+  Menus, Buttons, ComCtrls, StdCtrls, ExtCtrls, TypInfo, ImgList,
+  {$IFNDEF LAZARUS} {$IFNDEF STAND_ALONE} ToolsAPI, CnWizEditFiler, {$ENDIF} Tabs,
   {$IFDEF OTA_PALETTE_API} PaletteAPI, {$ENDIF}
   {$IFDEF IDE_SUPPORT_HDPI} Vcl.VirtualImageList, Vcl.ImageCollection, {$ENDIF}
+  {$IFNDEF STAND_ALONE} {$IFNDEF CNWIZARDS_MINIMUM} CnIDEVersion, {$ENDIF}
   {$IFDEF COMPILER6_UP}
   DesignIntf, DesignEditors, ComponentDesigner, Variants,
   {$ELSE}
   DsgnIntf, LibIntf,
-  {$ENDIF}
-  {$IFNDEF CNWIZARDS_MINIMUM} CnIDEVersion, {$ENDIF}
+  {$ENDIF} {$ENDIF}
+  {$IFDEF USE_CODEEDITOR_SERVICE} ToolsAPI.Editor, {$ENDIF} {$ENDIF}
   CnPasCodeParser, CnWidePasParser, CnWizMethodHook, mPasLex, CnPasWideLex,
-  mwBCBTokenList, CnBCBWideTokenList, CnWizUtils, CnWizEditFiler, CnCommon,
-  CnWideStrings, CnWizOptions, CnWizCompilerConst;
+  mwBCBTokenList, CnBCBWideTokenList, CnWizUtils, CnCommon,
+  CnWideStrings, CnWizOptions, CnWizCompilerConst, CnIDEStrings;
 
 //==============================================================================
 // IDE 中的常量定义
@@ -79,52 +81,63 @@ uses
 
 const
   // IDE Action 名称
-  SEditSelectAllCommand = 'EditSelectAllCommand';
+  SCnEditSelectAllCommand = 'EditSelectAllCommand';
 
   // Editor 窗口右键菜单名称
-  SMenuClosePageName = 'ecClosePage';
-  SMenuClosePageIIName = 'ecClosePageII';
-  SMenuEditPasteItemName = 'EditPasteItem';
-  SMenuOpenFileAtCursorName = 'ecOpenFileAtCursor';
+  SCnMenuClosePageName = 'ecClosePage';
+  SCnMenuClosePageIIName = 'ecClosePageII';
+  SCnMenuEditPasteItemName = 'EditPasteItem';
+  SCnMenuOpenFileAtCursorName = 'ecOpenFileAtCursor';
 
   // Editor 窗口相关类名
-  EditorFormClassName = 'TEditWindow';
-  EditControlName = 'Editor';
-  EditControlClassName = 'TEditControl';
-  DesignControlClassName = 'TEditorFormDesigner';
-  WelcomePageClassName = 'TWelcomePageFrame';
-  DisassemblyViewClassName = 'TDisassemblyView';
-  EditorStatusBarName = 'StatusBar';
+{$IFDEF LAZARUS}
+  SCnEditorFormClassName = 'TSourceNotebook';
+  SCnEditControlName = 'SourceNotebook';
+{$ELSE}
+  SCnEditorFormClassName = 'TEditWindow';
+  SCnEditControlName = 'Editor';
+{$ENDIF}
+
+  SCnEditControlClassName = 'TEditControl';
+  SCnDesignControlClassName = 'TEditorFormDesigner';
+  SCnWelcomePageClassName = 'TWelcomePageFrame';
+  SCnDisassemblyViewClassName = 'TDisassemblyView';
+  SCnDisassemblyViewName = 'CPU';
+  SCnEditorStatusBarName = 'StatusBar';
 
 {$IFDEF BDS}
   {$IFDEF BDS4_UP} // BDS 2006 RAD Studio 2007 的标签页类名
-  XTabControlClassName = 'TIDEGradientTabSet';   // TWinControl 子类
+  SCnXTabControlClassName = 'TIDEGradientTabSet';   // TWinControl 子类
   {$ELSE} // BDS 2005 的标签页类名
-  XTabControlClassName = 'TCodeEditorTabControl'; // TTabSet 子类
+  SCnXTabControlClassName = 'TCodeEditorTabControl'; // TTabSet 子类
   {$ENDIF}
 {$ELSE} // Delphi BCB 的标签页类名
-  XTabControlClassName = 'TXTabControl';
+  SCnXTabControlClassName = 'TXTabControl';
 {$ENDIF BDS}
-  XTabControlName = 'TabControl';
+  SCnXTabControlName = 'TabControl';
 
-  TabControlPanelName = 'TabControlPanel';
-  CodePanelName = 'CodePanel';
-  TabPanelName = 'TabPanel';
+  SCnTabControlPanelName = 'TabControlPanel';
+  SCnCodePanelName = 'CodePanel';
+  SCnTabPanelName = 'TabPanel';
 
   // 对象查看器
-  PropertyInspectorClassName = 'TPropertyInspector';
-  PropertyInspectorName = 'PropertyInspector';
+  SCnPropertyInspectorClassName = 'TPropertyInspector';
+  SCnPropertyInspectorName = 'PropertyInspector';
+  SCnPropertyInspectorListClassName = 'TInspListBox';
+  SCnPropertyInspectorListName = 'PropList';
+  SCnPropertyInspectorTabControlName = 'TabControl';
+  SCnPropertyInspectorLocalPopupMenu = 'LocalPopupMenu';
 
   // 编辑器设置对话框
 {$IFDEF BDS}
-  SEditorOptionDlgClassName = 'TDefaultEnvironmentDialog';
-  SEditorOptionDlgName = 'DefaultEnvironmentDialog';
+  SCnEditorOptionDlgClassName = 'TDefaultEnvironmentDialog';
+  SCnEditorOptionDlgName = 'DefaultEnvironmentDialog';
 {$ELSE} {$IFDEF BCB}
-  SEditorOptionDlgClassName = 'TCppEditorPropertyDialog';
-  SEditorOptionDlgName = 'CppEditorPropertyDialog';
+  SCnEditorOptionDlgClassName = 'TCppEditorPropertyDialog';
+  SCnEditorOptionDlgName = 'CppEditorPropertyDialog';
 {$ELSE}
-  SEditorOptionDlgClassName = 'TPasEditorPropertyDialog';
-  SEditorOptionDlgName = 'PasEditorPropertyDialog';
+  SCnEditorOptionDlgClassName = 'TPasEditorPropertyDialog';
+  SCnEditorOptionDlgName = 'PasEditorPropertyDialog';
 {$ENDIF} {$ENDIF}
 
   // 控件板相关类名和属性名
@@ -171,6 +184,10 @@ const
 {$ELSE}
   SCnUseUnitActionName = 'FileIncludeUnitHdrCommand';
 {$ENDIF}
+
+  // Lazarus 主窗体
+  SCnLazMainFormClassName = 'TMainIDEBar';
+  SCnLazMainFormName = 'MainIDE';
 
   SCnColor16Table: array[0..15] of TColor =
   ( clBlack, clMaroon, clGreen, clOlive,
@@ -227,6 +244,8 @@ type
     Sorted: TStringList;
     Unsorted: TStringList;
   end;
+
+{$IFNDEF NO_DELPHI_OTA}
 
 //==============================================================================
 // IDE 代码编辑器功能函数
@@ -303,14 +322,18 @@ var
   {* 标记当前是否是嵌入式设计窗体模式，initiliazation 时被初始化，请勿手工修改其值。
      使用此全局变量可以避免频繁调用 IdeGetIsEmbeddedDesigner 函数}
 
+{$ENDIF}
+
 //==============================================================================
 // 修改自 GExperts Src 1.12 的 IDE 相关函数
 //==============================================================================
 
-function GetIdeMainForm: TCustomForm;
-{* 返回 IDE 主窗体 (TAppBuilder) }
+function GetIDEMainForm: TCustomForm;
+{* 返回 IDE 主窗体（TAppBuilder 或 TMainIDEBar）}
 
-function GetIdeEdition: string;
+{$IFNDEF LAZARUS}
+
+function GetIDEEdition: string;
 {* 返回 IDE 版本}
 
 function GetComponentPaletteTabControl: TTabControl;
@@ -322,8 +345,12 @@ function GetNewComponentPaletteTabControl: TWinControl;
 function GetNewComponentPaletteComponentPanel: TWinControl;
 {* 返回 2010 或以上的新组件面板下半部分容纳组件列表的容器对象，可能为空}
 
+{$IFNDEF NO_DELPHI_OTA}
+
 function GetEditWindowStatusBar(EditWindow: TCustomForm = nil): TStatusBar;
 {* 返回编辑器窗口下方的状态栏，可能为空}
+
+{$ENDIF}
 
 function GetObjectInspectorForm: TCustomForm;
 {* 返回对象检查器窗体，可能为空}
@@ -334,7 +361,7 @@ function GetComponentPalettePopupMenu: TPopupMenu;
 function GetComponentPaletteControlBar: TControlBar;
 {* 返回组件面板所在的 ControlBar，可能为空}
 
-function GetIdeInsightBar: TWinControl;
+function GetIDEInsightBar: TWinControl;
 {* 返回 IDE Insight 搜索框控件对象}
 
 function GetExpandableEvalViewForm: TCustomForm;
@@ -342,6 +369,8 @@ function GetExpandableEvalViewForm: TCustomForm;
 
 function GetMainMenuItemHeight: Integer;
 {* 返回主菜单项高度 }
+
+{$ENDIF}
 
 function IsIdeEditorForm(AForm: TCustomForm): Boolean;
 {* 判断指定窗体是否编辑器窗体}
@@ -351,6 +380,8 @@ function IsIdeDesignForm(AForm: TCustomForm): Boolean;
 
 procedure BringIdeEditorFormToFront;
 {* 将源码编辑器设为活跃}
+
+{$IFNDEF LAZARUS}
 
 procedure CloseExpandableEvalViewForm;
 {* 关闭调试时提示信息大窗口}
@@ -370,6 +401,8 @@ function GetBDSUserDataDir: string;
 {* 取得 BDS (Delphi8以后版本) 的用户数据目录 }
 {$ENDIF}
 
+{$IFNDEF NO_DELPHI_OTA}
+
 procedure GetProjectLibPath(Paths: TStrings);
 {* 取当前工程组的相关 Path 内容}
 
@@ -386,18 +419,28 @@ function GetFileNameSearchTypeFromModuleName(AName: string;
 function CnOtaGetVersionInfoKeys(Project: IOTAProject = nil): TStrings;
 {* 获取当前项目中的版本信息键值}
 
+function GetCurrentCompilingProject: IOTAProject;
+{* 返回当前正在编译的工程，注意不一定是当前工程}
+
+function CompileProject(AProject: IOTAProject): Boolean;
+{* 编译工程，返回编译是否成功}
+
 procedure GetLibraryPath(Paths: TStrings; IncludeProjectPath: Boolean = True);
 {* 取环境设置中的 LibraryPath 内容}
-
-function GetComponentUnitName(const ComponentName: string): string;
-{* 取组件定义所在的单元名}
 
 procedure GetInstalledComponents(Packages, Components: TStrings);
 {* 取已安装的包和组件，参数允许为 nil（忽略）}
 
+{$ENDIF}
+
+function GetComponentUnitName(const ComponentName: string): string;
+{* 取组件定义所在的单元名}
+
 function GetIDERegistryFont(const RegItem: string; AFont: TFont;
-  out BackgroundColor: TColor): Boolean;
+  out BackgroundColor: TColor; CheckBackDef: Boolean = False): Boolean;
 {* 从某项注册表中载入某项字体并赋值给 AFont，并把背景色赋值给 BackgroundColor
+   CheckBackDef 表示（目前仅在 D56 下）读背景色时是否检查 Default Background 为 True，
+   True 代表使用默认背景色而不是本条目背景色，因而不返回读到的背景色值
    RegItem 可以是 '', 'Assembler', 'Comment', 'Preprocessor',
     'Identifier', 'Reserved word', 'Number', 'Whitespace', 'String', 'Symbol'
     等注册表里头已经定义了的键值}
@@ -421,8 +464,15 @@ function IsXTabControl(AControl: TComponent): Boolean;
 function GetEditControlFromEditorForm(AForm: TCustomForm): TControl;
 {* 返回编辑器窗口的编辑器控件 }
 
+{$IFNDEF NO_DELPHI_OTA}
+
 function GetCurrentEditControl: TControl;
 {* 返回当前的代码编辑器控件 }
+
+{$ENDIF}
+
+function GetCPUViewFromEditorForm(AForm: TCustomForm): TControl;
+{* 返回编辑器窗口的 CPU 查看器控件 }
 
 function GetTabControlFromEditorForm(AForm: TCustomForm): TXTabControl;
 {* 返回编辑器窗口的 TabControl 控件 }
@@ -440,11 +490,15 @@ function EnumEditControl(Proc: TEnumEditControlProc; Context: Pointer;
   EditorMustExists: Boolean = True): Integer;
 {* 枚举 IDE 中的代码编辑器窗口和 EditControl 控件，调用回调函数，返回总数 }
 
+{$IFNDEF NO_DELPHI_OTA}
+
 function GetCurrentSyncButton: TControl;
 {* 获取当前最前端编辑器的语法编辑按钮，注意语法编辑按钮存在不等于可见}
 
 function GetCurrentSyncButtonVisible: Boolean;
 {* 获取当前最前端编辑器的语法编辑按钮是否可见，无按钮或不可见均返回 False}
+
+{$ENDIF}
 
 function GetCodeTemplateListBox: TControl;
 {* 返回编辑器中的代码模板自动输入框}
@@ -452,17 +506,15 @@ function GetCodeTemplateListBox: TControl;
 function GetCodeTemplateListBoxVisible: Boolean;
 {* 返回编辑器中的代码模板自动输入框是否可见，无或不可见均返回 False}
 
+{$IFNDEF NO_DELPHI_OTA}
+
 function IsCurrentEditorInSyncMode: Boolean;
 {* 当前编辑器是否在语法块编辑模式下，不支持或不在块模式下返回 False}
 
 function IsKeyMacroRunning: Boolean;
 {* 当前是否在键盘宏的录制或回放，不支持或不在返回 False}
 
-function GetCurrentCompilingProject: IOTAProject;
-{* 返回当前正在编译的工程，注意不一定是当前工程}
-
-function CompileProject(AProject: IOTAProject): Boolean;
-{* 编译工程，返回编译是否成功}
+{$ENDIF}
 
 type
   TCnSrcEditorPage = (epCode, epDesign, epCPU, epWelcome, epOthers);
@@ -489,10 +541,14 @@ function GetErrorInsightRenderStyle: Integer;
 {* 返回 ErrorInsight 的当前类型，返回值为 csErrorInsightRenderStyle* 系列常数
    -1 为不支持，1 时会影响编辑器行高，影响程度和显示 Leve 以及是否侧边栏显示均无关}
 
+{$IFNDEF NO_DELPHI_OTA}
+
 function IdeEnumUsesIncludeUnits(UnitCallback: TCnUnitCallback; IsCpp: Boolean = False;
   SearchTypes: TCnModuleSearchTypes = [mstInProject, mstProjectSearch, mstSystemSearch]): Boolean;
 {* 遍历 Uses 单元，可根据 SearchTypes 指定范围。返回的文件名可能是 IDE 中打开的还未保存的
   Delphi 会遍历 pas 和 dcu，C++Builder 会遍历 h/hpp，均会在 UnitCallback 中指明}
+
+{$ENDIF}
 
 procedure CorrectCaseFromIdeModules(UnitFilesList: TStringList; IsCpp: Boolean = False);
 {* 根据文件名获得的系统 Uses 的单元名大小写可能不正确，此处通过遍历 IDE 模块来更新
@@ -508,6 +564,8 @@ type
   private
     procedure CNKeyDown(var Message: TWMKeyDown); message CN_KEYDOWN;
   end;
+
+{$IFNDEF NO_DELPHI_OTA}
 
 //==============================================================================
 // 组件面板封装类
@@ -699,6 +757,8 @@ procedure DisableWaitDialogShow;
 procedure EnableWaitDialogShow;
 {* 以解除 Hook 方式启用 WaitDialog}
 
+{$ENDIF}
+
 function IdeGetScaledPixelsFromOrigin(APixels: Integer; AControl: TControl = nil): Integer;
 {* IDE 中根据 DPI 与缩放设置，计算原始像素数的真实所需像素数用于绘制
   支持 Windows 中的缩放比，支持 IDE 运行在 DPI Ware/Unware 下
@@ -731,10 +791,18 @@ function IdeGetVirtualImageListFromOrigin(Origin: TCustomImageList;
 
 {$IFNDEF CNWIZARDS_MINIMUM}
 
+{$IFNDEF NO_DELPHI_OTA}
+
+function SearchUsesInsertPosInPasFile(const FileName: string; IsIntf: Boolean;
+  out HasUses: Boolean; out LinearPos: Integer): Boolean;
+{* 使用 Filer 封装指定 Pascal 源文件中搜索 uses 待插入的线性位置，不区分文件或磁盘
+  偏移均以 Ansi/Utf16/Utf16 为准。IsIntf 指明搜索的是 interface 处的 uses
+  还是 implemetation 的，返回是否成功。成功时返回线性位置，以及该处是否已有 uses}
+
 function SearchUsesInsertPosInCurrentPas(IsIntf: Boolean; out HasUses: Boolean;
   out CharPos: TOTACharPos): Boolean;
-{* 在当前编辑的 Pascal 源文件中搜索 uses 待插入的位置，IsIntf 指明搜索的是 interface 处的 uses
-  还是 implemetation 的，返回是否成功，成功时返回位置，以及该处是否已有 uses}
+{* 在当前编辑的 Pascal 源文件中搜索 uses 待插入的编辑器位置，IsIntf 指明搜索的是 interface 处的 uses
+  还是 implemetation 的，返回是否成功，成功时返回编辑器位置，以及该处是否已有 uses}
 
 function SearchUsesInsertPosInCurrentCpp(out CharPos: TOTACharPos;
   SourceEditor: IOTASourceEditor = nil): Boolean;
@@ -746,6 +814,8 @@ function JoinUsesOrInclude(IsCpp, FileHasUses: Boolean; IsHFromSystem: Boolean;
   FileHasUses 只对 Pascal 代码有效、IsHFromSystem 只对 Cpp 文件有效}
 
 {$ENDIF}
+{$ENDIF}
+{$ENDIF}
 
 implementation
 
@@ -753,23 +823,32 @@ uses
 {$IFDEF DEBUG}
   CnDebug,
 {$ENDIF}
-  Registry, CnGraphUtils, CnWizNotifier;
+  Registry, CnGraphUtils {$IFNDEF LAZARUS}, CnWizNotifier {$ENDIF};
 
 const
   SSyncButtonName = 'SyncButton';
   SCodeTemplateListBoxName = 'CodeTemplateListBox';
 {$IFDEF IDE_SWITCH_BUG}
+  {$IFDEF WIN64}
+  SWaitDialogShow = '_ZN10Waitdialog14TIDEWaitDialog4ShowEN6System13UnicodeStringES2_b';
+  {$ELSE}
   SWaitDialogShow = '@Waitdialog@TIDEWaitDialog@Show$qqrx20System@UnicodeStringt1o';
+  {$ENDIF}
 {$ENDIF}
 
 {$IFDEF BDS4_UP}
 const
+{$IFDEF WIN64}
+  SBeginBatchOpenCloseName = '_ZN10Editorform19BeginBatchOpenCloseEv';
+  SEndBatchOpenCloseName = '_ZN10Editorform17EndBatchOpenCloseEb';
+{$ELSE}
   SBeginBatchOpenCloseName = '@Editorform@BeginBatchOpenClose$qqrv';
   SEndBatchOpenCloseName = '@Editorform@EndBatchOpenClose$qqrv';
 
 {$IFDEF DELPHI120_ATHENS_UP}
   // D12.1 改名了，但 12 没改
   SEndBatchOpenCloseName121 = '@Editorform@EndBatchOpenClose$qqrxo';
+{$ENDIF}
 {$ENDIF}
 
 var
@@ -807,6 +886,8 @@ end;
 type
   TControlHack = class(TControl);
   TCustomControlHack = class(TCustomControl);
+
+{$IFNDEF NO_DELPHI_OTA}
 
 //==============================================================================
 // IDE功能函数
@@ -1307,23 +1388,35 @@ begin
 {$ENDIF}
 end;
 
+{$ENDIF}
+
 //==============================================================================
 // 修改自 GExperts Src 1.12 的 IDE 相关函数
 //==============================================================================
 
-// 返回 IDE 主窗体 (TAppBuilder)
-function GetIdeMainForm: TCustomForm;
+// 返回 IDE 主窗体（TAppBuilder 或 TMainIDEBar）
+function GetIDEMainForm: TCustomForm;
 begin
   Assert(Assigned(Application));
+{$IFDEF STAND_ALONE}
+  Result := CnStubRefMainForm;
+{$ELSE}
+{$IFDEF LAZARUS}
+  Result := Application.FindComponent('MainIDE') as TCustomForm;
+{$ELSE}
   Result := Application.FindComponent('AppBuilder') as TCustomForm;
+{$ENDIF}
+{$ENDIF}
 {$IFDEF DEBUG}
   if Result = nil then
-    CnDebugger.LogMsgError('Unable to Find AppBuilder!');
+    CnDebugger.LogMsgError('Unable to Find IDE Main Form!');
 {$ENDIF}
 end;
 
+{$IFNDEF LAZARUS}
+
 // 取 IDE 版本
-function GetIdeEdition: string;
+function GetIDEEdition: string;
 begin
   Result := '';
 
@@ -1347,7 +1440,7 @@ var
 begin
   Result := nil;
 
-  MainForm := GetIdeMainForm;
+  MainForm := GetIDEMainForm;
   if MainForm <> nil then
     Result := MainForm.FindComponent('TabControl') as TTabControl;
 
@@ -1364,7 +1457,7 @@ var
 begin
   Result := nil;
 
-  MainForm := GetIdeMainForm;
+  MainForm := GetIDEMainForm;
   if MainForm <> nil then
     Result := MainForm.FindComponent(SCnNewPaletteFrameName) as TWinControl;
   if Result <> nil then
@@ -1383,7 +1476,7 @@ var
 begin
   Result := nil;
 
-  MainForm := GetIdeMainForm;
+  MainForm := GetIDEMainForm;
   if MainForm <> nil then
     Result := MainForm.FindComponent(SCnNewPaletteFrameName) as TWinControl;
   if Result <> nil then
@@ -1394,6 +1487,8 @@ begin
     CnDebugger.LogMsgError('Unable to Find New ComponentPalette Panel!');
 {$ENDIF}
 end;
+
+{$IFNDEF NO_DELPHI_OTA}
 
 // 返回编辑器窗口下方的状态栏，可能为空
 function GetEditWindowStatusBar(EditWindow: TCustomForm = nil): TStatusBar;
@@ -1407,22 +1502,24 @@ begin
   if EditWindow = nil then
     Exit;
 
-  AComp := EditWindow.FindComponent(EditorStatusBarName);
+  AComp := EditWindow.FindComponent(SCnEditorStatusBarName);
   if (AComp <> nil) and (AComp is TStatusBar) then
     Result := AComp as TStatusBar;
 end;
 
+{$ENDIF}
+
 // 返回对象检查器窗体，可能为空
 function GetObjectInspectorForm: TCustomForm;
 begin
-  Result := GetIdeMainForm;
+  Result := GetIDEMainForm;
   if Result <> nil then  // 大部分版本下 ObjectInspector 是 AppBuilder 的子控件
-    Result := TCustomForm(Result.FindComponent('PropertyInspector'));
+    Result := TCustomForm(Result.FindComponent(SCnPropertyInspectorName));
   if Result = nil then // D2007 或某些版本下 ObjectInspector 是 Application 的子控件
-    Result := TCustomForm(Application.FindComponent('PropertyInspector'));
+    Result := TCustomForm(Application.FindComponent(SCnPropertyInspectorName));
 {$IFDEF DEBUG}
   if Result = nil then
-    CnDebugger.LogMsgError('Unable to Find Oject Inspector!');
+    CnDebugger.LogMsgError('Unable to Find Object Inspector!');
 {$ENDIF}
 end;
 
@@ -1432,7 +1529,7 @@ var
   MainForm: TCustomForm;
 begin
   Result := nil;
-  MainForm := GetIdeMainForm;
+  MainForm := GetIDEMainForm;
   if MainForm <> nil then
     Result := TPopupMenu(MainForm.FindComponent('PaletteMenu'));
 {$IFDEF DEBUG}
@@ -1449,7 +1546,7 @@ var
 begin
   Result := nil;
 
-  MainForm := GetIdeMainForm;
+  MainForm := GetIDEMainForm;
   if MainForm <> nil then
     for I := 0 to MainForm.ComponentCount - 1 do
       if MainForm.Components[I] is TControlBar then
@@ -1479,7 +1576,7 @@ begin
   Result := nil;
 end;
 
-function GetIdeInsightBar: TWinControl;
+function GetIDEInsightBar: TWinControl;
 {$IFDEF IDE_HAS_INSIGHT}
 var
   MainForm: TCustomForm;
@@ -1488,7 +1585,7 @@ var
 begin
   Result := nil;
 {$IFDEF IDE_HAS_INSIGHT}
-  MainForm := GetIdeMainForm;
+  MainForm := GetIDEMainForm;
   if MainForm <> nil then
   begin
     AComp := MainForm.FindComponent(SCnIDEInsightBarName);
@@ -1508,7 +1605,7 @@ var
 begin
 {$IFDEF COMPILER7_UP}
   Result := 23;
-  MainForm := GetIdeMainForm;
+  MainForm := GetIDEMainForm;
   Component := nil;
   if MainForm <> nil then
     Component := MainForm.FindComponent('MenuBar');
@@ -1518,6 +1615,8 @@ begin
   Result := GetSystemMetrics(SM_CYMENU);
 {$ENDIF}
 end;
+
+{$ENDIF}
 
 // 判断指定窗体是否是设计期窗体
 function IsIdeDesignForm(AForm: TCustomForm): Boolean;
@@ -1529,8 +1628,12 @@ end;
 function IsIdeEditorForm(AForm: TCustomForm): Boolean;
 begin
   Result := (AForm <> nil) and
+{$IFDEF LAZARUS}
+            (Pos('SCnEditControlName', AForm.Name) = 1) and
+{$ELSE}
             (Pos('EditWindow_', AForm.Name) = 1) and
-            (AForm.ClassName = EditorFormClassName) and
+{$ENDIF}
+            (AForm.ClassName = SCnEditorFormClassName) and
             (not (csDesigning in AForm.ComponentState));
 end;
 
@@ -1548,6 +1651,8 @@ begin
     end;
   end;
 end;
+
+{$IFNDEF LAZARUS}
 
 procedure CloseExpandableEvalViewForm;
 var
@@ -1669,20 +1774,7 @@ begin
 end;
 {$ENDIF}
 
-function CnOtaGetVersionInfoKeys(Project: IOTAProject = nil): TStrings;
-var
-  Options: IOTAProjectOptions;
-  PKeys: Integer;
-begin
-  Result := nil;
-  Options := CnOtaGetActiveProjectOptions(Project);
-  if not Assigned(Options) then Exit;
-  PKeys := Options.GetOptionValue('Keys');
-{$IFDEF DEBUG}
-  CnDebugger.LogInteger(PKeys, 'CnOtaGetVersionInfoKeys');
-{$ENDIF}
-  Result := Pointer(PKeys);
-end;
+{$IFNDEF NO_DELPHI_OTA}
 
 // 取环境设置中的 LibraryPath 内容，注意 XE2 以上版本，GetEnvironmentOptions 里头
 // 得到的值并不是当前工程的 Platform 对应的值，所以只能改成根据工程平台从注册表里读。
@@ -1709,6 +1801,7 @@ var
         Paths.Add(S);
     end;
   end;
+
 begin
   Svcs := BorlandIDEServices as IOTAServices;
   if not Assigned(Svcs) then Exit;
@@ -1827,7 +1920,7 @@ var
   ProjectGroup: IOTAProjectGroup;
   Project: IOTAProject;
   Path: string;
-  I, j: Integer;
+  I, J: Integer;
   APaths: TStrings;
 begin
   Paths.Clear;
@@ -1854,9 +1947,9 @@ begin
           AddProjectPath(Project, Paths, 'IncludePath');
 
           // 增加工程中文件的路径
-          for j := 0 to Project.GetModuleCount - 1 do
+          for J := 0 to Project.GetModuleCount - 1 do
           begin
-            Path := _CnExtractFileDir(Project.GetModule(j).FileName);
+            Path := _CnExtractFileDir(Project.GetModule(J).FileName);
             if Paths.IndexOf(Path) < 0 then
               Paths.Add(Path);
           end;
@@ -1919,12 +2012,14 @@ begin
   if AProject <> nil then
   begin
     for I := 0 to AProject.GetModuleCount - 1 do
+    begin
       if SameFileName(_CnExtractFileName(AProject.GetModule(I).FileName), AName) then
       begin
         Result := AProject.GetModule(I).FileName;
         SearchType := mstInProject;
         Exit;
       end;
+    end;
 
     ProjectPath := MakePath(_CnExtractFilePath(AProject.FileName));
     if FileExists(ProjectPath + AName) then
@@ -1962,6 +2057,60 @@ begin
   end;
 end;
 
+function CnOtaGetVersionInfoKeys(Project: IOTAProject = nil): TStrings;
+var
+  Options: IOTAProjectOptions;
+  PKeys: Integer;
+begin
+  Result := nil;
+  Options := CnOtaGetActiveProjectOptions(Project);
+  if not Assigned(Options) then Exit;
+  PKeys := Options.GetOptionValue('Keys');
+{$IFDEF DEBUG}
+  CnDebugger.LogInteger(PKeys, 'CnOtaGetVersionInfoKeys');
+{$ENDIF}
+  Result := Pointer(PKeys);
+end;
+
+// 编译工程，返回编译是否成功
+function CompileProject(AProject: IOTAProject): Boolean;
+begin
+  Result := not AProject.ProjectBuilder.ShouldBuild or
+    AProject.ProjectBuilder.BuildProject(cmOTAMake, False);
+end;
+
+// 返回当前正在编译的工程，注意不一定是当前工程
+function GetCurrentCompilingProject: IOTAProject;
+begin
+  Result := CnWizNotifierServices.GetCurrentCompilingProject;
+end;
+
+// 取已安装的包和组件
+procedure GetInstalledComponents(Packages, Components: TStrings);
+var
+  PackSvcs: IOTAPackageServices;
+  I, J: Integer;
+begin
+  QuerySvcs(BorlandIDEServices, IOTAPackageServices, PackSvcs);
+  if Assigned(Packages) then
+    Packages.Clear;
+  if Assigned(Components) then
+    Components.Clear;
+    
+  for I := 0 to PackSvcs.PackageCount - 1 do
+  begin
+    if Assigned(Packages) then
+      Packages.Add(PackSvcs.PackageNames[I]);
+    if Assigned(Components) then
+    begin
+      for J := 0 to PackSvcs.ComponentCount[I] - 1 do
+        Components.Add(PackSvcs.ComponentNames[I, J]);
+    end;
+  end;
+end;
+
+{$ENDIF}
+
 // 取组件定义所在的单元名
 function GetComponentUnitName(const ComponentName: string): string;
 var
@@ -1985,40 +2134,18 @@ begin
   end;
 end;
 
-// 取已安装的包和组件
-procedure GetInstalledComponents(Packages, Components: TStrings);
-var
-  PackSvcs: IOTAPackageServices;
-  I, j: Integer;
-begin
-  QuerySvcs(BorlandIDEServices, IOTAPackageServices, PackSvcs);
-  if Assigned(Packages) then
-    Packages.Clear;
-  if Assigned(Components) then
-    Components.Clear;
-    
-  for I := 0 to PackSvcs.PackageCount - 1 do
-  begin
-    if Assigned(Packages) then
-      Packages.Add(PackSvcs.PackageNames[I]);
-    if Assigned(Components) then
-      for j := 0 to PackSvcs.ComponentCount[I] - 1 do
-        Components.Add(PackSvcs.ComponentNames[I, j]);
-  end;
-end;
-
 function GetIDERegistryFont(const RegItem: string; AFont: TFont;
-  out BackgroundColor: TColor): Boolean;
+  out BackgroundColor: TColor; CheckBackDef: Boolean): Boolean;
 const
-  SCnIDERegName = {$IFDEF BDS} 'BDS' {$ELSE} {$IFDEF DELPHI} 'Delphi' {$ELSE} 'C++Builder' {$ENDIF}{$ENDIF};
-
   SCnIDEFontName = 'Editor Font';
   SCnIDEFontSize = 'Font Size';
 
   SCnIDEBold = 'Bold';
+  SCnIDEDefaultBackground = 'Default Background';
+
   {$IFDEF COMPILER7_UP}
   SCnIDEForeColor = 'Foreground Color New';
-  SCnIDEBackColor = 'Background Color New'; // 暂未读取
+  SCnIDEBackColor = 'Background Color New';
   {$ELSE}
   SCnIDEForeColor = 'Foreground Color';
   SCnIDEBackColor = 'Background Color';
@@ -2132,7 +2259,19 @@ begin
               // D5/6 的颜色是 16 色索引号
               AColor := Reg.ReadInteger(SCnIDEBackColor);
               if AColor in [0..15] then
-                BackgroundColor := SCnColor16Table[AColor];
+              begin
+                if CheckBackDef then // 该条目里，Default Background 为 False 时表示有背景色，此选项才有效，才返回
+                begin
+                  if Reg.ValueExists(SCnIDEDefaultBackground) then
+                  begin
+                    // 其他 -1 这些字符串都算 True
+                    if LowerCase(Reg.ReadString(SCnIDEDefaultBackground)) = 'false' then
+                      BackgroundColor := SCnColor16Table[AColor];
+                  end;
+                end
+                else
+                  BackgroundColor := SCnColor16Table[AColor];
+              end;
 {$ENDIF}
             end;
           end;
@@ -2168,23 +2307,39 @@ end;
 
 // 判断指定控件是否代码编辑器控件
 function IsEditControl(AControl: TComponent): Boolean;
+{$IFDEF USE_CODEEDITOR_SERVICE}
+var
+  CES: INTACodeEditorServices;
+{$ENDIF}
 begin
-  Result := (AControl <> nil) and AControl.ClassNameIs(EditControlClassName)
-    and SameText(AControl.Name, EditControlName);
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  if (AControl is TWinControl) and Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+    Result := CES.IsIDEEditor(TWinControl(AControl));
+{$ELSE}
+  Result := (AControl <> nil) and AControl.ClassNameIs(SCnEditControlClassName)
+    and SameText(AControl.Name, SCnEditControlName);
+{$ENDIF}
 end;
 
 // 判断指定控件是否编辑器窗口的 TabControl 控件
 function IsXTabControl(AControl: TComponent): Boolean;
 begin
-  Result := (AControl <> nil) and AControl.ClassNameIs(XTabControlClassName)
-    and SameText(AControl.Name, XTabControlName);
+  Result := (AControl <> nil) and AControl.ClassNameIs(SCnXTabControlClassName)
+    and SameText(AControl.Name, SCnXTabControlName);
 end;
 
 // 返回编辑器窗口的编辑器控件
 function GetEditControlFromEditorForm(AForm: TCustomForm): TControl;
 begin
-  Result := TControl(FindComponentByClassName(AForm, EditControlClassName,
-    EditControlName));
+  Result := TControl(FindComponentByClassName(AForm, SCnEditControlClassName,
+    SCnEditControlName));
+end;
+
+// 返回编辑器窗口的 CPU 查看器控件
+function GetCPUViewFromEditorForm(AForm: TCustomForm): TControl;
+begin
+  Result := TControl(FindComponentByClassName(AForm, SCnDisassemblyViewClassName,
+    SCnDisassemblyViewName));
 end;
 
 // 从编辑器控件获得其所属的编辑器窗口的状态栏
@@ -2201,6 +2356,8 @@ begin
   end;
 end;
 
+{$IFNDEF NO_DELPHI_OTA}
+
 // 返回当前的代码编辑器控件
 function GetCurrentEditControl: TControl;
 var
@@ -2212,11 +2369,13 @@ begin
     Result := GetEditControlFromEditorForm(View.GetEditWindow.Form);
 end;
 
+{$ENDIF}
+
 // 返回编辑器窗口的 TabControl 控件
 function GetTabControlFromEditorForm(AForm: TCustomForm): TXTabControl;
 begin
-  Result := TXTabControl(FindComponentByClassName(AForm, XTabControlClassName,
-    XTabControlName));
+  Result := TXTabControl(FindComponentByClassName(AForm, SCnXTabControlClassName,
+    SCnXTabControlName));
 end;
 
 // 返回编辑器 TabControl 控件的 Tabs 属性
@@ -2257,6 +2416,7 @@ var
 begin
   Result := 0;
   for I := 0 to Screen.CustomFormCount - 1 do
+  begin
     if IsIdeEditorForm(Screen.CustomForms[I]) then
     begin
       EditWindow := Screen.CustomForms[I];
@@ -2268,7 +2428,10 @@ begin
           Proc(EditWindow, EditControl, Context);
       end;
     end;
+  end;
 end;
+
+{$IFNDEF NO_DELPHI_OTA}
 
 // 获取当前最前端编辑器的语法编辑按钮，注意语法编辑按钮存在不等于可见
 function GetCurrentSyncButton: TControl;
@@ -2292,6 +2455,8 @@ begin
     Result := Button.Visible;
 end;
 
+{$ENDIF}
+
 // 返回编辑器中的代码模板自动输入框
 function GetCodeTemplateListBox: TControl;
 begin
@@ -2308,6 +2473,8 @@ begin
   if Control <> nil then
     Result := Control.Visible;
 end;
+
+{$IFNDEF NO_DELPHI_OTA}
 
 // 当前编辑器是否在语法块编辑模式下，不支持或不在块模式下返回 False
 function IsCurrentEditorInSyncMode: Boolean;
@@ -2339,18 +2506,7 @@ begin
   end;
 end;
 
-// 编译工程，返回编译是否成功
-function CompileProject(AProject: IOTAProject): Boolean;
-begin
-  Result := not AProject.ProjectBuilder.ShouldBuild or
-    AProject.ProjectBuilder.BuildProject(cmOTAMake, False);
-end;
-
-// 返回当前正在编译的工程，注意不一定是当前工程
-function GetCurrentCompilingProject: IOTAProject;
-begin
-  Result := CnWizNotifierServices.GetCurrentCompilingProject;
-end;
+{$ENDIF}
 
 // 取当前编辑窗口顶层页面类型，传入编辑器父控件
 function GetCurrentTopEditorPage(AControl: TWinControl): TCnSrcEditorPage;
@@ -2365,24 +2521,27 @@ begin
     Ctrl := AControl.Controls[I];
     if Ctrl.Visible and (Ctrl.Align = alClient) then
     begin
-      if Ctrl.ClassNameIs(EditControlClassName) then
+      if Ctrl.ClassNameIs(SCnEditControlClassName) then
         Result := epCode
-      else if Ctrl.ClassNameIs(DisassemblyViewClassName) then
+      else if Ctrl.ClassNameIs(SCnDisassemblyViewClassName) then
         Result := epCPU
-      else if Ctrl.ClassNameIs(DesignControlClassName) then
+      else if Ctrl.ClassNameIs(SCnDesignControlClassName) then
         Result := epDesign
-      else if Ctrl.ClassNameIs(WelcomePageClassName) then
+      else if Ctrl.ClassNameIs(SCnWelcomePageClassName) then
         Result := epWelcome;
       Break;
     end;
   end;
 end;
 
+{$IFNDEF STAND_ALONE}
 var
   CorIdeModule: HMODULE;
+{$ENDIF}
 
 procedure InitIdeAPIs;
 begin
+{$IFNDEF STAND_ALONE}
   CorIdeModule := LoadLibrary(CorIdeLibName);
   Assert(CorIdeModule <> 0, 'Failed to load CorIdeModule');
 
@@ -2391,20 +2550,25 @@ begin
   Assert(Assigned(BeginBatchOpenCloseProc), 'Failed to load BeginBatchOpenCloseProc from CorIdeModule');
 
   EndBatchOpenCloseProc := GetProcAddress(CorIdeModule, SEndBatchOpenCloseName);
+{$IFNDEF WIN64}
 {$IFDEF DELPHI120_ATHENS_UP}
   if not Assigned(EndBatchOpenCloseProc) then // D12.1 改名了，再找一次
     EndBatchOpenCloseProc := GetProcAddress(CorIdeModule, SEndBatchOpenCloseName121);
 {$ENDIF}
+{$ENDIF}
 
   Assert(Assigned(EndBatchOpenCloseProc), 'Failed to load EndBatchOpenCloseProc from CorIdeModule');
+{$ENDIF}
 {$ENDIF}
 end;
 
 procedure FinalIdeAPIs;
 begin
+{$IFNDEF STAND_ALONE}
   if CorIdeModule <> 0 then
     FreeLibrary(CorIdeModule);
-end;  
+{$ENDIF}
+end;
 
 // 开始批量打开或关闭文件
 procedure BeginBatchOpenClose;
@@ -2429,8 +2593,15 @@ function ConvertIDETreeNodeToTreeNode(Node: TObject): TTreeNode;
 begin
 {$IFDEF DEBUG}
   if not (Node is TTreeNode) then
+  begin
+  {$IFDEF WIN64}
+    CnDebugger.LogFmt('Node ClassName %s. Value %16.16x. NOT our TreeNode. Manual Cast it.',
+      [Node.ClassName, NativeInt(Node)]);
+  {$ELSE}
     CnDebugger.LogFmt('Node ClassName %s. Value %8.8x. NOT our TreeNode. Manual Cast it.',
       [Node.ClassName, Integer(Node)]);
+  {$ENDIF}
+  end;
 {$ENDIF}
   Result := TTreeNode(Node);
 end;
@@ -2440,8 +2611,15 @@ function ConvertIDETreeNodesToTreeNodes(Nodes: TObject): TTreeNodes;
 begin
 {$IFDEF DEBUG}
   if not (Nodes is TTreeNodes) then
+  begin
+  {$IFDEF WIN64}
+    CnDebugger.LogFmt('Nodes ClassName %s. Value %16.16x. NOT our TreeNodes. Manual Cast it.',
+      [Nodes.ClassName, NativeInt(Nodes)]);
+  {$ELSE}
     CnDebugger.LogFmt('Nodes ClassName %s. Value %8.8x. NOT our TreeNodes. Manual Cast it.',
       [Nodes.ClassName, Integer(Nodes)]);
+  {$ENDIF}
+  end;
 {$ENDIF}
   Result := TTreeNodes(Nodes);
 end;
@@ -2466,9 +2644,13 @@ begin
   end;
 
   if Recursive then
+  begin
     for I := 0 to ToolBar.ControlCount - 1 do
+    begin
       if ToolBar.Controls[I] is TToolBar then
         ApplyThemeOnToolbar(ToolBar.Controls[I] as TToolBar);
+    end;
+  end;
 {$ENDIF}
 end;
 
@@ -2479,13 +2661,14 @@ var
 {$ENDIF}
 begin
   // Env Options 里的 ErrorInsightMarks 值
-  Result := csErrorInsightRenderStyleNotSupport;
 {$IFDEF IDE_HAS_ERRORINSIGHT}
   V := CnOtaGetEnvironmentOptionValue(SCnErrorInsightRenderStyleKeyName);
   if VarToStr(V) = '' then
     Result := csErrorInsightRenderStyleNotSupport
   else
     Result := V;
+{$ELSE}
+  Result := csErrorInsightRenderStyleNotSupport;
 {$ENDIF}
 end;
 
@@ -2543,6 +2726,8 @@ procedure InternalDoFindFile(ASelf: TObject; const FileName: string; const Info:
 begin
   FUnitCallback(FileName, True, FCurrFileType, FCurrSearchType);
 end;
+
+{$IFNDEF NO_DELPHI_OTA}
 
 function IdeEnumUsesIncludeUnits(UnitCallback: TCnUnitCallback; IsCpp: Boolean;
   SearchTypes: TCnModuleSearchTypes): Boolean;
@@ -2674,6 +2859,8 @@ begin
   end;
 end;
 
+{$ENDIF}
+
 procedure CorrectCaseFromIdeModules(UnitFilesList: TStringList; IsCpp: Boolean);
 var
   Data: TCnUnitsInfoRec;
@@ -2714,6 +2901,8 @@ begin
   if not HandleEditShortCut(Self, AShortCut) then
     inherited;
 end;
+
+{$IFNDEF NO_DELPHI_OTA}
 
 //==============================================================================
 // 组件面板封装类
@@ -2764,11 +2953,13 @@ begin
     begin
       FPageScroller := FPalTab.Controls[I] as TWinControl;
       for J := 0 to FPageScroller.ControlCount - 1 do
+      begin
         if FPageScroller.Controls[J].ClassNameIs('TPalette') then
         begin
           FPalette := FPageScroller.Controls[J] as TWinControl;
           Exit;
         end;
+      end;
     end;
   end;
 {$ENDIF}
@@ -3713,6 +3904,8 @@ begin
 {$ENDIF}
 end;
 
+{$ENDIF}
+
 function IdeGetScaledPixelsFromOrigin(APixels: Integer; AControl: TControl): Integer;
 begin
 {$IFDEF IDE_SUPPORT_HDPI}
@@ -3762,7 +3955,6 @@ begin
 {$ELSE}
   Result := 1.0; // IDE 不支持 HDPI 时原封不动地返回，交给 OS 处理
 {$ENDIF}
-
 end;
 
 procedure IdeSetReverseScaledFontSize(AControl: TControl);
@@ -3841,6 +4033,101 @@ end;
 
 {$IFNDEF CNWIZARDS_MINIMUM}
 
+{$IFNDEF NO_DELPHI_OTA}
+
+function SearchUsesInsertPosInPasFile(const FileName: string; IsIntf: Boolean;
+  out HasUses: Boolean; out LinearPos: Integer): Boolean;
+var
+  Stream: TMemoryStream;
+  Lex: TCnGeneralWidePasLex;
+  InIntf: Boolean;
+  MeetIntf: Boolean;
+  InImpl: Boolean;
+  MeetImpl: Boolean;
+  IntfPos, ImplPos: Integer;
+begin
+  Result := False;
+  InIntf := False;
+  InImpl := False;
+  MeetIntf := False;
+  MeetImpl := False;
+
+  HasUses := False;
+  IntfPos := 0;
+  ImplPos := 0;
+
+  Stream := nil;
+  Lex := nil;
+
+  try
+    Stream := TMemoryStream.Create;
+    CnGeneralFilerSaveFileToStream(FileName, Stream);
+
+    Lex := TCnGeneralWidePasLex.Create;
+    Lex.Origin := Stream.Memory;
+
+    while Lex.TokenID <> tkNull do
+    begin
+      case Lex.TokenID of
+      tkUses:
+        begin
+          if (IsIntf and InIntf) or (not IsIntf and InImpl) then
+          begin
+            HasUses := True; // 到达了自己需要的 uses 处
+            while not (Lex.TokenID in [tkNull, tkSemiColon]) do
+              Lex.Next;
+
+            if Lex.TokenID = tkSemiColon then
+            begin
+              // 插入位置就在分号前
+              Result := True;
+              LinearPos := Lex.TokenPos;
+              Exit;
+            end
+            else // uses 后找不着分号，出错
+            begin
+              Result := False;
+              Exit;
+            end;
+          end;
+        end;
+      tkInterface, tkProgram:
+        begin
+          MeetIntf := True;
+          InIntf := True;
+          InImpl := False;
+
+          IntfPos := Lex.TokenPos;
+        end;
+      tkImplementation:
+        begin
+          MeetImpl := True;
+          InIntf := False;
+          InImpl := True;
+
+          ImplPos := Lex.TokenPos;
+        end;
+      end;
+      Lex.Next;
+    end;
+
+    // 解析完毕，到此处是没有 uses 的情形
+    if IsIntf and MeetIntf then    // 曾经遇到过 interface 就以 interface 为插入点
+    begin
+      Result := True;
+      LinearPos := IntfPos + Length('interface');
+    end
+    else if not IsIntf and MeetImpl then // 曾经遇到过 interface 就以 interface 为插入点
+    begin
+      Result := True;
+      LinearPos := ImplPos + Length('implementation');
+    end;
+  finally
+    Lex.Free;
+    Stream.Free;
+  end;
+end;
+
 function SearchUsesInsertPosInCurrentPas(IsIntf: Boolean; out HasUses: Boolean;
   out CharPos: TOTACharPos): Boolean;
 var
@@ -3864,6 +4151,7 @@ begin
   Result := False;
   Stream := TMemoryStream.Create;
 
+  // 这里可优化成 General 系列，不过先不整
 {$IFDEF UNICODE}
   Lex := TCnPasWideLex.Create;
   CnOtaSaveCurrentEditorToStreamW(Stream, False);
@@ -4073,11 +4361,15 @@ end;
 
 {$ENDIF}
 
+{$ENDIF}
+
 initialization
+{$IFNDEF NO_DELPHI_OTA}
   // 使用此全局变量可以避免频繁调用 IdeGetIsEmbeddedDesigner 函数
   IdeIsEmbeddedDesigner := IdeGetIsEmbeddedDesigner;
-  InitIdeAPIs;
+{$ENDIF}
 
+  InitIdeAPIs;
 {$IFDEF IDE_SUPPORT_HDPI}
   FOriginImages := TObjectList.Create(False);
   FVirtualImages := TObjectList.Create(False);
@@ -4103,6 +4395,7 @@ finalization
   FWaitDialogHook.Free;
 {$ENDIF}
 
+{$IFNDEF NO_DELPHI_OTA}
   if FCnPaletteWrapper <> nil then
     FreeAndNil(FCnPaletteWrapper);
 
@@ -4111,11 +4404,14 @@ finalization
 
   if FThemeWrapper <> nil then
     FreeAndNil(FThemeWrapper);
+{$ENDIF}
 
   FinalIdeAPIs;
 
 {$IFDEF DEBUG}
   CnDebugger.LogLeave('CnWizIdeUtils finalization.');
 {$ENDIF}
+{$ENDIF}
+
 end.
 

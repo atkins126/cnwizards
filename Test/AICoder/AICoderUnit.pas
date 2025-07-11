@@ -5,8 +5,8 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ComCtrls, CnThreadPool, CnInetUtils, CnNative, CnContainers, CnJSON,
-  CnAICoderConfig, CnAICoderEngine, CnWideStrings, FileCtrl, CnChatBox,
-  ExtCtrls, Menus;
+  CnAICoderConfig, CnAICoderEngine, CnWideStrings, FileCtrl, CnChatBox, CnRichEdit,
+  CnMarkDown, ExtCtrls, Menus, Clipbrd;
 
 type
   TFormAITest = class(TForm)
@@ -44,6 +44,15 @@ type
     Copy1: TMenuItem;
     pmAIChat: TPopupMenu;
     CopyCode1: TMenuItem;
+    chkMarkDown: TCheckBox;
+    CopyAll1: TMenuItem;
+    btnAddYourStream: TButton;
+    tmrSteam: TTimer;
+    btnModelList: TButton;
+    btnChatFont: TButton;
+    dlgFont1: TFontDialog;
+    lblMe: TLabel;
+    edtChatMessage: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAddHttpsClick(Sender: TObject);
@@ -59,16 +68,45 @@ type
     procedure btnAddYouLongMsgClick(Sender: TObject);
     procedure btnAddMyLongMsgClick(Sender: TObject);
     procedure btnReviewCodeClick(Sender: TObject);
+    procedure chkMarkDownClick(Sender: TObject);
+    procedure CopyAll1Click(Sender: TObject);
+    procedure pmChatPopup(Sender: TObject);
+    procedure pmAIChatPopup(Sender: TObject);
+    procedure CopyCode1Click(Sender: TObject);
+    procedure Copy1Click(Sender: TObject);
+    procedure btnAddYourStreamClick(Sender: TObject);
+    procedure tmrSteamTimer(Sender: TObject);
+    procedure btnModelListClick(Sender: TObject);
+    procedure btnChatFontClick(Sender: TObject);
+    procedure edtChatMessageKeyPress(Sender: TObject; var Key: Char);
   private
     FNetPool: TCnThreadPool;
     FResQueue: TCnObjectQueue;
     FAIConfig: TCnAIEngineOptionManager;
     FChatBox: TCnChatBox;
+    FChatItem: TCnChatItem;
     FAIChatBox: TCnChatBox;
+    FAIChatItem: TCnChatItem;
+    FRender: TCnRichEditRender;
+    FRtfStream: TMemoryStream;
+    FStreamMsg: TCnChatMessage;
+    FStreamCnt: Integer;
+
+    class function ExtractCode(Item: TCnChatMessage): string;
+
+    procedure AIGetItemTextRect(Sender: TObject; Item: TCnChatItem; Canvas: TCanvas;
+      var ItemTextRect: TRect; var DefaultCalc: Boolean);
+    procedure AIDrawItemText(Sender: TObject; Item: TCnChatItem; Canvas: TCanvas;
+     var ItemTextRect: TRect; var DefaultDraw: Boolean);
+
     // 以下是综合测试
-    procedure AIOnExplainCodeAnswer(Success: Boolean; SendId: Integer;
+    procedure AIOnExplainCodeAnswer(StreamMode, Partly, Success, IsStreamEnd: Boolean; SendId: Integer;
       const Answer: string; ErrorCode: Cardinal; Tag: TObject);
-    procedure AIOnReviewCodeAnswer(Success: Boolean; SendId: Integer;
+    procedure AIOnReviewCodeAnswer(StreamMode, Partly, Success, IsStreamEnd: Boolean; SendId: Integer;
+      const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+    procedure AIOnRawAnswer(StreamMode, Partly, Success, IsStreamEnd: Boolean;
+      SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+    procedure AIOnModelListAnswer(StreamMode, Partly, Success, IsStreamEnd: Boolean; SendId: Integer;
       const Answer: string; ErrorCode: Cardinal; Tag: TObject);
   protected
     procedure ShowData;
@@ -179,17 +217,20 @@ begin
   FAIChatBox.ColorYou := BK_COLOR;
   FAIChatBox.ColorMe := BK_COLOR;
   FAIChatBox.PopupMenu := pmAIChat;
+
+  FRender := TCnRichEditRender.Create;
+  FRtfStream := TMemoryStream.Create;
 end;
 
 procedure TFormAITest.FormDestroy(Sender: TObject);
 begin
+  FRtfStream.Free;
+  FRender.Free;
   FAIConfig.Free;
-
   FNetPool.Free;
 
   while not FResQueue.IsEmpty do
     FResQueue.Pop.Free;
-
   FResQueue.Free;
 end;
 
@@ -416,10 +457,10 @@ begin
     CnAIEngineOptionManager.UseProxy := False;
 
   CnAIEngineManager.CurrentEngine.AskAIEngineForCode('Application.CreateForm(TForm1, Form1);',
-    Msg, artExplainCode, AIOnExplainCodeAnswer);
+    nil, Msg, artExplainCode, AIOnExplainCodeAnswer);
 end;
 
-procedure TFormAITest.AIOnExplainCodeAnswer(Success: Boolean;
+procedure TFormAITest.AIOnExplainCodeAnswer(StreamMode, Partly, Success, IsStreamEnd: Boolean;
   SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
 begin
   if Success then
@@ -433,7 +474,16 @@ begin
 
   TCnChatMessage(Tag).Waiting := False;
   if Success then
-    TCnChatMessage(Tag).Text := Answer
+  begin
+    if Partly then
+    begin
+      TCnChatMessage(Tag).Text := TCnChatMessage(Tag).Text + Answer;
+      if IsStreamEnd then
+        mmoAI.Lines.Add('End Stream Comes.');
+    end
+    else
+      TCnChatMessage(Tag).Text := Answer;
+  end
   else
     TCnChatMessage(Tag).Text := Format('Explain Code Fail for Request %d: Error Code: %d. Error Msg: %s',
       [SendId, ErrorCode, Answer]);
@@ -482,7 +532,7 @@ begin
   with FChatBox.Items.AddMessage do
   begin
     From := 'AI';
-    FromType := cmtYou;
+    FromType := cmtMe;
     Text := '低代码开发方式具有丰富的UI界面编辑功能，通过可视化界面开发方式快速构建布局，可有效降低开发者的上手成本并提升开发者构建UI界面的效率。 '
       + '悠悠密西西比泾流经墨西哥，静静地流淌着，滋润着佛罗里达的土地，养育了南北战争中的百姓。这里水陆交通便捷，经济文化发达。' + #13#10
       + '①既往有对机体严重影响的疾病史(如心衰、严重脑梗死、心肌梗死等)；②既往有精神或神经方面疾病史，或有精神类药物依赖史；'
@@ -509,11 +559,11 @@ begin
     CnAIEngineOptionManager.UseProxy := False;
 
   CnAIEngineManager.CurrentEngine.AskAIEngineForCode('Application.CreateForm(TForm1, Form1);',
-    Msg, artReviewCode, AIOnReviewCodeAnswer);
+    nil, Msg, artReviewCode, AIOnReviewCodeAnswer);
 end;
 
-procedure TFormAITest.AIOnReviewCodeAnswer(Success: Boolean; SendId: Integer;
-  const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+procedure TFormAITest.AIOnReviewCodeAnswer(StreamMode, Partly, Success, IsStreamEnd: Boolean;
+  SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
 begin
   if Success then
     mmoAI.Lines.Add(Format('Review Code OK for Request %d: %s', [SendId, Answer]))
@@ -525,10 +575,300 @@ begin
     Exit;
 
   if Success then
-    TCnChatMessage(Tag).Text := Answer
+  begin
+    if Partly then
+    begin
+      TCnChatMessage(Tag).Text := TCnChatMessage(Tag).Text + Answer;
+      if IsStreamEnd then
+        mmoAI.Lines.Add('End Stream Comes.');
+    end
+    else
+      TCnChatMessage(Tag).Text := Answer;
+  end
   else
     TCnChatMessage(Tag).Text := Format('Review Code Fail for Request %d: Error Code: %d. Error Msg: %s',
       [SendId, ErrorCode, Answer]);
+end;
+
+procedure TFormAITest.chkMarkDownClick(Sender: TObject);
+begin
+  if chkMarkDown.Checked then
+  begin
+    FAIChatBox.OnGetItemTextRect := AIGetItemTextRect;
+    FAIChatBox.OnDrawItemText := AIDrawItemText;
+  end
+  else
+  begin
+    FAIChatBox.OnGetItemTextRect := nil;
+    FAIChatBox.OnDrawItemText := nil;
+  end;
+end;
+
+procedure TFormAITest.AIDrawItemText(Sender: TObject; Item: TCnChatItem;
+  Canvas: TCanvas; var ItemTextRect: TRect; var DefaultDraw: Boolean);
+var
+  Bmp: TBitmap;
+begin
+  if Item.Attachment <> nil then
+  begin
+    Bmp := TBitmap(Item.Attachment);
+    Canvas.Draw(ItemTextRect.Left, ItemTextRect.Top, Bmp);
+    DefaultDraw := False;
+  end;
+end;
+
+procedure TFormAITest.AIGetItemTextRect(Sender: TObject; Item: TCnChatItem;
+  Canvas: TCanvas; var ItemTextRect: TRect; var DefaultCalc: Boolean);
+var
+  S: AnsiString;
+  Bmp: TBitmap;
+begin
+  FRtfStream.Size := 0;
+  S := Item.Text;
+  if S <> '' then
+  begin
+    S := CnMarkDownConvertToRTF(CnParseMarkDownString(S), 9);
+    FRtfStream.WriteBuffer(S[1], Length(S));
+    FRtfStream.Position := 0;
+
+    if Item.Attachment <> nil then
+    begin
+      Item.Attachment.Free;
+      Item.Attachment := nil;
+    end;
+
+    FRender.BackgroundColor := FAIChatBox.ColorYou;
+    Bmp := FRender.RenderRtfToBitmap(FRtfStream, ItemTextRect.Right - ItemTextRect.Left);
+    if Bmp <> nil then
+    begin
+      ItemTextRect.Bottom := ItemTextRect.Top + Bmp.Height;
+      ItemTextRect.Right := ItemTextRect.Left + Bmp.Width;
+      Item.Attachment := Bmp;
+
+      DefaultCalc := False;
+    end;
+  end;
+end;
+
+procedure TFormAITest.CopyAll1Click(Sender: TObject);
+begin
+  if FAIChatItem <> nil then
+  begin
+    try
+      if FAIChatItem is TCnChatMessage then
+      begin
+        if TCnChatMessage(FAIChatItem).SelText <> '' then
+          Clipboard.AsText := TCnChatMessage(FAIChatItem).SelText
+        else
+          Clipboard.AsText := TCnChatMessage(FAIChatItem).Text;
+      end;
+    except
+      ; // 弹出时记录的鼠标下的 Item，万一执行时被释放了，就可能出异常，要抓住
+    end;
+  end;
+end;
+
+procedure TFormAITest.pmChatPopup(Sender: TObject);
+begin
+  FChatItem := FChatBox.GetItemUnderMouse;
+end;
+
+procedure TFormAITest.pmAIChatPopup(Sender: TObject);
+begin
+  FAIChatItem := FAIChatBox.GetItemUnderMouse;
+end;
+
+procedure TFormAITest.CopyCode1Click(Sender: TObject);
+var
+  S: string;
+begin
+  if FAIChatItem <> nil then
+  begin
+    try
+      if FAIChatItem is TCnChatMessage then
+      begin
+        S := ExtractCode(TCnChatMessage(FAIChatItem));
+        if S <> '' then
+        begin
+          Clipboard.AsText := Trim(S);
+          Exit;
+        end;
+
+        ShowMessage('NO Code');
+      end;
+    except
+      ; // 弹出时记录的鼠标下的 Item，万一执行时被释放了，就可能出异常，要抓住
+    end;
+  end;
+end;
+
+class function TFormAITest.ExtractCode(Item: TCnChatMessage): string;
+const
+  CODE_BLOCK = '```';
+  DELPHI_PREFIX = 'delphi' + #13#10;
+  PASCAL_PREFIX = 'pascal' + #13#10;
+  C_PREFIX = 'c' + #13#10;
+  CPP_PREFIX = 'c++' + #13#10;
+var
+  S: string;
+  I1, I2: Integer;
+begin
+  Result := '';
+  if Item = nil then
+    Exit;
+
+  S := TCnChatMessage(Item).Text;
+  I1 := Pos(CODE_BLOCK, S);
+  if I1 > 0 then
+  begin
+    Delete(S, 1, I1 + Length(CODE_BLOCK) - 1);
+    I2 := Pos(CODE_BLOCK, S);
+    if I2 > 0 then
+    begin
+      S := Copy(S, 1, I2 - 1);
+      I2 := Pos(DELPHI_PREFIX, LowerCase(S)); // 去除第一个 ``` 后的 delphi
+      if I2 = 1 then
+        Delete(S, 1, Length(DELPHI_PREFIX));
+
+      I2 := Pos(PASCAL_PREFIX, LowerCase(S)); // 去除第一个 ``` 后的 pascal
+      if I2 = 1 then
+        Delete(S, 1, Length(PASCAL_PREFIX));
+
+      I2 := Pos(C_PREFIX, LowerCase(S));      // 去除第一个 ``` 后的 C
+      if I2 = 1 then
+        Delete(S, 1, Length(C_PREFIX));
+
+      I2 := Pos(CPP_PREFIX, LowerCase(S));    // 去除第一个 ``` 后的 C++
+      if I2 = 1 then
+        Delete(S, 1, Length(CPP_PREFIX));
+
+      Result := Trim(S);
+    end;
+  end;
+end;
+
+procedure TFormAITest.Copy1Click(Sender: TObject);
+begin
+  if FChatItem <> nil then
+  begin
+    try
+      if FChatItem is TCnChatMessage then
+      begin
+        if TCnChatMessage(FChatItem).SelText <> '' then
+          Clipboard.AsText := TCnChatMessage(FChatItem).SelText
+        else
+          Clipboard.AsText := TCnChatMessage(FChatItem).Text;
+      end;
+    except
+      ; // 弹出时记录的鼠标下的 Item，万一执行时被释放了，就可能出异常，要抓住
+    end;
+  end;
+end;
+
+procedure TFormAITest.btnAddYourStreamClick(Sender: TObject);
+begin
+  FStreamMsg := FChatBox.Items.AddMessage;
+  FStreamMsg.From := 'AI';
+  FStreamMsg.FromType := cmtYou;
+  FStreamCnt := 0;
+
+  tmrSteam.Enabled := True;
+end;
+
+procedure TFormAITest.tmrSteamTimer(Sender: TObject);
+begin
+  if FStreamMsg <> nil then
+  begin
+    FStreamMsg.Text := FStreamMsg.Text + '吃饭喝水 ';
+    Inc(FStreamCnt);
+
+    if FStreamCnt >= 100 then
+      tmrSteam.Enabled := False;
+  end;
+end;
+
+procedure TFormAITest.btnModelListClick(Sender: TObject);
+begin
+  CnAIEngineManager.CurrentEngine.AskAIEngineForModelList(nil, nil, AIOnModelListAnswer);
+end;
+
+procedure TFormAITest.AIOnModelListAnswer(StreamMode, Partly, Success,
+  IsStreamEnd: Boolean; SendId: Integer; const Answer: string;
+  ErrorCode: Cardinal; Tag: TObject);
+begin
+  if Success then
+    mmoAI.Lines.Add(Format('Model List OK for Request %d: %s', [SendId, Answer]))
+  else
+    mmoAI.Lines.Add(Format('Model List Fail for Request %d: Error Code: %d. Error Msg: %s',
+      [SendId, ErrorCode, Answer]));
+end;
+
+procedure TFormAITest.btnChatFontClick(Sender: TObject);
+begin
+  dlgFont1.Font := FChatBox.Font;
+  if dlgFont1.Execute then
+  begin
+    FAIChatBox.Font := dlgFont1.Font;
+    FChatBox.Font := dlgFont1.Font;
+  end;
+end;
+
+procedure TFormAITest.edtChatMessageKeyPress(Sender: TObject;
+  var Key: Char);
+var
+  Msg: TCnChatMessage;
+  His: TStrings;
+begin
+  if Key = #13 then
+  begin
+    Key := #0;
+
+    if Trim(edtChatMessage.Text) <> '' then
+    begin
+      His := TStringList.Create;
+      try
+        FAIChatBox.GetRecentMessages(His, CnAIEngineOptionManager.HistoryCount);
+
+        // 发出的消息
+        Msg := FAIChatBox.Items.AddMessage;
+        Msg.From := CnAIEngineManager.CurrentEngineName;
+        Msg.Text := edtChatMessage.Text;
+        Msg.FromType := cmtMe;
+
+        // 回来的消息
+        Msg := FAIChatBox.Items.AddMessage;
+        Msg.From := CnAIEngineManager.CurrentEngineName;
+        Msg.FromType := cmtYou;
+        Msg.Text := '...';
+
+        CnAIEngineManager.CurrentEngine.AskAIEngineForCode(edtChatMessage.Text, His, Msg,
+          artRaw, AIOnRawAnswer);
+
+        edtChatMessage.Text := '';
+      finally
+        His.Free;
+      end;
+    end;
+  end;
+end;
+
+procedure TFormAITest.AIOnRawAnswer(StreamMode, Partly, Success,
+  IsStreamEnd: Boolean; SendId: Integer; const Answer: string;
+  ErrorCode: Cardinal; Tag: TObject);
+begin
+  if (Tag <> nil) and (Tag is TCnChatMessage) then
+  begin
+    TCnChatMessage(Tag).Waiting := False;
+    if Success then
+    begin
+      if Partly and (TCnChatMessage(Tag).Text <> '...') then
+        TCnChatMessage(Tag).Text := TCnChatMessage(Tag).Text + Answer
+      else
+        TCnChatMessage(Tag).Text := Answer;
+    end
+    else
+      TCnChatMessage(Tag).Text := Format('%d %s', [ErrorCode, Answer]);
+  end;
 end;
 
 end.

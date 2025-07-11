@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -130,9 +130,13 @@ type
     property Filtered: Boolean read FFiltered write FFiltered;
     property CaptionPacked: Boolean read FCaptionPacked write SetCaptionPacked;
     property Animate: Boolean read FAnimate write SetAnimate;
+    {* 折叠时是否动画}
     property ShowTop: Boolean read FShowTop write FShowTop;
+    {* 是否显示置顶按钮}
     property ShowRoller: Boolean read FShowRoller write FShowRoller;
+    {* 是否显示折叠按钮}
     property ShowOptions: Boolean read FShowOptions write FShowOptions;
+    {* 是否显示选项按钮}
   end;
 
   TCnTopRollerForm = class(TCnTranslateForm)
@@ -205,7 +209,7 @@ const
     ('TObjectTreeView', 'TPropertyInspector', 'TProjectManagerForm',
      'TAlignPalette', 'TCallStackWindow', 'TWatchWindow', 'TLocalVarsWindow');
 
-  arrRollerStatusClasses: array[0..19] of string = // 所有单实例的窗体，会被Desktop保存的
+  arrRollerStatusClasses: array[0..19] of string = // 所有单实例的窗体，会被 Desktop 保存的
     ('TAppBuilder', 'TObjectTreeView', 'TPropertyInspector',
     'TPasModExpForm', 'TProjectManagerForm', 'TToDoListWindow',
     'TAlignPalette', 'TSynbolExplorer', 'TCompListForm', 'TMessageHintFrm',
@@ -441,8 +445,10 @@ var
 begin
   FClassList.Clear;
   for I := 0 to FFilters.Count - 1 do
+  begin
     if (FFilters.Items[I] as TCnWinFilterItem).Enabled then
       FClassList.Add((FFilters.Items[I] as TCnWinFilterItem).WinClass);
+  end;
 end;
 
 function TCnWinTopRoller.InitPopupMenu(AMenu: TPopupMenu): TPopupMenu;

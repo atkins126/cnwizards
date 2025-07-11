@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -103,7 +103,7 @@ uses
 {$IFDEF DEBUG}
   CnDebug,
 {$ENDIF}
-  CnWizMacroUtils, CnWizUtils;
+  mPasLex, CnWizMacroUtils, CnWizUtils;
 
 const
   csDefArgList = '$k (Kind) $n (Name) $t (Type) $d (Default)';
@@ -193,8 +193,12 @@ begin
         Inc(P);
         if Assigned(Stream) then
         begin
-        {$IFDEF UNICODE}
+{$IFDEF UNICODE}
+        {$IFDEF WIN64}
+          PMem := PChar(NativeInt(Stream.Memory));
+        {$ELSE}
           PMem := PChar(Integer(Stream.Memory));
+        {$ENDIF}
           Size := Stream.Size + SizeOf(Char);
           Buf := GetMemory(Size);
           ZeroMemory(Buf, Size);
@@ -202,10 +206,14 @@ begin
 
           AllPos := Length(AnsiString(Buf));
           FreeMemory(Buf);
-        {$ELSE}
+{$ELSE}
           AllPos := Stream.Size;
-        {$ENDIF}
+{$ENDIF}
+        {$IFDEF WIN64}
+          PMem := PChar(NativeInt(Stream.Memory) + Stream.Size);
+        {$ELSE}
           PMem := PChar(Integer(Stream.Memory) + Stream.Size);
+        {$ENDIF}
           APos := 1;                    // 查找当前位置在当前行中的偏移
           while PMem > Stream.Memory do
           begin
@@ -340,6 +348,7 @@ var
   S: string;
   IsPasFile, IsCFile: Boolean;
   Guid: TGUID;
+  Vis: TTokenKind;
 begin
   Result := AMacro;
   if IsInternalMacro(AMacro, Macro) then
@@ -404,7 +413,7 @@ begin
 
               EditPos := EditView.CursorPos;
               EditView.ConvertPos(True, EditPos, CharPos);
-              Result := string(PasParser.FindCurrentDeclaration(CharPos.Line, CharPos.CharIndex));
+              Result := string(PasParser.FindCurrentDeclaration(CharPos.Line, CharPos.CharIndex, Vis));
               if Result = '' then
               begin
                 if PasParser.CurrentChildMethod <> '' then

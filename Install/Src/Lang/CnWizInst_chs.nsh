@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                      中国人自己的开放源码第三方开发包
-;                    (C)Copyright 2001-2024 CnPack 开发组
+;                    (C)Copyright 2001-2025 CnPack 开发组
 ;******************************************************************************
 
 ; CnWizards 安装脚本简体中文语言文件
@@ -34,6 +34,7 @@ LangString SASCIICHART    2052 "ASCII 字符表"
 LangString SUNINSTALL     2052 "卸载"
 LangString SDFMCONVERTOR  2052 "DFM 窗体转换工具"
 LangString SDEBUGVIEWER   2052 "调试信息查看器"
+LangString SDEBUGVIEWER64 2052 "调试信息查看器（64位）"
 LangString SIDEBRTOOL     2052 "IDE 设置备份恢复工具"
 LangString SMANAGEWIZ     2052 "IDE 专家管理工具"
 LangString SRELATIONANALYZER 2052 "源码模块关系分析"

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -136,7 +136,7 @@ begin
 
   // Editors Comment
   TranslateStr(SCnStringPropEditorComment, 'SCnStringPropEditorComment');
-  TranslateStr(SCnHintPropEditorComment, 'sCnHintPropEditorComment');
+  TranslateStr(SCnHintPropEditorComment, 'SCnHintPropEditorComment');
   TranslateStr(SCnStringsPropEditorComment, 'SCnStringsPropEditorComment');
   TranslateStr(SCnFileNamePropEditorComment, 'SCnFileNamePropEditorComment');
   TranslateStr(SCnSizeConstraintsPropEditorComment, 'SCnSizeConstraintsPropEditorComment');
@@ -501,9 +501,14 @@ begin
   TranslateStr(SCnSrcTemplateInsertToProcHint, 'SCnSrcTemplateInsertToProcHint');
   TranslateStr(SCnSrcTemplateInsertToProcPrompt, 'SCnSrcTemplateInsertToProcPrompt');
   TranslateStr(SCnSrcTemplateInsertToProcCountFmt, 'SCnSrcTemplateInsertToProcCountFmt');
+  TranslateStr(SCnSrcTemplateInsertInitToUnitsCaption, 'SCnSrcTemplateInsertInitToUnitsCaption');
+  TranslateStr(SCnSrcTemplateInsertInitToUnitsHint, 'SCnSrcTemplateInsertInitToUnitsHint');
+  TranslateStr(SCnSrcTemplateInsertInitToUnitsPrompt, 'SCnSrcTemplateInsertInitToUnitsPrompt');
+  TranslateStr(SCnSrcTemplateInsertInitToUnitsCountFmt, 'SCnSrcTemplateInsertInitToUnitsCountFmt');
   TranslateStr(SCnSrcTemplateCaptionIsEmpty, 'SCnSrcTemplateCaptionIsEmpty');
   TranslateStr(SCnSrcTemplateContentIsEmpty, 'SCnSrcTemplateContentIsEmpty');
   TranslateStr(SCnSrcTemplateSourceTypeNotSupport, 'SCnSrcTemplateSourceTypeNotSupport');
+  TranslateStr(SCnSrcTemplateErrorProjectSource, 'SCnSrcTemplateErrorProjectSource');
   TranslateStr(SCnSrcTemplateReadDataError, 'SCnSrcTemplateReadDataError');
   TranslateStr(SCnSrcTemplateWriteDataError, 'SCnSrcTemplateWriteDataError');
   TranslateStr(SCnSrcTemplateImportAppend, 'SCnSrcTemplateImportAppend');
@@ -824,11 +829,13 @@ begin
   TranslateStr(SCnSrcBlockSearch, 'SCnSrcBlockSearch');
   TranslateStr(SCnWebSearchFileDef, 'SCnWebSearchFileDef');
   TranslateStr(SCnSrcBlockMisc, 'SCnSrcBlockMisc');
-  TranslateStr(SCnSrcblockAddToCollector, 'SCnSrcblockAddToCollector');
+  TranslateStr(SCnSrcBlockAddToCollector, 'SCnSrcBlockAddToCollector');
+  TranslateStr(SCnSrcBlockCompareToClipboard, 'SCnSrcBlockCompareToClipboard');
   TranslateStr(SCnSrcBlockMoveUp, 'SCnSrcBlockMoveUp');
   TranslateStr(SCnSrcBlockMoveDown, 'SCnSrcBlockMoveDown');
   TranslateStr(SCnSrcBlockDeleteLines, 'SCnSrcBlockDeleteLines');
   TranslateStr(SCnSrcBlockDisableStructualHighlight, 'SCnSrcBlockDisableStructualHighlight');
+  TranslateStr(SCnSrcBlockErrorNoContent, 'SCnSrcBlockErrorNoContent');
 
   // CnSrcEditorKey
   TranslateStr(SCnRenameVarCaption, 'SCnRenameVarCaption');
@@ -1178,6 +1185,7 @@ begin
   TranslateStr(SCnMenuCopyLinesToClipboard, 'SCnMenuCopyLinesToClipboard');
   TranslateStr(SCnMenuCopyLinesToFile, 'SCnMenuCopyLinesToFile');
   TranslateStr(SCnMenuCopyLinesCaption, 'SCnMenuCopyLinesCaption');
+  TranslateStr(SCnMenuCopyDataLinesCaption, 'SCnMenuCopyDataLinesCaption');
 
   // CnResourceMgrWizard
   TranslateStr(SCnResMgrWizardMenuCaption, 'SCnResMgrWizardMenuCaption');
@@ -1239,6 +1247,7 @@ begin
   // CnObjInspectorEnhanceWizard
   TranslateStr(SCnObjInspectorEnhanceWizardName, 'SCnObjInspectorEnhanceWizardName');
   TranslateStr(SCnObjInspectorEnhanceWizardComment, 'SCnObjInspectorEnhanceWizardComment');
+  TranslateStr(SCnObjInspectorCommentWindowMenuCaption, 'SCnObjInspectorCommentWindowMenuCaption');
 
   // CnWizBoot
   TranslateStr(SCnWizBootCurrentCount, 'SCnWizBootCurrentCount');
@@ -1377,7 +1386,14 @@ begin
   TranslateStr(SCnUsesUnitFromIdentMenuCaption, 'SCnUsesUnitFromIdentMenuCaption');
   TranslateStr(SCnUsesUnitFromIdentMenuHint, 'SCnUsesUnitFromIdentMenuHint');
   TranslateStr(SCnUsesUnitAnalyzeWaiting, 'SCnUsesUnitAnalyzeWaiting');
-  TranslateStr(SCNUsesUnitFromIdentErrorFmt, 'SCNUsesUnitFromIdentErrorFmt');
+  TranslateStr(SCnUsesUnitFromIdentErrorFmt, 'SCnUsesUnitFromIdentErrorFmt');
+
+  TranslateStr(SCnUsesToolsProjImplUseMenuCaption, 'SCnUsesToolsProjImplUseMenuCaption');
+  TranslateStr(SCnUsesToolsProjImplUseMenuHint, 'SCnUsesToolsProjImplUseMenuHint');
+  TranslateStr(SCnUsesToolsProjImplPrompt, 'SCnUsesToolsProjImplPrompt');
+  TranslateStr(SCnUsesToolsProjImplCountFmt, 'SCnUsesToolsProjImplCountFmt');
+  TranslateStr(SCnUsesToolsProjImplErrorUnit, 'SCnUsesToolsProjImplErrorUnit');
+  TranslateStr(SCnUsesToolsProjImplErrorSource, 'SCnUsesToolsProjImplErrorSource');
 
   // CnIdeEnhanceMenu
   TranslateStr(SCnIdeEnhanceMenuCaption, 'SCnIdeEnhanceMenuCaption');
@@ -1483,13 +1499,21 @@ begin
   TranslateStr(SCnAICoderWizardExplainCodeHint, 'SCnAICoderWizardExplainCodeHint');
   TranslateStr(SCnAICoderWizardReviewCodeCaption, 'SCnAICoderWizardReviewCodeCaption');
   TranslateStr(SCnAICoderWizardReviewCodeHint, 'SCnAICoderWizardReviewCodeHint');
+  TranslateStr(SCnAICoderWizardGenTestCaseCaption, 'SCnAICoderWizardGenTestCaseCaption');
+  TranslateStr(SCnAICoderWizardGenTestCaseHint, 'SCnAICoderWizardGenTestCaseHint');
+  TranslateStr(SCnAICoderWizardContinueCodingCaption, 'SCnAICoderWizardContinueCodingCaption');
+  TranslateStr(SCnAICoderWizardContinueCodingHint, 'SCnAICoderWizardContinueCodingHint');
   TranslateStr(SCnAICoderWizardChatWindowCaption, 'SCnAICoderWizardChatWindowCaption');
   TranslateStr(SCnAICoderWizardChatWindowHint, 'SCnAICoderWizardChatWindowHint');
   TranslateStr(SCnAICoderWizardConfigCaption, 'SCnAICoderWizardConfigCaption');
   TranslateStr(SCnAICoderWizardConfigHint, 'SCnAICoderWizardConfigHint');
   TranslateStr(SCnAICoderWizardSystemMessageFmt, 'SCnAICoderWizardSystemMessageFmt');
+  TranslateStr(SCnAICoderWizardUserMessageReferSelection, 'SCnAICoderWizardUserMessageReferSelection');
   TranslateStr(SCnAICoderWizardUserMessageExplainFmt, 'SCnAICoderWizardUserMessageExplainFmt');
   TranslateStr(SCnAICoderWizardUserMessageReviewFmt, 'SCnAICoderWizardUserMessageReviewFmt');
+  TranslateStr(SCnAICoderWizardUserMessageGenTestCaseFmt, 'SCnAICoderWizardUserMessageGenTestCaseFmt');
+  TranslateStr(SCnAICoderWizardUserMessageContinueCodingFmt, 'SCnAICoderWizardUserMessageContinueCodingFmt');
+  TranslateStr(SCnAICoderWizardFlagContinueCoding, 'SCnAICoderWizardFlagContinueCoding');
   TranslateStr(SCnAICoderWizardErrorNoEngine, 'SCnAICoderWizardErrorNoEngine');
   TranslateStr(SCnAICoderWizardErrorURLFmt, 'SCnAICoderWizardErrorURLFmt');
   TranslateStr(SCnAICoderWizardErrorAPIKeyFmt, 'SCnAICoderWizardErrorAPIKeyFmt');
@@ -1515,6 +1539,7 @@ begin
 
   CnTranslateAuthorInfo;
 
+  TranslateStr(SCnHint, 'SCnHint');
   TranslateStr(SCnInformation, 'SCnInformation');
   TranslateStr(SCnWarning, 'SCnWarning');
   TranslateStr(SCnError, 'SCnError');
@@ -1528,6 +1553,7 @@ begin
   TranslateStr(SCnMsgDlgNoToAll, 'SCnMsgDlgNoToAll');
   TranslateStr(SCnVersion, 'SCnVersion');
   TranslateStr(SCnNeedAdmin, 'SCnNeedAdmin');
+  TranslateStr(SCnNotSupport, 'SCnNotSupport');
   
   //----------------------------------------------------------------------------
   //  Feedback

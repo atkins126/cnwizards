@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -20,12 +20,6 @@
 
 {$I CnPack.inc}
 
-{$IFDEF CNWIZARDS_LITE}
-
-{$I CnWizards_Lite.inc}
-
-{$ELSE}
-
 // Editor: All Design Editors
 {$DEFINE CNWIZARDS_DESIGNEDITOR}
 
@@ -33,7 +27,7 @@
 {$DEFINE CNWIZARDS_CNFASTCODEWIZARD}
 
 // Wizard: CnDesignWizard
-{$DEFINE CNWIZARDS_CNALIGNSIZEWIZARD}
+{$DEFINE CNWIZARDS_CNDESIGNWIZARD}
 
 // Wizard: CnMessageBoxWizard
 {$DEFINE CNWIZARDS_CNMESSAGEBOXWIZARD}
@@ -154,7 +148,5 @@
 
 // Wizard: CnAICoderWizard
 {$DEFINE CNWIZARDS_CNAICODERWIZARD}
-
-{$ENDIF}
 
 {$I CnWizards_Def.inc}

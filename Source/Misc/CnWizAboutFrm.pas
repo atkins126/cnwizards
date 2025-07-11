@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -114,7 +114,18 @@ procedure TCnWizAboutForm.FormCreate(Sender: TObject);
 begin
   edtVer.Text := Format('%s %s.%s Build %s', [SCnVersion,
     SCnWizardMajorVersion, SCnWizardMinorVersion, SCnWizardBuildDate]);
+
+{$IFDEF FPC}
+{$IFDEF WIN64}
+  Caption := Caption + ' (64)';
+{$ENDIF}
+{$ELSE}
+{$IFDEF WIN64}
+  Caption := Caption + ' (64) - ' + _CnExtractFileName(WizOptions.DllName);
+{$ELSE}
   Caption := Caption + ' - ' + _CnExtractFileName(WizOptions.DllName);
+{$ENDIF}
+{$ENDIF}
 end;
 
 procedure TCnWizAboutForm.lblWebClick(Sender: TObject);
@@ -213,8 +224,13 @@ begin
     DbgFrm := TForm.Create(Application);
     with DbgFrm do
     begin
+{$IFDEF LAZARUS}
+      Width := 550;
+      Height := 400;
+{$ELSE}
       Width := IdeGetScaledPixelsFromOrigin(550);
       Height := IdeGetScaledPixelsFromOrigin(400);
+{$ENDIF}
       Position := poScreenCenter;
       BorderStyle := bsSizeToolWin;
       Caption := 'CnPack IDE Wizard Debug Command Window';

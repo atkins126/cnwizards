@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -35,11 +35,30 @@ unit CnWizEditFiler;
 * 单元作者：CnPack 开发组
 * 备    注：该单元由 GExperts 1.2 Src 的 GX_EditReader 移植而来
 *           其原始内容受 GExperts License 的保护
+*
+*           EditFilerLoadFileFromStream 对 Stream 的编码要求：
+*                        D567            D2005~2007               D2009 或以上
+*           磁盘文件     Ansi            Utf8（可指定成 Ansi）    Utf16
+*           IDE 内存     Ansi            Utf8（可指定成 Ansi）    Utf16
+*
+*           EditFilerSaveFileToStream 得到的 Stream 的编码行为：
+*                        D567            D2005~2007               D2009 或以上
+*           磁盘文件     Ansi            Utf8（可解码成 Ansi）    Utf16
+*           IDE 内存     Ansi            Utf8（可解码成 Ansi）    Utf16
+*
+*           注意控制 Utf8 指定或解码成 Ansi 时，需将 IsAnsi/NeedAnsi 参数设为 True
+*
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2017.04.29 V1.2
-*               修正 Unicode 环境下读文件时未转换为 UTF16 的问题
+* 修改记录：2025.01.31 V1.4
+*               重构 ReadFromStream 及 SaveToStream 的行为，不再依赖 MemoryStream
+*               改动面较大，待完整测试
+*           2025.01.29 V1.3
+*               修改 EditFilerLoadFileFromStream 的行为，使其和 Save 版本保持一致的
+*               Ansi、Ansi/Utf8、Utf16，但文件编码未能适应，Save 版本类似
+*           2017.04.29 V1.2
+*               修正 Unicode 环境下读文件时未转换为 Utf16 的问题
 *           2003.06.17 V1.1
 *               修改文件名，加入写功能（LiuXiao）
 *           2003.03.02 V1.0
@@ -68,12 +87,11 @@ type
     FEditWrite: IOTAEditWriter;
     FModIntf: IOTAModule;
     FNotifierIndex: Integer;
-
-    Buf: Pointer;
+    FBuf: Pointer;
     FBufSize: Integer;
     FFileName: string;
     FMode: TModuleMode;
-    SFile: TStream;
+    FStreamFile: TStream;
     procedure AllocateFileData;
     function GetLineCount: Integer;
     procedure SetBufSize(New: Integer);
@@ -93,24 +111,35 @@ type
     procedure ShowForm;
 {$IFDEF UNICODE}
     procedure SaveToStreamW(Stream: TStream);
-    // 将文件内容存入流中，如果是 TMemoryStream，存成没 BOM 的 UTF16 格式，否则 Utf8 格式，尾部 #0
+    // 将文件内容存入流中，存成没 BOM 的 UTF16 格式，尾部 #0
+    // 文件是磁盘形式时，能够将文件编码转换为 UTF16
+    // 文件是内存形式时，能够将 IDE 内部的 UTF8 编码转换为 UTF16
+
 {$ENDIF}
     procedure SaveToStream(Stream: TStream; CheckUtf8: Boolean = False);
-    // 读出均为无 BOM 的 Ansi 或 Utf8 格式，尾部 #0。
-    // BDS 里，当 CheckUtf8 是 True 并且是 MemoryStream 时，Utf8 会转换成 Ansi，否则保持 Utf8
-    // D5/6/7 中只支持 Ansi
+    // 读出均为无 BOM 的 Ansi 或 Utf8 格式，尾部 #0。D5/6/7 中只支持 Ansi
+    // BDS 里（2005 以上，无论是否 Unicode 编译器），无论文件在 IDE 里打开还是磁盘形式，
+    // CheckUtf8 是 True 时，文件编码或 IDE 内部 Utf8 编码会转换成 Ansi，否则统一为 Utf8。
+
+    // TODO: 以下两函数暂未做 UTF8 适配，不推荐使用
     procedure SaveToStreamFromPos(Stream: TStream);
     procedure SaveToStreamToPos(Stream: TStream);
 
+{$IFDEF UNICODE}
+    procedure ReadFromStreamW(Stream: TStream);
+    // 从 Stream 整个写到文件或缓冲中，覆盖原有内容。要求流中是 UTF16，无 BOM
+    // 文件是磁盘形式时，能够将 UTF16 编码转换为文件对应编码
+    // 文件是内存形式时，能够将 UTF16 编码转换为 IDE 所需的 UTF8 编码
+{$ENDIF}
     // LiuXiao 添加三个读入流函数。
     procedure ReadFromStream(Stream: TStream; CheckUtf8: Boolean = False);
     // 从 Stream 整个写到文件或缓冲中，覆盖原有内容，与 Stream 的 Position 和光标位置无关，
-    // 要求流中是 Ansi 或 Utf8，无 BOM，不要求 Stream 尾 #0
-    // 写文件时不进行转换。写缓冲时如果是 BDS 且 Stream 是 MemoryStream 时，
-    // Stream 内容如果是 Ansi，则  CheckUtf8 得设为 True
-    // 以进行 Ansi 到 Utf8 的转换以适合编辑器缓冲。
+    // 要求流中是 Ansi 或 Utf8，无 BOM，不要求 Stream 尾 #0（准确来讲不能是 #0 否则会出现多余字符）
+    // 写缓冲时如果是 BDS 且 Stream 内容如果是 Ansi，则 CheckUtf8 得设为 True 以进行 Ansi 到 Utf8 的转换以适合编辑器缓冲。
+    // 写文件时是磁盘形式时，目前 D567 只支持 Ansi 照常写，BDS 或以上则支持 Ansi（需 CheckUtf8 为 True） 或 Utf8
+    // 内部会统一转 UTF8 再转 UTF16 再判断文件编码写入。
 
-    // 以下两函数暂未做 UTF8 适配
+    // TODO: 以下两函数暂未做 UTF8 适配，不推荐使用
     procedure ReadFromStreamInPos(Stream: TStream);
     procedure ReadFromStreamInsertToPos(Stream: TStream);
 
@@ -122,16 +151,18 @@ type
     property FileSize: Integer read GetFileSize;
   end;
 
-procedure EditFilerSaveFileToStream(const FileName: string; Stream: TStream; CheckUtf8: Boolean = False);
-{* 封装的用 Filer 读出文件内容至流，流中均为无 BOM 的原始格式（Ansi、Ansi/Utf8、Utf16），尾部 #0。
-  原始格式：BDS 2005 到 2007 里，当 CheckUtf8 是 True 并且是 MemoryStream 时，Utf8 会转换成 Ansi，否则保持 Utf8
-  Unicode 环境下会忽略 CheckUtf8，Stream 中固定为 Utf16，D5/6/7 中只支持 Ansi，都可以直接  PChar(Stream.Memory) 使用}
+procedure EditFilerLoadFileFromStream(const FileName: string; Stream: TStream; IsAnsi: Boolean = False);
+{* 封装的用流写入 Filer 的文件内容，要求流中无 BOM，尾部无需 #0，格式 Ansi、Ansi/Utf8、Utf16
+  如果是 BDS 2005 到 2007 里且 Stream 内容是 Ansi 格式，则可由 IsAnsi 设为 True
+  来进行 Ansi 到 Utf8 的转换以适合编辑器缓冲，如果是文件模式也内部自动适配编码，不会转换。
+  D5/6/7 与 Unicode 环境下会忽略 IsAnsi，Stream 中的内容必须固定为 Ansi 及 Utf16。
+  以上行为无论文件是磁盘还是 IDE 内部打开均如此。}
 
-procedure EditFilerReadStreamToFile(const FileName: string; Stream: TStream; CheckUtf8: Boolean = False);
-{* 封装的用流写入 Filer 的文件内容，要求流中无 BOM，尾部无需 #0。
-  内部写文件时不进行转换。写缓冲时如果是 BDS 且 Stream 是 MemoryStream，
-  则可由 CheckUtf8 设为 True 来进行 Ansi 到 Utf8 的转换以适合编辑器缓冲，D5/6/7 中不会转换，
-  也就是 Ansi、Utf8/Ansi、Utf8}
+procedure EditFilerSaveFileToStream(const FileName: string; Stream: TStream; NeedAnsi: Boolean = False);
+{* 封装的用 Filer 读出文件内容至流，流中均为无 BOM 的原始格式（Ansi、Ansi/Utf8、Utf16），尾部有 #0。
+  在 BDS 2005 到 2007 里，如将 NeedAnsi 设为 True 时，该函数会将 Utf8 会转换成 Ansi，否则保持 Utf8，
+  而 Unicode 环境下会忽略 NeedAnsi 参数，输出的 Stream 中的内容固定为 Utf16。
+  以上行为无论文件是磁盘还是 IDE 内部打开均如此。}
 
 implementation
 
@@ -141,25 +172,29 @@ uses
 {$ENDIF}
   CnWizUtils;
 
-procedure EditFilerSaveFileToStream(const FileName: string; Stream: TStream; CheckUtf8: Boolean);
+procedure EditFilerLoadFileFromStream(const FileName: string; Stream: TStream; IsAnsi: Boolean);
 begin
   with TCnEditFiler.Create(FileName) do
   try
 {$IFDEF UNICODE}
-    SaveToStreamW(Stream);
+    ReadFromStreamW(Stream);
 {$ELSE}
-    SaveToStream(Stream, CheckUtf8);
+    ReadFromStream(Stream, IsAnsi);
 {$ENDIF}
   finally
     Free;
   end;
 end;
 
-procedure EditFilerReadStreamToFile(const FileName: string; Stream: TStream; CheckUtf8: Boolean);
+procedure EditFilerSaveFileToStream(const FileName: string; Stream: TStream; NeedAnsi: Boolean);
 begin
   with TCnEditFiler.Create(FileName) do
   try
-    ReadFromStream(Stream, CheckUtf8);
+{$IFDEF UNICODE}
+    SaveToStreamW(Stream);
+{$ELSE}
+    SaveToStream(Stream, NeedAnsi);
+{$ENDIF}
   finally
     Free;
   end;
@@ -205,14 +240,14 @@ begin
 end;
 
 resourcestring
-  SNoEditReader = 'FEditRead: No Editor Reader Interface (You have found a bug!)';
-  SNoEditWriter = 'FEditWrite: No Editor Writer Interface (You have found a bug!)';
+  SNoEditReader = 'FEditRead: No Editor Reader Interface';
+  SNoEditWriter = 'FEditWrite: No Editor Writer Interface';
 
 constructor TCnEditFiler.Create(const FileName: string);
 begin
   inherited Create;
 
-  FBufSize := 32760; // Large buffers are faster, but too large causes crashes
+  FBufSize := 32760; // D7 或以下版本，这个数值设大了会导致读出错误，别改
   FNotifierIndex := InvalidNotifierIndex;
   FMode := mmModule;
   if FileName <> '' then
@@ -232,7 +267,7 @@ end;
 // is held to an entity.
 procedure TCnEditFiler.FreeFileData;
 begin
-  FreeAndNil(SFile);
+  FreeAndNil(FStreamFile);
   FEditRead := nil;
   FEditWrite := nil;
   FEditIntf := nil;
@@ -247,9 +282,9 @@ destructor TCnEditFiler.Destroy;
 begin
   FreeFileData;
 
-  if Buf <> nil then
-    FreeMem(Buf);
-  Buf := nil;
+  if FBuf <> nil then
+    FreeMem(FBuf);
+  FBuf := nil;
   FEditRead := nil;
   FEditWrite := nil;
 
@@ -265,9 +300,9 @@ procedure TCnEditFiler.AllocateFileData;
 
     FMode := mmFile;
     try
-      SFile := TFileStream.Create(FFileName, fmOpenReadWrite or fmShareDenyWrite);
+      FStreamFile := TFileStream.Create(FFileName, fmOpenReadWrite or fmShareDenyWrite);
     except
-      SFile := TFileStream.Create(FFileName, fmOpenRead);
+      FStreamFile := TFileStream.Create(FFileName, fmOpenRead);
     end;
   end;
 
@@ -374,10 +409,10 @@ end;
 
 procedure TCnEditFiler.SetBufSize(New: Integer);
 begin
-  if (Buf = nil) and (New <> FBufSize) then
+  if (FBuf = nil) and (New <> FBufSize) then
     FBufSize := New;
   // 32K is the max we can read from an edit reader at once
-  Assert(FBufSize <= 1024 * 32);
+  // Assert(FBufSize <= 1024 * 32);
 end;
 
 procedure TCnEditFiler.ShowSource;
@@ -473,20 +508,27 @@ begin
   begin
     // We do not need to allocate file data
     // in order to set the stream position
-    if SFile <> nil then
-      SFile.Position := 0;
+    if FStreamFile <> nil then
+      FStreamFile.Position := 0;
   end;
 end;
 
 procedure TCnEditFiler.SaveToStream(Stream: TStream; CheckUtf8: Boolean);
+const
+  TheEnd: AnsiChar = AnsiChar(#0); // Leave typed constant as is - needed for streaming code
 var
   Pos: Integer;
   Size: Integer;
 {$IFDEF IDE_WIDECONTROL}
-  Text: AnsiString;
+  Text, Utf8Text: AnsiString;
+{$IFDEF UNICODE}
+  List: TStringList;
+  Utf16Text: string;
+{$ELSE}
+  List: TCnWideStringList;
+  Utf16Text: WideString;
 {$ENDIF}
-const
-  TheEnd: AnsiChar = AnsiChar(#0); // Leave typed constant as is - needed for streaming code
+{$ENDIF}
 begin
   Assert(Stream <> nil);
 
@@ -496,44 +538,94 @@ begin
 
   if Mode = mmFile then
   begin
-    Assert(SFile <> nil);
+    Assert(FStreamFile <> nil);
 
-    SFile.Position := 0;
-    Stream.CopyFrom(SFile, SFile.Size);
+    // 注意此处内容的编码是文件编码
+{$IFDEF IDE_STRING_ANSI_UTF8}
+    // D2005~2007 下，用 TCnWideStringList 检测文件内容编码并加载为 UTF16
+    List := TCnWideStringList.Create;
+    try
+      FStreamFile.Position := 0;
+      List.LoadFromStream(FStreamFile);
+      Utf16Text := List.Text;
+
+      if CheckUtf8 then
+        Text := AnsiString(Utf16Text)                // 再根据参数将 Utf16 转为 Utf8
+      else
+        Text := CnUtf8EncodeWideString(Utf16Text);   // 或直接转为 AnsiString
+
+      Stream.Write(Text[1], Length(Text) * SizeOf(AnsiChar));
+      Stream.Write(TheEnd, 1);
+    finally
+      List.Free;
+    end;
+{$ELSE}
+  {$IFDEF UNICODE}
+    // D2009 或以上，用系统自带 TStringList 检测文件内容编码并加载为 UTF16
+    List := TStringList.Create;
+    try
+      FStreamFile.Position := 0;
+      List.LoadFromStream(FStreamFile);
+      Utf16Text := List.Text;
+
+      if CheckUtf8 then
+        Text := AnsiString(Utf16Text)                // 再根据参数将 Utf16 转为 Utf8
+      else
+        Text := CnUtf8EncodeWideString(Utf16Text);   // 或直接转为 AnsiString
+
+      Stream.Write(Text[1], Length(Text) * SizeOf(AnsiChar));
+      Stream.Write(TheEnd, 1);
+    finally
+      List.Free;
+    end
+  {$ELSE}
+    // D567下只支持 Ansi，无需额外处理
+    FStreamFile.Position := 0;
+    Stream.CopyFrom(FStreamFile, FStreamFile.Size);
     Stream.Write(TheEnd, 1);
+  {$ENDIF}
+{$ENDIF}
   end
   else
   begin
     Pos := 0;
-    if Buf = nil then
-      GetMem(Buf, BufSize + 1);
+    if FBuf = nil then
+      GetMem(FBuf, BufSize + 1);
     if FEditRead = nil then
       raise Exception.Create(SNoEditReader);
     // Delphi 5+ sometimes returns -1 here, for an unknown reason
-    Size := FEditRead.GetText(Pos, Buf, BufSize);
+    Size := FEditRead.GetText(Pos, FBuf, BufSize);
     if Size = -1 then
     begin
       FreeFileData;
       AllocateFileData;
-      Size := FEditRead.GetText(Pos, Buf, BufSize);
+      Size := FEditRead.GetText(Pos, FBuf, BufSize);
     end;
     if Size > 0 then
     begin
       Pos := Pos + Size;
       while Size = BufSize do
       begin
-        Stream.Write(Buf^, Size);
-        Size := FEditRead.GetText(Pos, Buf, BufSize);
+        Stream.Write(FBuf^, Size);
+        Size := FEditRead.GetText(Pos, FBuf, BufSize);
         Pos := Pos + Size;
       end;
-      Stream.Write(Buf^, Size);
+      Stream.Write(FBuf^, Size);
     end;
     Stream.Write(TheEnd, 1);
 
 {$IFDEF IDE_WIDECONTROL}
-    if CheckUtf8 and (Stream is TMemoryStream) then
+    if CheckUtf8 then
     begin
-      Text := CnUtf8ToAnsi(PAnsiChar((Stream as TMemoryStream).Memory));
+      // 缓冲区里读出的是 Utf8 格式的流，有 #0，读成字符串后因为尾部有 #0 了，所以少读一个
+      SetLength(Utf8Text, Stream.Size - 1);
+      Stream.Position := 0;
+      Stream.Read(Utf8Text[1], Stream.Size - 1);
+
+      // 转成 Ansi
+      Text := CnUtf8ToAnsi(PAnsiChar(Utf8Text));
+
+      // 再写回 Stream，加个 #0
       Stream.Size := Length(Text) + 1;
       Stream.Position := 0;
       Stream.Write(PAnsiChar(Text)^, Length(Text) + 1);
@@ -545,15 +637,14 @@ end;
 {$IFDEF UNICODE}
 
 procedure TCnEditFiler.SaveToStreamW(Stream: TStream);
+const
+  TheEnd: AnsiChar = AnsiChar(#0); // Leave typed constant as is - needed for streaming code
 var
   Pos: Integer;
   Size: Integer;
+  Utf8Text: AnsiString;
   Text: string;
-{$IFDEF UNICODE}
   List: TStringList;
-{$ENDIF}
-const
-  TheEnd: AnsiChar = AnsiChar(#0); // Leave typed constant as is - needed for streaming code
 begin
   Assert(Stream <> nil);
 
@@ -563,13 +654,12 @@ begin
 
   if Mode = mmFile then
   begin
-    Assert(SFile <> nil);
+    Assert(FStreamFile <> nil);
 
-    {$IFDEF UNICODE}
     // Unicode 环境下，要根据文件的 BOM 转换成 UTF16，不能直接复制文件流
     List := TStringList.Create;
     try
-      List.LoadFromStream(SFile);
+      List.LoadFromStream(FStreamFile); // 内部会根据文件 BOM 记录其编码，然后转换成 UTF16
       Text := List.Text;
       Stream.Write(Text[1], Length(Text) * SizeOf(Char));
       Stream.Write(TheEnd, 1);  // Write UTF16 #$0000
@@ -577,48 +667,45 @@ begin
     finally
       List.Free;
     end;
-    {$ELSE}
-    SFile.Position := 0;
-    Stream.CopyFrom(SFile, SFile.Size);
-    Stream.Write(TheEnd, 1);
-    {$ENDIF}
   end
   else
   begin
     Pos := 0;
-    if Buf = nil then
-      GetMem(Buf, BufSize + 1);
+    if FBuf = nil then
+      GetMem(FBuf, BufSize + 1);
     if FEditRead = nil then
       raise Exception.Create(SNoEditReader);
+
     // Delphi 5+ sometimes returns -1 here, for an unknown reason
-    Size := FEditRead.GetText(Pos, Buf, BufSize);
+    Size := FEditRead.GetText(Pos, FBuf, BufSize);
     if Size = -1 then
     begin
       FreeFileData;
       AllocateFileData;
-      Size := FEditRead.GetText(Pos, Buf, BufSize);
+      Size := FEditRead.GetText(Pos, FBuf, BufSize);
     end;
     if Size > 0 then
     begin
       Pos := Pos + Size;
       while Size = BufSize do
       begin
-        Stream.Write(Buf^, Size);
-        Size := FEditRead.GetText(Pos, Buf, BufSize);
+        Stream.Write(FBuf^, Size);
+        Size := FEditRead.GetText(Pos, FBuf, BufSize);
         Pos := Pos + Size;
       end;
-      Stream.Write(Buf^, Size);
+      Stream.Write(FBuf^, Size);
     end;
-    Stream.Write(TheEnd, 1);  // Write UTF16 #$0000
-    Stream.Write(TheEnd, 1);
 
-    if Stream is TMemoryStream then
-    begin
-      Text := Utf8Decode(PAnsiChar((Stream as TMemoryStream).Memory));
-      Stream.Size := (Length(Text) + 1) * SizeOf(Char);
-      Stream.Position := 0;
-      Stream.Write(PChar(Text)^, (Length(Text) + 1) * SizeOf(Char));
-    end;
+    // 缓冲区里读出的是 Utf8 格式的流，无 #0，读成字符串后尾部有 #0 了，转 Utf16 后尾部也有宽 #0 了
+    SetLength(Utf8Text, Stream.Size);
+    Stream.Position := 0;
+    Stream.Read(Utf8Text[1], Stream.Size);
+    Text := CnUtf8DecodeToWideString(Utf8Text);
+
+    // 写 Stream 时多写一个宽字符，写进宽 #0 去
+    Stream.Size := (Length(Text) + 1) * SizeOf(Char);
+    Stream.Position := 0;
+    Stream.Write(PChar(Text)^, (Length(Text) + 1) * SizeOf(Char));
   end;
 end;
 
@@ -657,28 +744,30 @@ begin
 
   if Mode = mmFile then
   begin
-    Assert(SFile <> nil);
-    SFile.Position := 0;
-    Stream.CopyFrom(SFile, SFile.Size);
+    // TODO: 文件编码的 UTF8 处理
+    Assert(FStreamFile <> nil);
+    FStreamFile.Position := 0;
+    Stream.CopyFrom(FStreamFile, FStreamFile.Size);
   end
   else
   begin
     Pos := GetCurrentBufferPos;
-    if Buf = nil then
-      GetMem(Buf, BufSize + 1);
+    if FBuf = nil then
+      GetMem(FBuf, BufSize + 1);
     if FEditRead = nil then
       raise Exception.Create(SNoEditReader);
-    Size := FEditRead.GetText(Pos, Buf, BufSize);
+
+    Size := FEditRead.GetText(Pos, FBuf, BufSize);
     if Size > 0 then
     begin
       Pos := Pos + Size;
       while Size = BufSize do
       begin
-        Stream.Write(Buf^, Size);
-        Size := FEditRead.GetText(Pos, Buf, BufSize);
+        Stream.Write(FBuf^, Size);
+        Size := FEditRead.GetText(Pos, FBuf, BufSize);
         Pos := Pos + Size;
       end;
-      Stream.Write(Buf^, Size);
+      Stream.Write(FBuf^, Size);
     end;
   end;
 end;
@@ -696,32 +785,33 @@ begin
 
   if Mode = mmFile then
   begin
-    Assert(SFile <> nil);
-    SFile.Position := 0;
-    Stream.CopyFrom(SFile, SFile.Size);
+    // TODO: 文件编码的 UTF8 处理
+    Assert(FStreamFile <> nil);
+    FStreamFile.Position := 0;
+    Stream.CopyFrom(FStreamFile, FStreamFile.Size);
   end
   else
   begin
     AfterPos := GetCurrentBufferPos;
     Pos := 0;
-    if Buf = nil then
-      GetMem(Buf, BufSize + 1);
+    if FBuf = nil then
+      GetMem(FBuf, BufSize + 1);
     if FEditRead = nil then
       raise Exception.Create(SNoEditReader);
 
     ToReadSize := Min(BufSize, AfterPos - Pos);
-    Size := FEditRead.GetText(Pos, Buf, ToReadSize);
+    Size := FEditRead.GetText(Pos, FBuf, ToReadSize);
     if Size > 0 then
     begin
       Pos := Pos + Size;
       while Size = BufSize do
       begin
-        Stream.Write(Buf^, Size);
+        Stream.Write(FBuf^, Size);
         ToReadSize := Min(BufSize, AfterPos - Pos);
-        Size := FEditRead.GetText(Pos, Buf, ToReadSize);
+        Size := FEditRead.GetText(Pos, FBuf, ToReadSize);
         Pos := Pos + Size;
       end;
-      Stream.Write(Buf^, Size);
+      Stream.Write(FBuf^, Size);
     end;
   end;
   NullChar := #0;
@@ -736,13 +826,13 @@ begin
   FModuleNotifier := nil;
 end;
 
-// 从 Stream 整个写到文件或缓冲中，覆盖原有内容，与 Stream 的 Position 和光标位置无关。
-procedure TCnEditFiler.ReadFromStream(Stream: TStream; CheckUtf8: Boolean);
+{$IFDEF UNICODE}
+
+procedure TCnEditFiler.ReadFromStreamW(Stream: TStream);
 var
-  Size: Integer;
-{$IFDEF IDE_WIDECONTROL}
-  Text: AnsiString;
-{$ENDIF}
+  Utf8Text: AnsiString;
+  List: TStringList;
+  Utf16Text: string;
 begin
   Assert(Stream <> nil);
 
@@ -752,11 +842,128 @@ begin
 
   if Mode = mmFile then
   begin
-    Assert(SFile <> nil);
+    Assert(FStreamFile <> nil);
 
+    // Unicode 环境下，要根据文件的 BOM 转换 UTF16 的 Stream 内容，不能直接复制文件流
+    List := TStringList.Create;
+    try
+      FStreamFile.Position := 0;
+      List.LoadFromStream(FStreamFile); // List 内容是 Utf16，并记录了文件编码
+
+      // 把 Stream 的 Utf16 内容塞给 Utf16Text 再给 List
+      SetLength(Utf16Text, Stream.Size div 2);
+      Stream.Position := 0;
+      Stream.Read(Utf16Text[1], Length(Utf16Text) * SizeOf(WideChar));
+      List.Text := Utf16Text;
+
+      FStreamFile.Size := 0;
+      List.SaveToStream(FStreamFile); // List 保存时根据之前记录的文件编码转换后保存
+    finally
+      List.Free;
+    end;
+  end
+  else
+  begin
+    if FEditWrite = nil then
+      raise Exception.Create(SNoEditWriter);
+
+    FEditWrite.DeleteTo(MaxInt);
+
+    // 外部传入的 Utf16 格式尾部无宽 #0 内容，在这里要加上宽 #0 转成 Utf8
+    SetLength(Utf16Text, Stream.Size div 2);
     Stream.Position := 0;
-    SFile.Size := 0;
-    SFile.CopyFrom(Stream, Stream.Size);
+    Stream.Read(Utf16Text[1], Length(Utf16Text) * SizeOf(WideChar));
+    Utf8Text := CnUtf8EncodeWideString(Utf16Text);
+
+    // Utf8 尾部有 #0，用 FEditWrite.Insert 一次性写入，正好有 PAnsiChar 且 #0 结尾
+    if Length(Utf8Text) > 0 then
+      FEditWrite.Insert(PAnsiChar(Utf8Text));
+  end;
+end;
+
+{$ENDIF}
+
+// 从 Stream 整个写到文件或缓冲中，覆盖原有内容，与 Stream 的 Position 和光标位置无关。
+procedure TCnEditFiler.ReadFromStream(Stream: TStream; CheckUtf8: Boolean);
+var
+{$IFDEF IDE_WIDECONTROL}
+  AnsiText: AnsiString;
+  Utf8Text: AnsiString;
+  Utf16Text: WideString;
+{$IFDEF UNICODE}
+  List: TStringList;
+{$ELSE}
+  List: TCnWideStringList;
+{$ENDIF}
+{$ELSE}
+  Size: Integer;
+{$ENDIF}
+begin
+  Assert(Stream <> nil);
+
+  Reset;
+
+  AllocateFileData;
+
+{$IFDEF IDE_WIDECONTROL}
+  // 改用 Read/Write 搬内容到 AnsiText 或 Utf8Text 中，脱离 TMemoryStream 限制
+  Stream.Position := 0;
+  if CheckUtf8 then
+  begin
+    // Stream 内容是 Ansi，一次全部读入后转成 Utf8
+    SetLength(AnsiText, Stream.Size);
+    Stream.Read(AnsiText[1], Stream.Size);
+    Utf8Text := CnAnsiToUtf8(AnsiText);
+  end
+  else
+  begin
+    // Stream 内容是 Utf8，一次全部读入
+    SetLength(Utf8Text, Stream.Size);
+    Stream.Read(Utf8Text[1], Stream.Size);
+  end;
+{$ENDIF}
+
+  if Mode = mmFile then
+  begin
+    Assert(FStreamFile <> nil);
+
+{$IFDEF IDE_WIDECONTROL}
+    // 此时 Utf8Text 里是 Utf8 内容且末尾有 #0，要转 UTF16 以放到 StringList 里
+    Utf16Text := CnUtf8DecodeToWideString(Utf8Text);
+  {$IFDEF UNICODE}
+    // Unicode 环境下，要给 StringList 赋值，让其内部根据文件的 BOM，转换 UTF16 的内容写入文件
+    List := TStringList.Create;
+    try
+      FStreamFile.Position := 0;
+      List.LoadFromStream(FStreamFile); // List 内容是 Utf16，并记录了文件编码
+
+      List.Text := Utf16Text;
+
+      FStreamFile.Size := 0;
+      List.SaveToStream(FStreamFile); // List 保存时根据之前记录的文件编码转换后保存
+    finally
+      List.Free;
+    end;
+  {$ELSE}
+    // D2005~2007 下，要给 CnWideStringList 赋值，让其根据文件的 BOM，转换 UTF16 的内容写入文件
+    List := TCnWideStringList.Create;
+    try
+      FStreamFile.Position := 0;
+      List.LoadFromStream(FStreamFile); // List 内容是 Utf16，并记录了文件编码
+
+      List.Text := Utf16Text;
+
+      FStreamFile.Size := 0;
+      List.SaveToStream(FStreamFile, List.LoadFormat); // List 保存时根据之前记录的文件编码转换后保存
+    finally
+      List.Free;
+    end;
+  {$ENDIF}
+{$ELSE}
+    Stream.Position := 0;
+    FStreamFile.Size := 0;
+    FStreamFile.CopyFrom(Stream, Stream.Size);
+{$ENDIF}
   end
   else
   begin
@@ -766,27 +973,23 @@ begin
     FEditWrite.DeleteTo(MaxInt);
 
 {$IFDEF IDE_WIDECONTROL}
-    if CheckUtf8 and (Stream is TMemoryStream) then
-    begin
-      Text := CnAnsiToUtf8(PAnsiChar((Stream as TMemoryStream).Memory));
-      Stream.Size := Length(Text) + 1;
-      Stream.Position := 0;
-      Stream.Write(PAnsiChar(Text)^, Length(Text) + 1);
-    end;
-{$ENDIF}
-
-    if Buf = nil then
-      GetMem(Buf, BufSize + 1);
+    // 此时 Utf8Text 里是 Utf8 内容且末尾有 #0，不分块，直接写入
+    FEditWrite.Insert(PAnsiChar(Utf8Text));
+{$ELSE}
+    // D567 下照常分块写入
+    if FBuf = nil then
+      GetMem(FBuf, BufSize + 1);
 
     if Stream.Size > 0 then
     begin
       Stream.Position := 0;
       repeat
-        FillChar(Buf^, BufSize + 1, 0);
-        Size := Stream.Read(Buf^, BufSize);
-        FEditWrite.Insert(Buf);
+        FillChar(FBuf^, BufSize + 1, 0);
+        Size := Stream.Read(FBuf^, BufSize);
+        FEditWrite.Insert(FBuf);
       until Size <> BufSize;
     end;
+{$ENDIF}
   end;
 end;
 
@@ -804,11 +1007,11 @@ begin
 
   if Mode = mmFile then
   begin
-    Assert(SFile <> nil);
+    Assert(FStreamFile <> nil);
 
     Stream.Position := 0;
-    SFile.Size := 0;
-    SFile.CopyFrom(Stream, Stream.Size);
+    FStreamFile.Size := 0;
+    FStreamFile.CopyFrom(Stream, Stream.Size);
   end
   else
   begin
@@ -819,16 +1022,16 @@ begin
     FEditWrite.CopyTo(CurrPos);
 
     FEditWrite.DeleteTo(CurrPos + Stream.Size);
-    if Buf = nil then
-      GetMem(Buf, BufSize + 1);
+    if FBuf = nil then
+      GetMem(FBuf, BufSize + 1);
 
     if Stream.Size > 0 then
     begin
       Stream.Position := 0;
       repeat
-        FillChar(Buf^, BufSize + 1, 0);
-        Size := Stream.Read(Buf^, BufSize);
-        FEditWrite.Insert(Buf);
+        FillChar(FBuf^, BufSize + 1, 0);
+        Size := Stream.Read(FBuf^, BufSize);
+        FEditWrite.Insert(FBuf);
       until Size <> BufSize;
     end;
   end;
@@ -847,11 +1050,11 @@ begin
 
   if Mode = mmFile then
   begin
-    Assert(SFile <> nil);
+    Assert(FStreamFile <> nil);
 
     Stream.Position := 0;
-    SFile.Size := 0;
-    SFile.CopyFrom(Stream, Stream.Size);
+    FStreamFile.Size := 0;
+    FStreamFile.CopyFrom(Stream, Stream.Size);
   end
   else
   begin
@@ -859,16 +1062,16 @@ begin
       raise Exception.Create(SNoEditWriter);
 
     FEditWrite.CopyTo(CnOtaGetCurrLinearPos);
-    if Buf = nil then
-      GetMem(Buf, BufSize + 1);
+    if FBuf = nil then
+      GetMem(FBuf, BufSize + 1);
 
     if Stream.Size > 0 then
     begin
       Stream.Position := 0;
       repeat
-        FillChar(Buf^, BufSize + 1, 0);
-        Size := Stream.Read(Buf^, BufSize);
-        FEditWrite.Insert(Buf);
+        FillChar(FBuf^, BufSize + 1, 0);
+        Size := Stream.Read(FBuf^, BufSize);
+        FEditWrite.Insert(FBuf);
       until Size <> BufSize;
     end;
   end;
@@ -883,24 +1086,24 @@ begin
 
   if Mode = mmFile then
   begin
-    Assert(SFile <> nil);
-    Result := SFile.Size;
+    Assert(FStreamFile <> nil);
+    Result := FStreamFile.Size;
   end
   else
   begin
     Result := 0;
-    if Buf = nil then
-      GetMem(Buf, BufSize + 1);
+    if FBuf = nil then
+      GetMem(FBuf, BufSize + 1);
 
     if FEditRead = nil then
       raise Exception.Create(SNoEditReader);
     // Delphi 5+ sometimes returns -1 here, for an unknown reason
-    Size := FEditRead.GetText(Result, Buf, BufSize);
+    Size := FEditRead.GetText(Result, FBuf, BufSize);
     if Size = -1 then
     begin
       FreeFileData;
       AllocateFileData;
-      Size := FEditRead.GetText(Result, Buf, BufSize);
+      Size := FEditRead.GetText(Result, FBuf, BufSize);
     end;
 
     if Size > 0 then
@@ -908,7 +1111,7 @@ begin
       Inc(Result, Size);
       while Size = BufSize do
       begin
-        Size := FEditRead.GetText(Result, Buf, BufSize);
+        Size := FEditRead.GetText(Result, FBuf, BufSize);
         Inc(Result, Size);
       end;
     end;
@@ -916,6 +1119,4 @@ begin
 end;
 
 end.
-
-
 

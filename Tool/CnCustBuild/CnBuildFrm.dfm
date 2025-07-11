@@ -215,7 +215,7 @@ object CnCustBuildForm: TCnCustBuildForm
     Left = 448
     Top = 268
     Width = 89
-    Height = 12
+    Height = 13
     AutoSize = False
   end
   object btnSelAll: TSpeedButton
@@ -557,6 +557,15 @@ object CnCustBuildForm: TCnCustBuildForm
     TabOrder = 5
     OnClick = btnHelpClick
     NumGlyphs = 2
+  end
+  object chkDisableFMX: TCheckBox
+    Left = 136
+    Top = 88
+    Width = 153
+    Height = 17
+    Caption = 'Disable FMX Features'
+    TabOrder = 6
+    Visible = False
   end
   object ilWizImages: TImageList
     Height = 32

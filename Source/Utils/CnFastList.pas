@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -26,9 +26,11 @@ unit CnFastList;
 * 单元作者：周劲羽 zjy@cnpack.org
 * 备    注：该单元定义了 快速列表类 TCnFastList
 * 开发平台：PWinXP SP3 + Delphi 7
-* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
+* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6 + Lazarus 4.0
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2017.01.11 V1.2
+* 修改记录：2025.06.24 V1.3
+*               Lazarus 下编译通过
+*           2017.01.11 V1.2
 *               增加作为队列和栈使用的 Push/Pop/Peek 方法
 *           2015.06.29 V1.1
 *               去除几处边界检查操作以增加性能，略危险
@@ -42,9 +44,11 @@ interface
 {$I CnWizards.inc}
 
 uses
-  Classes, {$IFDEF COMPILER6_UP}RTLConsts{$ELSE}Consts{$ENDIF}, SysUtils;
+  Classes, {$IFDEF COMPILER6_UP} RTLConsts {$ELSE}
+  {$IFDEF LAZARUS} RTLConsts {$ELSE} Consts {$ENDIF} {$ENDIF}, SysUtils;
 
 {$IFDEF BDS2012_UP}
+
 const
   MaxListSize = Maxint div 16;
 
@@ -82,6 +86,8 @@ type
     procedure Insert(Index: Integer; Item: Pointer);
     function Last: Pointer;
 
+    procedure Sort(Compare: TListSortCompare);
+
     procedure StackPush(Item: Pointer);
     function StackPop: Pointer;
     function StackPeek: Pointer;
@@ -109,6 +115,36 @@ type
   end;
 
 implementation
+
+procedure QuickSort(SortList: PCnPointerList; L, R: Integer;
+  SCompare: TListSortCompare);
+var
+  I, J: Integer;
+  P, T: Pointer;
+begin
+  repeat
+    I := L;
+    J := R;
+    P := SortList^[(L + R) shr 1];
+    repeat
+      while SCompare(SortList^[I], P) < 0 do
+        Inc(I);
+      while SCompare(SortList^[J], P) > 0 do
+        Dec(J);
+      if I <= J then
+      begin
+        T := SortList^[I];
+        SortList^[I] := SortList^[J];
+        SortList^[J] := T;
+        Inc(I);
+        Dec(J);
+      end;
+    until I > J;
+    if L < J then
+      QuickSort(SortList, L, J, SCompare);
+    L := I;
+  until I >= R;
+end;
 
 { TCnBaseList }
 
@@ -311,6 +347,12 @@ begin
       (FCount - Index) * SizeOf(Pointer));
   FList^[Index] := Item;
   Inc(FCount);
+end;
+
+procedure TCnBaseList.Sort(Compare: TListSortCompare);
+begin
+  if (FList <> nil) and (Count > 0) then
+    QuickSort(FList, 0, Count - 1, Compare);
 end;
 
 { TCnList }

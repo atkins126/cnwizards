@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -43,19 +43,21 @@ uses
   SysUtils, Classes, CnNative, CnThreadPool;
 
 type
-  TCnAIRequestType = (artRaw, artExplainCode, artReviewCode);
+  TCnAIRequestType = (artRaw, artModelList, artExplainCode, artReviewCode, artGenTestCase,
+    artContinueCoding);
   {* 请求类型}
 
   TCnAINetRequestDataObject = class;
 
-  TCnAIAnswerCallback = procedure(Success: Boolean; SendId: Integer;
-    const Answer: string; ErrorCode: Cardinal; Tag: TObject) of object;
+  TCnAIAnswerCallback = procedure(StreamMode, Partly, Success, IsStreamEnd: Boolean;
+    SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject) of object;
   {* 调用 AI 后返回的结果回调事件，Success 表示成功与否，如果成功，Answer 表示回复的内容
-    Tag 是发送请求时传入的 Tag}
+    Partly 为 True 表示可能是多次返回中的一次，Tag 是发送请求时传入的 Tag}
 
-  TCnAINetDataResponse = procedure(Success: Boolean; Thread: TCnPoolingThread;
-    DataObj: TCnAINetRequestDataObject; Data: TBytes) of object;
-  {* 网络请求的回调，告诉成功与否，成功则 Data 中是数据}
+  TCnAINetDataResponse = procedure(Success, Partly: Boolean; Thread: TCnPoolingThread;
+    DataObj: TCnAINetRequestDataObject; Data: TBytes; ErrCode: Cardinal) of object;
+  {* 网络请求的回调，告诉成功与否，成功则 Data 中是数据
+    Partly 为 True 表示可能是多次返回中的一次}
 
   TCnAINetRequestThread = class(TCnPoolingThread)
   {* 线程池中的线程实例}
@@ -74,12 +76,17 @@ type
     FURL: string;
     FSendId: Integer;
     FData: TBytes;
+    FStreamMode: Boolean;
+    FTag: TObject;
     FOnResponse: TCnAINetDataResponse;
     FRequestType: TCnAIRequestType;
     FOnAnswer: TCnAIAnswerCallback;
-    FTag: TObject;
+    FApiKey: string;
   public
     function Clone: TCnTaskDataObject; override;
+
+    property StreamMode: Boolean read FStreamMode write FStreamMode;
+    {* 请求是否是 Stream 模式，由服务器多次下发数据而不是一次性全回来}
 
     property RequestType: TCnAIRequestType read FRequestType write FRequestType;
     {* 请求类型}
@@ -90,6 +97,9 @@ type
     {* 请求 ID 备用}
     property URL: string read FURL write FURL;
     {* 请求地址}
+    property ApiKey: string read FApiKey write FApiKey;
+    {* API Key}
+
     property Tag: TObject read FTag write FTag;
     {* 备用的一个 Object 引用，供发送数据与收到回应时传递关联}
 
@@ -117,6 +127,8 @@ begin
   TCnAINetRequestDataObject(Result).URL := FURL;
   TCnAINetRequestDataObject(Result).SendId := FSendId;
   TCnAINetRequestDataObject(Result).RequestType := FRequestType;
+  TCnAINetRequestDataObject(Result).StreamMode := FStreamMode;
+  TCnAINetRequestDataObject(Result).ApiKey := FApiKey;
   TCnAINetRequestDataObject(Result).OnResponse := FOnResponse;
   TCnAINetRequestDataObject(Result).OnAnswer := FOnAnswer;
 end;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -45,7 +45,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, mPasLex, CnPasWideLex, mwBCBTokenList,
-  Contnrs, CnFastList, CnPasCodeParser, CnContainers, CnIDEStrings;
+  Contnrs, CnFastList, CnPasCodeParser, CnContainers;
 
 type
   TCnWidePasToken = class(TPersistent)
@@ -178,19 +178,23 @@ type
     procedure Clear;
 
     procedure ParseSource(ASource: PWideChar; AIsDpr, AKeyOnly: Boolean);
-    {* 对代码进行常规解析，不生成关键字与标识符之外的内容}
-    function FindCurrentDeclaration(LineNumber, WideCharIndex: Integer): CnWideString;
+    {* 对代码进行常规解析，AKeyOnly 为 True 表示只生成关键字内容，否则还加上标识符及运算符、括号等内容}
+
+    function FindCurrentDeclaration(LineNumber, WideCharIndex: Integer;
+      out Visibility: TTokenKind): CnWideString;
     {* 查找指定光标位置所在的声明，LineNumber 1 开始，WideCharIndex 0 开始，类似于 CharPos，
        但要求是 WideChar 偏移。D2005~2007 下，CursorPos.Col 经 ConverPos 后得到的是
        Utf8 的 CharPos 偏移，2009 或以上 ConverPos 得到混乱的 Ansi 偏移，都不能直接用。
        前者需要转成 WideChar 偏移，后者只能把 CursorPos.Col - 1 当作 Ansi 的 CharIndex，
-       再转成 WideChar 的偏移}
-    procedure FindCurrentBlock(LineNumber, WideCharIndex: Integer);
+       再转成 WideChar 的偏移。
+       Visibility 参数返回为光标所在是 private/protected/public/published 等}
+    function FindCurrentBlock(LineNumber, WideCharIndex: Integer): TTokenKind;
     {* 查找指定光标位置所在的块，LineNumber 1 开始，WideCharIndex 0 开始，类似于 CharPos，
        但要求是 WideChar 偏移。D2005~2007 下，CursorPos.Col 经 ConverPos 后得到的是
        Utf8 的 CharPos 偏移，2009 或以上 ConverPos 得到混乱的 Ansi 偏移，都不能直接用。
        前者需要转成 WideChar 偏移，后者只能把 CursorPos.Col - 1 当作 Ansi 的 CharIndex，
-       再转成 WideChar 的偏移}
+       再转成 WideChar 的偏移。
+       返回值为当前块上部最近的是 private/protected/public/published 还是 none}
 
     procedure ParseString(ASource: PWideChar);
     {* 对代码进行针对字符串的解析，只生成字符串内容}
@@ -237,9 +241,12 @@ procedure ParsePasCodePosInfoW(const Source: CnWideString; Line, Col: Integer;
 
 procedure ParseUnitUsesW(const Source: CnWideString; UsesList: TStrings;
   SupportUnicodeIdent: Boolean = False);
-{* 分析源代码中引用的单元，Soure 是 UTF16 格式的文件内容，暂未使用}
+{* 分析源代码中引用的单元，Soure 是 UTF16 格式的文件内容，使用较少}
 
 implementation
+
+uses
+  CnIDEStrings;
 
 type
   TCnProcObj = class
@@ -613,11 +620,12 @@ begin
         ((not (PrevTokenID in [tkAmpersand, tkAddressOp])) and (Lex.TokenID in
         [tkProcedure, tkFunction, tkConstructor, tkDestructor, tkOperator,
         tkInitialization, tkFinalization,
-        tkBegin, tkAsm,
+        tkBegin, tkAsm, tkVar, tkConst,
         tkCase, tkTry, tkRepeat, tkIf, tkFor, tkWith, tkOn, tkWhile,
         tkRecord, tkObject, tkOf, tkEqual,
         tkClass, tkInterface, tkDispinterface,
         tkExcept, tkFinally, tkElse,
+        tkPrivate, tkProtected, tkPublic, tkPublished,
         tkEnd, tkUntil, tkThen, tkDo])) then
       begin
         Token := NewToken(Lex, ASource, CurrBlock, CurrMethod, CurrBracketLevel);
@@ -910,6 +918,17 @@ begin
           tkExcept, tkFinally:
             begin
               if (CurrBlock = nil) or (CurrBlock.TokenID <> tkTry) then
+                DiscardToken
+              else if CurrMidBlock = nil then
+              begin
+                CurrMidBlock := Token;
+              end
+              else
+                DiscardToken;
+            end;
+          tkPrivate, tkProtected, tkPublic, tkPublished:
+            begin
+              if (CurrBlock = nil) or not (CurrBlock.TokenID in [tkClass, tkRecord, tkInterface, tkDispinterface]) then
                 DiscardToken
               else if CurrMidBlock = nil then
               begin
@@ -1219,11 +1238,12 @@ begin
   end;
 end;
 
-procedure TCnWidePasStructParser.FindCurrentBlock(LineNumber, WideCharIndex:
-  Integer);
+function TCnWidePasStructParser.FindCurrentBlock(LineNumber, WideCharIndex:
+  Integer): TTokenKind;
 var
   Token: TCnWidePasToken;
   CurrIndex: Integer;
+  Res: TTokenKind;
 
   procedure _BackwardFindDeclarePos;
   var
@@ -1237,6 +1257,12 @@ var
     for I := CurrIndex - 1 downto 0 do
     begin
       Token := Tokens[I];
+
+      // 回溯过程中碰到第一个范围，记录
+      if (Res = tkNone) and (Token.TokenID in
+        [tkPrivate, tkProtected, tkPublic, tkPublished]) then
+        Res := Token.TokenID;
+
       if Token.IsBlockStart then
       begin
         if StartInner and (Level = 0) then
@@ -1407,6 +1433,7 @@ begin
   FInnerBlockStartToken := nil;
   FCurrentMethod := '';
   FCurrentChildMethod := '';
+  Res := tkNone;
 
   CurrIndex := 0;
   while CurrIndex < Count do
@@ -1443,6 +1470,8 @@ begin
       FCurrentChildMethod := _GetMethodName(FChildMethodStartToken, FChildMethodCloseToken);
     end;
   end;
+
+  Result := Res;
 end;
 
 function TCnWidePasStructParser.IndexOfToken(Token: TCnWidePasToken): Integer;
@@ -1451,12 +1480,12 @@ begin
 end;
 
 function TCnWidePasStructParser.FindCurrentDeclaration(LineNumber,
-  WideCharIndex: Integer): CnWideString;
+  WideCharIndex: Integer; out Visibility: TTokenKind): CnWideString;
 var
   Idx: Integer;
 begin
   Result := '';
-  FindCurrentBlock(LineNumber, WideCharIndex);
+  Visibility := FindCurrentBlock(LineNumber, WideCharIndex);
 
   if InnerBlockStartToken <> nil then
   begin
@@ -1541,7 +1570,31 @@ var
     PosInfo.Token := AnsiString(Lex.Token);
     PosInfo.TokenID := Lex.TokenID;
     if NoJunk then
-      Lex.NextNoJunk
+    begin
+      // 不能直接调用 Lex.NextNoJunk，会错误地越过注释而忽略了光标判断
+      repeat
+        Lex.Next;
+        if (Lex.TokenID in [tkSlashesComment, tkAnsiComment, tkBorComment]) and LexStillBeforeCursor then
+        begin
+          // 重复上面的
+          PosInfo.LastIdentPos := Lex.LastIdentPos;
+          PosInfo.LastNoSpace := Lex.LastNoSpace;
+          PosInfo.LastNoSpacePos := Lex.LastNoSpacePos;
+          PosInfo.LineNumber := Lex.LineNumber - 1; // 从 1 开始变成从 0 开始
+          PosInfo.LinePos := Lex.LineStartOffset;
+          PosInfo.TokenPos := Lex.TokenPos;
+          PosInfo.Token := AnsiString(Lex.Token);
+          PosInfo.TokenID := Lex.TokenID;
+
+          // 设置注释区域
+          if PosInfo.PosKind <> pkComment then
+          begin
+            SavePos := PosInfo.PosKind;
+            PosInfo.PosKind := pkComment;
+          end;
+        end;
+      until not (Lex.TokenID in [tkSlashesComment, tkAnsiComment, tkBorComment, tkCRLF, tkCRLFCo, tkSpace]);
+    end
     else
       Lex.Next;
 
@@ -1599,6 +1652,9 @@ begin
     // 但行相同时，Lex 需要先对这一行进行 Tab 展开
     while (Lex.TokenID <> tkNull) and LexStillBeforeCursor do
     begin
+      // 注意：循环里调用 DoNext(True) 时，原来的实现是直接 Lex.NextNoJunk 容易越过注释
+      // 导致光标在注释中时位置判断错误落在前一个了，现在 DoNext 里改成模拟调用并判断
+
       MyTokenID := Lex.TokenID;
 
       // 小修补，点号后的短关键字要当成普通标识符，才能保持 pkField
@@ -1666,7 +1722,17 @@ begin
             if PosInfo.AreaKind in [akIntfUses, akImplUses] then
             begin
               while LexStillBeforeCursor and not (Lex.TokenID in [tkNull, tkSemiColon]) do
+              begin
+                if IsProgram and (Lex.TokenID = tkString) then
+                begin
+                  if PosInfo.PosKind <> pkString then
+                  begin
+                    SavePos := PosInfo.PosKind;
+                    PosInfo.PosKind := pkString;
+                  end;
+                end;
                 DoNext;
+              end;
               if LexStillBeforeCursor and (Lex.TokenID = tkSemiColon) then
               begin
                 if PosInfo.AreaKind = akIntfUses then

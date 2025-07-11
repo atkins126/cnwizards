@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -167,6 +167,7 @@ type
     chkPasteReplace: TCheckBox;
     chkTenMode: TCheckBox;
     chkShowColor: TCheckBox;
+    chkRelativeNumber: TCheckBox;
     procedure btnHelpClick(Sender: TObject);
     procedure UpdateContent(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word;
@@ -290,6 +291,7 @@ begin
 
   chkShowLineCount.Enabled := chkShowLineNumber.Checked;
   chkTenMode.Enabled := chkShowLineNumber.Checked;
+  chkRelativeNumber.Enabled := chkShowLineNumber.Checked;
   rbLinePanelAutoWidth.Enabled := chkShowLineNumber.Checked;
   btnLineFont.Enabled := chkShowLineNumber.Checked;
   btnCurrLineFont.Enabled := chkShowLineNumber.Checked;
@@ -590,6 +592,7 @@ begin
 
     chkShowLineNumber.Checked := FGutterMgr.ShowLineNumber;
     chkShowLineCount.Checked := FGutterMgr.ShowLineCount;
+    chkRelativeNumber.Checked := FGutterMgr.RelativeNumber;
     chkTenMode.Checked := FGutterMgr.TenMode;
     rbLinePanelAutoWidth.Checked := FGutterMgr.AutoWidth;
     rbLinePanelFixedWidth.Checked := not FGutterMgr.AutoWidth;
@@ -693,6 +696,7 @@ begin
 
       FGutterMgr.ShowLineNumber := chkShowLineNumber.Checked;
       FGutterMgr.ShowLineCount := chkShowLineCount.Checked;
+      FGutterMgr.RelativeNumber := chkRelativeNumber.Checked;
       FGutterMgr.TenMode := chkTenMode.Checked;
       FGutterMgr.AutoWidth := rbLinePanelAutoWidth.Checked;
       FGutterMgr.AutoWidth := not rbLinePanelFixedWidth.Checked;

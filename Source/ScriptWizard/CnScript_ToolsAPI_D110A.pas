@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -504,7 +504,7 @@ begin
     RegisterMethod('Function InstallAndroidSDK : Boolean', cdRegister);
     RegisterMethod('Function InstallAndroidSDKTools : Boolean', cdRegister);
     RegisterMethod('Function Install1(const CatalogId : string): Boolean', cdRegister);
-    RegisterMethod('Function Install(const CatalogId : string; AutoCloseProgressDlg : Boolean) : Boolean', cdRegister);
+    RegisterMethod('Function Install2(const CatalogId : string; AutoCloseProgressDlg : Boolean) : Boolean', cdRegister);
   end;
 end;
 
@@ -1234,7 +1234,7 @@ begin
   //with RegInterfaceS(CL,'IOTACodeInsightServices270', 'IOTACodeInsightServices') do
   with CL.AddInterface(CL.FindInterface('IOTACodeInsightServices270'),IOTACodeInsightServices, 'IOTACodeInsightServices') do
   begin
-    RegisterMethod('Function HandlesFile( const AFileName, AIDString : string) : Boolean)', cdRegister);
+    RegisterMethod('Function HandlesFile( const AFileName, AIDString : string) : Boolean', cdRegister);
   end;
 end;
 

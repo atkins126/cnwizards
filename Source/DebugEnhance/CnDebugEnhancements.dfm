@@ -13,6 +13,7 @@ object CnDebugEnhanceForm: TCnDebugEnhanceForm
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object btnOK: TButton
@@ -209,6 +210,17 @@ object CnDebugEnhanceForm: TCnDebugEnhanceForm
           Anchors = [akLeft, akTop, akRight]
           Caption = 'Auto Reset Debugging Target Before Compiling or Building'
           TabOrder = 1
+        end
+        object chkEnhanceFloat: TCheckBox
+          Left = 16
+          Top = 72
+          Width = 415
+          Height = 17
+          Anchors = [akLeft, akTop, akRight]
+          Caption = 
+            'Enhance Float Hint to Show Sign, Exponent and Mantissa (Delphi X' +
+            'E or Above)'
+          TabOrder = 2
         end
       end
     end

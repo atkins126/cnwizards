@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -42,7 +42,7 @@ uses
   OmniXML, OmniXMLPersistent, CnLangMgr, CnIniStrUtils, CnDebugIntf;
 
 const
-  CnMapSize = 65536;
+  CnMapSize = 1024 * 1204;
   CnHeadSize = 64;
   CnProtectSize = 4;
 
@@ -285,10 +285,10 @@ var
     '</tr>';
   SCnDebugViewerAboutCaption: string = 'About';
   SCnDebugViewerAbout: string =
-    'CnDebugViewer 1.9' + #13#10#13#10 +
+    'CnDebugViewer 2.1' + #13#10#13#10 +
     'This Tool is Used to Show the Debugging Output Information from CnDebug.' + #13#10#13#10 +
     'Author: Liu Xiao (master@cnpack.org)' + #13#10 +
-    'Copyright (C) 2001-2024 CnPack Team';
+    'Copyright (C) 2001-2025 CnPack Team';
 
   SCnHTMFormatHeader: string =
     '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">' + #13#10 +
@@ -384,10 +384,19 @@ procedure TranslateStrings;
 
 implementation
 
+uses
+  CnMsgClasses;
+
+// 该 RDTSC 指令在 32 位和 64 位下都有效，且行为一致：高 32 位存入 EDX，低 32 位存入 EAX
+// 64 位系统中 Int64 直接通过 RAX 返回因此会丢高 32 位，需要补处理代码
 function GetCPUPeriod: Int64; assembler;
 asm
   DB 0FH;
   DB 031H;
+{$IFDEF WIN64}
+  SHL RDX, 32
+  OR RAX, RDX
+{$ENDIF}
 end;
 
 function InitializeCore: TCnCoreInitResults;
@@ -837,7 +846,10 @@ initialization
   CnViewerOptions := TCnViewerOptions.Create;
 
 finalization
+  DebugDebuggerLog('CnViewCore Before finalization');
   FreeAndNil(CnViewerOptions);
+  DebugDebuggerLog('CnViewCore In finalization');
   FinalizeCore;
+  DebugDebuggerLog('CnViewCore After finalization');
 
 end.

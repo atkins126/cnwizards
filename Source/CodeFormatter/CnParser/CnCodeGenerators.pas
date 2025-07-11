@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -125,10 +125,16 @@ type
       注意 Scanner 在忽略区时不要调用，免得引起额外的空格消失}
     procedure TrimLastEmptyLine;
     {* 如果最后一行是全空格，则清除此行的所有空格，用于保留换行的场合}
+    procedure BackSpaceEmptyLines;
+    {* 单独针对 Directive 无句末分号而写的，删除尾部所有纯空格行的方法，需严格限制使用以避免副作用}
+    procedure BackSpaceSpaceLineIndent(Indent: Integer = 2);
+    {* 如果最后一行全是空格，且空格数比 Indent 多，则清除 Indent 个空格，
+      单独针对保留换行时函数调用的末括号而言的，需严格限制使用以避免副作用}
+
     function IsLastLineEmpty: Boolean;
-    {* 最后一行是否就一个回车}
+    {* 最后一行是否就是一个完全的空行，不算回车换行}
     function IsLastLineSpaces: Boolean;
-    {* 最后一行是否就空格和 Tab}
+    {* 最后一行是否就空格和 Tab，不算回车换行}
     function IsLast2LineEmpty: Boolean;
     {* 最后两行是否就两个回车，如果行数不够也返回 False}
 
@@ -148,7 +154,7 @@ type
     property CurIndentSpace: Integer read GetCurIndentSpace;
     {* 当前行最前面的空格数}
     property LastIndentSpaceWithOutComments: Integer read GetLastIndentSpaceWithOutComments;
-    {* 上一个非自动换以及非注释的行的最前面的空格数}
+    {* 上一个非自动换以及非注释的行的最前面的空格数，注意在保留换行时不准确}
     property CodeWrapMode: TCnCodeWrapMode read FCodeWrapMode write FCodeWrapMode;
     {* 代码换行的设置}
     property KeepLineBreak: Boolean read FKeepLineBreak write FKeepLineBreak;
@@ -210,7 +216,12 @@ begin
     S := FCode[FCode.Count - 1];
     Len := Length(S);
     if (Len > 0) and (S[Len] = ' ') then
+    begin
+{$IFDEF DEBUG}
+      CnDebugger.LogMsg('CodeGen: BackSpaceLastSpaces');
+{$ENDIF}
       FCode[FCode.Count - 1] := TrimRight(S);
+    end;
   end;
   if FActualLines.Count > 0 then
   begin
@@ -218,6 +229,17 @@ begin
     Len := Length(S);
     if (Len > 0) and (S[Len] = ' ') then
       FActualLines[FActualLines.Count - 1] := TrimRight(S);
+  end;
+end;
+
+procedure TCnCodeGenerator.BackSpaceEmptyLines;
+begin
+  while IsLastLineSpaces do
+  begin
+    if FCode.Count > 0 then
+      FCode.Delete(FCode.Count - 1);
+    if FActualLines.Count > 0 then
+      FActualLines.Delete(FActualLines.Count - 1);
   end;
 end;
 
@@ -233,8 +255,10 @@ begin
     if Len > 0 then
     begin
       for I := 1 to Len do
+      begin
         if S[I] <> ' ' then
           Exit;
+      end;
 
       FCode[FCode.Count - 1] := '';
 {$IFDEF DEBUG}
@@ -246,13 +270,56 @@ begin
       if Len > 0 then
       begin
         for I := 1 to Len do
+        begin
           if S[I] <> ' ' then
             Exit;
+        end;
 
         FActualLines[FActualLines.Count - 1] := '';
-  {$IFDEF DEBUG}
+{$IFDEF DEBUG}
         CnDebugger.LogFmt('GodeGen: FActualLines TrimLastEmptyLine %d Spaces.', [Len]);
-  {$ENDIF}
+{$ENDIF}
+      end;
+    end;
+  end;
+end;
+
+procedure TCnCodeGenerator.BackSpaceSpaceLineIndent(Indent: Integer);
+var
+  S: string;
+  I, Len: Integer;
+begin
+  if FCode.Count > 0 then
+  begin
+    S := FCode[FCode.Count - 1];
+    Len := Length(S);
+    if Len > Indent then
+    begin
+      for I := 1 to Len do
+      begin
+        if S[I] <> ' ' then
+          Exit;
+      end;
+
+      FCode[FCode.Count - 1] := Copy(S, 1, Len - Indent);
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('GodeGen: BackSpaceSpaceLineIndent %d Spaces.', [Indent]);
+{$ENDIF}
+
+      S := FActualLines[FActualLines.Count - 1];
+      Len := Length(S);
+      if Len > Indent then
+      begin
+        for I := 1 to Len do
+        begin
+          if S[I] <> ' ' then
+            Exit;
+        end;
+
+        FActualLines[FActualLines.Count - 1] := Copy(S, 1, Len - Indent);
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('GodeGen: FActualLines TrimLastEmptyLine %d Spaces.', [Len]);
+{$ENDIF}
       end;
     end;
   end;
@@ -407,8 +474,10 @@ var
   begin
     Result := True;
     for J := FAutoWrapLines.Count - 1 downto 0 do
+    begin
       if Integer(FAutoWrapLines[J]) = Line then
         Exit;
+    end;
 
     Result := False;
   end;
@@ -419,6 +488,10 @@ begin
   S := '';
   for I := FActualLines.Count - 1 downto 0 do
   begin
+    // 注意此处 IsAutoWrapLineNumber 的判断在保留换行为 True 时并不符合实际情况，
+    // 保留换行时多出来的行没有自动换行记录，因此 IsAutoWrapLineNumber 会返回 False
+    // 保留换行新增的行会被错误地当作主行处理，导致后面多出一块缩进。
+    // 所以该函数外部进行了判断以减少一次不必要的缩进
     if (FActualLines[I] <> '') and not IsAutoWrapLineNumber(I) and not
       LineIsEmptyOrComment(FActualLines[I]) then
     begin
@@ -435,10 +508,12 @@ begin
   if Len > 0 then
   begin
     for I := 1 to Len do
+    begin
       if S[I] in [' ', #09] then
         Inc(Result)
       else
         Exit;
+    end;
   end;
 end;
 
@@ -799,8 +874,8 @@ begin
     LastSpaces := LastIndentSpaceWithOutComments;
     if (HeadSpaceCount(Str) < LastSpaces) or (LastSpaces = 0) then
     begin
-      if FCodeWrapMode = cwmSimple then // uses 区无需进一步缩进
-        I := LastSpaces
+      if (FCodeWrapMode = cwmSimple) or KeepLineBreak then // uses 区无需进一步缩进
+        I := LastSpaces     // 注意：LastIndentSpaceWithOutComments 的判断因与保留换行为 True 冲突，得忽略一次缩进
       else
         I := LastSpaces + CnPascalCodeForRule.TabSpaceCount;
 
@@ -1017,9 +1092,13 @@ begin
     S := FCode[FCode.Count - 1];
     Len := Length(S);
     if Len > 0 then
+    begin
       for I := 1 to Len do
+      begin
         if (S[I] <> ' ') and (S[I] <> #09) then
           Exit;
+      end;
+    end;
   end;
   Result := True;
 end;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -43,9 +43,8 @@ uses
 type
   TCnWizEdtTabSetForm = class(TCnTranslateForm)
   private
-    { Private declarations }
+
   public
-    { Public declarations }
     function GetTabCaption: string; virtual; abstract;
     function IsTabVisible(Editor: IOTASourceEditor; View: IOTAEditView): Boolean; virtual;
     procedure DoTabShow(Editor: IOTASourceEditor; View: IOTAEditView); virtual;

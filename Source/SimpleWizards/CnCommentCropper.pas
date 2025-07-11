@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -336,6 +336,12 @@ begin
     begin
       if IsSourceModule(Project.GetModule(I).FileName) then
         CropAUnit(Project.GetModule(I).FileName);
+      if IsC(Project.GetModule(I).FileName) or IsCpp(Project.GetModule(I).FileName) then
+      begin
+        if FileExists(_CnChangeFileExt(Project.GetModule(I).FileName, '.h')) or
+          CnOtaIsFileOpen(_CnChangeFileExt(Project.GetModule(I).FileName, '.h')) then
+          CropAUnit(_CnChangeFileExt(Project.GetModule(I).FileName, '.h'));
+      end;
     end;
   end;
 end;
@@ -345,8 +351,10 @@ var
   I: Integer;
 begin
   if ProjectGroup <> nil then
+  begin
     for I := 0 to ProjectGroup.ProjectCount - 1 do
       CropAProject(ProjectGroup.Projects[I]);
+  end;
 end;
 
 procedure TCnCommentCropperWizard.CropSelected;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -94,7 +94,6 @@ type
     procedure CopyValue(Sender: TObject);
     procedure editExit(Sender: TObject);
   private
-    { Private declarations }
     FSC: TShenSizeConstraints;
     FNowHeight: TConstraintSize;
     FNowWidth: TConstraintSize;
@@ -104,7 +103,6 @@ type
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     property SC: TShenSizeConstraints read FSC write SetSC;
     property NowHeight: TConstraintSize read FNowHeight write SetNowHeight;
     property NowWidth: TConstraintSize read FNowWidth write SetNowWidth;

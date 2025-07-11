@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -24,7 +24,7 @@ unit CnReplaceWizard;
 * 软件名称：CnPack IDE 专家包
 * 单元名称：批量文件替换专家单元
 * 单元作者：周劲羽 (zjy@cnpack.org)
-* 备    注：
+* 备    注：内部均是 Ansi 替换，哪怕是 Unicode 环境中
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该窗体中的字符串均符合本地化处理方式
@@ -44,14 +44,14 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, ExtCtrls, IniFiles, ToolsAPI, FileCtrl, Math, Contnrs, RegExpr,
-  CnConsts, CnCommon, CnWizClasses, CnWizConsts, CnWizUtils, CnWizEditFiler,
+  CnConsts, CnCommon, CnWizClasses, CnWizConsts, CnWizUtils, CnWizEditFiler, CnNative,
   CnWizSearch, CnIni, CnWizMultiLang {$IFDEF IDE_WIDECONTROL}, CnWideStrings {$ENDIF};
 
 type
 
 { TCnReplaceWizardForm }
 
-  TReplaceStyle = (rsUnit, rsProjectGroups, rsProject, rsOpenUnits, rsDir);
+  TCnReplaceStyle = (rsUnit, rsProjectGroups, rsProject, rsOpenUnits, rsDir);
 
   TCnReplaceWizardForm = class(TCnTranslateForm)
     tbOptions: TGroupBox;
@@ -87,7 +87,6 @@ type
     procedure btnHelpClick(Sender: TObject);
     procedure rbNormalClick(Sender: TObject);
   private
-    { Private declarations }
     FIni: TCustomIniFile;
     FSearcher: TCnSearcher;
     
@@ -95,7 +94,7 @@ type
     function GetDir: string;
     function GetFileMask: string;
     function GetIncludeSubDirs: Boolean;
-    function GetReplaceStyle: TReplaceStyle;
+    function GetReplaceStyle: TCnReplaceStyle;
     function GetSearchOption: TSearchOptions;
     function GetSourceText: string;
     procedure LoadSettings;
@@ -104,12 +103,11 @@ type
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     constructor CreateEx(AOwner: TComponent; AIni: TCustomIniFile;
       ASearcher: TCnSearcher);
 
     property SearchOption: TSearchOptions read GetSearchOption;
-    property ReplaceStyle: TReplaceStyle read GetReplaceStyle;
+    property ReplaceStyle: TCnReplaceStyle read GetReplaceStyle;
     property SourceText: string read GetSourceText;
     property DestText: string read GetDestText;
     property Dir: string read GetDir;
@@ -301,11 +299,11 @@ end;
 
 procedure TCnReplaceWizardForm.SaveSettings;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to ComponentCount - 1 do
-    if Components[i] is TComboBox then
-      AddComboBoxTextToItems(TComboBox(Components[i]));
+  for I := 0 to ComponentCount - 1 do
+    if Components[I] is TComboBox then
+      AddComboBoxTextToItems(TComboBox(Components[I]));
 
   with TCnIniFile.Create(FIni) do
   try
@@ -351,10 +349,10 @@ end;
 
 procedure TCnReplaceWizardForm.rgReplaceStyleClick(Sender: TObject);
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to gbDir.ControlCount - 1 do
-    gbDir.Controls[i].Enabled := ReplaceStyle = rsDir;
+  for I := 0 to gbDir.ControlCount - 1 do
+    gbDir.Controls[I].Enabled := ReplaceStyle = rsDir;
 end;
 
 procedure TCnReplaceWizardForm.rbNormalClick(Sender: TObject);
@@ -368,7 +366,7 @@ end;
 
 procedure TCnReplaceWizardForm.cbbDirDropDown(Sender: TObject);
 var
-  i: Integer;
+  I: Integer;
   MaxWidth: Integer;
   Bitmap: Graphics.TBitmap;
 begin
@@ -376,8 +374,8 @@ begin
   Bitmap := Graphics.TBitmap.Create;
   try
     Bitmap.Canvas.Font.Assign(cbbDir.Font);
-    for i := 0 to cbbDir.Items.Count - 1 do
-      MaxWidth := Max(MaxWidth, Bitmap.Canvas.TextWidth(cbbDir.Items[i]) + 10);
+    for I := 0 to cbbDir.Items.Count - 1 do
+      MaxWidth := Max(MaxWidth, Bitmap.Canvas.TextWidth(cbbDir.Items[I]) + 10);
   finally;
     Bitmap.Free;
   end;
@@ -415,9 +413,9 @@ begin
   Result := cbSubDirs.Checked;
 end;
 
-function TCnReplaceWizardForm.GetReplaceStyle: TReplaceStyle;
+function TCnReplaceWizardForm.GetReplaceStyle: TCnReplaceStyle;
 begin
-  Result := TReplaceStyle(rgReplaceStyle.ItemIndex);
+  Result := TCnReplaceStyle(rgReplaceStyle.ItemIndex);
 end;
 
 function TCnReplaceWizardForm.GetSearchOption: TSearchOptions;
@@ -459,6 +457,7 @@ var
 begin
   FSearcher := nil;
   FRegExpr := nil;
+
   try
     FSearcher := TCnSearcher.Create;
     FRegExpr := TRegExpr.Create;
@@ -538,6 +537,7 @@ begin
     FInStream.Size := 0;
     try
       Reader.SaveToStream(FInStream{$IFDEF IDE_WIDECONTROL}, True{$ENDIF});
+      // 拿到的 FInStream 确保为 Ansi
     except
       on E: Exception do
       begin
@@ -614,9 +614,24 @@ begin
     begin
       try
         // 保存为文件时去掉流尾部的 #0 字符
-        if PByte(Integer(FOutStream.Memory) + FOutStream.Size - 1)^ = 0 then
+        if PByte(TCnNativeUInt(FOutStream.Memory) + FOutStream.Size - 1)^ = 0 then
           FOutStream.Size := FOutStream.Size - 1;
-        FOutStream.SaveToFile(FileName);
+
+        // 用 Reader 保存，以在 BDS 以上保持编码
+        Reader := TCnEditFiler.Create(FileName);
+        try
+          FOutStream.Position := 0;
+          try
+            Reader.ReadFromStream(FOutStream{$IFDEF IDE_WIDECONTROL}, True{$ENDIF});
+          except
+            on E: Exception do
+            begin
+              QueryContinue(E.Message);
+            end;
+          end;
+        finally
+          Reader.Free;
+        end;
 
         Inc(FFileCount);
         Inc(FFoundCount, FCurrCount);
@@ -631,18 +646,19 @@ end;
 
 procedure TCnReplaceWizard.ReplaceProject(Project: IOTAProject);
 var
-  i: Integer;
+  I: Integer;
   FileName: string;
 begin
-  if not Assigned(Project) then Exit;
+  if not Assigned(Project) then
+    Exit;
 
   if IsDpr(Project.FileName) then
     ReplaceFile(Project.FileName);        // 处理 dpr 工程文件自身，但不处理 bdsproj/dproj 等
   if FAbort then Exit;
   
-  for i := 0 to Project.GetModuleCount - 1 do
+  for I := 0 to Project.GetModuleCount - 1 do
   begin
-    FileName := Project.GetModule(i).FileName;
+    FileName := Project.GetModule(I).FileName;
     if IsSourceModule(FileName) then
       ReplaceFile(FileName);
 {$IFDEF BCB}
@@ -660,13 +676,13 @@ end;
 procedure TCnReplaceWizard.ReplaceProjectGroup(
   ProjectGroup: IOTAProjectGroup);
 var
-  i: Integer;
+  I: Integer;
 begin
   if not Assigned(ProjectGroup) then Exit;
 
-  for i := 0 to ProjectGroup.ProjectCount - 1 do
+  for I := 0 to ProjectGroup.ProjectCount - 1 do
   begin
-    ReplaceProject(ProjectGroup.Projects[i]);
+    ReplaceProject(ProjectGroup.Projects[I]);
     if FAbort then Exit;
   end;
 end;
@@ -674,14 +690,14 @@ end;
 procedure TCnReplaceWizard.ReplaceOpenUnits;
 var
   iModuleServices: IOTAModuleServices;
-  i: Integer;
+  I: Integer;
   FileName: string;
 begin
   QuerySvcs(BorlandIDEServices, IOTAModuleServices, iModuleServices);
 
-  for i := 0 to iModuleServices.GetModuleCount - 1 do
+  for I := 0 to iModuleServices.GetModuleCount - 1 do
   begin
-    FileName := CnOtaGetFileNameOfModule(iModuleServices.GetModule(i));
+    FileName := CnOtaGetFileNameOfModule(iModuleServices.GetModule(I));
     ReplaceFile(FileName);
     if FAbort then Exit;
   end;
@@ -718,8 +734,10 @@ begin
   FSearcher.Search(FInStream);
 
   if FLastInStreamPos > 0 then
-    FOutStream.Write(Pointer(Integer(FInStream.Memory) + FLastInStreamPos)^,
+  begin
+    FOutStream.Write(Pointer(TCnNativeInt(FInStream.Memory) + FLastInStreamPos)^,
       FInStream.Size - FLastInStreamPos);
+  end;
 end;
 
 procedure TCnReplaceWizard.OnFound(Sender: TObject; LineNo: Integer;
@@ -735,7 +753,7 @@ begin
   CnDebugger.LogMsg('Line: ' + Line);
 {$ENDIF}
 
-  FOutStream.Write(Pointer(Integer(FInStream.Memory) + FLastInStreamPos)^,
+  FOutStream.Write(Pointer(TCnNativeInt(FInStream.Memory) + FLastInStreamPos)^,
     LineOffset + SPos - FLastInStreamPos - 1);
 
 {$IFDEF UNICODE}

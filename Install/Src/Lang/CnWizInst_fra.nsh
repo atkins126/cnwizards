@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                   A Free, Open Source Project from China
-;                     (C)Copyright 2001-2024 CnPack Team
+;                     (C)Copyright 2001-2025 CnPack Team
 ;******************************************************************************
 ; Fichier en anglais pour le script d'installation de CnWizards
 ; Veuillez utiliser le format ANSI pour enregistrer le fichier de langue.
@@ -33,6 +33,7 @@ LangString SASCIICHART    1036 "Caractère ASCII"
 LangString SUNINSTALL     1036 "Désinstaller"
 LangString SDFMCONVERTOR  1036 "Convertisseur DFM"
 LangString SDEBUGVIEWER   1036 "Visionneuse de débogage"
+LangString SDEBUGVIEWER64 1036 "Visionneuse de débogage 64"
 LangString SIDEBRTOOL     1036 "Restauration/sauvegarde de la configuration de l'IDE"
 LangString SMANAGEWIZ     1036 "Gestion des l'assistants externes IDE"
 LangString SRELATIONANALYZER 1036 "Relation Analyzer"

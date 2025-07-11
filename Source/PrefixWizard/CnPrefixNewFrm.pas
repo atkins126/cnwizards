@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -63,11 +63,10 @@ type
     procedure btnHelpClick(Sender: TObject);
     procedure edtPrefixKeyPress(Sender: TObject; var Key: Char);
   private
-    { Private declarations }
+
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
   end;
 
 // 取得新的组件前缀名。RootName 不为空表示是 Form 的情形，修改的是 TForm 对应的前缀

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -43,7 +43,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   ToolsAPI, IniFiles,ComCtrls, StdCtrls, CnConsts, CnWizClasses, CnWizUtils,
   CnWizConsts, CnCommon, CnAICoderConfig, CnThreadPool, CnAICoderEngine,
-  CnFrmAICoderOption, CnWizMultiLang;
+  CnFrmAICoderOption, CnWizMultiLang, CnWizManager;
 
 type
   TCnAICoderConfigForm = class(TCnTranslateForm)
@@ -58,6 +58,13 @@ type
     lblTimeout: TLabel;
     edtTimeout: TEdit;
     udTimeout: TUpDown;
+    lblHisCount: TLabel;
+    edtHisCount: TEdit;
+    udHisCount: TUpDown;
+    edtMaxFav: TEdit;
+    lblMaxFav: TLabel;
+    udMaxFav: TUpDown;
+    chkAltEnterContCode: TCheckBox;
     procedure cbbActiveEngineChange(Sender: TObject);
     procedure btnHelpClick(Sender: TObject);
   private
@@ -80,23 +87,47 @@ type
   private
     FIdExplainCode: Integer;
     FIdReviewCode: Integer;
+    FIdGenTestCase: Integer;
+    FIdContinueCoding: Integer;
     FIdShowChatWindow: Integer;
     FIdConfig: Integer;
+    FNeedUpgradeGemini: Boolean;
+    FFirstAnswer: Boolean;
     function ValidateAIEngines: Boolean;
     {* 调用各个功能前检查 AI 引擎及配置}
-    procedure EnsureChatWindowVisible;
+    procedure EnsureChatWindowVisible(OnlyCreate: Boolean = False);
     {* 确保创建 ChatWindow 且其 Visible 为 True 及其所有 Parent 的 Visible 全为 True
       以确保聊天窗口可见}
+    procedure EditorSysKeyDown(Key, ScanCode: Word; Shift: TShiftState;
+      var Handled: Boolean);
+    procedure EditorKeyDown(Key, ScanCode: Word; Shift: TShiftState;
+      var Handled: Boolean);
+
+    procedure ContinueCurrentFile(UseChat: Boolean = False);
+    {* 续写当前代码的入口}
   protected
     function GetHasConfig: Boolean; override;
     procedure SubActionExecute(Index: Integer); override;
     procedure SubActionUpdate(Index: Integer); override;
+
+    procedure SetActive(Value: Boolean); override;
   public
     constructor Create; override;
     destructor Destroy; override;
 
-    procedure ForCodeAnswer(Success: Boolean; SendId: Integer;
-      const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+    procedure ForCodeAnswer(StreamMode, Partly, Success, IsStreamEnd: Boolean;
+      SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+    {* 返回文字的回调}
+    procedure ForCodeGen(StreamMode, Partly, Success, IsStreamEnd: Boolean;
+      SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+    {* 返回代码的回调}
+
+    procedure ForContinueAnswerToEditor(StreamMode, Partly, Success, IsStreamEnd: Boolean;
+      SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+    {* 续写代码的回调，输出至编辑器}
+    procedure ForContinueAnswerToChat(StreamMode, Partly, Success, IsStreamEnd: Boolean;
+      SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+    {* 续写代码的回调，输出至聊天窗口}
 
     procedure AcquireSubActions; override;
     function GetState: TWizardState; override;
@@ -106,6 +137,8 @@ type
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string); override;
     function GetCaption: string; override;
     function GetHint: string; override;
+
+    procedure VersionFirstRun; override;
   end;
 
 {$ENDIF CNWIZARDS_CNAICODERWIZARD}
@@ -117,8 +150,12 @@ implementation
 {$R *.DFM}
 
 uses
-  CnWizOptions, CnAICoderNetClient, CnAICoderChatFrm, CnChatBox
-  {$IFDEF DEBUG} , CnDebug {$ENDIF};
+  CnWizOptions, CnAICoderNetClient, CnAICoderChatFrm, CnChatBox, CnWizIdeDock,
+  CnIDEStrings, CnEditControlWrapper {$IFDEF DEBUG} , CnDebug {$ENDIF};
+
+const
+  MSG_WAITING = '...';
+  csAICoderChatForm = 'CnAICoderChatForm';
 
 //==============================================================================
 // AI 辅助编码菜单专家
@@ -138,7 +175,7 @@ begin
       DoSaveSettings;
 
       if CnAICoderChatForm <> nil then
-        CnAICoderChatForm.UpdateCaption;
+        CnAICoderChatForm.NotifySettingChanged;
     end;
     Free;
   end;
@@ -147,13 +184,19 @@ end;
 constructor TCnAICoderWizard.Create;
 begin
   inherited;
-
+  EditControlWrapper.AddKeyDownNotifier(EditorKeyDown);
+  EditControlWrapper.AddSysKeyDownNotifier(EditorSysKeyDown);
+  IdeDockManager.RegisterDockableForm(TCnAICoderChatForm, CnAICoderChatForm,
+    csAICoderChatForm);
 end;
 
 destructor TCnAICoderWizard.Destroy;
 begin
+  IdeDockManager.UnRegisterDockableForm(CnAICoderChatForm, csAICoderChatForm);
+  EditControlWrapper.RemoveKeyDownNotifier(EditorKeyDown);
+  EditControlWrapper.RemoveSysKeyDownNotifier(EditorSysKeyDown);
+  FreeAndNil(CnAICoderChatForm);
   inherited;
-
 end;
 
 // 必须重载该方法来创建子菜单专家项
@@ -166,6 +209,14 @@ begin
   FIdReviewCode := RegisterASubAction(SCnAICoderWizardReviewCode,
     SCnAICoderWizardReviewCodeCaption, 0,
     SCnAICoderWizardReviewCodeHint, SCnAICoderWizardReviewCode);
+
+  FIdGenTestCase := RegisterASubAction(SCnAICoderWizardGenTestCase,
+    SCnAICoderWizardGenTestCaseCaption, 0,
+    SCnAICoderWizardGenTestCaseHint, SCnAICoderWizardGenTestCase);
+
+  FIdContinueCoding := RegisterASubAction(SCnAICoderWizardContinueCoding,
+    SCnAICoderWizardContinueCodingCaption, 0,
+    SCnAICoderWizardContinueCodingHint, SCnAICoderWizardContinueCoding);
 
   // 创建分隔菜单
   AddSepMenu;
@@ -207,11 +258,40 @@ begin
 end;
 
 procedure TCnAICoderWizard.LoadSettings(Ini: TCustomIniFile);
+const
+  UPGRADE_GEMINIIDNAME = 'Gemini'; // 引擎 ID 和 NAME 都是它
+var
+  NewGerminiOption: TCnAIEngineOption;
+  S: string;
 begin
   CnAIEngineManager.LoadFromWizOptions;
 
   // 这句很重要，手动设置存储的活动引擎名称
   CnAIEngineManager.CurrentEngineName := CnAIEngineOptionManager.ActiveEngine;
+
+  if FNeedUpgradeGemini then
+  begin
+    // 手动更新 Gemini 的设置的 URL 为专家包自带的配置的 URL
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('TCnAICoderWizard Load Settings for 161. Upgrade Gemini.');
+{$ENDIF}
+
+    S := WizOptions.GetDataFileName(Format(SCnAICoderEngineOptionFileFmt, [UPGRADE_GEMINIIDNAME]));
+    NewGerminiOption := CnAIEngineOptionManager.CreateOptionFromFile(UPGRADE_GEMINIIDNAME, S, nil, False);
+
+    try
+      if CnAIEngineOptionManager.GetOptionByEngine(UPGRADE_GEMINIIDNAME) <> nil then
+      begin
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('TCnAICoderWizard Upgrade Gemini from %s to %s',
+          [CnAIEngineOptionManager.GetOptionByEngine(UPGRADE_GEMINIIDNAME).URL, NewGerminiOption.URL]);
+{$ENDIF}
+        CnAIEngineOptionManager.GetOptionByEngine(UPGRADE_GEMINIIDNAME).URL := NewGerminiOption.URL;
+      end;
+    finally
+      NewGerminiOption.Free;
+    end;
+  end;
 
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('CnAIEngineOptionManager Load %d Options.', [CnAIEngineOptionManager.OptionCount]);
@@ -235,10 +315,7 @@ begin
     Config
   else if Index = FIdShowChatWindow then
   begin
-    if (CnAICoderChatForm <> nil) and CnAICoderChatForm.VisibleWithParent then
-      CnAICoderChatForm.VisibleWithParent := False
-    else
-      EnsureChatWindowVisible;
+    EnsureChatWindowVisible;
   end
   else
   begin
@@ -257,26 +334,65 @@ begin
         Msg := CnAICoderChatForm.ChatBox.Items.AddMessage;
         Msg.From := CnAIEngineManager.CurrentEngineName;
         Msg.FromType := cmtYou;
-        Msg.Text := '...';
+        Msg.Text := MSG_WAITING;
         Msg.Waiting := True;
 
         if Index = FIdExplainCode then
-          CnAIEngineManager.CurrentEngine.AskAIEngineForCode(S, Msg, artExplainCode, ForCodeAnswer)
+          CnAIEngineManager.CurrentEngine.AskAIEngineForCode(S, nil, Msg, artExplainCode, ForCodeAnswer)
         else
-          CnAIEngineManager.CurrentEngine.AskAIEngineForCode(S, Msg, artReviewCode, ForCodeAnswer)
+          CnAIEngineManager.CurrentEngine.AskAIEngineForCode(S, nil, Msg, artReviewCode, ForCodeAnswer);
       end;
-    end;
+    end
+    else if Index = FIdGenTestCase then
+    begin
+      S := CnOtaGetCurrentSelection;
+      if Trim(S) <> '' then
+      begin
+        EnsureChatWindowVisible;
+
+        Msg := CnAICoderChatForm.ChatBox.Items.AddMessage;
+        Msg.From := CnAIEngineManager.CurrentEngineName;
+        Msg.FromType := cmtYou;
+        Msg.Text := '...';
+        Msg.Waiting := True;
+
+        CnAIEngineManager.CurrentEngine.AskAIEngineForCode(S, nil, Msg, artGenTestCase, ForCodeGen);
+      end;
+    end
+    else if Index = FIdContinueCoding then
+      ContinueCurrentFile;
   end;
 end;
 
 procedure TCnAICoderWizard.SubActionUpdate(Index: Integer);
 begin
-  if Index = FIdConfig then
+  if (Index = FIdConfig) or (Index = FIdShowChatWindow) then
     SubActions[Index].Enabled := Active
-  else if Index = FIdShowChatWindow then
-    SubActions[Index].Checked := Active and (CnAICoderChatForm <> nil) and CnAICoderChatForm.VisibleWithParent
+  else if Index = FIdContinueCoding then
+    SubActions[Index].Enabled := Active and CurrentIsSource
   else
     SubActions[Index].Enabled := Active and (CnOtaGetCurrentSelection <> '');
+end;
+
+procedure TCnAICoderWizard.SetActive(Value: Boolean);
+var
+  Old: Boolean;
+begin
+  Old := Active;
+  inherited;
+  if Old <> Active then
+  begin
+    if Active then
+    begin
+      IdeDockManager.RegisterDockableForm(TCnAICoderChatForm, CnAICoderChatForm,
+        'CnAICoderChatForm');
+    end
+    else
+    begin
+      IdeDockManager.UnRegisterDockableForm(CnAICoderChatForm, 'CnAICoderChatForm');
+      FreeAndNil(CnAICoderChatForm);
+    end;
+  end;
 end;
 
 function TCnAICoderWizard.ValidateAIEngines: Boolean;
@@ -304,8 +420,9 @@ end;
 
 procedure TCnAICoderConfigForm.LoadFromOptions;
 var
-  I: Integer;
+  I, J, C: Integer;
   SL: TStringList;
+  Eng: TCnAIBaseEngine;
 begin
   chkProxy.Checked := CnAIEngineOptionManager.UseProxy;
   edtProxy.Text := CnAIEngineOptionManager.ProxyServer;
@@ -317,6 +434,9 @@ begin
   cbbActiveEngine.ItemIndex := CnAIEngineManager.CurrentIndex;
 
   udTimeout.Position := CnAIEngineOptionManager.TimeoutSec;
+  udHisCount.Position := CnAIEngineOptionManager.HistoryCount;
+  udMaxFav.Position := CnAIEngineOptionManager.MaxFavCount;
+  chkAltEnterContCode.Checked := CnAIEngineOptionManager.ContCodeKey1 or CnAIEngineOptionManager.ContCodeKey2;
 
   // 给每个 Options 创建一个 Tab，每个 Tab 里塞一个 Frame，给 Frame 里的东西塞 Option 内容
   SetLength(FTabsheets, CnAIEngineOptionManager.OptionCount);
@@ -326,13 +446,20 @@ begin
   try
     for I := 0 to CnAIEngineOptionManager.OptionCount - 1 do
     begin
+      Eng := CnAIEngineManager.GetEngineByOption(CnAIEngineOptionManager.Options[I]);
+
       // 给每个 Options 创建一个 Tab
       FTabsheets[I] := TTabSheet.Create(pgcAI);
-      FTabsheets[I].Caption := CnAIEngineOptionManager.Options[I].EngineName + Format(' (&%d)', [I]);
+      if I < 10 then
+        FTabsheets[I].Caption := CnAIEngineOptionManager.Options[I].EngineName + Format(' (&%d)', [I])
+      else
+        FTabsheets[I].Caption := CnAIEngineOptionManager.Options[I].EngineName
+          + Format(' (&%s)', [Chr(Ord('A') + I - 10)]);
       FTabsheets[I].PageControl := pgcAI;
 
       // 给每个 Tab 里塞一个 Frame
       FOptionFrames[I] := TCnAICoderOptionFrame.Create(FTabsheets[I]);
+      FOptionFrames[I].Engine := Eng;
       FOptionFrames[I].Name := 'CnAICoderOptionFrame' + IntToStr(I);
       FOptionFrames[I].Parent := FTabsheets[I];
       FOptionFrames[I].Top := 0;
@@ -340,9 +467,27 @@ begin
       FOptionFrames[I].Align := alClient;
 
       // 给每个 Frame 里的东西塞 Option 内容
-      FOptionFrames[I].edtURL.Text := CnAIEngineOptionManager.Options[I].URL;
-      FOptionFrames[I].edtAPIKey.Text := CnAIEngineOptionManager.Options[I].APIKey;
-      FOptionFrames[I].cbbModel.Text := CnAIEngineOptionManager.Options[I].Model;
+      FOptionFrames[I].LoadFromAnOption(CnAIEngineOptionManager.Options[I]);
+
+      // 如果不需要 APIKey 就禁用
+      if (Eng <> nil) and not Eng.NeedApiKey then
+      begin
+        FOptionFrames[I].lblAPIKey.Enabled := False;
+        FOptionFrames[I].edtAPIKey.Enabled := False;
+      end;
+
+      // 把该 Option 里的额外参数塞给 Frame 实例，并加载值
+      C := CnAIEngineOptionManager.Options[I].GetExtraOptionCount;
+      if C > 0 then
+      begin
+        for J := 0 to C - 1 do
+        begin
+          FOptionFrames[I].RegisterExtraOption(CnAIEngineOptionManager.Options[I],
+            CnAIEngineOptionManager.Options[I].GetExtraOptionName(J),
+            CnAIEngineOptionManager.Options[I].GetExtraOptionType(J));
+        end;
+        FOptionFrames[I].BuildExtraOptionElements;
+      end;
 
       SL.Clear;
       ExtractStrings([','], [' '], PChar(CnAIEngineOptionManager.Options[I].ModelList), SL);
@@ -354,6 +499,9 @@ begin
         FOptionFrames[I].WebAddr := CnAIEngineOptionManager.Options[I].WebAddress
       else
         FOptionFrames[I].lblApply.Visible := False;
+
+      CnEnlargeButtonGlyphForHDPI(FOptionFrames[I].btnReset);
+      CnEnlargeButtonGlyphForHDPI(FOptionFrames[I].btnFetchModel);
     end;
   finally
     SL.Free;
@@ -367,21 +515,27 @@ var
 begin
   for I := 0 to Length(FOptionFrames) - 1 do
   begin
-    CnAIEngineOptionManager.Options[I].URL := FOptionFrames[I].edtURL.Text;
-    CnAIEngineOptionManager.Options[I].APIKey := FOptionFrames[I].edtAPIKey.Text;
-    CnAIEngineOptionManager.Options[I].Model := FOptionFrames[I].cbbModel.Text;
+    // 存标准属性
+    FOptionFrames[I].SaveToAnOption(CnAIEngineOptionManager.Options[I]);
+
+    // 存额外属性
+    FOptionFrames[I].SaveExtraOptions;
   end;
 
   CnAIEngineOptionManager.ActiveEngine := cbbActiveEngine.Text;
   CnAIEngineManager.CurrentEngineName := CnAIEngineOptionManager.ActiveEngine;
 
   CnAIEngineOptionManager.TimeoutSec := udTimeout.Position;
+  CnAIEngineOptionManager.HistoryCount := udHisCount.Position;
+  CnAIEngineOptionManager.MaxFavCount := udMaxFav.Position;
+  CnAIEngineOptionManager.ContCodeKey1 := chkAltEnterContCode.Checked;
+  CnAIEngineOptionManager.ContCodeKey2 := chkAltEnterContCode.Checked;
 
   CnAIEngineOptionManager.UseProxy := chkProxy.Checked;
   CnAIEngineOptionManager.ProxyServer := edtProxy.Text;
 end;
 
-procedure TCnAICoderWizard.ForCodeAnswer(Success: Boolean;
+procedure TCnAICoderWizard.ForCodeAnswer(StreamMode, Partly, Success, IsStreamEnd: Boolean;
   SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
 begin
   EnsureChatWindowVisible;
@@ -390,7 +544,12 @@ begin
   begin
     TCnChatMessage(Tag).Waiting := False;
     if Success then
-      TCnChatMessage(Tag).Text := Answer
+    begin
+      if Partly and (TCnChatMessage(Tag).Text <> MSG_WAITING) then
+        TCnChatMessage(Tag).Text := TCnChatMessage(Tag).Text + Answer
+      else
+        TCnChatMessage(Tag).Text := Answer;
+    end
     else
       TCnChatMessage(Tag).Text := Format('%d %s', [ErrorCode, Answer]);
   end
@@ -403,13 +562,61 @@ begin
   end;
 end;
 
-procedure TCnAICoderWizard.EnsureChatWindowVisible;
+procedure TCnAICoderWizard.ForCodeGen(StreamMode, Partly, Success, IsStreamEnd: Boolean;
+  SendId: Integer; const Answer: string; ErrorCode: Cardinal; Tag: TObject);
+var
+  S: string;
+begin
+  if (Tag <> nil) and (Tag is TCnChatMessage) then
+  begin
+    TCnChatMessage(Tag).Waiting := False;
+    if Success then
+    begin
+      if Partly and (TCnChatMessage(Tag).Text <> MSG_WAITING)then
+        TCnChatMessage(Tag).Text := TCnChatMessage(Tag).Text + Answer
+      else
+        TCnChatMessage(Tag).Text := Answer;
+
+      // 结束再挑出代码
+      if not Partly or IsStreamEnd then
+      begin
+        S := TCnAICoderChatForm.ExtractCode(TCnChatMessage(Tag));
+        if S <> '' then
+        begin
+          // 判断有无选择区，避免覆盖选择区内容
+          if CnOtaGetCurrentSelection <> '' then // 取消选择，并下移光标
+            CnOtaDeSelection(True);
+
+          CnOtaInsertTextIntoEditor(#13#10 + S + #13#10);
+        end;
+      end;
+    end
+    else
+    begin
+      EnsureChatWindowVisible;
+      TCnChatMessage(Tag).Text := Format('%d %s', [ErrorCode, Answer]);
+    end;
+  end
+  else
+  begin
+    EnsureChatWindowVisible;
+    if Success then
+      CnAICoderChatForm.AddMessage(Answer, CnAIEngineManager.CurrentEngineName)
+    else
+      CnAICoderChatForm.AddMessage(Format('%d %s', [ErrorCode, Answer]), CnAIEngineManager.CurrentEngineName);
+  end;
+end;
+
+procedure TCnAICoderWizard.EnsureChatWindowVisible(OnlyCreate: Boolean);
 begin
   if CnAICoderChatForm = nil then
   begin
-    CnAICoderChatForm := TCnAICoderChatForm.Create(Application);
+    CnAICoderChatForm := TCnAICoderChatForm.Create(nil);
     CnAICoderChatForm.Wizard := Self;
   end;
+
+  if OnlyCreate then
+    Exit;
 
   CnAICoderChatForm.VisibleWithParent := True;
   CnAICoderChatForm.BringToFront;
@@ -429,6 +636,294 @@ end;
 function TCnAICoderConfigForm.GetHelpTopic: string;
 begin
   Result := 'CnAICoderWizard';
+end;
+
+procedure TCnAICoderWizard.VersionFirstRun;
+begin
+  if (CnWizardMgr.ProductVersion >= 161) and // 161 版开始的部分 AI 参数要升级，如 Gemini 的地址
+    (WizOptions.ReadInteger(SCnVersionFirstRun, Self.ClassName, 0) < 161) then
+  begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('TCnAICoderWizard.VersionFirstRun for 161. To Upgrade Setting.');
+{$ENDIF}
+    FNeedUpgradeGemini := True;
+  end;
+end;
+
+procedure TCnAICoderWizard.EditorKeyDown(Key, ScanCode: Word;
+  Shift: TShiftState; var Handled: Boolean);
+begin
+  if not Active or not CnAIEngineOptionManager.ContCodeKey2 then
+    Exit;
+
+  if (Key = VK_RETURN) and (ssCtrl in Shift) and (ssAlt in Shift) then
+  begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('Ctrl+Alt+Enter Pressed to Continue AI Coding');
+{$ENDIF}
+    if not ValidateAIEngines then
+    begin
+      Config;
+      Exit;
+    end;
+
+    ContinueCurrentFile(True);
+    Handled := True;
+  end;
+end;
+
+procedure TCnAICoderWizard.EditorSysKeyDown(Key, ScanCode: Word;
+  Shift: TShiftState; var Handled: Boolean);
+begin
+  if not Active or not CnAIEngineOptionManager.ContCodeKey1 then
+    Exit;
+
+  if Key = VK_RETURN then
+  begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('Alt+Enter Pressed to Continue AI Coding');
+{$ENDIF}
+    if not ValidateAIEngines then
+    begin
+      Config;
+      Exit;
+    end;
+
+    ContinueCurrentFile;
+    Handled := True;
+  end;
+end;
+
+procedure TCnAICoderWizard.ContinueCurrentFile(UseChat: Boolean);
+var
+  I, LastLine: Integer;
+  S: string;
+  PIde: PCnIdeTokenChar;
+  SL: TStringList;
+  Mem: TMemoryStream;
+  View: IOTAEditView;
+  P: TOTAEditPos;
+  Msg: TCnChatMessage;
+  PasParser: TCnGeneralPasStructParser;
+  CppParser: TCnGeneralCppStructParser;
+  CurIsPas, CurIsCpp: Boolean;
+  CharPos: TOTACharPos;
+begin
+  // 收集本文件从开始到光标这行的内容，并发送，并编辑器接收回应
+  View := CnOtaGetTopMostEditView;
+  if View = nil then
+    Exit;
+
+  S := '';
+  Mem := nil;
+  SL := nil;
+  PasParser := nil;
+  CppParser := nil;
+  LastLine := -1;
+
+  try
+    Mem := TMemoryStream.Create;
+    SL := TStringList.Create;
+    CnGeneralSaveEditorToStream(nil, Mem);
+
+    // 找光标外的最外层
+    CurIsPas := IsDprOrPas(View.Buffer.FileName) or IsInc(View.Buffer.FileName);
+    CurIsCpp := IsCppSourceModule(View.Buffer.FileName);
+
+    // 解析
+
+    if CurIsPas then
+    begin
+      PasParser := TCnGeneralPasStructParser.Create;
+  {$IFDEF BDS}
+      PasParser.UseTabKey := True;
+      PasParser.TabWidth := EditControlWrapper.GetTabWidth;
+  {$ENDIF}
+    end;
+
+    if CurIsCpp then
+    begin
+      CppParser := TCnGeneralCppStructParser.Create;
+  {$IFDEF BDS}
+      CppParser.UseTabKey := True;
+      CppParser.TabWidth := EditControlWrapper.GetTabWidth;
+  {$ENDIF}
+    end;
+
+    // 解析当前显示的源文件
+    if CurIsPas then
+    begin
+      CnPasParserParseSource(PasParser, Mem, IsDpr(View.Buffer.FileName)
+        or IsInc(View.Buffer.FileName), False);
+
+      // 解析后再查找当前光标所在的块，不直接使用 CursorPos，因为 Parser 所需偏移可能不同
+      CnOtaGetCurrentCharPosFromCursorPosForParser(CharPos);
+      PasParser.FindCurrentBlock(CharPos.Line, CharPos.CharIndex);
+
+      if PasParser.BlockCloseToken <> nil then
+        LastLine := PasParser.BlockCloseToken.LineNumber;
+
+    end
+    else if CurIsCpp then
+    begin
+      CnCppParserParseSource(CppParser, Mem, View.CursorPos.Line,
+        View.CursorPos.Col, True, True);
+
+      if CppParser.BlockCloseToken <> nil then
+        LastLine := CppParser.BlockCloseToken.LineNumber;
+    end;
+
+    PIde := PCnIdeTokenChar(Mem.Memory);
+    SL.Text := string(PIde);
+    P := View.CursorPos;
+
+    // 如果没拿到，光标所在最外层的 Token 尾，则硬性搜索 end
+    if (LastLine < 0) and (P.Line <= SL.Count) then
+    begin
+      for I := P.Line + 1 to SL.Count - 1 do
+      begin
+        S := SL[I];
+        if Length(S) = 4 then
+        begin
+          if (LowerCase(S) = 'end;') or (LowerCase(S) = 'end.') then
+          begin
+            LastLine := I;
+            Break;
+          end
+          else if Length(S) > 4 then
+          begin
+            if (LowerCase(Copy(S, 1, 4)) = 'end;') or (LowerCase(Copy(S, 1, 4)) = 'end.')
+              and (S[5] in [' ', '/', '{']) then // end; 或 end. 后是空格注释之类的
+            begin
+              LastLine := I;
+              Break;
+            end;
+          end;
+        end;
+      end;
+    end;
+
+    // 找到末尾行
+    if (LastLine > 0) and (LastLine > P.Line) then
+    begin
+{$IFDEF DEBUG}
+      CnDebugger.LogMsg('Continue Current File, Find Last Line at ' + IntToStr(LastLine));
+{$ENDIF}
+      for I := SL.Count - 1 downto LastLine + 1 do
+        SL.Delete(SL.Count - 1);
+    end;
+
+    // 加入代码插入位置的标记
+    if P.Line <= SL.Count then
+    begin
+      SL.Insert(P.Line, '');
+      SL.Insert(P.Line, SCnAICoderWizardFlagContinueCoding);
+      SL.Insert(P.Line, '');
+    end
+    else
+    begin
+      SL.Add('');
+      SL.Add(SCnAICoderWizardFlagContinueCoding);
+      SL.Add('');
+    end;
+
+    S := SL.Text;
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('Continue Current File. Sending Code Chars ' + IntToStr(Length(S)));
+{$ENDIF}
+  finally
+    CppParser.Free;
+    PasParser.Free;
+    SL.Free;
+    Mem.Free;
+  end;
+
+  EnsureChatWindowVisible(not UseChat);
+  Msg := CnAICoderChatForm.ChatBox.Items.AddMessage;
+  Msg.From := CnAIEngineManager.CurrentEngineName;
+  Msg.FromType := cmtYou;
+  Msg.Text := MSG_WAITING;
+  Msg.Waiting := True;
+  FFirstAnswer := True;
+
+  if UseChat then
+    CnAIEngineManager.CurrentEngine.AskAIEngineForCode(S, nil, Msg, artContinueCoding, ForContinueAnswerToChat)
+  else
+    CnAIEngineManager.CurrentEngine.AskAIEngineForCode(S, nil, Msg, artContinueCoding, ForContinueAnswerToEditor);
+end;
+
+procedure TCnAICoderWizard.ForContinueAnswerToEditor(StreamMode, Partly, Success,
+  IsStreamEnd: Boolean; SendId: Integer; const Answer: string;
+  ErrorCode: Cardinal; Tag: TObject);
+begin
+  if (Tag <> nil) and (Tag is TCnChatMessage) then
+  begin
+    TCnChatMessage(Tag).Waiting := False;
+    if Success then
+    begin
+      if Partly and (TCnChatMessage(Tag).Text <> MSG_WAITING)then
+        TCnChatMessage(Tag).Text := TCnChatMessage(Tag).Text + Answer
+      else
+        TCnChatMessage(Tag).Text := Answer;
+
+      // 本回调要写入编辑区
+      if Answer <> '' then
+      begin
+        // 判断有无选择区，避免覆盖选择区内容
+        if CnOtaGetCurrentSelection <> '' then // 取消选择，并下移光标
+          CnOtaDeSelection(True);
+
+        if FFirstAnswer then // 第一个回应前加个回车，避免在本行续写代码
+          CnOtaInsertTextIntoEditor(#13#10 + Answer)
+        else
+          CnOtaInsertTextIntoEditor(Answer);
+        FFirstAnswer := False;
+      end;
+    end
+    else
+    begin
+      EnsureChatWindowVisible;
+      TCnChatMessage(Tag).Text := Format('%d %s', [ErrorCode, Answer]);
+    end;
+  end
+  else
+  begin
+    EnsureChatWindowVisible;
+    if Success then
+      CnAICoderChatForm.AddMessage(Answer, CnAIEngineManager.CurrentEngineName)
+    else
+      CnAICoderChatForm.AddMessage(Format('%d %s', [ErrorCode, Answer]), CnAIEngineManager.CurrentEngineName);
+  end;
+end;
+
+procedure TCnAICoderWizard.ForContinueAnswerToChat(StreamMode, Partly,
+  Success, IsStreamEnd: Boolean; SendId: Integer; const Answer: string;
+  ErrorCode: Cardinal; Tag: TObject);
+begin
+  if (Tag <> nil) and (Tag is TCnChatMessage) then
+  begin
+    TCnChatMessage(Tag).Waiting := False;
+    if Success then
+    begin
+      if Partly and (TCnChatMessage(Tag).Text <> MSG_WAITING)then
+        TCnChatMessage(Tag).Text := TCnChatMessage(Tag).Text + Answer
+      else
+        TCnChatMessage(Tag).Text := Answer;
+    end
+    else
+    begin
+      EnsureChatWindowVisible;
+      TCnChatMessage(Tag).Text := Format('%d %s', [ErrorCode, Answer]);
+    end;
+  end
+  else
+  begin
+    EnsureChatWindowVisible;
+    if Success then
+      CnAICoderChatForm.AddMessage(Answer, CnAIEngineManager.CurrentEngineName)
+    else
+      CnAICoderChatForm.AddMessage(Format('%d %s', [ErrorCode, Answer]), CnAIEngineManager.CurrentEngineName);
+  end;
 end;
 
 initialization

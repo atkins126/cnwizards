@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -91,17 +91,17 @@ type
     A2: TMenuItem;
     O3: TMenuItem;
     ilMain: TImageList;
-    btn5: TToolButton;
-    btn6: TToolButton;
-    btn7: TToolButton;
-    btn8: TToolButton;
+    btnNew: TToolButton;
+    btnOpen: TToolButton;
+    btnClose: TToolButton;
+    btnSave: TToolButton;
     ToolButton6: TToolButton;
-    btn10: TToolButton;
-    btn9: TToolButton;
+    btnFind: TToolButton;
+    btnCopy: TToolButton;
     ToolButton9: TToolButton;
-    btn11: TToolButton;
-    btn12: TToolButton;
-    btn13: TToolButton;
+    btnStart: TToolButton;
+    btnPause: TToolButton;
+    btnStop: TToolButton;
     actExpandAll: TAction;
     N6: TMenuItem;
     E1: TMenuItem;
@@ -142,18 +142,18 @@ type
     dlgSave: TSaveDialog;
     dlgFind: TFindDialog;
     ToolButton2: TToolButton;
-    btn14: TToolButton;
-    btn15: TToolButton;
-    btn16: TToolButton;
-    btn17: TToolButton;
-    btn18: TToolButton;
-    btn19: TToolButton;
+    btnGotoFirst: TToolButton;
+    btnGotoLast: TToolButton;
+    btnGotoPrev: TToolButton;
+    btnGotoNext: TToolButton;
+    btnGotoPrevLine: TToolButton;
+    btnGotoNextLine: TToolButton;
     ToolButton19: TToolButton;
-    btn20: TToolButton;
-    btn21: TToolButton;
+    btnOptions: TToolButton;
+    btnFilter: TToolButton;
     ToolButton22: TToolButton;
-    btn22: TToolButton;
-    btn23: TToolButton;
+    btnHelp: TToolButton;
+    btnAbout: TToolButton;
     N11: TMenuItem;
     S4: TMenuItem;
     actFindNext: TAction;
@@ -170,9 +170,9 @@ type
     N14: TMenuItem;
     X2: TMenuItem;
     X3: TMenuItem;
-    btn1: TToolButton;
-    btn2: TToolButton;
-    btn3: TToolButton;
+    btnBookmark: TToolButton;
+    btnPrevBookmark: TToolButton;
+    btnNextBookmark: TToolButton;
     btn4: TToolButton;
     actClearBookmarks: TAction;
     M1: TMenuItem;
@@ -257,6 +257,7 @@ type
     procedure actSwtAddToBlackExecute(Sender: TObject);
     procedure actSwtAddToWhiteExecute(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure pnlChildContainerDblClick(Sender: TObject);
   private
     FUpdatingSwitch: Boolean;
     FClickingSwitch: Boolean;
@@ -433,8 +434,10 @@ begin
   InitializeLang;
 
   CnLangManager.AddChangeNotifier(LanguageChanged);
-      Left := 0; Width := Screen.Width;
-      Top := 0; Height := Screen.Height - 25;
+  Left := 0;
+  Width := Screen.Width;
+  Top := 0;
+  Height := Screen.Height - 25;
   Application.Title := Caption;
   statMain.Panels[1].Text := Format(SCnCPUSpeedFmt, [CPUClock]);
 
@@ -462,6 +465,18 @@ begin
           Self.Left := CnViewerOptions.Left;
           Self.Height := CnViewerOptions.Height;
           Self.Width := CnViewerOptions.Width;
+
+          if Screen.MonitorCount = 1 then // 单显示器下限定位置免得找不到
+          begin
+            if Self.Top > Screen.Height - 25 then // 太下面
+              Self.Top := 0;
+            if Self.Left > Screen.Width then      // 太右边
+              Self.Left := 0;
+            if Self.Top + Self.Height < 0 then    // 太上面
+              Self.Top := 0;
+            if Self.Left + Self.Width < 0 then    // 太左边
+              Self.Left := 0;
+          end;
         end;
       1: PostMessage(Self.Handle, WM_SYSCOMMAND, SC_MINIMIZE, 0);
       2: PostMessage(Self.Handle, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
@@ -1267,7 +1282,6 @@ begin
     Reg.RootKey := HKEY_CURRENT_USER;
     if Reg.OpenKey('\Software\CnPack\CnDebug', True) then
       Reg.WriteString('CnDebugViewer', '"' + ParamStr(0) + '"');
-
   finally
     Reg.CloseKey;
     Reg.Free;
@@ -1481,6 +1495,7 @@ end;
 
 procedure TCnMainViewer.TerminateThread;
 begin
+  DebugDebuggerLog('MainViewer Before TerminateThread');
   if FThread <> nil then
   begin
     FThread.Terminate;
@@ -1502,6 +1517,7 @@ begin
     end;
     // FDbgThread := nil;
   end;
+  DebugDebuggerLog('MainViewer After TerminateThread');
 end;
 
 procedure TCnMainViewer.ShowAndHideOtherChildren(ExceptChild: TForm);
@@ -1542,6 +1558,11 @@ procedure TCnMainViewer.OnShowChild(var Message: TMessage);
 begin
   if CurrentChild <> nil then
     CurrentChild.pnlTree.OnResize(CurrentChild.pnlTree);
+end;
+
+procedure TCnMainViewer.pnlChildContainerDblClick(Sender: TObject);
+begin
+  actOpen.Execute;
 end;
 
 end.

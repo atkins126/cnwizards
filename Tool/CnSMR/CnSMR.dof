@@ -73,12 +73,12 @@ CompanyName=CnPack Team
 FileDescription=CnPack Relation Analyzer
 FileVersion=0.9.3.0
 InternalName=CnSMR
-LegalCopyright=(C)Copyright 2001-2024 CnPack Team
+LegalCopyright=(C)Copyright 2001-2025 CnPack Team
 LegalTrademarks=CnPack
 OriginalFilename=CnSMR.exe
 ProductName=CnWizards
 ProductVersion=1.0.0.0
-Comments=http://www.cnapck.org
+Comments=https://www.cnapck.org
 [HistoryLists\hlConditionals]
 Count=1
 Item0=STAND_ALONE

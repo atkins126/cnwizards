@@ -6,7 +6,7 @@ unit DiffUnit;
 * Date:             24 February 2002                                           *
 * Compilers:        Delphi 3 - Delphi 6                                        *
 * Author:           Angus Johnson - ajohnson@rpi.net.au                        *
-* Copyright:        © 2001-2002 Angus Johnson                                  *
+* Copyright:        2001-2002 Angus Johnson                                  *
                                                                                *
 * Licence to use, terms and conditions:                                        *
 *                   The code in the TDiff component is released as freeware    *
@@ -53,8 +53,14 @@ const
   MAX_DIAGONAL = $FFFFF;
 
 type
+{$IFDEF WIN64}
+  TCnNativeInt     = NativeInt;
+{$ELSE}
+  TCnNativeInt     = Integer;
+{$ENDIF}
+
   PDiagVectorArray = ^TDiagVectorArray;
-  TDiagVectorArray = array[-MAX_DIAGONAL.. + MAX_DIAGONAL] of Integer;
+  TDiagVectorArray = array[-MAX_DIAGONAL.. + MAX_DIAGONAL] of TCnNativeInt;
   TScriptKind = (skAddRange, skDelRange, skDelDiagDel,
     skAddDiagAdd, skAddDel, skAddDiagDel, skDelDiagAdd);
 
@@ -68,7 +74,7 @@ type
   TByteArray = array[1..(MaxInt div SizeOf(Byte))] of Byte;
   PByteArray = ^TByteArray;
   {$ELSE}
-  TIntArray = array[1..(MaxInt div SizeOf(Integer))] of Integer;
+  TIntArray = array[1..(MaxInt div SizeOf(TCnNativeInt))] of TCnNativeInt;
   PIntArray = ^TIntArray;
   {$ENDIF}
 
@@ -262,12 +268,12 @@ begin
   IntArr_b := nil;
   try
     //allocate the vector memory ...
-    GetMem(IntArr_f, SizeOf(Integer) * (MaxD * 2 + 1));
-    GetMem(IntArr_b, SizeOf(Integer) * (MaxD * 2 + 1));
+    GetMem(IntArr_f, SizeOf(TCnNativeInt) * (MaxD * 2 + 1));
+    GetMem(IntArr_b, SizeOf(TCnNativeInt) * (MaxD * 2 + 1));
     //Align the forward and backward diagonal vector arrays
     //with the memory which has just been allocated ...
-    Integer(diagVecF) := Integer(IntArr_f) - SizeOf(Integer) * (MAX_DIAGONAL - MaxD);
-    Integer(diagVecB) := Integer(IntArr_b) - SizeOf(Integer) * (MAX_DIAGONAL - MaxD);
+    TCnNativeInt(diagVecF) := TCnNativeInt(IntArr_f) - SizeOf(TCnNativeInt) * (MAX_DIAGONAL - MaxD);
+    TCnNativeInt(diagVecB) := TCnNativeInt(IntArr_b) - SizeOf(TCnNativeInt) * (MAX_DIAGONAL - MaxD);
 
     fCancelled := False;
     //NOW DO IT HERE...

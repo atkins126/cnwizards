@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -54,8 +54,8 @@ uses
 
 type
 
-  TFileKind = (fkDiskFile, fkEditorBuff, fkBackupFile);
-  TFileKinds = set of TFileKind;
+  TCnDiffFileKind = (fkDiskFile, fkEditorBuff, fkBackupFile);
+  TCnDiffFileKinds = set of TCnDiffFileKind;
 
   TCnSourceDiffForm = class(TCnTranslateForm)
     MainMenu: TMainMenu;
@@ -242,8 +242,8 @@ type
     History1: TStrings;
     History2: TStrings;
     UnitList: TStrings;
-    FFileKind1: TFileKind;
-    FFileKind2: TFileKind;
+    FFileKind1: TCnDiffFileKind;
+    FFileKind2: TCnDiffFileKind;
     procedure DisplayDiffs;
     procedure DiffCtrlMouseDown(Sender: TObject;
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -259,9 +259,9 @@ type
     procedure SetSplitHorizontally(SplitHorizontally: Boolean);
     procedure DoPopupMenu(Btn: TBitBtn; Menu: TPopupMenu);
     function GetBakFileName(const FileName: string): string;
-    procedure SetFileKind1(const Value: TFileKind);
-    procedure SetFileKind2(const Value: TFileKind);
-    function GetFileKinds(const FileName: string): TFileKinds;
+    procedure SetFileKind1(const Value: TCnDiffFileKind);
+    procedure SetFileKind2(const Value: TCnDiffFileKind);
+    function GetFileKinds(const FileName: string): TCnDiffFileKinds;
     procedure OnHistory1Click(Sender: TObject);
     procedure OnHistory2Click(Sender: TObject);
     procedure UpdateHistoryMenu(Menu: TPopupMenu; History: TStrings;
@@ -276,26 +276,20 @@ type
     procedure DoLanguageChanged(Sender: TObject); override;
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
     constructor CreateEx(AOwner: TComponent; AIni: TCustomIniFile);
-    property FileKind1: TFileKind read FFileKind1 write SetFileKind1;
-    property FileKind2: TFileKind read FFileKind2 write SetFileKind2;
+
+    procedure SetLeftString(const Str: string);
+    procedure SetRightString(const Str: string);
+
+    property FileKind1: TCnDiffFileKind read FFileKind1 write SetFileKind1;
+    property FileKind2: TCnDiffFileKind read FFileKind2 write SetFileKind2;
     property FileName1: string read GetFileName1 write SetFileName1;
     property FileName2: string read GetFileName2 write SetFileName2;
     property FilesCompared: Boolean read FFilesCompared write SetFilesCompared;
     property IsMerging: Boolean read GetIsMerging;
   end;
 
-const
-  colorAdd = 1;
-  colorMod = 2;
-  colorDel = 3;
-
-  csMaxHistory = 8;
-
 var
-  csFileKinds: array[TFileKind] of string = ('SCnDiskFile', 'SCnEditorBuff', 'SCnBakFile');
-
   CnSourceDiffForm: TCnSourceDiffForm;
 
 procedure ShowSourceDiffForm(AIni: TCustomIniFile; AIcon: TIcon = nil);
@@ -312,6 +306,16 @@ uses
   CnWizShareImages, CnWizOptions {$IFDEF DEBUG}, CnDebug{$ENDIF};
 
 {$R *.DFM}
+
+const
+  ColorAdd = 1;
+  ColorMod = 2;
+  ColorDel = 3;
+
+  csMaxHistory = 8;
+
+var
+  csFileKinds: array[TCnDiffFileKind] of string = ('SCnDiskFile', 'SCnEditorBuff', 'SCnBakFile');
 
 procedure ShowSourceDiffForm(AIni: TCustomIniFile; AIcon: TIcon = nil);
 begin
@@ -420,8 +424,8 @@ begin
   pnlCaptionLeftResize(nil);
   pnlCaptionRightResize(nil);
 
-  btnFileKind1.Caption := csFileKinds[Low(TFileKind)];
-  btnFileKind2.Caption := csFileKinds[Low(TFileKind)];
+  btnFileKind1.Caption := csFileKinds[Low(TCnDiffFileKind)];
+  btnFileKind2.Caption := csFileKinds[Low(TCnDiffFileKind)];
   
   LoadOptions;
   WizOptions.ResetToolbarWithLargeIcons(ToolBar);
@@ -484,9 +488,9 @@ begin
     H := ReadInteger('', csBoundsHeight, -1);
 
     //set (Add, Del, Mod) colors...
-    DiffControl1.LineColors[colorAdd] := ReadColor('', csAddColor, $0FD70F);
-    DiffControl1.LineColors[colorMod] := ReadColor('', csModColor, $FF8080);
-    DiffControl1.LineColors[colorDel] := ReadColor('', csDelColor, $CF98FF);
+    DiffControl1.LineColors[ColorAdd] := ReadColor('', csAddColor, $0FD70F);
+    DiffControl1.LineColors[ColorMod] := ReadColor('', csModColor, $FF8080);
+    DiffControl1.LineColors[ColorDel] := ReadColor('', csDelColor, $CF98FF);
 
     DiffControl1.Font.Handle := GetStockObject(DEFAULT_GUI_FONT);
     DiffControl1.Font := ReadFont('', csFont, DiffControl1.Font);
@@ -508,12 +512,12 @@ begin
 
   DiffControl2.Font.Assign(DiffControl1.Font);
   DiffControlMerge.Font.Assign(DiffControl1.Font);
-  DiffControl2.LineColors[colorAdd] := DiffControl1.LineColors[colorAdd];
-  DiffControlMerge.LineColors[colorAdd] := DiffControl1.LineColors[colorAdd];
-  DiffControl2.LineColors[colorMod] := DiffControl1.LineColors[colorMod];
-  DiffControlMerge.LineColors[colorMod] := DiffControl1.LineColors[colorMod];
-  DiffControl2.LineColors[colorDel] := DiffControl1.LineColors[colorDel];
-  DiffControlMerge.LineColors[colorDel] := DiffControl1.LineColors[colorDel];
+  DiffControl2.LineColors[ColorAdd] := DiffControl1.LineColors[ColorAdd];
+  DiffControlMerge.LineColors[ColorAdd] := DiffControl1.LineColors[ColorAdd];
+  DiffControl2.LineColors[ColorMod] := DiffControl1.LineColors[ColorMod];
+  DiffControlMerge.LineColors[ColorMod] := DiffControl1.LineColors[ColorMod];
+  DiffControl2.LineColors[ColorDel] := DiffControl1.LineColors[ColorDel];
+  DiffControlMerge.LineColors[ColorDel] := DiffControl1.LineColors[ColorDel];
 
   //make sure the form is positioned on screen ...
   //(ie make sure nobody's fiddled with the INI file!)
@@ -535,9 +539,9 @@ begin
       WriteInteger('', csBoundsHeight, Self.Height);
     end;
 
-    WriteColor('', csAddColor, DiffControl1.LineColors[colorAdd]);
-    WriteColor('', csModColor, DiffControl1.LineColors[colorMod]);
-    WriteColor('', csDelColor, DiffControl1.LineColors[colorDel]);
+    WriteColor('', csAddColor, DiffControl1.LineColors[ColorAdd]);
+    WriteColor('', csModColor, DiffControl1.LineColors[ColorMod]);
+    WriteColor('', csDelColor, DiffControl1.LineColors[ColorDel]);
 
     WriteFont('', csFont, DiffControl1.Font);
     WriteString('', csInitialDir1, OpenDialog1.InitialDir);
@@ -601,8 +605,8 @@ procedure TCnSourceDiffForm.DoOpenFile(OpenFile1: Boolean);
 var
   DiffControl: TDiffControl;
   FileName: string;
-  Kinds: TFileKinds;
-  Kind, FKind: TFileKind;
+  Kinds: TCnDiffFileKinds;
+  Kind, FKind: TCnDiffFileKind;
   Stream: TMemoryStream;
 begin
   if OpenFile1 then
@@ -800,30 +804,30 @@ procedure TCnSourceDiffForm.actCompareExecute(Sender: TObject);
 var
   I: Integer;
   HashList1, HashList2: TList;
-  optionsStr: string;
+  OptionsStr: string;
 begin
   FilesCompared := False;
   if (Lines1.Count = 0) or (Lines2.Count = 0) then Exit;
 
   if actIgnoreCase.Checked then
-    optionsStr := SCnSourceDiffCaseIgnored;
+    OptionsStr := SCnSourceDiffCaseIgnored;
   if actIgnoreBlanks.Checked then
   begin
-    if optionsStr = '' then
-      optionsStr := SCnSourceDiffBlanksIgnored
+    if OptionsStr = '' then
+      OptionsStr := SCnSourceDiffBlanksIgnored
     else
-      optionsStr := optionsStr + ', ' + SCnSourceDiffBlanksIgnored;
+      OptionsStr := OptionsStr + ', ' + SCnSourceDiffBlanksIgnored;
   end;
 
-  if optionsStr <> '' then
-    optionsStr := '  (' + optionsStr + ')';
+  if OptionsStr <> '' then
+    OptionsStr := '  (' + OptionsStr + ')';
 
   HashList1 := TList.Create;
   HashList2 := TList.Create;
   try
     // create the hash lists to compare...
-    HashList1.capacity := Lines1.Count;
-    HashList2.capacity := Lines2.Count;
+    HashList1.Capacity := Lines1.Count;
+    HashList2.Capacity := Lines2.Count;
     for I := 0 to Lines1.Count - 1 do
       HashList1.Add(HashLine(Lines1[I], actIgnoreCase.Checked,
         actIgnoreBlanks.Checked));
@@ -831,7 +835,7 @@ begin
       HashList2.Add(HashLine(Lines2[I], actIgnoreCase.Checked,
         actIgnoreBlanks.Checked));
 
-    screen.cursor := crHourglass;
+    Screen.Cursor := crHourglass;
     try
       actCancel.Enabled := True;
       // CALCULATE THE DIFFS HERE ...
@@ -841,12 +845,12 @@ begin
       FilesCompared := True;
       DisplayDiffs;
     finally
-      screen.cursor := crDefault;
+      Screen.Cursor := crDefault;
       actCancel.Enabled := False;
     end;
 
     Statusbar1.Panels[3].Text := Format(SCnSourceDiffChanges, [Diff.ChangeCount,
-      optionsStr]);
+      OptionsStr]);
   finally
     HashList1.Free;
     HashList2.Free;
@@ -904,8 +908,8 @@ begin
           begin
             for J := K to K + Range - 1 do
             begin
-              DiffControl1.Lines.AddLineInfo('', 0, colorAdd);
-              DiffControl2.Lines.AddLineInfo(lines2[J], J + 1, colorAdd);
+              DiffControl1.Lines.AddLineInfo('', 0, ColorAdd);
+              DiffControl2.Lines.AddLineInfo(lines2[J], J + 1, ColorAdd);
             end;
             J := x;
             K := y + Range;
@@ -913,8 +917,8 @@ begin
           begin
             for J := 0 to Range - 1 do
             begin
-              DiffControl1.Lines.AddLineInfo(lines1[x + J], x + J + 1, colorMod);
-              DiffControl2.Lines.AddLineInfo(lines2[K + J], K + J + 1, colorMod);
+              DiffControl1.Lines.AddLineInfo(lines1[x + J], x + J + 1, ColorMod);
+              DiffControl2.Lines.AddLineInfo(lines2[K + J], K + J + 1, ColorMod);
             end;
             J := x + Range;
             K := y + Range;
@@ -923,8 +927,8 @@ begin
           begin
             for J := x to x + Range - 1 do
             begin
-              DiffControl1.Lines.AddLineInfo(lines1[J], J + 1, colorDel);
-              DiffControl2.Lines.AddLineInfo('', 0, colorDel);
+              DiffControl1.Lines.AddLineInfo(lines1[J], J + 1, ColorDel);
+              DiffControl2.Lines.AddLineInfo('', 0, ColorDel);
             end;
             J := x + Range;
           end;
@@ -993,14 +997,14 @@ begin
     pnlLeft.Align := alTop;
     pnlLeft.Height := pnlMain.ClientHeight div 2 - 1;
     Splitter1.Align := alTop;
-    Splitter1.cursor := crVSplit;
+    Splitter1.Cursor := crVSplit;
   end else
   begin
     pnlLeft.Align := alLeft;
     pnlLeft.Width := pnlMain.ClientWidth div 2 - 1;
     Splitter1.Align := alLeft;
     Splitter1.Left := 10;
-    Splitter1.cursor := crHSplit;
+    Splitter1.Cursor := crHSplit;
   end;
 end;
 
@@ -1100,13 +1104,13 @@ procedure TCnSourceDiffForm.actAddColorExecute(Sender: TObject);
 begin
   with ColorDialog do
   begin
-    Color := DiffControl1.LineColors[colorAdd];
+    Color := DiffControl1.LineColors[ColorAdd];
     if not Execute then
       Exit;
 
-    DiffControl1.LineColors[colorAdd] := Color;
-    DiffControl2.LineColors[colorAdd] := Color;
-    DiffControlMerge.LineColors[colorAdd] := Color;
+    DiffControl1.LineColors[ColorAdd] := Color;
+    DiffControl2.LineColors[ColorAdd] := Color;
+    DiffControlMerge.LineColors[ColorAdd] := Color;
   end;
   RepaintControls;
 end;
@@ -1115,13 +1119,13 @@ procedure TCnSourceDiffForm.actModColorExecute(Sender: TObject);
 begin
   with ColorDialog do
   begin
-    Color := DiffControl1.LineColors[colorMod];
+    Color := DiffControl1.LineColors[ColorMod];
     if not Execute then
       Exit;
 
-    DiffControl1.LineColors[colorMod] := Color;
-    DiffControl2.LineColors[colorMod] := Color;
-    DiffControlMerge.LineColors[colorMod] := Color;
+    DiffControl1.LineColors[ColorMod] := Color;
+    DiffControl2.LineColors[ColorMod] := Color;
+    DiffControlMerge.LineColors[ColorMod] := Color;
   end;
   RepaintControls;
 end;
@@ -1130,13 +1134,13 @@ procedure TCnSourceDiffForm.actDelColorExecute(Sender: TObject);
 begin
   with ColorDialog do
   begin
-    Color := DiffControl1.LineColors[colorDel];
+    Color := DiffControl1.LineColors[ColorDel];
     if not Execute then
       Exit;
 
-    DiffControl1.LineColors[colorDel] := Color;
-    DiffControl2.LineColors[colorDel] := Color;
-    DiffControlMerge.LineColors[colorDel] := Color;
+    DiffControl1.LineColors[ColorDel] := Color;
+    DiffControl2.LineColors[ColorDel] := Color;
+    DiffControlMerge.LineColors[ColorDel] := Color;
   end;
   RepaintControls;
 end;
@@ -1145,9 +1149,9 @@ procedure TCnSourceDiffForm.StatusBar1DrawPanel(StatusBar: TStatusBar;
   Panel: TStatusPanel; const Rect: TRect);
 begin
   case Panel.Index of
-    0: StatusBar1.Canvas.Brush.Color := DiffControl1.LineColors[colorAdd];
-    1: StatusBar1.Canvas.Brush.Color := DiffControl1.LineColors[colorMod];
-    2: StatusBar1.Canvas.Brush.Color := DiffControl1.LineColors[colorDel];
+    0: StatusBar1.Canvas.Brush.Color := DiffControl1.LineColors[ColorAdd];
+    1: StatusBar1.Canvas.Brush.Color := DiffControl1.LineColors[ColorMod];
+    2: StatusBar1.Canvas.Brush.Color := DiffControl1.LineColors[ColorDel];
   else
     Exit;
   end;
@@ -1374,11 +1378,11 @@ begin
     (Y <= StatusBar1.ClientHeight) and (Button = mbLeft) then
   begin
     I := X div StatusBar1.Panels[0].Width + 1;
-    if I = colorAdd then
+    if I = ColorAdd then
       actAddColor.Execute
-    else if I = colorMod then
+    else if I = ColorMod then
       actModColor.Execute
-    else if I = colorDel then
+    else if I = ColorDel then
       actDelColor.Execute;
   end;
 end;
@@ -1428,25 +1432,29 @@ begin
 end;
 
 function TCnSourceDiffForm.GetFileKinds(
-  const FileName: string): TFileKinds;
+  const FileName: string): TCnDiffFileKinds;
 var
   FModIntf: IOTAModule;
 begin
   Result := [];
   // 源文件存在
-  if FileExists(FileName) then Include(Result, fkDiskFile);
+  if FileExists(FileName) then
+    Include(Result, fkDiskFile);
 
   // 备份文件存在
-  if FileExists(GetBakFileName(FileName)) then Include(Result, fkBackupFile);
+  if FileExists(GetBakFileName(FileName)) then
+    Include(Result, fkBackupFile);
 
-  // 文件在IDE中打开
+  // 文件在 IDE 中打开
   FModIntf := CnOtaGetModule(FileName);
   if FModIntf <> nil then
+  begin
     if CnOtaGetSourceEditorFromModule(FModIntf, FileName) <> nil then
       Include(Result, fkEditorBuff);
+  end;
 end;
 
-procedure TCnSourceDiffForm.SetFileKind1(const Value: TFileKind);
+procedure TCnSourceDiffForm.SetFileKind1(const Value: TCnDiffFileKind);
 begin
   if Value <> FFileKind1 then
   begin
@@ -1467,7 +1475,7 @@ begin
   end;
 end;
 
-procedure TCnSourceDiffForm.SetFileKind2(const Value: TFileKind);
+procedure TCnSourceDiffForm.SetFileKind2(const Value: TCnDiffFileKind);
 begin
   if Value <> FFileKind2 then
   begin
@@ -1490,7 +1498,7 @@ end;
 
 procedure TCnSourceDiffForm.pmFileKind1Popup(Sender: TObject);
 var
-  Kinds: TFileKinds;
+  Kinds: TCnDiffFileKinds;
 begin
   Kinds := GetFileKinds(FileName1);
   pmiDiskFile1.Checked := FileKind1 = fkDiskFile;
@@ -1503,7 +1511,7 @@ end;
 
 procedure TCnSourceDiffForm.pmFileKind2Popup(Sender: TObject);
 var
-  Kinds: TFileKinds;
+  Kinds: TCnDiffFileKinds;
 begin
   Kinds := GetFileKinds(FileName2);
   pmiDiskFile2.Checked := FileKind2 = fkDiskFile;
@@ -1517,13 +1525,13 @@ end;
 procedure TCnSourceDiffForm.pmiDiskFile1Click(Sender: TObject);
 begin
   if Sender is TMenuItem then
-    FileKind1 := TFileKind(TMenuItem(Sender).Tag);
+    FileKind1 := TCnDiffFileKind(TMenuItem(Sender).Tag);
 end;
 
 procedure TCnSourceDiffForm.pmiDiskFile2Click(Sender: TObject);
 begin
   if Sender is TMenuItem then
-    FileKind2 := TFileKind(TMenuItem(Sender).Tag);
+    FileKind2 := TCnDiffFileKind(TMenuItem(Sender).Tag);
 end;
 
 const
@@ -1549,6 +1557,7 @@ var
     Item.Tag := Tag;
     Menu.Items.Add(Item);
   end;
+
 begin
   QuerySvcs(BorlandIDEServices, IOTAModuleServices, iModuleServices);
 
@@ -1563,6 +1572,8 @@ begin
   for I := 0 to iModuleServices.GetModuleCount - 1 do
   begin
     FileName := CnOtaGetFileNameOfModule(iModuleServices.GetModule(I));
+    if IsDProject(FileName) then
+      FileName := _CnChangeFileExt(FileName, '.dpr'); // 如果拿到 dproj，就改成 dpr
     UnitList.Add(FileName);
     CreateItem(FileName, csUnitIndex + I, OnClick);
   end;
@@ -1799,6 +1810,24 @@ begin
   if S <> '' then
   begin
     Lines2.Text := S;
+    DiffControl2.Lines.Assign(Lines2);
+  end;
+end;
+
+procedure TCnSourceDiffForm.SetLeftString(const Str: string);
+begin
+  if Str <> '' then
+  begin
+    Lines1.Text := Str;
+    DiffControl1.Lines.Assign(Lines1);
+  end;
+end;
+
+procedure TCnSourceDiffForm.SetRightString(const Str: string);
+begin
+  if Str <> '' then
+  begin
+    Lines2.Text := Str;
     DiffControl2.Lines.Assign(Lines2);
   end;
 end;

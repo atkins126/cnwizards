@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -37,7 +37,7 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNALIGNSIZEWIZARD}
+{$IFDEF CNWIZARDS_CNDESIGNWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, Contnrs,
@@ -126,7 +126,7 @@ type
     property ShowEvents: Boolean read FShowEvents write FShowEvents;
     {* 是否显示事件}
     property GridFont: TFont read FGridFont write SetGridFont;
-    {* 显示的字体}
+    {* 显示的字体，可能为 nil}
   end;
 
 {$ENDIF}
@@ -318,11 +318,11 @@ type
 
 procedure CompareTwoObjects(ALeft: TObject; ARight: TObject);
 
-{$ENDIF CNWIZARDS_CNALIGNSIZEWIZARD}
+{$ENDIF CNWIZARDS_CNDESIGNWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNALIGNSIZEWIZARD}
+{$IFDEF CNWIZARDS_CNDESIGNWIZARD}
 
 {$R *.DFM}
 
@@ -520,7 +520,8 @@ begin
       FGridFont.Assign(Temp2);
     end;
 
-    GridFont := ReadFont('', csGridFont, FGridFont);
+    if FGridFont <> nil then
+      GridFont := ReadFont('', csGridFont, FGridFont);
   finally
     Temp2.Free;
     Temp1.Free;
@@ -600,7 +601,7 @@ end;
 
 procedure TCnPropertyCompareManager.SetGridFont(const Value: TFont);
 begin
-  if Value <> nil then
+  if (FGridFont <> nil) and (Value <> nil) then
     FGridFont.Assign(Value);
 end;
 
@@ -701,8 +702,14 @@ begin
     CnDebugger.LogPointer(FManager.FSelection[0], 'TCnSelectCompareExecutor FManager.FSelection[0]');
 {$ENDIF}
     Comp := TComponent(FManager.FSelection[0]);
-    if Comp <> nil then
-      Result := Format(SCnPropertyCompareSelectCaptionFmt, [Comp.Name, Comp.ClassName]);
+    if Comp <> nil then // 有些组件出错，只能先屏蔽
+    begin
+      try
+        Result := Format(SCnPropertyCompareSelectCaptionFmt, [Comp.Name, Comp.ClassName]);
+      except
+        Result := Format(SCnPropertyCompareSelectCaptionFmt, ['<unknown>', '<Unknown>']);
+      end;
+    end;
   end;
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnSelectCompareExecutor GetCaption: ' + Result);
@@ -991,7 +998,6 @@ var
   RttiContext: TRttiContext;
   RttiType: TRttiType;
   RttiProperty: TRttiProperty;
-  RttiMethod: TRttiMethod;
 {$ENDIF}
   PropListPtr: PPropList;
   I, APropCount: Integer;
@@ -1565,7 +1571,11 @@ begin
   else
     G := gridLeft;
 
+{$IFDEF WIN64}
+  PostMessage(Handle, WM_SYNC_SELECT, NativeUInt(G), ARow);
+{$ELSE}
   PostMessage(Handle, WM_SYNC_SELECT, Integer(G), ARow);
+{$ENDIF}
   pbPos.Invalidate;
 end;
 
@@ -2157,7 +2167,7 @@ var
   Wizard: TCnBaseWizard;
 begin
   Result := nil;
-  Wizard := CnWizardMgr.WizardByClassName('TCnAlignSizeWizard');
+  Wizard := CnWizardMgr.WizardByClassName('TCnDesignWizard');
   if Wizard <> nil then
     Result := Wizard.CreateIniFile;
 end;
@@ -2219,5 +2229,5 @@ begin
 {$ENDIF}
 end;
 
-{$ENDIF CNWIZARDS_CNALIGNSIZEWIZARD}
+{$ENDIF CNWIZARDS_CNDESIGNWIZARD}
 end.

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -55,11 +55,11 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Dialogs, ToolsAPI,
-  IniFiles, Forms, Menus, ActnList, Math, {$IFDEF DELPHIXE3_UP} Actions, {$ENDIF}
+  Clipbrd, IniFiles, Forms, Menus, ActnList, Math, {$IFDEF DELPHIXE3_UP} Actions, {$ENDIF}
   {$IFDEF SUPPORT_ALPHACOLOR} System.UITypes, System.UIConsts, {$ENDIF}
   CnCommon, CnWizUtils, CnWizIdeUtils, CnWizConsts, CnEditControlWrapper,
   CnWizFlatButton, CnConsts, CnWizNotifier, CnWizShortCut, CnPopupMenu,
-  CnSrcEditorCodeWrap, CnSrcEditorGroupReplace, CnSrcEditorWebSearch,
+  CnSrcEditorCodeWrap, CnSrcEditorGroupReplace, CnSrcEditorWebSearch, CnWizClasses,
   CnEventBus, CnWizManager, CnWizMenuAction, CnWizShareImages;
 
 type
@@ -69,10 +69,11 @@ type
     btLowerCase, btUpperCase, btToggleCase,
     btIndent, btIndentEx, btUnindent, btUnindentEx,
     btCommentCode, btUnCommentCode, btToggleComment, btCommentCropper,
-    btAICoderExplainCode, btAICoderReviewCode, btAICoderToggleChatWindow, btAICoderSetting,
+    btAICoderExplainCode, btAICoderReviewCode, btAICoderGenTestCase, btAICoderToggleChatWindow, btAICoderSetting,
     btFormatCode, btCodeSwap, btEvalAlign, btCodeToString, btInsertColor, btInsertDateTime,
     btSortLines, btUsesFromIdent, {$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD} btAddToCollector, {$ENDIF}
     {$IFDEF IDE_HAS_INSIGHT} btSearchInsight, {$ENDIF}
+    {$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD} btCompareToClipboard, {$ENDIF}
     btBlockMoveUp, btBlockMoveDown, btBlockDelLines, btDisableHighlight,
     btShortCutConfig);
   // 通过 AddMenuItemWithAction 添加的菜单项也需在此增加类型，但除了映射外暂无实际作用
@@ -89,6 +90,9 @@ type
     FToggleCaseShortCut: TCnWizShortCut;
 {$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
     FAddToCollectorShortCut: TCnWizShortCut;
+{$ENDIF}
+{$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
+    FCompareToClipboardShortCut: TCnWizShortCut;
 {$ENDIF}
 {$IFDEF BDS}
     FBlockMoveUpShortCut: TCnWizShortCut;
@@ -132,6 +136,9 @@ type
     procedure OnEditBlockDelLines(Sender: TObject);
 {$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
     procedure OnEditAddToCollector(Sender: TObject);
+{$ENDIF}
+{$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
+    procedure OnEditCompareToClipboard(Sender: TObject);
 {$ENDIF}
 {$IFDEF CNWIZARDS_CNSCRIPTWIZARD}
 {$IFDEF SUPPORT_PASCAL_SCRIPT}
@@ -187,6 +194,7 @@ implementation
 
 uses
   CnWizSubActionShortCutFrm, CnScriptWizard, CnScriptFrm, CnAICoderWizard,
+  {$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD} CnSourceDiffWizard, CnSourceDiffFrm, {$ENDIF}
   CnCodingToolsetWizard, CnEditorCollector {$IFDEF DEBUG}, CnDebug{$ENDIF};
 
 const
@@ -229,6 +237,10 @@ begin
   if FAddToCollectorShortCut = nil then
     FAddToCollectorShortCut := WizShortCutMgr.Add('CnAddToCollector', 0, OnEditAddToCollector);
 {$ENDIF}
+{$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
+  if FCompareToClipboardShortCut = nil then
+    FCompareToClipboardShortCut := WizShortCutMgr.Add('CnCompareToClipboard', 0, OnEditCompareToClipboard);
+{$ENDIF}
 
 {$IFDEF BDS}
   if FBlockMoveUpShortCut = nil then
@@ -249,6 +261,9 @@ begin
   WizShortCutMgr.DeleteShortCut(FBlockDelLinesShortCut);
   WizShortCutMgr.DeleteShortCut(FBlockMoveDownShortCut);
   WizShortCutMgr.DeleteShortCut(FBlockMoveUpShortCut);
+{$ENDIF}
+{$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
+  WizShortCutMgr.DeleteShortCut(FCompareToClipboardShortCut);
 {$ENDIF}
 {$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
   WizShortCutMgr.DeleteShortCut(FAddToCollectorShortCut);
@@ -388,6 +403,30 @@ begin
   Collector.Execute;
   if CnEditorCollectorForm <> nil then
     CnEditorCollectorForm.btnImport.Click;
+end;
+
+{$ENDIF}
+
+{$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
+
+procedure TCnSrcEditorBlockTools.OnEditCompareToClipboard(Sender: TObject);
+var
+  Wizard: TCnBaseWizard;
+begin
+  if (Clipboard.AsText <> '') and (CnOtaGetCurrentSelection <> '') then
+  begin
+    Wizard := CnWizardMgr.WizardByClass(TCnSourceDiffWizard);
+    if Wizard <> nil then
+    begin
+      Wizard.Execute;
+
+      CnSourceDiffForm.SetLeftString(CnOtaGetCurrentSelection);
+      CnSourceDiffForm.SetRightString(Clipboard.AsText);
+      CnSourceDiffForm.actCompare.Execute;
+    end;
+  end
+  else
+    ErrorDlg(SCnSrcBlockErrorNoContent);
 end;
 
 {$ENDIF}
@@ -807,6 +846,9 @@ begin
 {$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
       btAddToCollector: OnEditAddToCollector(nil);
 {$ENDIF}
+{$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
+      btCompareToClipboard: OnEditCompareToClipboard(nil);
+{$ENDIF}
     else
       ExecuteMenu(FMiscMenu, Kind);
     end;
@@ -988,6 +1030,8 @@ begin
     FAICoderMenu := AddMenuItem(Items, SCnAICoderWizardMenuCaption, nil);
     AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardExplainCode', btAICoderExplainCode);
     AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardReviewCode', btAICoderReviewCode);
+    AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardGenTestCase', btAICoderGenTestCase);
+
     AddSepMenuItem(FAICoderMenu);
     AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardChatWindow', btAICoderToggleChatWindow);
     AddMenuItemWithAction(FAICoderMenu, 'actCnAICoderWizardConfig', btAICoderSetting);
@@ -1009,7 +1053,11 @@ begin
 {$ENDIF}
 
 {$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
-  DoAddMenuItem(FMiscMenu, SCnSrcblockAddToCollector, btAddToCollector, 0, 'actCnEditorCollector');
+  DoAddMenuItem(FMiscMenu, SCnSrcBlockAddToCollector, btAddToCollector, 0, 'actCnEditorCollector');
+{$ENDIF}
+
+{$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
+  DoAddMenuItem(FMiscMenu, SCnSrcBlockCompareToClipboard, btCompareToClipboard, 0, 'actCnCompareToClipboard');
 {$ENDIF}
 
 {$IFDEF BDS} // Only for BDS because of bug. ;-(
@@ -1068,19 +1116,44 @@ var
 {$ENDIF}
 
 {$IFDEF SUPPORT_ALPHACOLOR}
+
+  // 仿照系统 StringToAlphaColor 的写法但没有 StrToInt64 的抛异常
+  function MyStringToAlphaColor(const Value: string; out OutColor: TAlphaColor): Boolean;
+  var
+    LValue: string;
+    LColor: Integer;
+  begin
+    LValue := Value;
+    if LValue = #0 then
+      LValue := '$0'
+    else if (LValue <> '') and ((LValue[1] = '#') or (LValue[1] = 'x')) then
+      LValue := '$' + Copy(LValue, 1, MaxInt);
+
+    if (not IdentToAlphaColor('cla' + LValue, LColor)) and (not IdentToAlphaColor(LValue, LColor)) then
+    begin
+      Val(LValue, LColor, E);
+      Result := E = 0;
+      if Result then
+        OutColor := TAlphaColor(LColor);
+    end
+    else
+    begin
+      OutColor := TAlphaColor(LColor);
+      Result := True;
+    end;
+  end;
+
   function IdentToAlphaColor(const ColorStr: string; out AColor: TColor): Boolean;
   var
     F: TAlphaColor;
   begin
-    try
-      F := StringToAlphaColor(ColorStr);
+    Result := MyStringToAlphaColor(ColorStr, F);
+    if Result then
+    begin
       TColorRec(AColor).R := TAlphaColorRec(F).R;
       TColorRec(AColor).G := TAlphaColorRec(F).G;
       TColorRec(AColor).B := TAlphaColorRec(F).B;
       TColorRec(AColor).A := 0;
-      Result := True;
-    except
-      Result := False;
     end;
   end;
 {$ENDIF}
@@ -1385,7 +1458,12 @@ begin
     Holder := TCnShortCutHolder.Create(SCnSrcBlockToggleCase, FToggleCaseShortCut);
     List.Add(Holder);
 {$IFDEF CNWIZARDS_CNCODINGTOOLSETWIZARD}
-    Holder := TCnShortCutHolder.Create(SCnSrcblockAddToCollector, FAddToCollectorShortCut);
+    Holder := TCnShortCutHolder.Create(SCnSrcBlockAddToCollector, FAddToCollectorShortCut);
+    List.Add(Holder);
+{$ENDIF}
+
+{$IFDEF CNWIZARDS_CNSOURCEDIFFWIZARD}
+    Holder := TCnShortCutHolder.Create(SCnSrcBlockCompareToClipboard, FCompareToClipboardShortCut);
     List.Add(Holder);
 {$ENDIF}
 

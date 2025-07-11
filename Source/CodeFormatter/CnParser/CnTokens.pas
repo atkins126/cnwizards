@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -195,6 +195,7 @@ type
     tokDirectiveFORWARD,
     tokDirectiveMESSAGE,
     tokDirectiveNEAR,
+    tokDirectiveNORETURN,
     tokDirectiveOVERRIDE,
     tokDirectiveOVERLOAD,
     tokDirectivePASCAL,
@@ -206,6 +207,7 @@ type
     tokDirectiveSTDCALL,
     tokDirectiveVARARGS,
     tokDirectiveVIRTUAL,
+    tokDirectiveWINAPI,
     tokDirective_END,
 
     tokComplex_BEGIN,
@@ -240,8 +242,8 @@ type
     pfetArrayConstant, pfetSetConstructor, pfetFormalParameters, pfetConstExpr,
     pfetUsesList, pfetThen, pfetDo, pfetRecordEnd, pfetCaseLabel, pfetCaseLabelList,
     pfetExprListRightBracket, pfetFormalParametersRightBracket, pfetFieldDecl,
-    pfetClassField, pfetInGeneric, pfetRecVarFieldListRightBracket, pfetPackageBlock,
-    pfetCompoundEnd, pfetIfAfterElse, pfetUnitName, pfetInlineVar);
+    pfetClassField, pfetInGeneric, pfetRecVarFieldListRightBracket, pfetPackageKeyword,
+    pfetPackageBlock, pfetCompoundEnd, pfetIfAfterElse, pfetUnitName, pfetInlineVar);
 
   TCnPascalFormattingElementTypeSet = set of TCnPascalFormattingElementType;
 
@@ -258,7 +260,7 @@ const
     tokDirectiveRegister, tokDirectiveForward];
   
   RelOpTokens = [tokGreat, tokLess, tokGreatOrEqu, tokLessOrEqu, tokNotEqual,
-    tokEqual, tokKeywordIn, tokKeywordAs, tokKeywordIs];
+    tokEqual, tokKeywordIn, tokKeywordAs, tokKeywordIs]; // 注意这里没有 not，但语法中有 not in
   AddOPTokens = [tokPlus, tokMinus, tokKeywordOR, tokKeywordXOR];
   MulOpTokens = [tokStar, tokKeywordDIV, tokDiv, tokKeywordMod, tokKeywordAnd];
   ShiftOpTokens = [tokKeywordShl, tokKeywordShr];
@@ -284,7 +286,7 @@ const
 
   // 能够做语句中的内容的关键字
   StmtKeywordTokens = [tokKeywordIn, tokKeywordOut, tokKeywordString, tokKeywordAlign,
-    tokKeywordAt, tokKeywordContains, tokKeywordRequires, tokKeywordOperator];
+    tokKeywordAt, tokKeywordContains, tokKeywordRequires, tokKeywordOperator, tokKeywordPackage];
 
   RestrictedTypeTokens = [tokKeywordObject, tokKeywordClass, tokKeywordInterface,
     tokKeywordDispinterface];
@@ -523,6 +525,7 @@ const
     (Value: Integer(tokDirectiveFORWARD);      Name: 'FORWARD'),
     (Value: Integer(tokDirectiveMESSAGE);      Name: 'MESSAGE'),
     (Value: Integer(tokDirectiveNEAR);         Name: 'NEAR'),
+    (Value: Integer(tokDirectiveNORETURN);     Name: 'NORETURN'),
     (Value: Integer(tokDirectiveOVERRIDE);     Name: 'OVERRIDE'),
     (Value: Integer(tokDirectiveOVERLOAD);     Name: 'OVERLOAD'),
     (Value: Integer(tokDirectivePASCAL);       Name: 'PASCAL'),
@@ -534,9 +537,10 @@ const
     (Value: Integer(tokDirectiveSTDCALL);      Name: 'STDCALL'),
     (Value: Integer(tokDirectiveVARARGS);      Name: 'VARARGS'),
     (Value: Integer(tokDirectiveVIRTUAL);      Name: 'VIRTUAL'),
+    (Value: Integer(tokDirectiveWINAPI);       Name: 'WINAPI'),
     (Value: Integer(tokDirective_END);         Name: ''),
                                                               
-    //Complex Keyword, it can be keyword or directive or symbol(variant/proc name)
+    // Complex Keyword, it can be keyword or directive or symbol(variant/proc name)
     (Value: Integer(tokComplex_BEGIN);         Name: ''),
     (Value: Integer(tokComplexContains);       Name: 'Contains'),
     (Value: Integer(tokComplexDefault);        Name: 'Default'),

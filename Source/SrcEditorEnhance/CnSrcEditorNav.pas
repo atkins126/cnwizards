@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -49,7 +49,7 @@ uses
   {$ENDIF}
   CnWizUtils, CnConsts, CnWizIdeUtils, CnWizConsts, CnMenuHook, CnWizNotifier,
   CnEditControlWrapper, CnWizShareImages, CnPopupMenu, CnWizClasses, CnWizManager,
-  CnWizMenuAction;
+  CnWizMenuAction, CnNative;
 
 type
 
@@ -81,7 +81,7 @@ type
     FForwardMenu: TPopupMenu;
     FBackAction: TAction;
     FForwardAction: TAction;
-    FBackList: TStringList;
+    FBackList: TStringList;    // 用 Objects 属性存行号，64 位和 32 位下均可 Integer 转换
     FForwardList: TStringList;
     function ActionEnabled(AAction: TBasicAction): Boolean;
     function MenuEnabled(AMenu: Menus.TPopupMenu): Boolean;
@@ -98,9 +98,9 @@ type
     procedure OnPauseClick(Sender: TObject);
     procedure BackActionExecute(Sender: TObject);
     procedure ForwardActionExecute(Sender: TObject);
-    procedure ActionUpdate(Sender: TObject);
+
     procedure GotoSourceLine(Idx: Integer; SrcList, DstList: TStringList);
-    procedure AppIdle(Sender: TObject);
+    procedure AppIdle(Sender: TObject); // 针对每个 EditControl 的检查
     procedure AddItem(AList: TStringList; const AFileName: string; ALine: Integer);
 {$IFDEF BDS}
     function FindActionByNameFromActionManager(ActionManager: TActionManager; AName: string): TBasicAction;
@@ -117,6 +117,12 @@ type
     procedure Install;
     procedure Uninstall;
     procedure UpdateControls;
+
+    procedure InternalUpdateAction;
+    procedure ActionUpdate(Sender: TObject);
+
+    property BackAction: TAction read FBackAction;
+    property ForwardAction: TAction read FForwardAction;
   end;
 
 { TCnSrcEditorNavMgr }
@@ -133,17 +139,23 @@ type
     procedure EditControlNotify(EditControl: TControl; EditWindow: TCustomForm;
       Operation: TOperation);
     procedure SetExtendForwardBack(const Value: Boolean);
+    procedure AppCommand(var Msg: TMsg; var Handled: Boolean);
   protected
     procedure SetActive(Value: Boolean);
+
+    // 往 EditWindow 里安装，注意 BDS 下可能安装失败但组件实例仍附在里头
     procedure DoUpdateInstall(EditWindow: TCustomForm; EditControl: TControl;
       Context: Pointer);
+
     procedure DoEnhConfig;
   public
     constructor Create;
     destructor Destroy; override;
 
+    // D567 那种安装到独立的编辑器窗口中
     procedure UpdateInstall;
 {$IFDEF BDS}
+    // 高版本 Delphi 中安装到主窗体的工具栏上
     procedure DoUpdateInstallInAppBuilder(Sender: TObject);
     procedure FixButtonArrowInComplete(Sender: TObject);
 {$ENDIF}
@@ -188,6 +200,21 @@ const
 
   csDefMinLineDiff = 5;
   csDefMaxItems = 20;
+
+{$IFNDEF SUPPORT_APPCOMMAND}
+  // D5 6 未定义
+  WM_APPCOMMAND = $0319;
+
+  // D2006 及以下未定义
+  APPCOMMAND_BROWSER_BACKWARD = 1;
+  APPCOMMAND_BROWSER_FORWARD  = 2;
+
+function GET_APPCOMMAND_LPARAM(const lParam: LongInt): Shortint; {$IFDEF SUPPORT_INLINE} inline; {$ENDIF}
+begin
+  Result := LongRec(lParam).Hi and not $F000;
+end;
+
+{$ENDIF}
 
 { TCnSrcEditorNav }
 
@@ -237,7 +264,7 @@ begin
     Exit;
 
   if (AList.Count > 0) and (AList[AList.Count - 1] = AFileName) and
-    (Integer(AList.Objects[AList.Count - 1]) = ALine) then
+    (TCnNativeInt(AList.Objects[AList.Count - 1]) = ALine) then
     Exit;
 
   AList.AddObject(AFileName, TObject(ALine));
@@ -268,6 +295,12 @@ var
     end;
   end;
 
+  procedure RecordCurrent;
+  begin
+    FFileName := View.Buffer.FileName;
+    FLine := View.CursorPos.Line;
+  end;
+
 begin
   if not FUpdating and not FPause and Assigned(Owner) and
     TCustomForm(Owner).Active then
@@ -277,16 +310,22 @@ begin
     begin
       if FFileName = '' then
       begin
-        FFileName := View.Buffer.FileName;
-        FLine := View.CursorPos.Line;
+        RecordCurrent;
+        Exit;
+      end;
+
+      if not SameText(View.Buffer.FileName, FFileName) then
+      begin
+        // 文件不同，记下来
+        AddItem(FBackList, FFileName, FLine);
+        RecordCurrent;
       end
-      else if (not SameText(View.Buffer.FileName, FFileName) or
-        (Abs(View.CursorPos.Line - FLine) > FNavMgr.MinLineDiff)) and
+      else if (Abs(View.CursorPos.Line - FLine) > FNavMgr.MinLineDiff) and
         not IsSelectingBlock then
       begin
+        // 位置足够远且不在拖动选择时，记下来
         AddItem(FBackList, FFileName, FLine);
-        FFileName := View.Buffer.FileName;
-        FLine := View.CursorPos.Line;
+        RecordCurrent;
       end;
     end;
   end;
@@ -295,7 +334,7 @@ end;
 procedure TCnSrcEditorNav.GotoSourceLine(Idx: Integer; SrcList, DstList:
   TStringList);
 var
-  i: Integer;
+  I: Integer;
   AFileName: string;
   ALine: Integer;
   EditPos: TOTAEditPos;
@@ -308,10 +347,10 @@ begin
 
       AFileName := SrcList[Idx];
       ALine := Integer(SrcList.Objects[Idx]);
-      for i := SrcList.Count - 1 downto Idx + 1 do
+      for I := SrcList.Count - 1 downto Idx + 1 do
       begin
-        AddItem(DstList, SrcList[i], Integer(SrcList.Objects[i]));
-        SrcList.Delete(i);
+        AddItem(DstList, SrcList[I], Integer(SrcList.Objects[I]));
+        SrcList.Delete(I);
       end;
       SrcList.Delete(Idx);
 
@@ -349,10 +388,7 @@ procedure TCnSrcEditorNav.ActionUpdate(Sender: TObject);
 begin
   if GetTickCount - FLastUpdateTick > csUpdateInterval then
   begin
-    FBackAction.Enabled := (not FPause and (FBackList.Count > 0)) or
-      MenuEnabled(FOldBackMenu);
-    FForwardAction.Enabled := (not FPause and (FForwardList.Count > 0)) or
-      MenuEnabled(FOldForwardMenu);
+    InternalUpdateAction;
     FLastUpdateTick := GetTickCount;
   end;
 end;
@@ -400,24 +436,28 @@ begin
     AddMenuItem(AMenu.Items, AIDECaption, AOnIDE);
     Item := AddMenuItem(AMenu.Items, AIDEListCaption, nil);
     for I := 0 to AOldMenu.Items.Count - 1 do
+    begin
       with AOldMenu.Items[I] do
       begin
         AddMenuItem(Item, Caption, OnIDEListClick, nil, ShortCut, Hint,
-          Integer(AOldMenu.Items[I]));
+          TCnNativeInt(AOldMenu.Items[I]));
       end;
+    end;
     AddSepMenuItem(AMenu.Items);
   end;
 
   for I := AList.Count - 1 downto 0 do
+  begin
     AddMenuItem(AMenu.Items, Format('%s %d', [AList[I],
-      Integer(AList.Objects[I])]), AOnItem, nil, 0, '', I);
+      TCnNativeInt(AList.Objects[I])]), AOnItem, nil, 0, '', I);
+  end;
 
   AddSepMenuItem(AMenu.Items);
   AddMenuItem(AMenu.Items, SCnSrcEditorNavPause, OnPauseClick).Checked := FPause;
   AddMenuItem(AMenu.Items, SCnEditorEnhanceConfig, OnEnhConfig);
 
 {$IFDEF COMPILER7_UP}
-  ScreenRect := GetWorkRect(GetIdeMainForm);
+  ScreenRect := GetWorkRect(GetIDEMainForm);
   ScreenHeight := ScreenRect.Bottom - ScreenRect.Top - 200; // 去除 IDE 主窗体高度
   MaxItems := ScreenHeight div GetMainMenuItemHeight;
   if MaxItems < 8 then MaxItems := 8;
@@ -503,6 +543,7 @@ var
   BrowserToolbar: TToolBar;
 {$ENDIF}
 begin
+  // 注意 Owner 在低版本里是 EditWindow，高版本里是 MainForm
   if Assigned(Owner) then
   begin
     BackButton := TToolButton(Owner.FindComponent(SBackToolButtonName));
@@ -552,6 +593,7 @@ begin
     end;
 
 {$IFDEF BDS}
+    // 高版本里如果 EditWindow 里没找到，则当成 MainForm 找
     if (BackButton = nil) and (ForwardButton = nil) then
     begin
       // In AppBuilder, install it to Toolbar.
@@ -784,6 +826,14 @@ begin
   end;
 end;
 
+procedure TCnSrcEditorNav.InternalUpdateAction;
+begin
+  FBackAction.Enabled := (not FPause and (FBackList.Count > 0)) or
+    MenuEnabled(FOldBackMenu);
+  FForwardAction.Enabled := (not FPause and (FForwardList.Count > 0)) or
+    MenuEnabled(FOldForwardMenu);
+end;
+
 { TCnSrcEditorNavMgr }
 
 constructor TCnSrcEditorNavMgr.Create;
@@ -794,18 +844,20 @@ begin
   FExtendForwardBack := True;
   FActive := True;
   FList := TList.Create;
-  
+
   EditControlWrapper.AddEditControlNotifier(EditControlNotify);
+  CnWizNotifierServices.AddApplicationMessageNotifier(AppCommand);
   UpdateInstall;
 end;
 
 destructor TCnSrcEditorNavMgr.Destroy;
 var
-  i: Integer;
+  I: Integer;
 begin
+  CnWizNotifierServices.RemoveApplicationMessageNotifier(AppCommand);
   EditControlWrapper.RemoveEditControlNotifier(EditControlNotify);
-  for i := FList.Count - 1 downto 0 do
-    TCnSrcEditorNav(FList[i]).Free;
+  for I := FList.Count - 1 downto 0 do
+    TCnSrcEditorNav(FList[I]).Free;
   FList.Free;
   inherited;
 end;
@@ -825,7 +877,7 @@ begin
       EditorNav.Name := SCnSrcEditorNavName;
       EditorNav.FNavMgr := Self;
       EditorNav.FEditControl := EditControl;
-      EditorNav.Install;
+      EditorNav.Install; // 注意高版本 Delphi 里头 Install 可能失败但还存在
       FList.Add(EditorNav);
     end;
   end
@@ -841,16 +893,16 @@ procedure TCnSrcEditorNavMgr.DoUpdateInstallInAppBuilder(Sender: TObject);
 var
   EditorNav: TCnSrcEditorNav;
 begin
-  EditorNav := TCnSrcEditorNav(FindComponentByClass(GetIdeMainForm,
+  EditorNav := TCnSrcEditorNav(FindComponentByClass(GetIDEMainForm,
     TCnSrcEditorNav, SCnSrcEditorNavName));
   if Active and ExtendForwardBack then
   begin
     if not Assigned(EditorNav) then
     begin
-      EditorNav := TCnSrcEditorNav.Create(GetIdeMainForm);
+      EditorNav := TCnSrcEditorNav.Create(GetIDEMainForm);
       EditorNav.Name := SCnSrcEditorNavName;
       EditorNav.FNavMgr := Self;
-      EditorNav.FEditControl := nil;
+      EditorNav.FEditControl := nil; // 主工具栏上，暂无当前 EditControl
       EditorNav.Install;
       FList.Add(EditorNav);
 
@@ -873,7 +925,7 @@ var
 begin
   if Active and ExtendForwardBack then
   begin
-    EditorNav := TCnSrcEditorNav(FindComponentByClass(GetIdeMainForm,
+    EditorNav := TCnSrcEditorNav(FindComponentByClass(GetIDEMainForm,
       TCnSrcEditorNav, SCnSrcEditorNavName));
     if EditorNav <> nil then
     begin
@@ -895,10 +947,12 @@ begin
           except
             ;
           end;
+
           SendMessage(ToolbarParent.Handle, WM_LBUTTONDOWN, 0, MakeLParam(P.X, P.Y));
           SendMessage(ToolbarParent.Handle, WM_MOUSEMOVE, 0, MakeLParam(P.X + 1, P.Y));
           SendMessage(ToolbarParent.Handle, WM_MOUSEMOVE, 0, MakeLParam(P.X, P.Y));
           SendMessage(ToolbarParent.Handle, WM_LBUTTONUP, 0, MakeLParam(P.X, P.Y));
+
           if Wizard <> nil then
           try
             SetPropValue(Wizard, 'TempDisableLock', False);
@@ -923,6 +977,78 @@ begin
   UpdateControls;
 end;
 
+procedure TCnSrcEditorNavMgr.AppCommand(var Msg: TMsg; var Handled: Boolean);
+var
+  V: Integer;
+  EditorNav: TCnSrcEditorNav;
+begin
+  if not Active or not FExtendForwardBack or (Msg.message <> WM_APPCOMMAND) then
+    Exit;
+
+  V := GET_APPCOMMAND_LPARAM(Msg.LParam);
+
+  if not (V in [APPCOMMAND_BROWSER_BACKWARD, APPCOMMAND_BROWSER_FORWARD])
+    or not IsEditControl(Screen.ActiveControl) then
+    Exit;
+
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('TCnSrcEditorNavMgr.AppCommand on EditControl: Param ' + IntToStr(V));
+{$ENDIF}
+
+  EditorNav := TCnSrcEditorNav(FindComponentByClass(CnOtaGetCurrentEditWindow,
+    TCnSrcEditorNav, SCnSrcEditorNavName));
+
+{$IFDEF DEBUG}
+  if EditorNav <> nil then
+    CnDebugger.LogMsg('TCnSrcEditorNavMgr.AppCommand: Get Active SrcEditorNav from EditWindow.')
+  else
+    CnDebugger.LogMsgWarning('TCnSrcEditorNavMgr.AppCommand: Active SrcEditorNav Not Found in EditWindow.');
+{$ENDIF}
+
+  if (EditorNav = nil) or (EditorNav.FOldBackAction = nil) or (EditorNav.FOldForwardAction = nil) then
+  begin
+    // 当前编辑器窗体里没找到，或找到了但安装失败，则要去 MainForm 里找
+    EditorNav := TCnSrcEditorNav(FindComponentByClass(GetIDEMainForm,
+      TCnSrcEditorNav, SCnSrcEditorNavName));
+
+{$IFDEF DEBUG}
+  if EditorNav <> nil then
+    CnDebugger.LogMsg('TCnSrcEditorNavMgr.AppCommand: Get Active SrcEditorNav from AppBuilder.')
+  else
+    CnDebugger.LogMsgWarning('TCnSrcEditorNavMgr.AppCommand: Active SrcEditorNav Not Found in AppBuilder.');
+{$ENDIF}
+  end;
+
+  if EditorNav = nil then
+    Exit;
+
+  EditorNav.InternalUpdateAction;
+  if V = APPCOMMAND_BROWSER_BACKWARD then
+  begin
+    if EditorNav.BackAction <> nil then
+    begin
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('TCnSrcEditorNavMgr.AppCommand: To Execute BackAction. Enabled: %d',
+        [Ord(EditorNav.BackAction.Enabled)]);
+{$ENDIF}
+      EditorNav.BackAction.Execute;
+      Handled := True;
+    end;
+  end
+  else if V = APPCOMMAND_BROWSER_FORWARD then
+  begin
+    if EditorNav.ForwardAction <> nil then
+    begin
+{$IFDEF DEBUG}
+      CnDebugger.LogFmt('TCnSrcEditorNavMgr.AppCommand: To Execute ForwardAction. Enabled: %d',
+        [Ord(EditorNav.ForwardAction.Enabled)]);
+{$ENDIF}
+      EditorNav.ForwardAction.Execute;
+      Handled := True;
+    end;
+  end;
+end;
+
 procedure TCnSrcEditorNavMgr.EditControlNotify(EditControl: TControl; EditWindow:
   TCustomForm; Operation: TOperation);
 begin
@@ -932,10 +1058,10 @@ end;
 
 procedure TCnSrcEditorNavMgr.UpdateControls;
 var
-  i: Integer;
+  I: Integer;
 begin
-  for i := 0 to FList.Count - 1 do
-    TCnSrcEditorNav(FList[i]).UpdateControls;
+  for I := 0 to FList.Count - 1 do
+    TCnSrcEditorNav(FList[I]).UpdateControls;
 end;
 
 //------------------------------------------------------------------------------

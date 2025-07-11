@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -41,7 +41,7 @@ interface
 
 {$I CnWizards.inc}
 
-{$IFDEF CNWIZARDS_CNALIGNSIZEWIZARD}
+{$IFDEF CNWIZARDS_CNDESIGNWIZARD}
 
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, Dialogs, Contnrs,
@@ -68,6 +68,7 @@ type
     procedure lvListData(Sender: TObject; Item: TListItem);
     procedure actHookIDEExecute(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure actAttributeExecute(Sender: TObject);
   private
     FSingleMode: Boolean;
 
@@ -87,6 +88,9 @@ type
     function CanMatchDataByIndex(const AMatchStr: string; AMatchMode: TCnMatchMode;
       DataListIndex: Integer; var StartOffset: Integer; MatchedIndexes: TList): Boolean; override;
   public
+    procedure LoadSettings(Ini: TCustomIniFile; aSection: string); override;
+    procedure SaveSettings(Ini: TCustomIniFile; aSection: string); override;
+
     property SingleMode: Boolean read FSingleMode write FSingleMode;
   end;
 
@@ -96,11 +100,11 @@ function CnListComponent(Ini: TCustomIniFile): Boolean;
 function CnListComponentForOne(Ini: TCustomIniFile): TComponent;
 {* 供外界调用以弹出界面并返回一个当前设计器上的组件}
 
-{$ENDIF CNWIZARDS_CNALIGNSIZEWIZARD}
+{$ENDIF CNWIZARDS_CNDESIGNWIZARD}
 
 implementation
 
-{$IFDEF CNWIZARDS_CNALIGNSIZEWIZARD}
+{$IFDEF CNWIZARDS_CNDESIGNWIZARD}
 
 {$R *.DFM}
 
@@ -111,6 +115,7 @@ uses
 
 const
   csListComp = 'ListComp';
+  csShowEmptyNames = 'ShowEmptyNames';
 
 type
   TCnCompInfo = class(TCnBaseElementInfo)
@@ -379,6 +384,12 @@ begin
   end;
 end;
 
+procedure TCnListCompForm.actAttributeExecute(Sender: TObject);
+begin
+  actAttribute.Checked := not actAttribute.Checked;
+  UpdateListView;
+end;
+
 procedure TCnListCompForm.FormShow(Sender: TObject);
 begin
   inherited;
@@ -405,12 +416,20 @@ begin
   Result := False;
   if AMatchStr = '' then
   begin
+    // 空名字且不显示空名字的话就退出
+    if not actAttribute.Checked and (DataList[DataListIndex] = '') then
+      Exit;
+
     Result := True;
     Exit;
   end;
 
   Info := TCnCompInfo(DataList.Objects[DataListIndex]);
   if Info = nil then
+    Exit;
+
+  // 空名字且不显示空名字的话就退出
+  if not actAttribute.Checked and (DataList[DataListIndex] = '') then
     Exit;
 
   if AMatchMode in [mmStart, mmAnywhere] then
@@ -464,5 +483,19 @@ begin
   end;
 end;
 
-{$ENDIF CNWIZARDS_CNALIGNSIZEWIZARD}
+procedure TCnListCompForm.LoadSettings(Ini: TCustomIniFile;
+  aSection: string);
+begin
+  inherited;
+  actAttribute.Checked := Ini.ReadBool(aSection, csShowEmptyNames, True);
+end;
+
+procedure TCnListCompForm.SaveSettings(Ini: TCustomIniFile;
+  aSection: string);
+begin
+  inherited;
+  Ini.WriteBool(aSection, csShowEmptyNames, actAttribute.Checked);
+end;
+
+{$ENDIF CNWIZARDS_CNDESIGNWIZARD}
 end.

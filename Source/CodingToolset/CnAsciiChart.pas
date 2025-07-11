@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -134,7 +134,6 @@ type
     function GetHelpTopic: string; override;
     procedure DoLanguageChanged(Sender: TObject); override;
   public
-    { Public declarations }
     procedure DrawStretchedAscii;
     procedure UpdateChart;
     procedure UpdateStatusBar;
@@ -183,28 +182,25 @@ end;
 destructor TCnAsciiChart.Destroy;
 begin
   IdeDockManager.UnRegisterDockableForm(CnAsciiForm, 'CnAsciiForm');
-  if CnAsciiForm <> nil then
-  begin
-    CnAsciiForm.Free;
-    CnAsciiForm := nil;
-  end;
+  FreeAndNil(CnAsciiForm);
   inherited;
 end;
 
 procedure TCnAsciiChart.Execute;
 begin
   if CnAsciiForm = nil then
-  begin
     CnAsciiForm := TCnAsciiForm.Create(nil);
-  end;
   IdeDockManager.ShowForm(CnAsciiForm);
 end;
 
 procedure TCnAsciiChart.SetActive(Value: Boolean);
+var
+  Old: Boolean;
 begin
-  if Value <> Active then
+  Old := Active;
+  inherited;
+  if Value <> Old then
   begin
-    inherited;
     if Value then
     begin
       IdeDockManager.RegisterDockableForm(TCnAsciiForm, CnAsciiForm,
@@ -213,11 +209,7 @@ begin
     else
     begin
       IdeDockManager.UnRegisterDockableForm(CnAsciiForm, 'CnAsciiForm');
-      if CnAsciiForm <> nil then
-      begin
-        CnAsciiForm.Free;
-        CnAsciiForm := nil;
-      end;
+      FreeAndNil(CnAsciiForm);
     end;
   end;
 end;

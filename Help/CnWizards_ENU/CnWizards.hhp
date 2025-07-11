@@ -54,6 +54,7 @@ ideenhance\verenh.htm
 licenses\gelicense.htm
 licenses\license.htm
 licenses\mpl-1.1.txt
+licenses\ro_ps_lic.txt
 options\cmdline.htm
 options\create.png
 options\menuorder.png
@@ -170,6 +171,7 @@ wizards\toolset\toolsetfontdec.htm
 wizards\toolset\toolsetduplicateunit.htm
 wizards\toolset\extractstring.htm
 wizards\toolset\extractstring.png
+wizards\toolset\toolsetextselect.htm
 wizards\toolset\wizeditorform.png
 wizards\toolset\wizeditors.htm
 wizards\explorer.png

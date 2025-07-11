@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -35,6 +35,16 @@ unit CnWizIdeDock;
 * 单元作者：周劲羽 (zjy@cnpack.org)
 * 备    注：该窗体为支持 IDE 内部停靠的基窗体，部分内容移植自 GExperts
 *           其原始内容受 GExperts License 的保护
+*
+*           一般要在专家的 Create/Destroy 里分别调用 IdeDockManager.RegisterDockableForm
+*           和 IdeDockManager.UnRegisterDockableForm，并且也要在 SetActive 里调（似乎可以
+*           重复调用），为的是防止 Destroy 时没调 UnReg，可能导致停靠状态下关闭 IDE 出错。
+*           且子类的停靠窗体，初始化动作需要在构造函数里做完，因为构造函数可能被 IDE 调用
+*
+*           注意：D567 及 D2005~DXE8 下似乎有 Bug：重新启动后不会恢复窗体
+*           另外：TCnIdeDockForm 的子类，Create 时最好指定 Owner 为 nil
+*                 曾经见过 D5 下用 Application 结果退出时弹出错框的情形。
+*
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该窗体中的字符串均符合本地化处理方式

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -127,9 +127,9 @@ function CnWizControlServices: ICnWizControlServices;
 implementation
 
 uses
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebug,
-{$ENDIF Debug}
+{$ENDIF}
   CnWizUtils;
 
 type
@@ -305,9 +305,9 @@ procedure TCnWizHookObject.DoFree;
 begin
   if Updating then
   begin
-  {$IFDEF Debug}
-    CnDebugger.LogMsg('Free hook object delay');
-  {$ENDIF Debug}
+  {$IFDEF DEBUG}
+    CnDebugger.LogMsg('Free Hook Object Delay');
+  {$ENDIF}
     FAutoFree := True;
     try
     {$IFDEF DEBUG}
@@ -364,9 +364,9 @@ end;
 constructor TCnWizControlServices.Create(AOwner: TComponent);
 begin
   inherited;
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogEnter('TCnWizControlServices.Create');
-{$ENDIF Debug}
+{$ENDIF}
   FHookObjs := TList.Create;
   FDesignRoots := TList.Create;
   FDesignContainers := TList.Create;
@@ -374,16 +374,16 @@ begin
   FAfterNotifiers := TList.Create;
   NotifierServices := CnWizNotifierServices;
   NotifierServices.AddFormEditorNotifier(FormNotify);
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogLeave('TCnWizControlServices.Create');
-{$ENDIF Debug}
+{$ENDIF}
 end;
 
 destructor TCnWizControlServices.Destroy;
 begin
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogEnter('TCnWizControlServices.Destroy');
-{$ENDIF Debug}
+{$ENDIF}
   NotifierServices.RemoveFormEditorNotifier(FormNotify);
   UnhookAll;
   ClearList(FBeforeNotifiers);
@@ -393,9 +393,9 @@ begin
   FDesignContainers.Free;
   FDesignRoots.Free;
   FHookObjs.Free;
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogLeave('TCnWizControlServices.Destroy');
-{$ENDIF Debug}
+{$ENDIF}
   inherited;
 end;
 
@@ -418,7 +418,7 @@ end;
 
 procedure TCnWizControlServices.HookDesignRoot(DesignRoot: TComponent);
 var
-  i: Integer;
+  I: Integer;
 begin
   if not Assigned(DesignRoot) then Exit;
 
@@ -427,9 +427,9 @@ begin
     HookControl(TControl(DesignRoot), False);
 
   // 挂接其子组件
-  for i := 0 to DesignRoot.ComponentCount - 1 do
-    if DesignRoot.Components[i] is TControl then
-      HookControl(TControl(DesignRoot.Components[i]));
+  for I := 0 to DesignRoot.ComponentCount - 1 do
+    if DesignRoot.Components[I] is TControl then
+      HookControl(TControl(DesignRoot.Components[I]));
 end;
 
 procedure TCnWizControlServices.Notification(AComponent: TComponent;
@@ -511,9 +511,9 @@ begin
     // 只挂接正在设计的窗体、Frame、及注册的第三方模块，不考虑 Data Module
     if Component is TWinControl then
     begin
-    {$IFDEF Debug}
+    {$IFDEF DEBUG}
       CnDebugger.LogMsg('Hook Editor: ' + Editor.GetFileName);
-    {$ENDIF Debug}
+    {$ENDIF}
       HookDesignRoot(Component);
     end;
   end;
@@ -584,13 +584,13 @@ end;
 function TCnWizControlServices.IndexOf(List: TList;
   Notifier: TMethod): Integer;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := -1;
-  for i := 0 to List.Count - 1 do
-    if CompareMem(List[i], @Notifier, SizeOf(TMethod)) then
+  for I := 0 to List.Count - 1 do
+    if CompareMem(List[I], @Notifier, SizeOf(TMethod)) then
     begin
-      Result := i;
+      Result := I;
       Exit;
     end;
 end;
@@ -626,17 +626,17 @@ end;
 function TCnWizControlServices.DoAfterMessage(Control: TControl;
   var Msg: TMessage): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
-  for i := 0 to FAfterNotifiers.Count - 1 do
+  for I := 0 to FAfterNotifiers.Count - 1 do
   begin
     try
-      with PCnWizNotifierRecord(FAfterNotifiers[i])^ do
+      with PCnWizNotifierRecord(FAfterNotifiers[I])^ do
         TCnWizMessageNotifier(Notifier)(Control, Msg, Result);
     except
       on E: Exception do
-        DoHandleException('TCnWizControlServices.DoAfterMessage[' + IntToStr(i) + ']', E);
+        DoHandleException('TCnWizControlServices.DoAfterMessage[' + IntToStr(I) + ']', E);
     end;
 
     if Result then Exit;
@@ -646,17 +646,17 @@ end;
 function TCnWizControlServices.DoBeforeMessage(Control: TControl;
   var Msg: TMessage): Boolean;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := False;
-  for i := 0 to FBeforeNotifiers.Count - 1 do
+  for I := 0 to FBeforeNotifiers.Count - 1 do
   begin
     try
-      with PCnWizNotifierRecord(FBeforeNotifiers[i])^ do
+      with PCnWizNotifierRecord(FBeforeNotifiers[I])^ do
         TCnWizMessageNotifier(Notifier)(Control, Msg, Result);
     except
       on E: Exception do
-        DoHandleException('TCnWizControlServices.DoBeforeMessage[' + IntToStr(i) + ']', E);
+        DoHandleException('TCnWizControlServices.DoBeforeMessage[' + IntToStr(I) + ']', E);
     end;
 
     if Result then Exit;
@@ -706,13 +706,13 @@ end;
 
 function TCnWizControlServices.IndexOfControl(Control: TControl): Integer;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := -1;
-  for i := 0 to GetControlCount - 1 do
-    if Control = GetControls(i) then
+  for I := 0 to GetControlCount - 1 do
+    if Control = GetControls(I) then
     begin
-      Result := i;
+      Result := I;
       Exit;
     end;
 end;
@@ -720,13 +720,13 @@ end;
 function TCnWizControlServices.IndexOfDesignRoot(
   DesignRoot: TComponent): Integer;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := -1;
-  for i := 0 to GetDesignRootCount - 1 do
-    if DesignRoot = GetDesignRoots(i) then
+  for I := 0 to GetDesignRootCount - 1 do
+    if DesignRoot = GetDesignRoots(I) then
     begin
-      Result := i;
+      Result := I;
       Exit;
     end;
 end;
@@ -734,13 +734,13 @@ end;
 function TCnWizControlServices.IndexOfDesignContainer(
   DesignContainer: TWinControl): Integer;
 var
-  i: Integer;
+  I: Integer;
 begin
   Result := -1;
-  for i := 0 to GetDesignContainerCount - 1 do
-    if DesignContainer = GetDesignContainers(i) then
+  for I := 0 to GetDesignContainerCount - 1 do
+    if DesignContainer = GetDesignContainers(I) then
     begin
-      Result := i;
+      Result := I;
       Exit;
     end;
 end;
@@ -792,15 +792,15 @@ end;
 initialization
 
 finalization
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogEnter('CnWizControlHook finalization.');
-{$ENDIF Debug}
+{$ENDIF}
 
   FreeCnWizControlServices;
 
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogLeave('CnWizControlHook finalization.');
-{$ENDIF Debug}
+{$ENDIF}
 
 {$ENDIF USE_CONTROLHOOK}
 end.

@@ -54,7 +54,8 @@
       ..\Dcu\CnCommentCropper.obj ..\Dcu\CnSourceCropper.obj 
       ..\Dcu\CnCpuWinEnhancements.obj ..\Dcu\CnCpuWinEnhanceFrm.obj 
       ..\Dcu\CnMultiLineEdtToolOptFrm.obj ..\Dcu\CnMultiLineEdtUserFmtFrm.obj 
-      ..\Dcu\CnObjInspectorEnhancements.obj ..\Dcu\CnRepositoryMenu.obj 
+      ..\Dcu\CnObjInspectorEnhancements.obj ..\Dcu\CnObjInspectorCommentFrm.obj 
+      ..\Dcu\CnObjectInspectorWrapper.obj ..\Dcu\CnRepositoryMenu.obj 
       ..\Dcu\CnDUnitWizard.obj ..\Dcu\CnDUnitSetFrm.obj ..\Dcu\CnIniFilerFrm.obj 
       ..\Dcu\CnIniFilerWizard.obj ..\Dcu\CnTestWizard.obj 
       ..\Dcu\CnOTACreators.obj ..\Dcu\CnProjectDelTempFrm.obj 
@@ -86,7 +87,7 @@
       ..\Dcu\CnSrcEditorReplaceInBlock.obj ..\Dcu\CnEditorSortLines.obj 
       ..\Dcu\CnEditorToggleUses.obj ..\Dcu\CnEditorJumpMessage.obj 
       ..\Dcu\CnEditorFontZoom.obj ..\Dcu\CnEditorDuplicateUnit.obj 
-      ..\Dcu\CnEditorExtractString.obj ..\Dcu\CnSrcEditorKey.obj 
+      ..\Dcu\CnEditorExtractString.obj ..\Dcu\CnEditorExtSelect.obj ..\Dcu\CnSrcEditorKey.obj 
       ..\Dcu\CnIdentRenameFrm.obj ..\Dcu\CnIdeEnhanceMenu.obj 
       ..\Dcu\CnIdeBRWizard.obj ..\Dcu\CnSourceHighlightFrm.obj 
       ..\Dcu\CnHighlightLineFrm.obj ..\Dcu\CnHighlightSeparateLineFrm.obj 
@@ -143,6 +144,8 @@
       ProjectExtWizard\CnProjectFramesFrm.dfm 
       ProjectExtWizard\CnProjectListUsedFrm.dfm 
       SimpleWizards\CnCommentCropper.dfm 
+      IdeEnhancements\CnCpuWinEnhanceFrm.dfm IdeEnhancements\CnObjInspectorEnhancements.dfm 
+      IdeEnhancements\CnObjInspectorCommentFrm.dfm 
       DesignEditors\CnMultiLineEdtToolOptFrm.dfm 
       DesignEditors\CnMultiLineEdtUserFmtFrm.dfm RepositoryWiz\CnDUnitSetFrm.dfm 
       RepositoryWiz\CnIniFilerFrm.dfm RepositoryWiz\CnTestWizard.dfm 
@@ -238,7 +241,7 @@ CompanyName=CnPack Team
 FileDescription=CnWizards For C++Builder 5
 FileVersion=1.0.0.0
 InternalName=CnWizards_CB5
-LegalCopyright=(C)Copyright 2001-2024 CnPack Team
+LegalCopyright=(C)Copyright 2001-2025 CnPack Team
 LegalTrademarks=CnPack
 OriginalFilename=CnWizards_CB5.DLL
 ProductName=CnWizards

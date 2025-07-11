@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -57,14 +57,12 @@ type
     procedure FormShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
-    { Private declarations }
     FUserFormatOpt: DWORD;
     FUserFormatStrBefore: string;
     FUserFormatStrAfter: string;
     function Getchk1Enabled: Boolean;
     procedure Setchk1Enabled(const Value: Boolean);
   public
-    { Public declarations }
     property UserFormatStrBefore: string read FUserFormatStrBefore write FUserFormatStrBefore;
     property UserFormatStrAfter: string read FUserFormatStrAfter write FUserFormatStrAfter;
     property UserFormatOpt: DWORD read FUserFormatOpt write FUserFormatOpt;

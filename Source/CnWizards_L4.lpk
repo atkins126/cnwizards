@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <PathDelim Value="\"/>
+    <Name Value="CnWizards_L4"/>
+    <Type Value="DesignTime"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <IncludeFiles Value="..\..\cnvcl\Source\Common"/>
+        <Libraries Value="Framework;..\..\cnvcl\Source\Common;..\..\cnvcl\Source\Crypto;..\..\cnvcl\Source\Graphics;..\..\cnvcl\Source\MultiLang;..\..\cnvcl\Source\Nonvisual;..\..\cnvcl\Source\NetComm;Utils;ThirdParty;Misc;MultiLang;DesignEditors"/>
+        <OtherUnitFiles Value="Framework;..\..\cnvcl\Source\Common;..\..\cnvcl\Source\Crypto;..\..\cnvcl\Source\Graphics;..\..\cnvcl\Source\MultiLang;..\..\cnvcl\Source\Nonvisual;..\..\cnvcl\Source\NetComm;Utils;ThirdParty;Misc;MultiLang;DesignEditors;SimpleWizards"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+      <Other>
+        <CustomOptions Value="-dDEBUG
+-dSUPPORT_EVALUATE
+-dENABLE_UIINTERACT
+-dCAPTURE_STACK"/>
+        <OtherDefines Count="4">
+          <Define0 Value="DEBUG"/>
+          <Define1 Value="SUPPORT_EVALUATE"/>
+          <Define2 Value="ENABLE_UIINTERACT"/>
+          <Define3 Value="CAPTURE_STACK"/>
+        </OtherDefines>
+      </Other>
+    </CompilerOptions>
+    <Files>
+      <Item>
+        <Filename Value="Framework\CnLazPkgEntry.pas"/>
+        <HasRegisterProc Value="True"/>
+        <UnitName Value="CnLazPkgEntry"/>
+      </Item>
+      <Item>
+        <Filename Value="Framework\CnWizConsts.pas"/>
+        <UnitName Value="CnWizConsts"/>
+      </Item>
+      <Item>
+        <Filename Value="Framework\CnWizCompilerConst.pas"/>
+        <UnitName Value="CnWizCompilerConst"/>
+      </Item>
+      <Item>
+        <Filename Value="Framework\CnWizOptions.pas"/>
+        <UnitName Value="CnWizOptions"/>
+      </Item>
+      <Item>
+        <Filename Value="Framework\CnWizShortCut.pas"/>
+        <UnitName Value="CnWizShortCut"/>
+      </Item>
+      <Item>
+        <Filename Value="Framework\CnWizMenuAction.pas"/>
+        <UnitName Value="CnWizMenuAction"/>
+      </Item>
+      <Item>
+        <Filename Value="Framework\CnWizClasses.pas"/>
+        <UnitName Value="CnWizClasses"/>
+      </Item>
+      <Item>
+        <Filename Value="Utils\CnPasCodeParser.pas"/>
+        <UnitName Value="CnPasCodeParser"/>
+      </Item>
+      <Item>
+        <Filename Value="Utils\CnPasWideLex.pas"/>
+        <UnitName Value="CnPasWideLex"/>
+      </Item>
+      <Item>
+        <Filename Value="Utils\CnWidePasParser.pas"/>
+        <UnitName Value="CnWidePasParser"/>
+      </Item>
+      <Item>
+        <Filename Value="ThirdParty\mPasLex.pas"/>
+        <UnitName Value="mPasLex"/>
+      </Item>
+      <Item>
+        <Filename Value="Framework\CnWizManager.pas"/>
+        <UnitName Value="CnWizManager"/>
+      </Item>
+      <Item>
+        <Filename Value="Utils\CnWizIdeUtils.pas"/>
+        <UnitName Value="CnWizIdeUtils"/>
+      </Item>
+      <Item>
+        <Filename Value="Utils\CnWizUtils.pas"/>
+        <UnitName Value="CnWizUtils"/>
+      </Item>
+      <Item>
+        <Filename Value="..\..\cnvcl\Source\Common\CnRTL.pas"/>
+        <UnitName Value="CnRTL"/>
+      </Item>
+      <Item>
+        <Filename Value="Misc\CnWizAbout.pas"/>
+        <UnitName Value="CnWizAbout"/>
+      </Item>
+      <Item>
+        <Filename Value="Misc\CnWizAboutFrm.pas"/>
+        <UnitName Value="CnWizAboutFrm"/>
+      </Item>
+      <Item>
+        <Filename Value="SimpleWizards\CnMessageBoxWizard.pas"/>
+        <UnitName Value="CnMessageBoxWizard"/>
+      </Item>
+    </Files>
+    <RequiredPkgs>
+      <Item>
+        <PackageName Value="dclCnPack_FPC3"/>
+      </Item>
+      <Item>
+        <PackageName Value="CnPack_FPC3"/>
+      </Item>
+      <Item>
+        <PackageName Value="IDEIntf"/>
+      </Item>
+      <Item>
+        <PackageName Value="LCLBase"/>
+      </Item>
+      <Item>
+        <PackageName Value="LCL"/>
+      </Item>
+      <Item>
+        <PackageName Value="FCL"/>
+      </Item>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

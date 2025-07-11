@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -58,7 +58,6 @@ uses
   CnConsts, CnDesignEditor, CnDesignEditorConsts {$IFDEF DEBUG}, CnDebug {$ENDIF};
 
 type
-  { TCnStringPropEditor }
   TCnStringPropEditor = class(TStringProperty)
   public
     function GetAttributes: TPropertyAttributes; override;
@@ -659,6 +658,12 @@ var
   SFB, SFI, SFU, SFS: string;
   Charset: string;
 begin
+  if GetOrdValue = 0 then
+  begin
+    Result := '';
+    Exit;
+  end;
+
   if fsBold in TFont(GetOrdValue).Style then
     SFB := 'B'
   else
@@ -688,6 +693,9 @@ end;
 procedure TCnFontPropEditor.PropDrawName(ACanvas: TCanvas; const ARect: TRect;
   ASelected: Boolean);
 begin
+{$IFDEF IDE_SUPPORT_THEMING}
+  ACanvas.FillRect(ARect);
+{$ENDIF}
   DefaultPropertyDrawName(Self, ACanvas, ARect);
 end;
 
@@ -702,9 +710,11 @@ begin
     ACanvas.Font.Charset := Font.Charset;
     if ColorToRGB(Font.Color) <> ColorToRGB(clBtnFace) then
       ACanvas.Font.Color := Font.Color;
-    //Canvas.Font.Name := Font.Name;
     ACanvas.Font.Style := Font.Style;
   end;
+{$IFDEF IDE_SUPPORT_THEMING}
+  ACanvas.FillRect(ARect);
+{$ENDIF}
   DefaultPropertyDrawValue(Self, ACanvas, ARect);
   inherited;
 end;

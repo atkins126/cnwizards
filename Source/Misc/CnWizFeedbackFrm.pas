@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -52,10 +52,11 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  ExtCtrls, CnWizardImage, StdCtrls, ComCtrls, ToolsAPI, CnConsts, CnWizConsts,
-  CnWizOptions, CnWizUtils, CnWizCompilerConst, Clipbrd, ActnList, ShellAPI,
-  Registry, Math, TypInfo, CnCommon, CnWizIdeUtils, CnLangMgr,
-  CnWizMultiLang, CnWizManager, CnEditControlWrapper;
+  ExtCtrls, CnWizardImage, StdCtrls, ComCtrls, Registry, Math, TypInfo,
+  Clipbrd, ActnList, ShellAPI,
+  {$IFNDEF NO_DELPHI_OTA} ToolsAPI, CnEditControlWrapper, {$ENDIF}
+  CnConsts, CnWizConsts, CnWizOptions, CnWizUtils, CnWizCompilerConst,
+  CnCommon, CnWizIdeUtils, CnLangMgr, CnWizMultiLang, CnWizManager;
 
 type
   TFeedbackType = (fbBug, fbFeature);
@@ -129,7 +130,6 @@ type
       var AllowChange: Boolean);
     procedure CnWizardImageChange(Sender: TObject);
   private
-    { Private declarations }
     function GetFeedbackType: TFeedbackType;
     function GetDestinationEmail: string;
     procedure SetDescriptionInfo;
@@ -185,13 +185,37 @@ begin
 end;
 
 function GetLocaleChar(Locale, LocaleType: Integer; Default: Char): Char;
+{$IFDEF FPC}
+var
+  Buffer: array[0..1] of Char;
+{$ENDIF}
 begin
+{$IFDEF FPC}
+  if GetLocaleInfo(Locale, LocaleType, Buffer, 2) > 0 then
+    Result := Buffer[0]
+  else
+    Result := Default;
+{$ELSE}
   Result := SysUtils.GetLocaleChar(Locale, LocaleType, Default);
+{$ENDIF}
 end;
 
 function GetLocaleStr(Locale, LocaleType: Integer; const Default: string): string;
+{$IFDEF FPC}
+var
+  L: Integer;
+  Buffer: array[0..255] of Char;
+{$ENDIF}
 begin
+{$IFDEF FPC}
+  L := GetLocaleInfo(Locale, LocaleType, Buffer, SizeOf(Buffer));
+  if L > 0 then
+    SetString(Result, Buffer, L - 1)
+  else
+    Result := Default;
+{$ELSE}
   Result := SysUtils.GetLocaleStr(Locale, LocaleType, Default);
+{$ENDIF}
 end;
 
 { TCnWizFeedBackForm }
@@ -338,16 +362,17 @@ end;
 
 procedure TCnWizFeedbackForm.SetDefaultConfigurationData;
 var
-  i: Integer;
+  I: Integer;
   CheckBox: TCheckBox;
 begin
   CheckBox := nil;
-  for i := 0 to gbConfigurationData.ControlCount - 1 do
+  for I := 0 to gbConfigurationData.ControlCount - 1 do
   begin
-    if gbConfigurationData.Controls[i] is TCheckBox then
-      CheckBox := gbConfigurationData.Controls[i] as TCheckBox
+    if gbConfigurationData.Controls[I] is TCheckBox then
+      CheckBox := gbConfigurationData.Controls[I] as TCheckBox
     else
       Continue;
+
     if FeedbackType = fbBug then
       CheckBox.Checked := True
     else
@@ -452,12 +477,12 @@ end;
 procedure TCnWizFeedbackForm.GenerateReport;
 var
   Report: string;
-  i: Integer;
+  I: Integer;
 begin
   Report := '';
-  for i := 0 to Notebook.Pages.Count - 1 do
-    if IsValidPage(i) then
-      Report := Report + GetPageReportText(i);
+  for I := 0 to Notebook.Pages.Count - 1 do
+    if IsValidPage(I) then
+      Report := Report + GetPageReportText(I);
   memReport.Lines.Text := Report;
 end;
 
@@ -477,16 +502,16 @@ end;
 procedure TCnWizFeedbackForm.CnWizardImageChanging(Sender: TObject;
   NewItemIndex: Integer; var AllowChange: Boolean);
 var
-  i: Integer;
+  I: Integer;
 begin
   if NewItemIndex < Notebook.PageIndex then
     AllowChange := True
   else
   begin
     AllowChange := True;
-    for i := Notebook.PageIndex to NewItemIndex - 1 do
+    for I := Notebook.PageIndex to NewItemIndex - 1 do
     begin
-      if IsValidPage(i) and not CanProceed(i) then
+      if IsValidPage(I) and not CanProceed(I) then
       begin
         AllowChange := False;
         Exit;
@@ -642,12 +667,16 @@ begin
 end;
 
 function GetCPUSpeed: Extended;
+{$IFNDEF WIN64}
 const
   DelayTime = 250;
 var
   TimerHi, TimerLo: DWORD;
   PriorityClass, Priority: Integer;
+{$ENDIF}
 begin
+  Result := 0;
+{$IFNDEF WIN64}
   try
     PriorityClass := GetPriorityClass(GetCurrentProcess());
     Priority := GetThreadPriority(GetCurrentThread());
@@ -675,8 +704,9 @@ begin
 
     Result := (TimerLo / DelayTime) * 999.1; // Inaccuracy in sleep
   except
-    Result := 0;
+    ;
   end;
+{$ENDIF}
 end;
 
 function GetCpuInfoString: string;
@@ -790,10 +820,13 @@ begin
 end;
 
 function GetEditorSettingString: string;
+{$IFNDEF NO_DELPHI_OTA}
 var
   Option: IOTAEditOptions;
+{$ENDIF}
 begin
   Result := SOutEditorSettings + SCRLF;
+{$IFNDEF NO_DELPHI_OTA}
   Option := CnOtaGetEditOptions;
   if Option <> nil then
   begin
@@ -804,6 +837,7 @@ begin
   Result := Result + '  Char Width: ' + IntToStr(Integer(EditControlWrapper.GetCharWidth)) + SCRLF;
   Result := Result + '  Use Tab: ' + IntToStr(Integer(EditControlWrapper.GetUseTabKey)) + SCRLF;
   Result := Result + '  Tab Width: ' + IntToStr(EditControlWrapper.GetTabWidth) + SCRLF;
+{$ENDIF}
 end;
 
 function TCnWizFeedbackForm.GetSystemConfigurationString: string;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -66,20 +66,18 @@ uses
   Windows, Messages, SysUtils, Classes, Forms, ActnList, Controls, Menus, Contnrs,
 {$IFNDEF TEST_APP}
 {$IFNDEF STAND_ALONE}
-  CnConsts, CnWizClasses, CnWizManager, CnWizUtils, CnWizOptions, CnDesignEditor,
-  CnWizTranslate, CnLangUtils, CnWizScaler,
+  CnWizUtils, CnDesignEditor, CnWizScaler,
   {$IFDEF IDE_SUPPORT_THEMING} ToolsAPI, CnIDEMirrorIntf, {$ENDIF}
 {$ELSE}
-  CnWizLangID,
+  CnWizLangID, 
 {$ENDIF}
+  CnConsts, CnWizClasses, CnLangUtils, CnWizTranslate, CnWizManager, CnWizOptions,
   CnWizConsts, CnCommon, CnLangMgr, CnHashLangStorage, CnLangStorage, CnWizHelp,
   CnFormScaler, CnWizIni, CnLangCollection,
 {$ENDIF}
   StdCtrls, ComCtrls, IniFiles;
 
 type
-
-{$IFNDEF STAND_ALONE}  // 非独立模式才定义 TCnWizMultiLang
 
 { TCnWizMultiLang }
 
@@ -101,7 +99,7 @@ type
     function GetHint: string; override;
   end;
 
-{$ENDIF}
+  { TCnTranslateForm }
 
   TCnTranslateForm = class(TForm)
 {$IFNDEF TEST_APP}
@@ -122,6 +120,14 @@ type
 
     procedure ProcessSizeEnlarge;
     procedure ProcessGlyphForHDPI(AControl: TControl);
+    procedure ProcessLazarusFormClientSize;
+    {* 该函数是为在 FPC 中复用 Delphi 设计的窗体所进行的修补。
+       Delphi 设计窗体在部分情况下会将尺寸保存至 ClientHeight 和 ClientWidth 属性中，
+       而不是 Width 和 Height。但 FPC 并不使用 DFM/LFM 中记录的 ClientHeight 和 ClientWidth属性
+       来设置自身尺寸，导致窗体子类创建后的尺寸永远是基类尺寸。
+       此处做一下修补，在窗体 Loading 完成后，我们再读取分析一下本窗体的 DFM 资源字符串，
+       找出其中的 ClientHeight 和 ClientWidth 属性的值，对窗体的 Width 和 Height 属性重新赋值。}
+
 {$IFNDEF STAND_ALONE}
     function GetEnlarged: Boolean;
 {$ENDIF}
@@ -193,15 +199,8 @@ implementation
 
 {$R *.DFM}
 
-{$IFNDEF STAND_ALONE}
 uses
   CnWizShareImages {$IFDEF DEBUG}, CnDebug {$ENDIF};
-{$ELSE}
-{$IFDEF DEBUG}
-uses
-  CnDebug;
-{$ENDIF}
-{$ENDIF}
 
 type
   TControlHack = class(TControl);
@@ -268,7 +267,7 @@ begin
     ; // 屏蔽自动检测语言文件时可能出的错
 {$IFDEF DEBUG}
     CnDebugger.LogMsgError('Language Storage Initialization Error.');
-{$ENDIF DEBUG}
+{$ENDIF}
   end;
 
   // 将 2052 调整至首位
@@ -318,8 +317,6 @@ begin
 end;
 {$ENDIF}
 
-{$IFNDEF STAND_ALONE}
-
 { TCnWizMultiLang }
 
 constructor TCnWizMultiLang.Create;
@@ -346,7 +343,8 @@ begin
   for I := 0 to FStorage.LanguageCount - 1 do
   begin
     S := CnLanguages.NameFromLocaleID[FStorage.Languages[I].LanguageID];
-    S := StringReplace(S, '台湾', '中国台湾', [rfReplaceAll]);
+    if Pos('中国', S) <= 0 then
+      S := StringReplace(S, '台湾', '中国台湾', [rfReplaceAll]);
     FIndexes[I] := RegisterASubAction(csLanguage + InttoStr(I) + FStorage.
       Languages[I].Abbreviation, FStorage.Languages[I].LanguageName + ' - ' +
       S, 0, FStorage.Languages[I].LanguageName);
@@ -393,7 +391,9 @@ begin
     CnTranslateConsts(Sender);
     CnWizardMgr.RefreshLanguage;
     CnWizardMgr.ChangeWizardLanguage;
+{$IFNDEF STAND_ALONE}
     CnDesignEditorMgr.LanguageChanged(Sender);
+{$ENDIF}
   end;
 end;
 
@@ -407,11 +407,13 @@ var
   I: Integer;
 begin
   for I := Low(FIndexes) to High(FIndexes) do
+  begin
     if FIndexes[I] = Index then
     begin
       CnLanguageManager.CurrentLanguageIndex := I;
       WizOptions.CurrentLangID := FStorage.Languages[I].LanguageID;
     end;
+  end;
 end;
 
 procedure TCnWizMultiLang.SubActionUpdate(Index: Integer);
@@ -419,11 +421,11 @@ var
   I: Integer;
 begin
   for I := Low(FIndexes) to High(FIndexes) do
+  begin
     SubActions[I].Checked := WizOptions.CurrentLangID =
       FStorage.Languages[I].LanguageID;
+  end;
 end;
-
-{$ENDIF}
 
 {$IFNDEF TEST_APP}
 
@@ -484,6 +486,8 @@ begin
 
   ProcessSizeEnlarge;
   ProcessGlyphForHDPI(Self);
+
+  ProcessLazarusFormClientSize;
 
   if NeedAdjustRightBottomMargin then
     AdjustRightBottomMargin;   // inherited 中会调用 FormCreate 事件，有可能改变了 Width/Height
@@ -811,14 +815,14 @@ procedure TCnTranslateForm.DoHelpError;
 begin
 {$IFNDEF TEST_APP}
   ErrorDlg(SCnNoHelpofThisLang);
-{$ENDIF TEST_APP}
+{$ENDIF}
 end;
 
 procedure TCnTranslateForm.ShowFormHelp;
 begin
 {$IFNDEF TEST_APP}
   FHelpAction.Execute;
-{$ENDIF TEST_APP}
+{$ENDIF}
 end;
 
 procedure TCnTranslateForm.Translate;
@@ -826,7 +830,7 @@ begin
 {$IFNDEF TEST_APP}
 {$IFDEF DEBUG}
   CnDebugger.LogEnter(ClassName + '|TCnTranslateForm.Translate');
-{$ENDIF DEBUG}
+{$ENDIF}
   if (CnLanguageManager <> nil) and (CnLanguageManager.LanguageStorage <> nil)
     and (CnLanguageManager.LanguageStorage.LanguageCount > 0) then
   begin
@@ -842,13 +846,13 @@ begin
   begin
 {$IFDEF DEBUG}
     CnDebugger.LogMsgError('CnWizards Form MultiLang Initialization Error. Use English Font as default.');
-{$ENDIF DEBUG}
+{$ENDIF}
     // 因初始化失败而无语言条目，因原始窗体是英文，故设置为英文字体
     Font.Charset := DEFAULT_CHARSET;
   end;
 {$IFDEF DEBUG}
   CnDebugger.LogLeave(ClassName + '|TCnTranslateForm.Translate');
-{$ENDIF DEBUG}
+{$ENDIF}
 {$ENDIF TEST_APP}
 end;
 
@@ -960,9 +964,128 @@ begin
 {$ENDIF}
 end;
 
+procedure TCnTranslateForm.ProcessLazarusFormClientSize;
+{$IFDEF FPC}
+var
+  ResName, Head, S: string;
+  ResInstance: HRSRC;
+  Stream: TResourceStream;
+  Mem: TMemoryStream;
+  Ref: TCustomMemoryStream;
+  DFMs: TStringList;
+  I, V: Integer;
+
+  function ParseIntValue(const Line: string; const NeedPropName: string;
+    out IntValue: Integer): Boolean;
+  var
+    E: Integer;
+    H, T: string;
+  begin
+    Result := False;
+    E := Pos('=', Line);
+    if E > 0 then
+    begin
+      H := Trim(Copy(Line, 1, E - 1));
+      if H = NeedPropName then
+      begin
+        T := Trim(Copy(Line, E + 1, MaxInt));
+        Val(T, IntValue, E);
+        Result := E = 0;
+      end;
+    end;
+  end;
+
+{$ENDIF}
+begin
+{$IFDEF FPC}
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('TCnTranslateForm.ProcessLazarusFormClientSize');
+{$ENDIF}
+  if BorderStyle in [bsSizeable, bsSizeToolWin] then // 暂时只处理尺寸不可变的
+    Exit;
+
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('TCnTranslateForm.ProcessLazarusFormClientSize. Form Need to Process.');
+{$ENDIF}
+  ResName := UpperCase(ClassName);
+  ResInstance := FindResource(HInstance, PChar(ResName), RT_RCDATA);
+  if ResInstance <> 0 then
+  begin
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('TCnTranslateForm.ProcessLazarusFormClientSize. Found Resoure Instance.');
+{$ENDIF}
+    Mem := nil;
+    Stream := nil;
+    DFMs := nil;
+
+    try
+      Stream := TResourceStream.Create(HInstance, ResName, RT_RCDATA);
+      if Stream.Size > 4 then
+      begin
+        // 判断 TPF0
+        SetLength(Head, 4);
+        Move(Stream.Memory^, Head[1], 4);
+        if Head = 'TPF0' then
+        begin
+{$IFDEF DEBUG}
+        CnDebugger.LogMsg('TCnTranslateForm.ProcessLazarusFormClientSize. Binary Stream to Convert.');
+{$ENDIF}
+          Mem := TMemoryStream.Create;
+          ObjectBinaryToText(Stream, Mem);
+          Mem.Position := 0;
+          Ref := Mem;
+        end
+        else
+        begin
+{$IFDEF DEBUG}
+          CnDebugger.LogMsg('TCnTranslateForm.ProcessLazarusFormClientSize. Text Stream.');
+{$ENDIF}
+          Ref := Stream;
+        end;
+        SetLength(S, Ref.Size);
+        Move(Ref.Memory^, S[1], Ref.Size);
+
+        DFMs := TStringList.Create;
+        DFMs.Text := S;
+{$IFDEF DEBUG}
+        CnDebugger.LogMsg('TCnTranslateForm.ProcessLazarusFormClientSize. DFM Lines ' + IntToStr(DFMs.Count));
+{$ENDIF}
+        for I := 1 to DFMs.Count - 1 do // 第一行 object 或 inherited 窗体名不处理
+        begin
+          if ParseIntValue(DFMs[I], 'ClientHeight', V) then
+          begin
+            Height := V; // + GetSystemMetrics(SM_CYCAPTION);
+{$IFDEF DEBUG}
+            CnDebugger.LogMsg('TCnTranslateForm.ProcessLazarusFormClientSize. Set Height to ' + IntToStr(V));
+{$ENDIF}
+          end
+          else if ParseIntValue(DFMs[I], 'ClientWidth', V) then
+          begin
+            Width := V;
+{$IFDEF DEBUG}
+            CnDebugger.LogMsg('TCnTranslateForm.ProcessLazarusFormClientSize. Set Width to ' + IntToStr(V));
+{$ENDIF}
+          end;
+          if Copy(Trim(DFMs[I]), 1, Length('object')) = 'object' then
+            Break;
+        end;
+      end;
+    finally
+      DFMs.Free;
+      Stream.Free;
+      Mem.Free;
+    end;
+  end;
+{$ENDIF}
+end;
+
 function TCnTranslateForm.NeedAdjustRightBottomMargin: Boolean;
 begin
+{$IFDEF LAZARUS}
+  Result := False;
+{$ELSE}
   Result := True;
+{$ENDIF}
 end;
 
 initialization

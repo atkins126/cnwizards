@@ -29,12 +29,12 @@
 		<param name="Local" value="wizards\repository\cnmemprof.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
-		<param name="Name" value="CnPack IDE 专家包许可协议">
-		<param name="Local" value="licenses\license.htm">
-		</OBJECT>
-	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="CnPack IDE 专家包更新提示">
 		<param name="Local" value="options\upgrade.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="CnPack 发布协议">
+		<param name="Local" value="licenses\license.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Constraints 编辑器">
@@ -101,6 +101,10 @@
 		<param name="Local" value="wizards\msdnwizards.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="RemObjects Pascal Script 使用许可协议">
+		<param name="Local" value="licenses\ro_ps_lic.txt">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Repository 向导列表">
 		<param name="Local" value="wizards\repository.htm">
 		</OBJECT>
@@ -122,11 +126,11 @@
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="插入颜色工具">
-		<param name="Local" value="wizards\projext\editorinsertcolor.htm">
+		<param name="Local" value="wizards\toolset\toolsetinsertcolor.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="插入日期时间工具">
-		<param name="Local" value="wizards\projext\editorinserttime.htm">
+		<param name="Local" value="wizards\toolset\toolsetinserttime.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="常用工具">
@@ -267,6 +271,10 @@
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="捐助我们">
 		<param name="Local" value="other\donation.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="扩展式选择工具">
+		<param name="Local" value="wizards\toolset\toolsetextselect.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="历史更新记录">

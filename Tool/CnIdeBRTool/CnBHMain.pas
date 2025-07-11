@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -183,7 +183,8 @@ const
     ('Delphi\5.0', 'Delphi\6.0', 'Delphi\7.0', 'BDS\2.0', 'BDS\3.0', 'BDS\4.0',
     'BDS\5.0', 'BDS\6.0', 'BDS\7.0', 'BDS\8.0', 'BDS\9.0', 'BDS\10.0', 'BDS\11.0',
     'BDS\12.0', 'BDS\14.0', 'BDS\15.0', 'BDS\16.0', 'BDS\17.0', 'BDS\18.0', 'BDS\19.0',
-    'BDS\20.0', 'BDS\21.0', 'BDS\22.0', 'BDS\23.0', 'C++Builder\5.0', 'C++Builder\6.0');
+    'BDS\20.0', 'BDS\21.0', 'BDS\22.0', 'BDS\23.0', 'C++Builder\5.0', 'C++Builder\6.0',
+    '');
   SCnRegHisProject = '\Closed Projects';
   SCnRegHisFiles = '\Closed Files';
 
@@ -199,7 +200,7 @@ begin
   FCanClose := True;
   // 使窗体可接受文件拖放
   DragAcceptFiles(Handle, True);
-  //
+
   Application.Title := SCnAppTitle + SCnAppVer;
   Caption := Application.Title;
   pgcMain.SendToBack;

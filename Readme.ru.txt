@@ -1,13 +1,13 @@
 ﻿**********************************************************************
                      CnPack для Delphi/C++Builder
                    Свободный, открытый проект из КНР
-                 (C)Copyright 2001-2024 CnPack Team
+                 (C)Copyright 2001-2025 CnPack Team
 **********************************************************************
 
                          CnPack IDE-Мастер
-                           Version 1.5.0
+                           Version 1.6.1
                        =======================
-                         CnPack Team 2024.09
+                         CnPack Team 2025.05
 
 
 =====================================================
@@ -37,7 +37,7 @@ Delphi 5 6 7, C++Builder 5 6 и BDS 2005 2006, RAD Studio 2007 2009 2010, XE, XE
 
     Последнюю информацию Вы всегда можете получить на нашем сайте.
 
-    http://www.cnpack.org
+    https://www.cnpack.org
 
 ======================================================================
 3. Установка
@@ -49,7 +49,7 @@ Delphi 5 6 7, C++Builder 5 6 и BDS 2005 2006, RAD Studio 2007 2009 2010, XE, XE
     Если у Вас возникли проблемы при использовании CnPack IDE-Мастера,
 пожалуйста свяжитесь с нами:
 
-    http://www.cnpack.org
+    https://www.cnpack.org
     mailto:master@cnpack.org
 
 ======================================================================
@@ -65,7 +65,7 @@ Delphi 5 6 7, C++Builder 5 6 и BDS 2005 2006, RAD Studio 2007 2009 2010, XE, XE
     5. Install. Установочные скрипты.
     6. Make. Скрипты автоматической компиляции.
     7. Source. Исходный код CnPack IDE-Мастера.
-    8. Tools. Исходный код утилит, входящих в состав CnPack IDE-Мастера.
+    8. Tool. Исходный код утилит, входящих в состав CnPack IDE-Мастера.
 
 ======================================================================
 5. Загрузка
@@ -73,11 +73,11 @@ Delphi 5 6 7, C++Builder 5 6 и BDS 2005 2006, RAD Studio 2007 2009 2010, XE, XE
 
     Вы можете загрузить последнюю версию с нашего сайта или:
 
-    Компоненты CnPack:               http://download.cnpack.org/CnVcl.zip
-    Дистрибутив CnPack IDE-Мастера:  http://download.cnpack.org/CnWizards.exe
-    Исходный код CnPack IDE-Мастера: http://download.cnpack.org/CnWizards_Src.zip
+    Компоненты CnPack:               https://download.cnpack.org/CnVcl.7z
+    Дистрибутив CnPack IDE-Мастера:  https://download.cnpack.org/CnWizards.exe
+    Исходный код CnPack IDE-Мастера: https://download.cnpack.org/CnWizards_Src.7z
 
-    GIT: http://github.com/cnpack
+    GIT: https://github.com/cnpack
 
 ======================================================================
 6. Компиляция и сборка

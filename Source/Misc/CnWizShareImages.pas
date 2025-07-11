@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -47,7 +47,7 @@ uses
   SysUtils, Windows, Classes, Graphics, Forms, ImgList, Buttons, Controls,
   {$IFDEF IDE_SUPPORT_HDPI} Vcl.VirtualImageList, Vcl.ImageCollection, {$ENDIF}
   {$IFDEF SUPPORT_GDIPLUS} WinApi.GDIPOBJ, WinApi.GDIPAPI, {$ENDIF}
-  {$IFNDEF STAND_ALONE} CnWizUtils, CnWizOptions, CnWizIdeUtils, {$ENDIF}
+  {$IFNDEF STAND_ALONE} CnWizOptions, CnWizUtils, CnWizIdeUtils, {$ENDIF}
   CnGraphUtils;
 
 type
@@ -434,8 +434,10 @@ begin
     ImageList.BkColor := Save;
   end;
 
+{$IFNDEF LAZARUS}
   // 调整按钮位图以解决有些按钮 Disabled 时无图标的问题
   AdjustButtonGlyph(Button.Glyph);
+{$ENDIF}
   Button.NumGlyphs := 2;
 end;
 

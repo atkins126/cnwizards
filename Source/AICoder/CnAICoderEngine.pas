@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -42,7 +42,8 @@ interface
 
 uses
   SysUtils, Classes, Contnrs, Windows, CnNative, CnContainers, CnJSON, CnWizConsts,
-  CnInetUtils, CnWizOptions, CnAICoderConfig, CnThreadPool, CnAICoderNetClient;
+  CnInetUtils, {$IFNDEF STAND_ALONE} CnWizOptions, {$ENDIF} CnAICoderConfig,
+  CnThreadPool, CnAICoderNetClient, CnHashMap, CnConsts;
 
 type
   TCnAIAnswerObject = class(TPersistent)
@@ -51,13 +52,20 @@ type
     FSendId: Integer;
     FAnswer: TBytes;
     FSuccess: Boolean;
+    FPartly: Boolean;
     FCallback: TCnAIAnswerCallback;
     FRequestType: TCnAIRequestType;
     FErrorCode: Cardinal;
     FTag: TObject;
+    FStreamMode: Boolean;
+    FIsStreamEnd: Boolean;
   public
+    property StreamMode: Boolean read FStreamMode write FStreamMode;
+    property Partly: Boolean read FPartly write FPartly;
+
     property Success: Boolean read FSuccess write FSuccess;
     property SendId: Integer read FSendId write FSendId;
+    property IsStreamEnd: Boolean read FIsStreamEnd write FIsStreamEnd;
     property RequestType: TCnAIRequestType read FRequestType write FRequestType;
     property ErrorCode: Cardinal read FErrorCode write FErrorCode;
     property Answer: TBytes read FAnswer write FAnswer;
@@ -66,22 +74,32 @@ type
   end;
 
   TCnAIBaseEngine = class
-  {* 处理特定 AI 服务提供者的引擎基类，有自身的特定配置，
-    并有添加请求任务、发起网络请求、获得结果并回调的典型功能}
+  {* 处理特定 AI 服务提供者的引擎基类，有自身的特定配置，并有添加请求任务、
+     发起网络请求、获得结果并回调的典型功能。其中组装发送格式及接收数据解析格式
+     参照了目前最为广泛的 OpenAI 兼容格式为实现规则，子类则可能另有实现}
   private
     FPoolRef: TCnThreadPool; // 从 Manager 处拿来持有的线程池对象引用
     FOption: TCnAIEngineOption;
     FAnswerQueue: TCnObjectQueue;
+    FProcessingDataObj: TCnAINetRequestDataObject;
+    FProcessingThread: TCnPoolingThread;
     procedure CheckOptionPool;
+    procedure HttpProgressData(Sender: TObject; TotalSize, CurrSize: Integer;
+      Data: Pointer; DataLen: Integer; var Abort: Boolean);
   protected
+    FPrevRespRemainMap: TCnStrToStrHashMap;
+
+    procedure DeleteAuthorizationHeader(Headers: TStringList);
+    {* 供子类按需使用的，删除请求头里的 Authorization 字段，以备其他认证方式}
+
     procedure TalkToEngine(Sender: TCnThreadPool; DataObj: TCnTaskDataObject;
       Thread: TCnPoolingThread); virtual;
     {* 有默认实现且子类可重载的、与 AI 服务提供者进行网络通讯获取结果的实现函数
       是第一步组装好数据扔给线程池后，由线程池调度后在具体工作线程中被调用
       在一次完整的 AI 网络通讯过程中属于第三步，内部会根据结果回调 OnAINetDataResponse 事件}
 
-    procedure OnAINetDataResponse(Success: Boolean; Thread: TCnPoolingThread;
-      DataObj: TCnAINetRequestDataObject; Data: TBytes); virtual;
+    procedure OnAINetDataResponse(Success, Partly: Boolean; Thread: TCnPoolingThread;
+      DataObj: TCnAINetRequestDataObject; Data: TBytes; ErrCode: Cardinal); virtual;
     {* AI 服务提供者进行网络通讯的结果回调，是在子线程中被调用的，内部应 Sync 给请求调用者
       Success 返回成功与否，成功则 Data 中是数据
       在一次完整的 AI 网络通讯过程中属于第四步}
@@ -94,16 +112,29 @@ type
     function GetRequestURL(DataObj: TCnAINetRequestDataObject): string; virtual;
     {* 请求发送前，给子类一个处理自定义 URL  的机会}
 
-    procedure PrepareRequestHeader(Headers: TStringList); virtual;
-    {* 请求发送前，给子类一个处理自定义 HTTP 头的机会}
+    procedure PrepareRequestHeader(const ApiKey: string; Headers: TStringList); virtual;
+    {* 请求发送前，给子类一个处理自定义 HTTP 头的机会。ApiKey 是发起请求时指定的，
+      有可能特殊场合和 FOptions 里的 ApiKey 不同，优先以此为准。}
 
-    function ConstructRequest(RequestType: TCnAIRequestType; const Code: string): TBytes; virtual;
-    {* 根据请求类型与原始代码，组装 Post 的数据，一般是 JSON 格式}
+    function ConstructRequest(RequestType: TCnAIRequestType; const Code: string = '';
+      History: TStrings = nil): TBytes; virtual;
+    {* 根据请求类型与原始代码及历史信息，组装 Post 的数据，一般是 JSON 格式}
 
-    function ParseResponse(var Success: Boolean; var ErrorCode: Cardinal;
-      RequestType: TCnAIRequestType; const Response: TBytes): string; virtual;
-    {* 根据请求类型与原始回应，解析回应数据，一般是 JSON 格式，返回字符串给调用者
-      同时允许根据返回的错误信息更改成功与否}
+    function ParseResponse(SendId: Integer; StreamMode, Partly: Boolean; var Success: Boolean;
+      var ErrorCode: Cardinal; var IsStreamEnd: Boolean; RequestType: TCnAIRequestType; const Response: TBytes): string; virtual;
+    {* 根据请求类型与原始回应，解析回应数据，一般是 JSON 格式，返回字符串给调用者，
+      同时允许根据返回的错误信息更改成功与否。SendId 是发送时产生的随机标识符用来区分会话，
+      StreamMode 是请求发起时是否支持流式，姑且认为服务端会同样多次返回拼接。
+      Partly 为 True 表示此次数据是服务器返回的中间数据，注意数据过短时可能等于完整数据。
+      内部机制确保了不会在 StreamMode 为 False 时来 Partly 为 True 的数据，不会在 StreamMode 为 True 时来完整数据
+      IsStreamEnd 由内部解析后返回流模式下本次回应是否是结尾数据}
+
+    function ParseModelList(ResponseRoot: TCnJSONObject): string; virtual;
+    {* 单独挑出 ModelList 的应答解析过程，子类按需重载，如引擎不支持，直接返回空字符串即可}
+
+    class function GetModelListURL(const OrigURL: string): string; virtual;
+    {* 从 API 调用地址获取 ModelList 调用地址，不同提供商可能有不同规则。
+      如引擎不支持，直接返回空字符串即可}
   public
     class function EngineName: string; virtual;
     {* 子类必须有个名字}
@@ -120,14 +151,20 @@ type
     procedure InitOption;
     {* 根据引擎名去设置管理类中取自身的设置对象}
 
-    function AskAIEngine(const Text: TBytes; Tag: TObject;
+    function AskAIEngine(const URL: string; const Text: TBytes; StreamMode: Boolean;
+      RequestType: TCnAIRequestType; const ApiKey: string; Tag: TObject;
       AnswerCallback: TCnAIAnswerCallback = nil): Integer; virtual;
     {* 用户调用的与 AI 通讯的过程，传入原始通讯数据，内部会组装成请求对象扔给线程池，返回一个请求 ID
       在一次完整的 AI 网络通讯过程中属于第一步；第二步是线程池调度的 ProcessRequest 转发}
 
-    function AskAIEngineForCode(const Code: string; Tag: TObject; RequestType: TCnAIRequestType;
-      AnswerCallback: TCnAIAnswerCallback = nil): Integer; virtual;
+    function AskAIEngineForCode(const Code: string; History: TStrings; Tag: TObject;
+      RequestType: TCnAIRequestType; AnswerCallback: TCnAIAnswerCallback = nil): Integer; virtual;
     {* 进一步封装的用户调用的解释代码或检查代码的过程，内部将 Code 转换为 JSON 后调用 AskAIEngine，也算第一步}
+
+    function AskAIEngineForModelList(Tag: TObject; AlterOption: TCnAIEngineOption = nil;
+      AnswerCallback: TCnAIAnswerCallback = nil): Integer; virtual;
+    {* 进一步封装的设置界面由用户调用的获取模型列表的过程，内部组装调整后调用 AskAIEngine，也算第一步
+       加一 AlterOption 参数的目的是为了允许临时指定参数，不用本 Engine 默认参数以适合灵活场合}
 
     property Option: TCnAIEngineOption read FOption;
     {* 引擎配置，根据名字从配置管理器中取来的引用}
@@ -163,6 +200,9 @@ type
     procedure SaveToDirectory(const Dir, BaseFileFmt: string);
     {* 独立运行时的保存总入口，将所有配置根据基础文件名存入指定目录}
 
+    function GetEngineByOption(Option: TCnAIEngineOption): TCnAIBaseEngine;
+    {* 根据选项对象查找对应引擎}
+
 {$IFNDEF STAND_ALONE}
     procedure LoadFromWizOptions;
     {* 专家包的加载总入口，动态加载所有配置，内部会分辨不同目录}
@@ -195,21 +235,19 @@ implementation
 
 {$IFDEF CNWIZARDS_CNAICODERWIZARD}
 
-{$IFDEF DEBUG}
 uses
-  CnDebug;
-{$ENDIF}
+  CnCommon {$IFDEF DEBUG}, CnDebug{$ENDIF};
 
 const
   CRLF = #13#10;
   LF = #10;
+  RESP_DATA_DONE = 'data: [DONE]';
 
 type
   TThreadHack = class(TThread);
 
 var
   FAIEngineManager: TCnAIEngineManager = nil;
-
   FAIEngines: TClassList = nil;
 
 procedure RegisterAIEngine(AIEngineClass: TCnAIBaseEngineClass);
@@ -391,6 +429,14 @@ begin
   if FileExists(S) then
     CnAIEngineOptionManager.LoadFromFile(S);
 
+  // 加载收藏的词儿
+  S := WizOptions.GetUserFileName(SCnAICoderFavoritesFile, True);
+  if FileExists(S) then
+  begin
+    CnAIEngineOptionManager.LoadFavorite(S);
+    CnAIEngineOptionManager.ShrinkFavorite;
+  end;
+
   // 挨个根据引擎 ID，修改文件名，创建并加载其对应 Option
   for I := 0 to EngineCount - 1 do
   begin
@@ -407,7 +453,8 @@ begin
       OrigOption := CnAIEngineOptionManager.CreateOptionFromFile(Engines[I].EngineName,
         S, Engines[I].OptionClass, False); // 注意该原始配置对象无需进行管理
 
-      // OrigOption 中的新的非空选项，要赋值给 Option 的同名属性，仅仨基本数据类型
+      // OrigOption 中的新的非空选项，要赋值给 Option 的同名的空值的属性，仅几种基本数据类型
+      // 该机制用于新版配置增加新的属性时使用，希望嫑有新旧区分有误的问题。
       OrigOption.AssignToEmpty(Option);
     finally
       OrigOption.Free;
@@ -422,11 +469,16 @@ var
   I: Integer;
   S, F: string;
 begin
-  // OptionManager 加载基本设置
+  // OptionManager 保存基本设置
   F := Format(SCnAICoderEngineOptionFileFmt, ['']);
   S := WizOptions.GetUserFileName(F, False);
   CnAIEngineOptionManager.SaveToFile(S);
   WizOptions.CheckUserFile(F);
+
+  // 保存收藏的词儿
+  S := WizOptions.GetUserFileName(SCnAICoderFavoritesFile, False);
+  CnAIEngineOptionManager.ShrinkFavorite;
+  CnAIEngineOptionManager.SaveFavorite(S);
 
   // 挨个根据引擎 ID，修改文件名，保存其对应 Option
   for I := 0 to EngineCount - 1 do
@@ -440,44 +492,77 @@ end;
 
 {$ENDIF}
 
+function TCnAIEngineManager.GetEngineByOption(
+  Option: TCnAIEngineOption): TCnAIBaseEngine;
+var
+  I: Integer;
+begin
+  for I := 0 to EngineCount - 1 do
+  begin
+    if Engines[I].Option = Option then
+    begin
+      Result := Engines[I];
+      Exit;
+    end;
+  end;
+  Result := nil;
+end;
+
 { TCnAIBaseEngine }
 
-function TCnAIBaseEngine.AskAIEngine(const Text: TBytes; Tag: TObject;
-  AnswerCallback: TCnAIAnswerCallback): Integer;
+function TCnAIBaseEngine.AskAIEngine(const URL: string; const Text: TBytes;
+  StreamMode: Boolean; RequestType: TCnAIRequestType; const ApiKey: string;
+  Tag: TObject; AnswerCallback: TCnAIAnswerCallback): Integer;
 var
   Obj: TCnAINetRequestDataObject;
 begin
   CheckOptionPool;
-  Result := 0;
 
-  if Length(Text) > 0 then
-  begin
-    Obj := TCnAINetRequestDataObject.Create;
-    Obj.URL := FOption.URL;
-    Obj.Tag := Tag;
-    Randomize;
-    Obj.SendId := 10000000 + Random(100000000);
+  Obj := TCnAINetRequestDataObject.Create;
+  Obj.URL := URL;
+  Obj.Tag := Tag;
+  Obj.RequestType := RequestType;
+  Obj.ApiKey := ApiKey;
+  Randomize;
+  Obj.SendId := 10000000 + Random(100000000);
 
-    // 拼装 JSON 格式的请求作为 Post 的负载内容搁 Data 里
-    Obj.Data := Text;
+  // 拼装 JSON 格式的请求作为 Post 的负载内容搁 Data 里
+  Obj.Data := Text;
+  Obj.StreamMode := StreamMode;
 
-    Obj.OnAnswer := AnswerCallback;
-    Obj.OnResponse := OnAINetDataResponse;
-    FPoolRef.AddRequest(Obj);
+  Obj.OnAnswer := AnswerCallback;
+  Obj.OnResponse := OnAINetDataResponse;
+  FPoolRef.AddRequest(Obj);
 
-    Result := Obj.SendId;
-  end
-  else
-  begin
-    if Assigned(AnswerCallback) then // 没发送的数据就直接回调出错
-      AnswerCallback(False, -1, 'No Message to Send', ERROR_INVALID_DATA, Tag);
-  end;
+  Result := Obj.SendId;
 end;
 
-function TCnAIBaseEngine.AskAIEngineForCode(const Code: string; Tag: TObject;
-  RequestType: TCnAIRequestType; AnswerCallback: TCnAIAnswerCallback): Integer;
+function TCnAIBaseEngine.AskAIEngineForCode(const Code: string; History: TStrings;
+  Tag: TObject; RequestType: TCnAIRequestType; AnswerCallback: TCnAIAnswerCallback): Integer;
 begin
-  Result := AskAIEngine(ConstructRequest(RequestType, Code), Tag, AnswerCallback);
+  Result := AskAIEngine(FOption.URL, ConstructRequest(RequestType, Code, History),
+    FOption.Stream, RequestType, FOption.ApiKey, Tag, AnswerCallback);
+end;
+
+function TCnAIBaseEngine.AskAIEngineForModelList(Tag: TObject;
+  AlterOption: TCnAIEngineOption; AnswerCallback: TCnAIAnswerCallback): Integer;
+var
+  URL: string;
+begin
+  if AlterOption = nil then
+    AlterOption := FOption;
+
+  URL := GetModelListURL(AlterOption.URL);
+  if Trim(URL) = '' then
+  begin
+    if Assigned(AnswerCallback) then
+      AnswerCallback(False, False, False, True, 0, SCnNotSupport, 0, nil);
+    Result := 0;
+    Exit;
+  end;
+
+  Result := AskAIEngine(URL, ConstructRequest(artModelList),
+    AlterOption.Stream, artModelList, AlterOption.ApiKey, Tag, AnswerCallback);
 end;
 
 procedure TCnAIBaseEngine.CheckOptionPool;
@@ -490,74 +575,210 @@ begin
     raise Exception.Create('No Options for ' + EngineName);
 end;
 
+procedure TCnAIBaseEngine.HttpProgressData(Sender: TObject; TotalSize, CurrSize: Integer;
+  Data: Pointer; DataLen: Integer; var Abort: Boolean);
+begin
+{$IFDEF DEBUG}
+  CnDebugger.LogMsg('*** HTTP Request OK Getting Progress ' + IntToStr(CurrSize));
+{$ENDIF}
+  if (FProcessingDataObj <> nil) and (FProcessingThread <> nil) then
+  begin
+    if Assigned(FProcessingDataObj.OnResponse) then
+    begin
+      if (Data <> nil) and (DataLen > 0) then
+      begin
+        FProcessingDataObj.OnResponse(True, True, FProcessingThread, FProcessingDataObj,
+          NewBytesFromMemory(Data, DataLen), 0);
+      end;
+    end;
+  end;
+end;
+
 function TCnAIBaseEngine.ConstructRequest(RequestType: TCnAIRequestType;
-  const Code: string): TBytes;
+  const Code: string; History: TStrings): TBytes;
 var
   ReqRoot, Msg: TCnJSONObject;
   Arr: TCnJSONArray;
   S: AnsiString;
+  I: Integer;
 begin
   ReqRoot := TCnJSONObject.Create;
   try
-    ReqRoot.AddPair('model', FOption.Model);
-    ReqRoot.AddPair('temperature', FOption.Temperature);
-    Arr := ReqRoot.AddArray('messages');
+    if RequestType = artModelList then
+    begin
+      // 组装模型列表请求，默认内容为空，也就是无需额外参数
+      Result := nil;
+    end
+    else
+    begin
+      ReqRoot.AddPair('model', FOption.Model);
+      ReqRoot.AddPair('temperature', FOption.Temperature);
+      ReqRoot.AddPair('stream', FOption.Stream);
+      Arr := ReqRoot.AddArray('messages');
 
-    Msg := TCnJSONObject.Create;
-    Msg.AddPair('role', 'system');
-    Msg.AddPair('content', FOption.SystemMessage);
-    Arr.AddValue(Msg);
+      Msg := TCnJSONObject.Create;
+      Msg.AddPair('role', 'system');
+      Msg.AddPair('content', FOption.SystemMessage);
+      Arr.AddValue(Msg);
 
-    Msg := TCnJSONObject.Create;
-    Msg.AddPair('role', 'user');
-    if RequestType = artExplainCode then
-      Msg.AddPair('content', FOption.ExplainCodePrompt + #13#10 + Code)
-    else if RequestType = artReviewCode then
-      Msg.AddPair('content', FOption.ReviewCodePrompt + #13#10 + Code)
-    else if RequestType = artRaw then
-      Msg.AddPair('content', Code);
+      // 先加历史
+      if (RequestType = artRaw) and (History <> nil) and (History.Count > 0) then
+      begin
+        for I := History.Count - 1 downto 0 do
+        begin
+          if Trim(History[I]) <> '' then
+          begin
+            Msg := TCnJSONObject.Create;
+            Msg.AddPair('role', 'user');
+            Msg.AddPair('content', History[I]);
+            Arr.AddValue(Msg);
+          end;
+        end;
+      end;
 
-    Arr.AddValue(Msg);
+      Msg := TCnJSONObject.Create;
+      Msg.AddPair('role', 'user');
+      if RequestType = artExplainCode then
+        Msg.AddPair('content', FOption.ExplainCodePrompt + #13#10 + Code)
+      else if RequestType = artReviewCode then
+        Msg.AddPair('content', FOption.ReviewCodePrompt + #13#10 + Code)
+      else if RequestType = artGenTestCase then
+        Msg.AddPair('content', FOption.GenTestCasePrompt + #13#10 + Code)
+      else if RequestType = artContinueCoding then
+        Msg.AddPair('content', FOption.ContinueCodingPrompt + #13#10 + Code)
+      else if RequestType = artRaw then
+        Msg.AddPair('content', Code);
 
-    S := ReqRoot.ToJSON;
-    Result := AnsiToBytes(S);
+      Arr.AddValue(Msg);
+
+      S := ReqRoot.ToJSON;
+      Result := AnsiToBytes(S);
+    end;
   finally
     ReqRoot.Free;
   end;
 end;
 
-function TCnAIBaseEngine.ParseResponse(var Success: Boolean; var ErrorCode: Cardinal;
+function TCnAIBaseEngine.ParseResponse(SendId: Integer; StreamMode, Partly: Boolean;
+  var Success: Boolean; var ErrorCode: Cardinal; var IsStreamEnd: Boolean;
   RequestType: TCnAIRequestType; const Response: TBytes): string;
 var
   RespRoot, Msg: TCnJSONObject;
   Arr: TCnJSONArray;
-  S: AnsiString;
+  S, Prev: AnsiString;
+  PrevS: string;
+  P: PAnsiChar;
+  HasPartly: Boolean;
+  JsonObjs: TObjectList;
+  I, Step: Integer;
 begin
   Result := '';
-  S := BytesToAnsi(Response);
-  RespRoot := CnJSONParse(S);
+  // 根据 SendId 找本次会话中留存的数据
+  Prev := '';
+  if FPrevRespRemainMap.Find(IntToStr(SendId), PrevS) then
+  begin
+    Prev := AnsiString(PrevS);
+    S := Prev + BytesToAnsi(Response) // 把剩余内容拼上现有内容再次进行解析
+  end
+  else
+    S := BytesToAnsi(Response);
+
+  JsonObjs := TObjectList.Create(True);
+  Step := CnJSONParse(PAnsiChar(S), JsonObjs);
+  P := PAnsiChar(PAnsiChar(S) + Step);
+
+  if (P <> #0) and (Step < Length(S)) then
+  begin
+    // 步进没处理完（长度没满足），且不是结束符，说明有剩余内容
+    Prev := Copy(S, Step + 1, MaxInt);
+  end
+  else // 说明没剩余内容
+    Prev := '';
+
+  // 有无剩余都存起来
+  FPrevRespRemainMap.Add(IntToStr(SendId), Prev);
+
+  RespRoot := nil;
+  if JsonObjs.Count > 0 then
+    RespRoot := TCnJSONObject(JsonObjs[0]);
+
   if RespRoot = nil then
   begin
-    // 一类原始错误，如账号达到最大并发等
+    // 流模式下如果本次返回单独的 datadone，那么上面拼好再解析后 RespRoot 必然是 nil，
+    // 只要判断本次数据是否只剩下结束符，是则结束并返回结束标志，无内容返回
+    if Partly and (Trim(S) = RESP_DATA_DONE) then
+    begin
+      IsStreamEnd := True;
+      FPrevRespRemainMap.Delete(IntToStr(SendId)); // 清理缓存
+      Exit;
+    end;
+
+    // 其他情况可能是一类原始错误，如账号达到最大并发等
     Result := S;
   end
   else
   begin
     try
-      // 正常回应
-      if (RespRoot['choices'] <> nil) and (RespRoot['choices'] is TCnJSONArray) then
+      if RequestType = artModelList then
       begin
-        Arr := TCnJSONArray(RespRoot['choices']);
-        if (Arr.Count > 0) and (Arr[0]['message'] <> nil) and (Arr[0]['message'] is TCnJSONObject) then
+        Result := ParseModelList(RespRoot);
+        // 注意会跳过最后的回车换行处理因为不需要
+        if Result <> '' then
+          Exit;
+      end;
+
+      // 正常回应
+      HasPartly := False;
+      if Partly then
+      begin
+        // 流式模式下，可能有多个 Obj
+        for I := 0 to JsonObjs.Count - 1 do
         begin
-          Msg := TCnJSONObject(Arr[0]['message']);
-          Result := Msg['content'].AsString;
+          RespRoot := TCnJSONObject(JsonObjs[I]);
+          if (RespRoot['choices'] <> nil) and (RespRoot['choices'] is TCnJSONArray) then
+          begin
+            Arr := TCnJSONArray(RespRoot['choices']);
+            if (Arr.Count > 0) and (Arr[0]['delta'] <> nil) and (Arr[0]['delta'] is TCnJSONObject) then
+            begin
+              // 每一块回应拼起来
+              Msg := TCnJSONObject(Arr[0]['delta']);
+              if (Msg['content'] <> nil) and (Msg['content'].AsString <> '') then
+                Result := Result + Msg['content'].AsString
+              else if Msg['reasoning_content'] <> nil then // 也可能是内容空，先来推理数据
+                Result := Result + Msg['reasoning_content'].AsString;
+              HasPartly := True;
+            end;
+          end;
+        end;
+
+        // 多个回应完成后，剩下的 Prev 可能是 datadone 结束符，判断并返回此标志
+        if Trim(Prev) = RESP_DATA_DONE then
+        begin
+          IsStreamEnd := True;
+          FPrevRespRemainMap.Delete(IntToStr(SendId)); // 也清理缓存
+          Exit; // 无数据返回，因而可以直接 Exit
+        end;
+      end
+      else // 完整模式下
+      begin
+        if (RespRoot['choices'] <> nil) and (RespRoot['choices'] is TCnJSONArray) then
+        begin
+          Arr := TCnJSONArray(RespRoot['choices']);
+          if (Arr.Count > 0) and (Arr[0]['message'] <> nil) and (Arr[0]['message'] is TCnJSONObject) then
+          begin
+            // 整块回应
+            Msg := TCnJSONObject(Arr[0]['message']);
+            if (Msg['content'] <> nil) and (Msg['content'].AsString <> '') then
+              Result := Msg['content'].AsString
+            else if Msg['reasoning_content'] <> nil then // 也可能是先来推理数据
+              Result := Result + Msg['reasoning_content'].AsString;
+          end;
         end;
       end;
 
-      if Result = '' then
+      if not HasPartly and (Result = '') then
       begin
-        // 只要没有正常回应，就说明出错了
+        // 整块模式下，只要没有正常回应，就说明出错了
         Success := False;
 
         // 一类业务错误，比如 Key 无效等
@@ -579,11 +800,11 @@ begin
         end;
       end;
 
-      // 兜底，所有解析都无效就直接用整个 JSON 作为返回信息
-      if Result = '' then
+      // 兜底，整块模式下，所有解析都无效就直接用整个 JSON 作为返回信息
+      if not HasPartly and (Result = '') then
         Result := S;
     finally
-      RespRoot.Free;
+      JsonObjs.Free;
     end;
   end;
 
@@ -592,12 +813,45 @@ begin
     Result := StringReplace(Result, LF, CRLF, [rfReplaceAll]);
 end;
 
+function TCnAIBaseEngine.ParseModelList(ResponseRoot: TCnJSONObject): string;
+const
+  MODEL = 'models/';
+var
+  I: Integer;
+  Arr: TCnJSONArray;
+  S: string;
+begin
+  // 从 RespRoot 中解析出模型列表，拼成逗号分隔的字符串并直接返回，
+  if (ResponseRoot['data'] <> nil) and (ResponseRoot['data'] is TCnJSONArray) then
+  begin
+    Arr := TCnJSONArray(ResponseRoot['data']);
+    if Arr.Count > 0 then
+    begin
+      for I := 0 to Arr.Count - 1 do
+      begin
+        if (Arr[I]['id'] <> nil) and (Arr[I]['id'] is TCnJSONString) then
+        begin
+          S := Arr[I]['id'].AsString;
+          if Pos(MODEL, S) = 1 then   // 有些引擎会在前面加个前缀，删掉
+            Delete(S, 1, Length(MODEL));
+
+          if I = 0 then
+            Result := S
+          else
+            Result := Result + ',' + S;
+        end;
+      end;
+    end;
+  end;
+end;
+
 constructor TCnAIBaseEngine.Create(ANetPool: TCnThreadPool);
 begin
   inherited Create;
   FPoolRef := ANetPool;
 
   FAnswerQueue := TCnObjectQueue.Create(True);
+  FPrevRespRemainMap := TCnStrToStrHashMap.Create;
   InitOption;
 end;
 
@@ -606,6 +860,7 @@ begin
   while not FAnswerQueue.IsEmpty do
     FAnswerQueue.Pop.Free;
 
+  FPrevRespRemainMap.Free;
   FAnswerQueue.Free;
   inherited;
 end;
@@ -615,23 +870,40 @@ begin
   FOption := CnAIEngineOptionManager.GetOptionByEngine(EngineName)
 end;
 
-procedure TCnAIBaseEngine.OnAINetDataResponse(Success: Boolean;
-  Thread: TCnPoolingThread; DataObj: TCnAINetRequestDataObject; Data: TBytes);
+procedure TCnAIBaseEngine.OnAINetDataResponse(Success, Partly: Boolean; Thread: TCnPoolingThread;
+  DataObj: TCnAINetRequestDataObject; Data: TBytes; ErrCode: Cardinal);
 var
   AnswerObj: TCnAIAnswerObject;
 begin
+  if Success then
+  begin
+    // 发送时如果声明了非 StreamMode，那么 Partly 返回成功数据时要忽略，等完整返回
+    if not TCnAINetRequestDataObject(DataObj).StreamMode and Partly then
+      Exit;
+
+    // 发送时如果声明了 StreamMode，那么只处理每次的 Partly 返回数据，不处理完整的
+    if TCnAINetRequestDataObject(DataObj).StreamMode and not Partly then
+      Exit;
+  end;
+
   // 网络线程里拿到数据或结果后本事件被直接调用，适当包装后 Synchronize 返回给宿主
   AnswerObj := TCnAIAnswerObject.Create;
+  if not Success then
+  begin
+    AnswerObj.ErrorCode := ErrCode;
+    // 典型的错误码中，12002 是超时，12029 是无法建立连接可能是 SSL 版本错等
+  end;
+
+  AnswerObj.StreamMode := TCnAINetRequestDataObject(DataObj).StreamMode;
+  AnswerObj.Partly := Partly;
+
   AnswerObj.Success := Success;
   AnswerObj.SendId := TCnAINetRequestDataObject(DataObj).SendId;
+  AnswerObj.IsStreamEnd := False; // 仅流模式下有效，让解析器确定本次是否结束数据
   AnswerObj.RequestType := TCnAINetRequestDataObject(DataObj).RequestType;
   AnswerObj.Callback := TCnAINetRequestDataObject(DataObj).OnAnswer;
   AnswerObj.Tag := TCnAINetRequestDataObject(DataObj).Tag;
   AnswerObj.Answer := Data; // 引用，但有计数，不会随便释放
-
-  if not Success then
-    AnswerObj.ErrorCode := GetLastError;
-  // 典型的错误码中，12002 是超时，12029 是无法建立连接可能是 SSL 版本错等
 
   FAnswerQueue.Push(AnswerObj);
   TThreadHack(Thread).Synchronize(SyncCallback);
@@ -647,10 +919,14 @@ begin
   begin
     if Assigned(AnswerObj.Callback) then
     begin
-      Answer := ParseResponse(AnswerObj.FSuccess, AnswerObj.FErrorCode,
+      // SyncCallback 被调用时就确保了不会在 StreamMode 为 False 时来 Partly 数据
+      // 以及不会在 StreamMode 为 True 时来完整数据
+      Answer := ParseResponse(AnswerObj.SendId, AnswerObj.StreamMode, AnswerObj.Partly,
+        AnswerObj.FSuccess, AnswerObj.FErrorCode, AnswerObj.FIsStreamEnd,
         AnswerObj.RequestType, AnswerObj.Answer);
-      AnswerObj.Callback(AnswerObj.Success, AnswerObj.SendId, Answer,
-        AnswerObj.ErrorCode, AnswerObj.Tag);
+
+      AnswerObj.Callback(AnswerObj.StreamMode, AnswerObj.Partly, AnswerObj.Success,
+        AnswerObj.IsStreamEnd, AnswerObj.SendId, Answer, AnswerObj.ErrorCode, AnswerObj.Tag);
     end;
     AnswerObj.Free;
   end;
@@ -662,9 +938,11 @@ var
   HTTP: TCnHTTP;
   Stream: TMemoryStream;
   AURL: string;
+  Err: DWORD;
 begin
   HTTP := nil;
   Stream := nil;
+  Err := 0;
 
   try
     HTTP := TCnHTTP.Create;
@@ -673,6 +951,7 @@ begin
     HTTP.ConnectTimeOut := CnAIEngineOptionManager.TimeoutSec * 1000;
     HTTP.SendTimeOut := CnAIEngineOptionManager.TimeoutSec * 1000;
     HTTP.ReceiveTimeOut := CnAIEngineOptionManager.TimeoutSec * 1000;
+    HTTP.OnProgressData := HttpProgressData;
 
     // 如有就设置代理
     if CnAIEngineOptionManager.UseProxy then
@@ -688,16 +967,19 @@ begin
         HTTP.ProxyMode := pmIE;
     end;
 
-    if FOption.ApiKey <> '' then
-      HTTP.HttpRequestHeaders.Add('Authorization: Bearer ' + FOption.ApiKey);
+    if TCnAINetRequestDataObject(DataObj).ApiKey <> '' then
+      HTTP.HttpRequestHeaders.Add('Authorization: Bearer ' + TCnAINetRequestDataObject(DataObj).ApiKey);
     // 大多数 AI 引擎的身份验证都是这句。少数不是的，可以在子类的 PrepareRequestHeader 里删掉这句再加
 
-    PrepareRequestHeader(HTTP.HttpRequestHeaders);
+    PrepareRequestHeader(TCnAINetRequestDataObject(DataObj).ApiKey, HTTP.HttpRequestHeaders);
 
     Stream := TMemoryStream.Create;
     AURL := GetRequestURL(TCnAINetRequestDataObject(DataObj));
 
-    if HTTP.GetStream(AURL, Stream, TCnAINetRequestDataObject(DataObj).Data) then
+    // 临时记录 DataObj 的引用，因为 GetStream 过程中有回调需要使用
+    FProcessingDataObj := TCnAINetRequestDataObject(DataObj);
+    FProcessingThread := Thread;
+    if HTTP.GetStream(AURL, Stream, TCnAINetRequestDataObject(DataObj).Data, @Err) then
     begin
 {$IFDEF DEBUG}
       CnDebugger.LogMsg('*** HTTP Request OK Get Bytes ' + IntToStr(Stream.Size));
@@ -706,23 +988,27 @@ begin
       // 这里要把结果送给 UI 供处理，结果不能依赖于本线程，因为 UI 主线程的调用处理结果的时刻是不确定的，
       // 而离了本方法，Thread 的状态就未知了，搁 Thread 里的内容可能会因 Thread 被池子调度而被冲掉
       if Assigned(TCnAINetRequestDataObject(DataObj).OnResponse) then
-        TCnAINetRequestDataObject(DataObj).OnResponse(True, Thread, TCnAINetRequestDataObject(DataObj), StreamToBytes(Stream));
+        TCnAINetRequestDataObject(DataObj).OnResponse(Stream.Size > 0, False, Thread,
+          TCnAINetRequestDataObject(DataObj), StreamToBytes(Stream), Err);
     end
     else
     begin
 {$IFDEF DEBUG}
-      CnDebugger.LogMsg('*** HTTP Request Fail.');
+      CnDebugger.LogMsg('*** HTTP Request Fail: ' + IntToStr(Err));
 {$ENDIF}
       if Assigned(TCnAINetRequestDataObject(DataObj).OnResponse) then
-        TCnAINetRequestDataObject(DataObj).OnResponse(False, Thread, TCnAINetRequestDataObject(DataObj), nil);
+        TCnAINetRequestDataObject(DataObj).OnResponse(False, False, Thread,
+          TCnAINetRequestDataObject(DataObj), nil, Err);
     end;
   finally
+    FProcessingThread := nil;
+    FProcessingDataObj := nil;
     Stream.Free;
     HTTP.Free;
   end;
 end;
 
-procedure TCnAIBaseEngine.PrepareRequestHeader(Headers: TStringList);
+procedure TCnAIBaseEngine.PrepareRequestHeader(const ApiKey: string; Headers: TStringList);
 begin
   Headers.Add('Content-Type: application/json');
 end;
@@ -761,6 +1047,34 @@ end;
 class function TCnAIBaseEngine.NeedApiKey: Boolean;
 begin
   Result := True;
+end;
+
+procedure TCnAIBaseEngine.DeleteAuthorizationHeader(Headers: TStringList);
+var
+  I: Integer;
+begin
+  for I := 0 to Headers.Count - 1 do
+  begin
+    if Pos('Authorization:', Headers[I]) = 1 then
+    begin
+      Headers.Delete(I);
+      Exit;
+    end;
+  end;
+end;
+
+class function TCnAIBaseEngine.GetModelListURL(const OrigURL: string): string;
+const
+  CHAT_COMP = 'chat/completions';
+  MODEL = 'models';
+begin
+  // 采取古怪规则拼接 ModelList 的 URL，可能子类有更多办法
+  Result := OrigURL;
+  if StrEndWith(Result, CHAT_COMP) then
+  begin
+    Delete(Result, Pos(CHAT_COMP, Result), MaxInt);
+    Result := Result + MODEL;
+  end;
 end;
 
 initialization

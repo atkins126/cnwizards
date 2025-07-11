@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -71,6 +71,7 @@ uses
   CnProjectViewBaseFrm, CnIni, mPasLex,  mwBCBTokenList, Contnrs, Clipbrd, CnPasCodeParser,
   {$IFDEF USE_CUSTOMIZED_SPLITTER} CnSplitter, {$ENDIF} CnWidePasParser, CnWideCppParser,
   CnPopupMenu, CnCppCodeParser, CnStrings, CnEdit, RegExpr, CnIDEStrings,
+  {$IFDEF IDE_SUPPORT_THEMING} Vcl.Themes, {$ENDIF}
 {$IFNDEF STAND_ALONE}
   ToolsAPI, CnWizClasses, CnWizManager, CnWizEditFiler, CnEditControlWrapper, CnWizUtils,
   CnWizMenuAction, CnWizIdeUtils, CnFloatWindow,
@@ -172,6 +173,7 @@ type
     btnPreviewRight: TToolButton;
     btnPreviewDown: TToolButton;
     btn2: TToolButton;
+    btnShowAnonymous: TToolButton;
     procedure FormDestroy(Sender: TObject);
     procedure lvListData(Sender: TObject; Item: TListItem);
     procedure btnShowPreviewClick(Sender: TObject);
@@ -190,6 +192,7 @@ type
     procedure SplitterMoved(Sender: TObject);
     procedure btnPreviewRightClick(Sender: TObject);
     procedure btnPreviewDownClick(Sender: TObject);
+    procedure btnShowAnonymousClick(Sender: TObject);
   private
     FFileName: string;
 {$IFNDEF STAND_ALONE}
@@ -273,6 +276,7 @@ type
     FMatchMode: TCnMatchMode;
     FInfoItems: TStrings; // 存储原始列表内容
     FDisableClickFlag: Boolean;
+    FShowAnonymous: Boolean;
     procedure CMHintShow(var Message: TMessage); message CM_HINTSHOW;
     procedure ListDrawItem(Control: TWinControl; Index: Integer;
       Rect: TRect; State: TOwnerDrawState);
@@ -293,6 +297,7 @@ type
     property InfoItems: TStrings read FInfoItems;
     property MatchStr: string read FMatchStr write SetMatchStr;
     property MatchMode: TCnMatchMode read FMatchMode write FMatchMode;
+    property ShowAnonymous: Boolean read FShowAnonymous write FShowAnonymous;
   end;
 
 //==============================================================================
@@ -311,6 +316,9 @@ type
     procedure DropDownListDblClick(Sender: TObject);
     procedure DropDownListClick(Sender: TObject);
     procedure UpdateDropPosition;
+{$IFDEF IDE_SUPPORT_THEMING}
+    procedure ThemeChanged(Sender: TObject);
+{$ENDIF}
     procedure CNKeyDown(var Message: TWMKeyDown); message CN_KEYDOWN;
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
   protected
@@ -326,6 +334,7 @@ type
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
     procedure ShowDropBox;
     procedure SetTextWithoutChange(const AText: TCnIdeTokenString);
+    procedure UpdateColorFromTheme;
 
     property DropDownList: TCnProcDropDownBox read FDropDownList;
     property OnKillFocus: TNotifyEvent read FOnKillFocus write FOnKillFocus;
@@ -409,6 +418,7 @@ type
     FPreviewLineCount: Integer;
     FElementList: TStringList; // 存储当前 ProcToolbar 的原始元素列表
     FObjStrings: TStringList;  // 存储当前 ProcToolbar 的类元素列表
+    FShowAnonymous: Boolean;
 {$IFNDEF STAND_ALONE}
     function GetToolBarObjFromEditControl(EditControl: TControl): TCnProcToolBarObj;
     procedure RemoveToolBarObjFromEditControl(EditControl: TControl);
@@ -445,6 +455,7 @@ type
     procedure ProcComboDropDown(Sender: TObject);
     procedure DoIdleComboChange(Sender: TObject);
     procedure AfterThemeChange(Sender: TObject);
+    procedure ClassComboPaintPadding(Sender: TObject; Canvas: TCanvas; PaddingRect: TRect);
 {$IFDEF IDE_SUPPORT_THEMING}
     procedure DoThemeChange(Sender: TObject);
 {$ENDIF}
@@ -484,6 +495,9 @@ type
     // 注：有其他的设置在 Form 的属性中，不完全在此地
     property PreviewLineCount: Integer read FPreviewLineCount write FPreviewLineCount;
     {* 预览窗口中的行数量}
+
+    property ShowAnonymous: Boolean read FShowAnonymous write FShowAnonymous;
+    {* 用来控制是否显示匿名函数，需要在对话框与下拉工具栏之间传递}
 
 {$IFNDEF STAND_ALONE}
     property UseEditorToolBar: Boolean read FUseEditorToolBar write SetUseEditorToolBar;
@@ -560,12 +574,14 @@ const
   csPreviewHeight = 'PreviewHeight';
   csPreviewWidth = 'PreviewWidth';
   csPreviewIsRight = 'PreviewIsRight';
+  csShowAnonymous = 'ShowAnonymous';
   csDropDown = 'DropDown';
   csClassComboWidth = 'ClassComboWidth';
   csProcComboWidth = 'ProcComboWidth';
 
   csCRLF = #13#10;
   csSep = ';';
+  csAnonymous = '<anonymous>';
 
   CnDropDownListCount = 7;
 
@@ -861,13 +877,14 @@ begin
   FObjStrings.Sorted := True;
   FObjStrings.Duplicates := dupIgnore;
 
-{$IFNDEF STAND_ALONE}
+{$IFDEF STAND_ALONE}
+  FLines := TStringList.Create;
+{$ELSE}
   FProcToolBarObjects := TList.Create;
   EditControlWrapper.AddEditorChangeNotifier(EditorChange);
   CnWizNotifierServices.AddAfterThemeChangeNotifier(AfterThemeChange);
-{$ELSE}
-  FLines := TStringList.Create;
 {$ENDIF}
+
   FNeedReParse := True;
   FWizard := Self;
 end;
@@ -877,7 +894,9 @@ var
   I: Integer;
 begin
   FWizard := nil;
-{$IFNDEF STAND_ALONE}
+{$IFDEF STAND_ALONE}
+  FLines.Free;
+{$ELSE}
   CnWizNotifierServices.RemoveAfterThemeChangeNotifier(AfterThemeChange);
   EditControlWrapper.RemoveEditorChangeNotifier(EditorChange);
   for I := 0 to FProcToolBarObjects.Count - 1 do
@@ -885,13 +904,14 @@ begin
   FreeAndNil(FProcToolBarObjects);
 
   FreeAndNil(FToolBarTimer);
-{$ELSE}
-  FLines.Free;
 {$ENDIF}
+
   FObjStrings.Free;
   for I := 0 to FElementList.Count - 1 do
+  begin
     if FElementList.Objects[I] <> nil then
       FElementList.Objects[I].Free;
+  end;
 
   FElementList.Free;
 
@@ -951,7 +971,11 @@ var
   JP: TCnJumpsPoint;
 begin
 {$IFDEF DEBUG}
+  {$IFDEF WIN64}
+  CnDebugger.LogFmt('ProcList: Create Proc ToolBar from EditControl %16.16x', [NativeInt(EditControl)]);
+  {$ELSE}
   CnDebugger.LogFmt('ProcList: Create Proc ToolBar from EditControl %8.8x', [Integer(EditControl)]);
+  {$ENDIF}
 {$ENDIF}
   ToolBar.Top := 40; // 让其处于标准编辑器工具栏之下
   ToolBar.Images := dmCnSharedImages.ilProcToolBar;
@@ -1030,7 +1054,11 @@ begin
   ToolBar.PopupMenu := Obj.PopupMenu;
 
 {$IFDEF DEBUG}
+  {$IFDEF WIN64}
+  CnDebugger.LogFmt('ProcList: Proc ToolBar Obj Created: %16.16x', [NativeInt(Obj)]);
+  {$ELSE}
   CnDebugger.LogFmt('ProcList: Proc ToolBar Obj Created: %8.8x', [Integer(Obj)]);
+  {$ENDIF}
 {$ENDIF}
 
   Obj.ClassCombo := TCnProcListComboBox.Create(ToolBar);
@@ -1039,6 +1067,9 @@ begin
     Parent := ToolBar;
     Left := 108;
     Top := 0;
+    PaddingWidth := IdeGetScaledPixelsFromOrigin(16, Obj.ClassCombo); // 留个画图标的空
+    OnPaintPadding := ClassComboPaintPadding;
+
     if IdeGetScaledPixelsFromOrigin(FToolbarClassComboWidth, Obj.ClassCombo) > 50 then
       Width := IdeGetScaledPixelsFromOrigin(FToolbarClassComboWidth, Obj.ClassCombo)
     else
@@ -1140,7 +1171,11 @@ begin
   end;
 
   Obj.JumpsMenu := TPopupMenu.Create(Obj.InternalToolBar2);
+{$IFDEF IDE_SUPPORT_HDPI}
+  Obj.JumpsMenu.Images := TImageList(dmCnSharedImages.ProcToolbarVirtualImages);
+{$ELSE}
   Obj.JumpsMenu.Images := dmCnSharedImages.ilProcToolBar;
+{$ENDIF}
 
   for JP := Low(TCnJumpsPoint) to High(TCnJumpsPoint) do
   begin
@@ -1229,7 +1264,7 @@ begin
   // 即使 GetVCLParentMenuItem 函数里从只找 Menu/Frame 改为全递归，也仍然存在
   // Owner 为 nil 的 PopupMenu 无法被找到的问题。
 {$IFDEF DELPHI103_RIO_UP}
-  Obj.MatchFrame := TCnMatchButtonFrame.Create(GetIdeMainForm);
+  Obj.MatchFrame := TCnMatchButtonFrame.Create(GetIDEMainForm);
   Obj.MatchFrame.Name := Obj.MatchFrame.Name + FormatDateTime('yyyyMMddhhmmss', Now);
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('Create ProcToolbar: MatchFrame Name: ' + Obj.MatchFrame.Name);
@@ -1461,13 +1496,21 @@ var
   Obj: TCnProcToolBarObj;
 begin
 {$IFDEF DEBUG}
+  {$IFDEF WIN64}
+  CnDebugger.LogFmt('ProcList: Init Proc ToolBar from EditControl %16.16x', [NativeInt(EditControl)]);
+  {$ELSE}
   CnDebugger.LogFmt('ProcList: Init Proc ToolBar from EditControl %8.8x', [Integer(EditControl)]);
+  {$ENDIF}
 {$ENDIF}
   Obj := GetToolBarObjFromEditControl(EditControl);
   if Obj = nil then Exit;
 
 {$IFDEF DEBUG}
+  {$IFDEF WIN64}
+  CnDebugger.LogFmt('ProcList: Obj found from EditControl %16.16x', [NativeInt(Obj)]);
+  {$ELSE}
   CnDebugger.LogFmt('ProcList: Obj found from EditControl %8.8x', [Integer(Obj)]);
+  {$ENDIF}
 {$ENDIF}
 
 {$IFDEF IDE_SUPPORT_HDPI}
@@ -1477,11 +1520,18 @@ begin
 {$ENDIF}
 
 {$IFDEF DEBUG}
-  CnDebugger.LogFmt('ProcList: ClassCombo Font Size %d', [Obj.ClassCombo.Font.Size]);
+  CnDebugger.LogFmt('ProcList: Before Scale, ClassCombo Font Size %d', [Obj.ClassCombo.Font.Size]);
 {$ENDIF}
 
   IdeScaleToolbarComboFontSize(Obj.ClassCombo);
   IdeScaleToolbarComboFontSize(Obj.ProcCombo);
+
+  Obj.ClassCombo.UpdateColorFromTheme;
+  Obj.ProcCombo.UpdateColorFromTheme;
+
+{$IFDEF DEBUG}
+  CnDebugger.LogFmt('ProcList: After Scale, ProcCombo Font Size %d', [Obj.ProcCombo.Font.Size]);
+{$ENDIF}
 
   Obj.ToolBtnProcList.Action := FindIDEAction('act' + Copy(ClassName, 2, MaxInt)); // 去 T
   Obj.ToolBtnProcList.Visible := Action <> nil;
@@ -1625,6 +1675,8 @@ begin
 
   ToolbarClassComboWidth := Ini.ReadInteger('', csToolbarClassComboWidth, 0);
   ToolbarProcComboWidth := Ini.ReadInteger('', csToolbarProcComboWidth, 0);
+
+  ShowAnonymous := Ini.ReadBool('', csShowAnonymous, True);
 end;
 
 procedure TCnProcListWizard.OnToolBarTimer(Sender: TObject);
@@ -1643,8 +1695,10 @@ var
   CharPos: TOTACharPos;
   EditPos: TOTAEditPos;
   Obj: TCnProcToolBarObj;
-  DotPos: Integer;
+  DotPos, OldTag: Integer;
+  Decl: TCnIdeTokenString;
   S: string;
+  Vis: TTokenKind;
 begin
   Obj := GetToolBarObjFromEditControl(CnOtaGetCurrentEditControl);
   if Obj = nil then Exit;
@@ -1677,8 +1731,25 @@ begin
     EditPos := EditView.CursorPos;
     EditView.ConvertPos(True, EditPos, CharPos);
 
+    // 找光标处的当前声明
     if not Obj.ClassCombo.Focused then
-      Obj.ClassCombo.SetTextWithoutChange(TCnIdeTokenString(FCurrPasParser.FindCurrentDeclaration(CharPos.Line, CharPos.CharIndex)));
+    begin
+      OldTag := Integer(Obj.ClassCombo.Tag);
+      Decl := TCnIdeTokenString(FCurrPasParser.FindCurrentDeclaration(CharPos.Line, CharPos.CharIndex, Vis));
+      if Decl <> '' then
+      begin
+        Obj.ClassCombo.SetTextWithoutChange(Decl);
+        Obj.ClassCombo.Tag := Ord(Vis); // 将可视范围记录在 Tag 里供绘制使用
+      end
+      else
+      begin
+        Obj.ClassCombo.SetTextWithoutChange('');
+        Obj.ClassCombo.Tag := 0;        // 无当前声明则塞 0，无论 vis 返回啥
+      end;
+
+      if OldTag <> Obj.ClassCombo.Tag then  // 可见发生变化，则要重绘
+        Obj.ClassCombo.Invalidate;
+    end;
 
     if not Obj.ProcCombo.Focused then
     begin
@@ -1690,8 +1761,10 @@ begin
         Obj.ProcCombo.SetTextWithoutChange(SCnProcListNoContent);
     end;
 
+    // 如果上面的当前声明为空，则以当前函数过程所属的类名为准
     if not Obj.ClassCombo.Focused and (Obj.ClassCombo.Text = '') then
     begin
+      Obj.ClassCombo.Tag := 0;
       DotPos := Pos('.', Obj.ProcCombo.Text);
       if DotPos > 1 then
         Obj.ClassCombo.SetTextWithoutChange(Copy(Obj.ProcCombo.Text, 1, DotPos - 1))
@@ -1768,6 +1841,7 @@ begin
     ProcCombo.SetTextWithoutChange('');
     ProcCombo.DropDownList.MatchStr := '';
     ProcCombo.DropDownList.MatchMode := GetMatchMode(Obj);
+    ProcCombo.DropDownList.ShowAnonymous := FWizard.ShowAnonymous;
     ProcCombo.DropDownList.UpdateDisplay;
     if ProcCombo.DropDownList.DisplayItems.Count > 0 then
     begin
@@ -1789,6 +1863,44 @@ begin
   CnWizNotifierServices.ExecuteOnApplicationIdle(ProcCombo.RefreshDropBox);
 end;
 
+procedure TCnProcListWizard.ClassComboPaintPadding(Sender: TObject;
+  Canvas: TCanvas; PaddingRect: TRect);
+var
+  Vis: TTokenKind;
+  Idx: Integer;
+  Img: TImageList;
+begin
+  if Sender is TCnProcListComboBox then
+  begin
+    Canvas.Brush.Color := TCnProcListComboBox(Sender).Color;
+    Canvas.FillRect(PaddingRect);
+
+    if TCnProcListComboBox(Sender).Focused then
+      Exit;
+
+    // 有焦点时要输入，不能画
+    Vis := TTokenKind(TCnProcListComboBox(Sender).Tag);
+    Idx := -1;
+    case Vis of
+      tkPrivate: Idx := 10;
+      tkProtected: Idx := 11;
+      tkPublic: Idx := 12;
+      tkPublished: Idx := 13;
+    end;
+
+    if Idx >= 0 then
+    begin
+{$IFDEF IDE_SUPPORT_HDPI}
+      Img := TImageList(dmCnSharedImages.ProcToolbarVirtualImages);
+      Img.Draw(Canvas, PaddingRect.Left, PaddingRect.Top + 2, Idx);
+{$ELSE}
+      Img := dmCnSharedImages.ilProcToolBar;
+      Img.Draw(Canvas, PaddingRect.Left, PaddingRect.Top + 1, Idx);
+{$ENDIF}
+    end;
+  end;
+end;
+
 procedure TCnProcListWizard.RemoveProcToolBar(const ToolBarType: string;
   EditControl: TControl; ToolBar: TToolBar);
 begin
@@ -1801,15 +1913,25 @@ var
   I: Integer;
 begin
 {$IFDEF DEBUG}
+  {$IFDEF WIN64}
+  CnDebugger.LogFmt('ProcList: Prepare to Remove Objs from EditControl %16.16x',
+    [NativeInt(EditControl)]);
+  {$ELSE}
   CnDebugger.LogFmt('ProcList: Prepare to Remove Objs from EditControl %8.8x',
     [Integer(EditControl)]);
+  {$ENDIF}
 {$ENDIF}
   for I := FProcToolBarObjects.Count - 1 downto 0 do
     if TCnProcToolBarObj(FProcToolBarObjects[I]).EditControl = EditControl then
     begin
 {$IFDEF DEBUG}
+  {$IFDEF WIN64}
+      CnDebugger.LogFmt('ProcList: Remove Obj %16.16x from EditControl %16.16x',
+        [NativeInt(FProcToolBarObjects[I]), NativeInt(EditControl)]);
+  {$ELSE}
       CnDebugger.LogFmt('ProcList: Remove Obj %8.8x from EditControl %8.8x',
         [Integer(FProcToolBarObjects[I]), Integer(EditControl)]);
+  {$ENDIF}
 {$ENDIF}
       FProcToolBarObjects.Delete(I);
     end;
@@ -1828,6 +1950,8 @@ begin
 
   Ini.WriteInteger('', csToolbarClassComboWidth, ToolbarClassComboWidth);
   Ini.WriteInteger('', csToolbarProcComboWidth, ToolbarProcComboWidth);
+
+  Ini.WriteBool('', csShowAnonymous, ShowAnonymous);
 end;
 
 {$ENDIF}
@@ -1881,6 +2005,7 @@ end;
 procedure TCnProcListForm.FormShow(Sender: TObject);
 begin
   inherited;
+  btnShowAnonymous.Down := FWizard.ShowAnonymous;
   UpdateItemPosition;
 
   if FPreviewIsRight then
@@ -3488,14 +3613,14 @@ begin
         // Check for an implementation procedural type
         if Length(TempStr) = 0 then
         begin
-          TempStr := '<anonymous>';
+          TempStr := csAnonymous;
         end;
         // Remove any trailing ';'
         if TempStr[Length(TempStr)] = ';' then
           Delete(TempStr, Length(TempStr), 1);
         TempStr := Trim(TempStr);
         if (LowerCase(TempStr) = 'procedure') or (LowerCase(TempStr) = 'function') then
-          TempStr := '<anonymous>';
+          TempStr := csAnonymous;
 
         ElementInfo.Text := TempStr;
         // Add to the object comboBox and set the object name in ElementInfo
@@ -3976,8 +4101,9 @@ var
 {$ENDIF}
 begin
   Result := False;
-  if (AMatchStr = '') and FIsObjAll then
+  if (AMatchStr = '') and FIsObjAll and btnShowAnonymous.Down then
   begin
+    // 显示匿名函数才直接跳出，不显示的情况下，Pascal 和 Cpp 都额外加了处理
     Result := True;
     Exit;
   end;
@@ -3993,10 +4119,25 @@ begin
         // 只搜函数名，不搜包括类名在内的函数名
         ProcName := GetMethodName(Info.Text);
         Offset := Pos(ProcName, Info.Text);
-      end;
 
+        // 先控制匿名函数显示与否
+        if not btnShowAnonymous.Down and (ProcName = csAnonymous) then
+          Exit;
+
+        if (AMatchStr = '') and FIsObjAll then // 再处理完整情况跳出
+        begin
+          Result := True;
+          Exit;
+        end;
+      end;
     ltCpp:
       begin
+        if (AMatchStr = '') and FIsObjAll then // Cpp 下可能上面未被跳出，再处理一下完整情况跳出
+        begin
+          Result := True;
+          Exit;
+        end;
+
         ProcName := Info.ProcName;
         Offset := Pos(ProcName, Info.Text);  // 如果是构造函数就会出现重复，导致 Offset 为 1，下面额外处理一下
         if Offset = 1 then
@@ -4168,12 +4309,16 @@ begin
 
   Idx := FComboToSearch.DropDownList.ItemIndex;
   if Idx = -1 then
+  begin
     for I  := 0 to FComboToSearch.DropDownList.Items.Count - 1 do
+    begin
       if FComboToSearch.DropDownList.Selected[I] then
       begin
         Idx := I;
         Break;
-      end;  
+      end;
+    end;
+  end;
       
   if Idx = -1 then
     Idx := FComboToSearch.DropDownList.DisplayItems.IndexOf(FComboToSearch.Text);
@@ -4727,13 +4872,47 @@ begin
   FDropDownList.OnClick := DropDownListClick;
 
   CnWizNotifierServices.AddApplicationMessageNotifier(ApplicationMessage);
+{$IFDEF IDE_SUPPORT_THEMING}
+  CnWizNotifierServices.AddAfterThemeChangeNotifier(ThemeChanged);
+{$ENDIF}
 end;
 
 destructor TCnProcListComboBox.Destroy;
 begin
+{$IFDEF IDE_SUPPORT_THEMING}
+  CnWizNotifierServices.RemoveAfterThemeChangeNotifier(ThemeChanged);
+{$ENDIF}
   CnWizNotifierServices.RemoveApplicationMessageNotifier(ApplicationMessage);
   inherited;
 end;
+
+procedure TCnProcListComboBox.UpdateColorFromTheme;
+{$IFDEF IDE_SUPPORT_THEMING}
+var
+  Theme: IOTAIDEThemingServices;
+{$ENDIF}
+begin
+{$IFDEF IDE_SUPPORT_THEMING}
+  if Supports(BorlandIDEServices, IOTAIDEThemingServices, Theme) then
+  begin
+    if Theme.IDEThemingEnabled then
+    begin
+      Color := Theme.StyleServices.GetStyleColor(scEdit);
+      Font.Color := Theme.StyleServices.GetStyleFontColor(sfEditBoxTextNormal);
+    end;
+  end;
+{$ENDIF}
+end;
+
+{$IFDEF IDE_SUPPORT_THEMING}
+
+procedure TCnProcListComboBox.ThemeChanged(Sender: TObject);
+begin
+  UpdateColorFromTheme;
+  Invalidate;
+end;
+
+{$ENDIF}
 
 procedure TCnProcListComboBox.RefreshDropBox(Sender: TObject);
 begin
@@ -4814,11 +4993,16 @@ var
   Info: TCnElementInfo;
 begin
   FDisplayItems.Clear;
+
+  // 要添加的：原来的匹配条件，且“显示匿名，或不显示匿名时名字非匿名”
   if MatchMode in [mmStart, mmAnywhere] then
   begin
     for I := 0 to FInfoItems.Count - 1 do
-      if RegExpContainsText(FRegExpr, FInfoItems[I], FMatchStr, MatchMode = mmStart) then
+    begin
+      if (ShowAnonymous or (FInfoItems[I] <> csAnonymous)) and
+        RegExpContainsText(FRegExpr, FInfoItems[I], FMatchStr, MatchMode = mmStart) then
         FDisplayItems.AddObject(FInfoItems[I], FInfoItems.Objects[I]);
+    end;
   end
   else
   begin
@@ -4826,7 +5010,8 @@ begin
     begin
       Info := TCnElementInfo(FInfoItems.Objects[I]);
       Info.MatchIndexes.Clear;
-      if (FMatchStr = '') or FuzzyMatchStr(FMatchStr, FInfoItems[I], Info.MatchIndexes) then
+      if (ShowAnonymous or (FInfoItems[I] <> csAnonymous)) and
+        ((FMatchStr = '') or FuzzyMatchStr(FMatchStr, FInfoItems[I], Info.MatchIndexes)) then
         FDisplayItems.AddObject(FInfoItems[I], Info);
     end;
   end;
@@ -5004,6 +5189,12 @@ begin
     FProcCombo.Text := '';
   if FClassCombo <> nil then
     FClassCombo.Text := '';
+end;
+
+procedure TCnProcListForm.btnShowAnonymousClick(Sender: TObject);
+begin
+  UpdateListView;
+  FWizard.ShowAnonymous := btnShowAnonymous.Down;
 end;
 
 initialization

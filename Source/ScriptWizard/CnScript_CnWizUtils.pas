@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -303,17 +303,38 @@ begin
   CL.AddConstantN('_UNICODE_STRING', 'Boolean').SetUInt(Ord(_UNICODE_STRING));
   CL.AddConstantN('_VERSIONINFO_PER_CONFIGURATION', 'Boolean').SetUInt(Ord(_VERSIONINFO_PER_CONFIGURATION));
   CL.AddConstantN('_CAPTURE_STACK', 'Boolean').SetUInt(Ord(_CAPTURE_STACK));
+  CL.AddConstantN('_IS64BIT', 'Boolean').SetUInt(Ord(_IS64BIT));
 
   CL.AddTypeS('TFormType', '( ftBinary, ftText, ftUnknown )');
   CL.AddTypeS('TCnCharSet', 'set of Char');
+{$IFDEF WIN64}
+  CL.AddDelphiFunction('Function CnIntToObject(AInt : Int64) : TObject');
+  CL.AddDelphiFunction('Function CnObjectToInt(AObject : TObject) : Int64');
+{$ELSE}
   CL.AddDelphiFunction('Function CnIntToObject(AInt : Integer) : TObject');
   CL.AddDelphiFunction('Function CnObjectToInt(AObject : TObject) : Integer');
+{$ENDIF}
+
+{$IFDEF WIN64}
+  CL.AddDelphiFunction('Function CnIntToInterface(AInt : Int64) : IUnknown');
+  CL.AddDelphiFunction('Function CnInterfaceToInt(Intf : IUnknown) : Int64');
+{$ELSE}
   CL.AddDelphiFunction('Function CnIntToInterface(AInt : Integer) : IUnknown');
   CL.AddDelphiFunction('Function CnInterfaceToInt(Intf : IUnknown) : Integer');
+{$ENDIF}
+
+{$IFDEF WIN64}
+  CL.AddDelphiFunction('Function CnGetClassFromClassName(const AClassName : string) : Int64');
+  CL.AddDelphiFunction('Function CnGetClassFromObject(AObject : TObject) : Int64');
+  CL.AddDelphiFunction('Function CnGetClassNameFromClass(AClass : Int64) : string');
+  CL.AddDelphiFunction('Function CnGetClassParentFromClass(AClass : Int64) : Int64');
+{$ELSE}
   CL.AddDelphiFunction('Function CnGetClassFromClassName(const AClassName : string) : Integer');
   CL.AddDelphiFunction('Function CnGetClassFromObject(AObject : TObject) : Integer');
   CL.AddDelphiFunction('Function CnGetClassNameFromClass(AClass : Integer) : string');
   CL.AddDelphiFunction('Function CnGetClassParentFromClass(AClass : Integer) : Integer');
+{$ENDIF}
+
   CL.AddDelphiFunction('Function CnWizLoadIcon( AIcon : TIcon; const ResName : string) : Boolean');
   CL.AddDelphiFunction('Function CnWizLoadBitmap( ABitmap : TBitmap; const ResName : string) : Boolean');
   CL.AddDelphiFunction('Function AddIconToImageList( AIcon : TIcon; ImageList : TCustomImageList) : Integer');
@@ -477,6 +498,7 @@ begin
   CL.AddDelphiFunction('Function CnOtaGetEditActionsFromModule( Module : IOTAModule) : IOTAEditActions');
   CL.AddDelphiFunction('Function CnOtaGetCurrentSelection : string');
   CL.AddDelphiFunction('Procedure CnOtaDeleteCurrentSelection');
+  CL.AddDelphiFunction('Function CnOtaDeSelection( CursorStopAtEnd : Boolean) : Boolean');
   CL.AddDelphiFunction('Procedure CnOtaEditBackspace( Many : Integer)');
   CL.AddDelphiFunction('Procedure CnOtaEditDelete( Many : Integer)');
   CL.AddDelphiFunction('Function CnOtaGetCurrentProcedure: string;');
@@ -587,8 +609,10 @@ procedure RIRegister_CnWizUtils_Routines(S: TPSExec);
 begin
   S.RegisterDelphiFunction(@CnIntToObject, 'CnIntToObject', cdRegister);
   S.RegisterDelphiFunction(@CnObjectToInt, 'CnObjectToInt', cdRegister);
+{$IFNDEF WIN64}
   S.RegisterDelphiFunction(@CnIntToInterface, 'CnIntToInterface', cdRegister);
   S.RegisterDelphiFunction(@CnInterfaceToInt, 'CnInterfaceToInt', cdRegister);
+{$ENDIF}
   S.RegisterDelphiFunction(@CnGetClassFromClassName, 'CnGetClassFromClassName', cdRegister);
   S.RegisterDelphiFunction(@CnGetClassFromObject, 'CnGetClassFromObject', cdRegister);
   S.RegisterDelphiFunction(@CnGetClassNameFromClass, 'CnGetClassNameFromClass', cdRegister);
@@ -752,6 +776,7 @@ begin
   S.RegisterDelphiFunction(@CnOtaGetEditActionsFromModule, 'CnOtaGetEditActionsFromModule', cdRegister);
   S.RegisterDelphiFunction(@CnOtaGetCurrentSelection, 'CnOtaGetCurrentSelection', cdRegister);
   S.RegisterDelphiFunction(@CnOtaDeleteCurrentSelection, 'CnOtaDeleteCurrentSelection', cdRegister);
+  S.RegisterDelphiFunction(@CnOtaDeSelection, 'CnOtaDeSelection', cdRegister);
   S.RegisterDelphiFunction(@CnOtaEditBackspace, 'CnOtaEditBackspace', cdRegister);
   S.RegisterDelphiFunction(@CnOtaEditDelete, 'CnOtaEditDelete', cdRegister);
   S.RegisterDelphiFunction(@CnOtaGetCurrentProcedure, 'CnOtaGetCurrentProcedure', cdRegister);

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -674,6 +674,8 @@ function CnOtaGetCurrentSelection: string;
 {* 取当前选择的文本}
 procedure CnOtaDeleteCurrentSelection;
 {* 删除选中的文本}
+function CnOtaDeSelection(CursorStopAtEnd: Boolean = True): Boolean;
+{* 取消当前选择，光标根据 CursorStopAtEnd 值按需停留在选择区尾部或头部。如无选择区则返回 False}
 procedure CnOtaEditBackspace(Many: Integer);
 {* 在编辑器中退格}
 procedure CnOtaEditDelete(Many: Integer);
@@ -1616,6 +1618,10 @@ begin
 end;
 
 procedure CnOtaDeleteCurrentSelection;
+begin
+end;
+
+function CnOtaDeSelection(CursorStopAtEnd: Boolean = True): Boolean;
 begin
 end;
 

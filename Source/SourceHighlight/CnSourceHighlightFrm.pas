@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -480,13 +480,29 @@ begin
   with TCnHighlightCustomIdentForm.Create(Self) do
   begin
     shpCustomFg.Brush.Color := AWizard.CustomIdentifierForeground;
-    shpCustomBg.Brush.Color := AWizard.CustomIdentifierBackground;
+
+    if AWizard.CustomIdentifierBackground = clNone then
+    begin
+      shpCustomBg.Brush.Color := clWhite;
+      chkBkTransparent.Checked := True;
+    end
+    else
+    begin
+      shpCustomBg.Brush.Color := AWizard.CustomIdentifierBackground;
+      chkBkTransparent.Checked := False;
+    end;
+
     LoadFromStringList(AWizard.CustomIdentifiers);
 
     if ShowModal = mrOK then
     begin
       AWizard.CustomIdentifierForeground := shpCustomFg.Brush.Color;
-      AWizard.CustomIdentifierBackground := shpCustomBg.Brush.Color;
+
+      if chkBkTransparent.Checked then
+        AWizard.CustomIdentifierBackground := clNone
+      else
+        AWizard.CustomIdentifierBackground := shpCustomBg.Brush.Color;
+
       SaveToStringList(AWizard.CustomIdentifiers);
 {$IFDEF IDE_STRING_ANSI_UTF8}
       AWizard.SyncCustomWide;

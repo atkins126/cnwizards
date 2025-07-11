@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -24,11 +24,13 @@ unit CnWizOptions;
 * 软件名称：CnPack IDE 专家包
 * 单元名称：CnWizards 公共参数类单元
 * 单元作者：CnPack 开发组
-* 备    注：
+* 备    注：Lazarus 下没有专家包 DLL 的概念，改从注册表里读安装路径
 * 开发平台：PWin2000Pro + Delphi 5.01
-* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
+* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6 + Lazarus 4.0
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2018.06.30 V1.1
+* 修改记录：2025.06.23 V1.2
+*               加入对 Lazarus 的支持
+*           2018.06.30 V1.1
 *               加入对命令行中指定用户存储目录的支持
 *           2002.11.07 V1.0
 *               创建单元
@@ -42,7 +44,7 @@ interface
 uses
   Windows, Messages, Classes, Graphics, Controls, SysUtils, IniFiles,
   FileCtrl, Forms, Registry, ComCtrls
-  {$IFNDEF STAND_ALONE}, ToolsAPI {$ENDIF}
+  {$IFNDEF LAZARUS} {$IFNDEF STAND_ALONE}, ToolsAPI {$ENDIF} {$ENDIF}
   {$IFDEF COMPILER6_UP}, SHFolder {$ENDIF};
 
 const
@@ -73,8 +75,6 @@ type
 
   TCnWizSizeEnlarge = (wseOrigin, wsOneQuarter, wseAddHalf, wseDouble, wseDoubleHalf, wseTriple);
   {* 屏幕字体放大倍数，1、1.25、1.5、2、2.5、3}
-
-{$IFNDEF STAND_ALONE}
 
   TCnWizOptions = class(TObject)
   {* 专家环境参数类}
@@ -140,11 +140,11 @@ type
     // Manual 为 True 时表示从界面保存而不是结束时自动保存
 
 {$IFNDEF CNWIZARDS_MINIMUM}
-
+{$IFNDEF LAZARUS}
     procedure ResetToolbarWithLargeIcons(AToolBar: TToolBar);
     {* 封装的根据是否使用大图标来调整普通窗体上部的工具栏的方法，也可用于编辑器工具栏
       前提是 AToolbar 已经设好了 Parent 并且 Scale 过}
-
+{$ENDIF}
 {$ENDIF}
 
     // 参数读写方法
@@ -204,17 +204,19 @@ type
 
     // 专家 DLL 属性
     property DllName: string read FDllName;
-    {* 专家 DLL 完整文件名}
+    {* 专家 DLL 完整文件名，Lazarus 下为空}
     property DllPath: string read FDllPath;
-    {* 专家 DLL 所在的目录}
+    {* 专家 DLL 所在的目录，Lazarus 下为专家包安装目录}
     property CompilerPath: string read FCompilerPath;
+    {* 专家对应的 IDE 的可执行文件所在路径，并非编译器 dcc32 那种}
 
-    // 当前语言 ID
+    // 专家使用的语言
     property CurrentLangID: Cardinal read FCurrentLangID write SetCurrentLangID;
+    {* 当前语言 ID}
 
     // 专家使用的目录名
     property LangPath: string read FLangPath;
-    {* 多语言存储文件目录 }
+    {* 多语言存储文件目录}
     property IconPath: string read FIconPath;
     {* 图标目录}
     property DataPath: string read FDataPath;
@@ -244,7 +246,7 @@ type
     property CompilerID: string read FCompilerID;
     {* 编译器缩写，如 D5}
     property CompilerRegPath: string read FCompilerRegPath;
-    {* 编译器 IDE 使用的注册表路径}
+    {* 编译器 IDE 使用的注册表路径，在 Lazarus 下为空}
 
     // 用户设置
     property DelphiExt: string read FDelphiExt write FDelphiExt;
@@ -302,21 +304,19 @@ var
 
 function GetFactorFromSizeEnlarge(Enlarge: TCnWizSizeEnlarge): Single;
 
-{$ENDIF}
-
 implementation
 
 uses
 {$IFDEF DEBUG}
   CnDebug,
 {$ENDIF}
+{$IFNDEF LAZARUS}
 {$IFNDEF STAND_ALONE}
   CnWizUtils, CnWizIdeUtils, CnWizManager,
   {$IFNDEF CNWIZARDS_MINIMUM} CnWizShareImages, {$ENDIF}
 {$ENDIF}
-  CnWizConsts, CnCommon,  CnConsts, CnWizCompilerConst, CnNative;
-
-{$IFNDEF STAND_ALONE}
+{$ENDIF}
+  CnWizConsts, CnCommon,  CnConsts, CnWizCompilerConst, CnRegIni, CnNative;
 
 function GetFactorFromSizeEnlarge(Enlarge: TCnWizSizeEnlarge): Single;
 begin
@@ -356,7 +356,11 @@ const
   csUseOneCPUDefault = False;
 {$ENDIF}
 
+{$IFDEF FPC}
+  csDelphiExtDefault = '.pas;.dpr;.inc;.lpr;.pp';
+{$ELSE}
   csDelphiExtDefault = '.pas;.dpr;.inc';
+{$ENDIF}
   csCppExtDefault = '.c;.cpp;.h;.hpp;.cc;.hh';
 
   csUpgradeURL = 'URL';
@@ -403,17 +407,51 @@ const
 var
   ModuleName, SHUserDir: array[0..MAX_Path - 1] of Char;
   DefDir: string;
-  Svcs: IOTAServices;
   I: Integer;
   S: string;
+{$IFDEF NO_DELPHI_OTA}
+  Reg: TRegistry;
+{$ELSE}
+  Svcs: IOTAServices;
+{$ENDIF}
 begin
   inherited;
+{$IFNDEF STAND_ALONE}
+{$IFNDEF LAZARUS}
   Svcs := BorlandIDEServices as IOTAServices;
   Assert(Assigned(Svcs));
   FCompilerRegPath := Svcs.GetBaseRegistryKey;
+{$ENDIF}
+{$ENDIF}
+
+{$IFDEF NO_DELPHI_OTA}
+  // Lazarus 因没 DLL 存在，改从注册表里读安装程序写入的 InstallDir
+  Reg := TRegistry.Create; // 创建注册表对象
+  try
+    Reg.RootKey := HKEY_CURRENT_USER; // 设置根键为 HKCU
+
+    if Reg.OpenKeyReadOnly('Software\CnPack\CnWizards') then
+    begin
+      // 检查键是否存在并读取
+      if Reg.ValueExists('InstallDir') then
+      begin
+        FDllPath := Reg.ReadString('InstallDir');
+        if FDllPath <> '' then
+          FDllPath := MakePath(FDllPath);  // 确保尾部有斜杠
+{$IFDEF DEBUG}
+        CnDebugger.LogMsg('Laz WizOption Get Installation Path: ' + FDllPath);
+{$ENDIF}
+      end;
+      Reg.CloseKey;
+    end;
+  finally
+    Reg.Free;
+  end;
+{$ELSE}
   GetModuleFileName(hInstance, ModuleName, MAX_PATH);
   FDllName := ModuleName;
   FDllPath := _CnExtractFilePath(FDllName);
+{$ENDIF}
   FCompilerPath := _CnExtractFilePath(_CnExtractFileDir(Application.ExeName));
 
   FLangPath := MakePath(FDllPath + SCnWizLangPath);
@@ -783,16 +821,16 @@ end;
 
 function TCnWizOptions.CreateRegIniFile: TCustomIniFile;
 begin
-  Result := TRegistryIniFile.Create(FRegPath);
+  Result := TCnRegistryIniFile.Create(FRegPath);
 end;
 
 function TCnWizOptions.CreateRegIniFile(const APath: string;
   CompilerSection: Boolean): TCustomIniFile;
 begin
   if CompilerSection then
-    Result := TRegistryIniFile.Create(MakePath(APath) + CompilerID)
+    Result := TCnRegistryIniFile.Create(MakePath(APath) + CompilerID)
   else
-    Result := TRegistryIniFile.Create(APath);
+    Result := TCnRegistryIniFile.Create(APath);
 end;
 
 function TCnWizOptions.ReadBool(const Section, Ident: string;
@@ -871,7 +909,12 @@ begin
   if Value <> FUseToolsMenu then
   begin
     FUseToolsMenu := Value;
+{$IFNDEF STAND_ALONE}
+{$IFNDEF LAZARUS}
+    // TODO: CnWizardMgr 对 Lazarus 支持好后再启用此处
     CnWizardMgr.UpdateMenuPos(Value);
+{$ENDIF}
+{$ENDIF}
   end;
 end;
 
@@ -914,6 +957,7 @@ begin
 end;
 
 {$IFNDEF CNWIZARDS_MINIMUM}
+{$IFNDEF LAZARUS}
 
 procedure TCnWizOptions.ResetToolbarWithLargeIcons(AToolBar: TToolBar);
 {$IFDEF IDE_SUPPORT_HDPI}
@@ -924,6 +968,7 @@ begin
   if AToolBar = nil then
     Exit;
 
+{$IFNDEF STAND_ALONE}
   if FUseLargeIcon then
   begin
     AToolBar.ButtonHeight := IdeGetScaledPixelsFromOrigin(csLargeButtonHeight, AToolBar);
@@ -972,6 +1017,7 @@ begin
   end;
 
 {$ELSE}
+  {$IFNDEF STAND_ALONE}
   if FUseLargeIcon then
   begin
     if AToolBar.Images = dmCnSharedImages.Images then
@@ -979,12 +1025,15 @@ begin
     if AToolBar.DisabledImages = dmCnSharedImages.DisabledImages then
       AToolBar.DisabledImages := dmCnSharedImages.DisabledLargeImages;
   end;
+  {$ENDIF}
+{$ENDIF}
 {$ENDIF}
 
   if FUseLargeIcon and (AToolBar.Height <= AToolBar.ButtonHeight) then
     AToolBar.Height := AToolBar.ButtonHeight + csLargeToolbarHeightDelta;
 end;
 
+{$ENDIF}
 {$ENDIF}
 
 procedure TCnWizOptions.DumpToStrings(Infos: TStrings);
@@ -1008,7 +1057,5 @@ begin
   Infos.Add('CompilerID: ' + CompilerID);
   Infos.Add('CompilerRegPath: ' + CompilerRegPath);
 end;
-
-{$ENDIF}
 
 end.

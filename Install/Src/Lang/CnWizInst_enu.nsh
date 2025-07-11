@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                   A Free, Open Source Project from China
-;                     (C)Copyright 2001-2024 CnPack Team
+;                     (C)Copyright 2001-2025 CnPack Team
 ;******************************************************************************
 
 ; English Language File for CnWizards Install Script
@@ -34,6 +34,7 @@ LangString SASCIICHART    1033 "ASCII Chart"
 LangString SUNINSTALL     1033 "Uninstall"
 LangString SDFMCONVERTOR  1033 "DFM Convertor"
 LangString SDEBUGVIEWER   1033 "Debug Viewer"
+LangString SDEBUGVIEWER64 1033 "Debug Viewer 64"
 LangString SIDEBRTOOL     1033 "IDE Config Backup & Restore"
 LangString SMANAGEWIZ     1033 "IDE External Wizard Management"
 LangString SRELATIONANALYZER 1033 "Relation Analyzer"

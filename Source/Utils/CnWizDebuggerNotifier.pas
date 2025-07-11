@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -51,7 +51,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, ToolsAPI, AppEvnts,
-  Contnrs, Consts, CnWizUtils, CnClasses;
+  Contnrs, Consts, CnWizUtils, CnClasses, CnNative;
 
 type
   TCnAvailableState = (asAvailable, asProcRunning, asOutOfScope, asNotAvailable);
@@ -568,11 +568,13 @@ var
 begin
   Result := -1;
   for I := 0 to List.Count - 1 do
+  begin
     if CompareMem(List[I], @Notifier, SizeOf(TMethod)) then
     begin
       Result := I;
       Exit;
     end;
+  end;
 end;
 
 procedure TCnWizDebuggerNotifierServices.AddProcessNotifier(
@@ -712,8 +714,10 @@ begin
     FProcess.RemoveNotifier(FProcessNotifierIndex);
 
   for I := FThreads.Count - 1 downto 0 do
+  begin
     if FThreads[I] <> nil then
       TCnOTAThread(FThreads[I]).Free;
+  end;
 
   FThreads.Free;
 {$IFDEF DEBUG}
@@ -755,7 +759,7 @@ begin
   FProcessIntf := AProcess.Process;
   FDebuggerNotifierServices := AProcess.FDebuggerNotifierServices;
 {$IFDEF DEBUG}
-  CnDebugger.LogMsg('TCnOTAProcessNotifier Created. Process Intf '+ InttoStr(Integer(FProcessIntf)));
+  CnDebugger.LogMsg('TCnOTAProcessNotifier Created. Process Intf '+ InttoStr(TCnNativeInt(FProcessIntf)));
 {$ENDIF}
   // 保证 Notifier 拿到层层下放的接口实例
 end;

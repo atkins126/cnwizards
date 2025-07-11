@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -56,11 +56,15 @@ type
     FModel: string;
     FEngineName: string;
     FTemperature: Extended;
+    FStream: Boolean;
     FWebAddress: string;
     FModelList: string;
     function GetExplainCodePrompt: string;
     function GetSystemMessage: string;
     function GetReviewCodePrompt: string;
+    function GetGenTestCasePrompt: string;
+    function GetReferSelectionPrompt: string;
+    function GetContinueCodingPrompt: string;
   protected
     function GetCurrentLangName: string;
     // SM4-GCM 加十六进制加解密
@@ -70,8 +74,13 @@ type
     constructor Create; virtual;
     destructor Destroy; override;
 
+    // 以下仨函数供子类设置让外部界面额外显示特殊字段的设置文本和编辑框，注意要和子类里 published 的额外属性对应
+    function GetExtraOptionCount: Integer; virtual;
+    function GetExtraOptionName(Index: Integer): string; virtual;
+    function GetExtraOptionType(Index: Integer): TTypeKind; virtual;
+
     procedure AssignToEmpty(Dest: TCnAIEngineOption);
-    {* 目标属性非空时赋值，用于新旧版本属性合并}
+    {* 源属性非空且目标属性空时赋值，用于新增加的设置理，与旧版本属性合并}
 
     procedure LoadFromJSON(const JSON: AnsiString);
     {* 从 UTF8 格式的 JSON 字符串中加载一个选项实例的设置到自身}
@@ -80,10 +89,16 @@ type
 
     property SystemMessage: string read GetSystemMessage;
     {* 系统预设消息}
+    property ReferSelectionPrompt: string read GetReferSelectionPrompt;
+    {* 引用代码时的提示文字}
     property ExplainCodePrompt: string read GetExplainCodePrompt;
     {* 解释代码的提示文字}
     property ReviewCodePrompt: string read GetReviewCodePrompt;
     {* 检查代码的提示文字}
+    property GenTestCasePrompt: string read GetGenTestCasePrompt;
+    {* 生成测试用例的提示文字}
+    property ContinueCodingPrompt: string read GetContinueCodingPrompt;
+    {* 续写代码提示文字}
   published
     property EngineName: string read FEngineName write FEngineName;
     {* AI 引擎名称}
@@ -96,6 +111,8 @@ type
     {* 模型名称}
     property Temperature: Extended read FTemperature write FTemperature;
     {* 温度参数}
+    property Stream: Boolean read FStream write FStream;
+    {* 是否走流式应答}
     property ModelList: string read FModelList write FModelList;
     {* 可用的模型名列表，半角逗号分隔}
 
@@ -113,6 +130,11 @@ type
   public
     constructor Create; override;
     destructor Destroy; override;
+
+    // 注意本类较基类在 published 区域增加了 2 个属性，因而以下仨函数需重载返回这俩
+    function GetExtraOptionCount: Integer; override;
+    function GetExtraOptionName(Index: Integer): string; override;
+    function GetExtraOptionType(Index: Integer): TTypeKind; override;
   published
     property MaxTokens: Integer read FMaxTokens write FMaxTokens;
     {* 最大 Token 数，Claude 必须，其余默认}
@@ -131,6 +153,12 @@ type
     FUseProxy: Boolean;
     FChatFontStr: string;
     FTimeoutSec: Cardinal;
+    FReferSelection: Boolean;
+    FHistoryCount: Integer;
+    FMaxFavCount: Integer;
+    FFavorites: TStringList; // 注意确保内部存储不包括回车换行
+    FContCodeKey1: Boolean;
+    FContCodeKey2: Boolean; 
     function GetOptionCount: Integer;
     function GetOption(Index: Integer): TCnAIEngineOption;
   public
@@ -146,6 +174,24 @@ type
 
     procedure AddOption(Option: TCnAIEngineOption);
     {* 增加一个外界创建并设置好的 AI 引擎设置对象，内部会判断其 EngineName 是否重复}
+
+    procedure LoadFavorite(const FileName: string);
+    {* 加载收藏的词儿}
+    procedure SaveFavorite(const FileName: string);
+    {* 保存收藏的词儿}
+
+    procedure AddToFavorite(const Fav: string);
+    {* 增加一个收藏}
+    procedure DeleteFavorite(Index: Integer);
+    {* 删除一个收藏}
+    function GetFavorite(Index: Integer): string;
+    {* 获取一个收藏条目内容}
+    function GetFavoriteCount: Integer;
+    {* 获取收藏条目数}
+    procedure ClearFavorites;
+    {* 清空全部收藏条目}
+    procedure ShrinkFavorite;
+    {* 根据最大条目限制修正收藏内容}
 
     procedure LoadFromFile(const FileName: string);
     {* 从 JSON 文件中加载基本设置}
@@ -171,12 +217,19 @@ type
   published
     property ChatFontStr: string read FChatFontStr write FChatFontStr;
     {* 聊天窗口的字体}
+    property ReferSelection: Boolean read FReferSelection write FReferSelection;
+    {* 聊天窗口发送消息时是否引用编辑器中选中的代码}
 
     property ActiveEngine: string read FActiveEngine write FActiveEngine;
     {* 活动引擎名称，供存储载入后设置活动引擎，除此以外别无它用。}
 
     property TimeoutSec: Cardinal read FTimeoutSec write FTimeoutSec;
     {* 网络超时秒数，0 为系统默认}
+
+    property HistoryCount: Integer read FHistoryCount write FHistoryCount;
+    {* 聊天时的用户历史消息条数}
+    property MaxFavCount: Integer read FMaxFavCount write FMaxFavCount;
+    {* 收藏最大条数}
 
     property UseProxy: Boolean read FUseProxy write FUseProxy;
     {* 是否使用代理服务器；否表示直连，是的情况下如果 FProxyServer 为空，表示使用系统设置}
@@ -186,6 +239,11 @@ type
     {* 代理服务器用户名}
     property ProxyPassword: string read FProxyPassword write FProxyPassword;
     {* 代理服务器密码}
+
+    property ContCodeKey1: Boolean read FContCodeKey1 write FContCodeKey1;
+    {* 是否快捷键 Alt+Enter 在当前编辑器续写代码}
+    property ContCodeKey2: Boolean read FContCodeKey2 write FContCodeKey2;
+    {* 是否快捷键 Ctrl+Alt+Enter 在聊天窗口续写代码}
   end;
 
 function CnAIEngineOptionManager: TCnAIEngineOptionManager;
@@ -198,7 +256,7 @@ implementation
 {$IFDEF CNWIZARDS_CNAICODERWIZARD}
 
 uses
-  CnSM4, CnAEAD;
+  CnSM4, CnAEAD {$IFNDEF TEST_APP}, CnWizUtils {$ENDIF};
 
 const
   SM4_KEY: TCnSM4Key = ($43, $6E, $50, $61, $63, $6B, $20, $41, $49, $20, $43, $72, $79, $70, $74, $21);
@@ -225,15 +283,35 @@ begin
   FOptions.Add(Option);
 end;
 
+procedure TCnAIEngineOptionManager.AddToFavorite(const Fav: string);
+var
+  S: string;
+begin
+  S := StringReplace(Fav, #13#10, '<BR>', [rfReplaceAll]);
+  if (Trim(S) <> '') and (FFavorites.IndexOf(S) < 0) then
+  begin
+    FFavorites.Add(S);
+    ShrinkFavorite;
+  end;
+end;
+
 procedure TCnAIEngineOptionManager.Clear;
 begin
   FOptions.Clear;
+end;
+
+procedure TCnAIEngineOptionManager.ClearFavorites;
+begin
+  FFavorites.Clear;
 end;
 
 constructor TCnAIEngineOptionManager.Create;
 begin
   inherited;
   FOptions := TObjectList.Create(True);
+  FFavorites := TStringList.Create;
+  FContCodeKey1 := True;
+  FContCodeKey2 := True;
 end;
 
 function TCnAIEngineOptionManager.CreateOptionFromFile(const EngineName,
@@ -265,10 +343,27 @@ begin
     AddOption(Result);
 end;
 
+procedure TCnAIEngineOptionManager.DeleteFavorite(Index: Integer);
+begin
+  FFavorites.Delete(Index);
+end;
+
 destructor TCnAIEngineOptionManager.Destroy;
 begin
+  FFavorites.Free;
   FOptions.Free;
   inherited;
+end;
+
+function TCnAIEngineOptionManager.GetFavorite(Index: Integer): string;
+begin
+  Result := FFavorites[Index];
+  Result := StringReplace(Result, '<BR>', #13#10, [rfReplaceAll]);
+end;
+
+function TCnAIEngineOptionManager.GetFavoriteCount: Integer;
+begin
+  Result := FFavorites.Count;
 end;
 
 function TCnAIEngineOptionManager.GetOption(Index: Integer): TCnAIEngineOption;
@@ -294,6 +389,11 @@ end;
 function TCnAIEngineOptionManager.GetOptionCount: Integer;
 begin
   Result := FOptions.Count;
+end;
+
+procedure TCnAIEngineOptionManager.LoadFavorite(const FileName: string);
+begin
+  FFavorites.LoadFromFile(FileName);
 end;
 
 procedure TCnAIEngineOptionManager.LoadFromFile(const FileName: string);
@@ -327,6 +427,14 @@ begin
   end;
 end;
 
+procedure TCnAIEngineOptionManager.SaveFavorite(const FileName: string);
+begin
+  if FFavorites.Count > 0 then
+    FFavorites.SaveToFile(FileName)
+  else if FileExists(FileName) then
+    DeleteFile(FileName);
+end;
+
 procedure TCnAIEngineOptionManager.SaveOptionToFile(const EngineName,
   FileName: string);
 var
@@ -354,6 +462,15 @@ begin
     Result := CnJSONConstruct(Root);
   finally
     Root.Free;
+  end;
+end;
+
+procedure TCnAIEngineOptionManager.ShrinkFavorite;
+begin
+  if (FMaxFavCount > 0) and (FFavorites.Count > FMaxFavCount) then
+  begin
+    while FFavorites.Count > FMaxFavCount do
+      FFavorites.Delete(0);
   end;
 end;
 
@@ -429,17 +546,31 @@ end;
 
 function TCnAIEngineOption.GetExplainCodePrompt: string;
 begin
-  Result := Format(SCNAICoderWizardUserMessageExplainFmt, [GetCurrentLangName]);
+  Result := Format(SCnAICoderWizardUserMessageExplainFmt, [GetCurrentLangName]);
 end;
 
 function TCnAIEngineOption.GetReviewCodePrompt: string;
 begin
-  Result := Format(SCNAICoderWizardUserMessageReviewFmt, [GetCurrentLangName]);
+  Result := Format(SCnAICoderWizardUserMessageReviewFmt, [GetCurrentLangName]);
+end;
+
+function TCnAIEngineOption.GetGenTestCasePrompt: string;
+begin
+{$IFDEF TEST_APP}
+  Result := Format(SCnAICoderWizardUserMessageGenTestCaseFmt, ['Pascal']);
+{$ELSE}
+  if CurrentSourceIsDelphi then
+    Result := Format(SCnAICoderWizardUserMessageGenTestCaseFmt, ['Pascal'])
+  else if CurrentSourceIsC then
+    Result := Format(SCnAICoderWizardUserMessageGenTestCaseFmt, ['C/C++'])
+  else // 不认识的文件名干脆也用 Pascal
+    Result := Format(SCnAICoderWizardUserMessageGenTestCaseFmt, ['Pascal']);
+{$ENDIF}
 end;
 
 function TCnAIEngineOption.GetSystemMessage: string;
 begin
-  Result := Format(SCNAICoderWizardSystemMessageFmt, [CompilerName]);
+  Result := Format(SCnAICoderWizardSystemMessageFmt, [CompilerName]);
 end;
 
 procedure TCnAIEngineOption.LoadFromJSON(const JSON: AnsiString);
@@ -489,14 +620,14 @@ var
   PropList: PPropList;
   PropInfo: PPropInfo;
   AKind: TTypeKind;
-  VI: Integer;
-  VE: Extended;
-  VS: string;
-  V64: Int64;
+  VI, VI1: Integer;
+  VE, VE1: Extended;
+  VS, VS1: string;
+  V64, V641: Int64;
 begin
   Count := GetPropList(Self.ClassInfo, tkProperties - [tkArray, tkRecord,
     tkInterface], nil);
-  if Count <=0 then
+  if Count <= 0 then
     Exit;
 
   GetMem(PropList, Count * SizeOf(Pointer));
@@ -507,40 +638,81 @@ begin
     for PropIdx := 0 to Count - 1 do
     begin
       PropInfo := PropList^[PropIdx];
-      if PropInfo^.SetProc = nil then // 不能写的跳过
+      if PropInfo^.SetProc = nil then // 自身该属性不能写的跳过
         Continue;
 
       AKind := PropInfo^.PropType^^.Kind;
       case AKind of
         tkInteger, tkChar, tkWChar, tkClass, tkEnumeration, tkSet:
           begin
-            VI := GetOrdProp(Self, PropInfo);
+            VI := GetOrdProp(Self, PropInfo);    // 源非 0，目标 0，才赋值
             if VI <> 0 then
-              SetOrdProp(Dest, PropInfo, VI);
+            begin
+              VI1 := GetOrdProp(Dest, PropInfo);
+              if VI1 = 0 then
+                SetOrdProp(Dest, PropInfo, VI);
+            end;
           end;
         tkFloat:
           begin
-            VE := GetFloatProp(Self, PropInfo);
+            VE := GetFloatProp(Self, PropInfo);  // 源非 0，目标 0，才赋值
             if VE <> 0 then
-              SetFloatProp(Dest, PropInfo, VE);
+            begin
+              VE1 := GetOrdProp(Dest, PropInfo);
+              if VE1 = 0.0 then
+                SetFloatProp(Dest, PropInfo, VE);
+            end;
           end;
         tkString, tkLString, tkWString{$IFDEF UNICODE}, tkUString{$ENDIF}:
           begin
-            VS := GetStrProp(Self, PropInfo);
+            VS := GetStrProp(Self, PropInfo);    // 源非空，目标空，才赋值
             if VS <> '' then
-              SetStrProp(Dest, PropInfo, VS);
+            begin
+              VS1 := GetStrProp(Dest, PropInfo);
+              if VS1 = '' then
+                SetStrProp(Dest, PropInfo, VS);
+            end;
           end;
         tkInt64:
           begin
-            V64 := GetInt64Prop(Self, PropInfo);
+            V64 := GetInt64Prop(Self, PropInfo);  // 源非 0，目标 0，才赋值
             if V64 <> 0 then
-              SetInt64Prop(Dest, PropInfo, V64);
+            begin
+              V641 := GetInt64Prop(Dest, PropInfo);
+              if V641 = 0 then
+                SetInt64Prop(Dest, PropInfo, V64);
+            end;
           end;
       end;
     end;
   finally
     FreeMem(PropList);
   end;
+end;
+
+function TCnAIEngineOption.GetExtraOptionCount: Integer;
+begin
+  Result := 0;
+end;
+
+function TCnAIEngineOption.GetExtraOptionName(Index: Integer): string;
+begin
+  Result := '';
+end;
+
+function TCnAIEngineOption.GetExtraOptionType(Index: Integer): TTypeKind;
+begin
+  Result := tkUnknown;
+end;
+
+function TCnAIEngineOption.GetReferSelectionPrompt: string;
+begin
+  Result := SCnAICoderWizardUserMessageReferSelection;
+end;
+
+function TCnAIEngineOption.GetContinueCodingPrompt: string;
+begin
+  Result := Format(SCnAICoderWizardUserMessageContinueCodingFmt, [SCnAICoderWizardFlagContinueCoding]);
 end;
 
 { TCnClaudeAIEngineOption }
@@ -550,13 +722,40 @@ begin
   inherited;
   Temperature := 1.0;
   AnthropicVersion := '2023-06-01';
-  MaxTokens := 10240;
+  MaxTokens := 4096;
 end;
 
 destructor TCnClaudeAIEngineOption.Destroy;
 begin
 
   inherited;
+end;
+
+function TCnClaudeAIEngineOption.GetExtraOptionCount: Integer;
+begin
+  Result := 2;
+end;
+
+function TCnClaudeAIEngineOption.GetExtraOptionName(
+  Index: Integer): string;
+begin
+  case Index of
+    0: Result := 'MaxTokens';
+    1: Result := 'AnthropicVersion';
+  else
+    Result := '';
+  end;
+end;
+
+function TCnClaudeAIEngineOption.GetExtraOptionType(
+  Index: Integer): TTypeKind;
+begin
+  case Index of
+    0: Result := tkInteger;
+    1: Result := tkString;
+  else
+    Result := tkUnknown;
+  end;
 end;
 
 initialization

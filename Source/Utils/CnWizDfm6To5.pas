@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -29,7 +29,9 @@ unit CnWizDfm6To5;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串支持本地化处理方式
-* 修改记录：2002.12.02 V1.1
+* 修改记录：2025.04.17 V1.2
+*               新增二进制与文本窗体格式的互相转换
+*           2002.12.02 V1.1
 *               新增对二进制文件格式的支持
 *           2002.11.17 V1.0
 *               创建单元
@@ -48,11 +50,18 @@ uses
   Classes, Consts, SysUtils, TypInfo;
 
 type
-  TDFMConvertResult = (crSucc, crOpenError, crSaveError, crInvalidFormat);
+  TCnDFMConvertResult = (crSucc, crOpenError, crSaveError, crInvalidFormat);
+  {* 转换结果}
 
-function DFM6To5(const FileName: string): TDFMConvertResult;
+function DFM6To5(const FileName: string): TCnDFMConvertResult;
 {* 将 Delphi6 及以后版本的窗体文件转换为兼容 Delphi5 的文件，
    支持文本和二进制格式的 DFM 文件}
+
+function TextToBin(const FileName: string): TCnDFMConvertResult;
+{* 将文本格式的窗体文件转换为二进制格式的窗体文件，内部字符串转换成普通编码，IDE 打开时可自动识别}
+
+function BinToText(const FileName: string): TCnDFMConvertResult;
+{* 将二进制格式的窗体文件转换为文本格式的窗体文件，内部字符串转换成普通编码，IDE 打开时可自动识别}
 
 implementation
 
@@ -761,7 +770,7 @@ end;
 // 将 Delphi6 及以后版本的窗体文件转换为 Delphi5 支持的文件
 //------------------------------------------------------------------------------
 
-function DFM6To5(const FileName: string): TDFMConvertResult;
+function DFM6To5(const FileName: string): TCnDFMConvertResult;
 var
   InStrm, OutStrm: TMemoryStream;
   C: Char;
@@ -769,15 +778,18 @@ begin
   InStrm := nil;
   OutStrm := nil;
   Result := crInvalidFormat;
+
   try
     InStrm := TMemoryStream.Create;
     OutStrm := TMemoryStream.Create;
+
     try
       InStrm.LoadFromFile(FileName);
     except
       Result := crOpenError;
       Exit;
     end;
+
     if InStrm.Size > 0 then
     begin
       C := PChar(InStrm.Memory)^;
@@ -808,18 +820,147 @@ begin
           Result := crInvalidFormat;
           Exit;
         end;
+
         try
           InStrm.SaveToFile(FileName);
         except
           Result := crSaveError;
           Exit;
         end;
+
         Result := crSucc;
       end;
     end;
   finally
-    if InStrm <> nil then InStrm.Free;
-    if OutStrm <> nil then OutStrm.Free;
+    InStrm.Free;
+    OutStrm.Free;
+  end;
+end;
+
+function TextToBin(const FileName: string): TCnDFMConvertResult;
+var
+  FileStream: TFileStream;
+  MemStream: TMemoryStream;
+  H: AnsiChar;
+begin
+  // 检查文件是否存在
+  if not FileExists(FileName) then
+  begin
+    Result := crOpenError;
+    Exit;
+  end;
+
+  // 尝试打开文件流
+  try
+    FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
+  except
+    Result := crOpenError;
+    Exit;
+  end;
+
+  try
+    // 检查是否为文本头
+    if FileStream.Size >= 4 then
+    begin
+      FileStream.Read(H, SizeOf(AnsiChar));
+      if not (H in ['o', 'O', 'i', 'I', ' ', #13, #11, #9]) then // 非文本格式的 DFM
+      begin
+        Result := crInvalidFormat;
+        Exit;
+      end;
+      FileStream.Position := 0;
+    end;
+
+    // 准备转换流
+    MemStream := TMemoryStream.Create;
+    try
+      // 尝试文本转二进制
+      try
+        ObjectTextToResource(FileStream, MemStream);
+      except
+        Result := crInvalidFormat;
+        Exit;
+      end;
+
+      FreeAndNil(FileStream);
+
+      try
+        MemStream.SaveToFile(FileName);
+      except
+        Result := crSaveError;
+        Exit;
+      end;
+
+      Result := crSucc;
+    finally
+      MemStream.Free;
+    end;
+  finally
+    FileStream.Free;
+  end;
+end;
+
+function BinToText(const FileName: string): TCnDFMConvertResult;
+var
+  FileStream: TFileStream;
+  MemStream: TMemoryStream;
+  Buffer: array[0..1] of Byte; // DFM 二进制头
+begin
+  // 检查文件是否存在
+  if not FileExists(FileName) then
+  begin
+    Result := crOpenError;
+    Exit;
+  end;
+
+  // 尝试打开文件流
+  try
+    FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
+  except
+    Result := crOpenError;
+    Exit;
+  end;
+
+  try
+    // 检查是否为二进制格式（Res 头 FF0A）
+    if FileStream.Size >= 4 then
+    begin
+      FillChar(Buffer[0], SizeOf(Buffer), 0);
+      FileStream.Read(Buffer, SizeOf(Buffer));
+      if (Buffer[0] <> $FF) or (Buffer[1] <> $0A) then
+      begin
+        Result := crInvalidFormat;
+        Exit;
+      end;
+      FileStream.Position := 0;
+    end;
+
+    // 准备转换流
+    MemStream := TMemoryStream.Create;
+    try
+      // 尝试二进制转文本
+      try
+        MyObjectResourceToText(FileStream, MemStream);
+      except
+        Result := crInvalidFormat;
+        Exit;
+      end;
+
+      FreeAndNil(FileStream);
+
+      try
+        MemStream.SaveToFile(FileName);
+      except
+        Result := crSaveError;
+        Exit;
+      end;
+
+      Result := crSucc;
+    finally
+      MemStream.Free;
+    end;
+  finally
+    FileStream.Free;
   end;
 end;
 

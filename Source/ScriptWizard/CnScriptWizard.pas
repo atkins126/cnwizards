@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -953,7 +953,9 @@ begin
     while SubActionCount > IdBrowseDemo + 1 do
       DeleteSubAction(IdBrowseDemo + 1);
     for I := 0 to FScripts.Count - 1 do
+    begin
       with FScripts[I] do
+      begin
         if Enabled and not IsInternal and (smManual in Mode) then
         begin
           ActionIndex := RegisterASubAction(SCnScriptItem + IntToStr(I),
@@ -962,6 +964,8 @@ begin
         end
         else
           ActionIndex := -1;
+      end;
+    end;
   finally
     WizShortCutMgr.EndUpdate;
   end;

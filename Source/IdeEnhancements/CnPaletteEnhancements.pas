@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -638,7 +638,7 @@ begin
       PopupMenu.Images := GetIDEImageList;
   {$IFDEF DEBUG}
     CnDebugger.LogMsg('Hooked ComponentPalette''s PopupMenu.');
-  {$ENDIF DEBUG}
+  {$ENDIF}
   end;
 
   UpdateCompPalette;
@@ -647,13 +647,13 @@ end;
 
 class procedure TCnPaletteEnhanceWizard.ResizeComponentPalette(Sender: TObject);
 var
-  h : Integer;
+  H : Integer;
 begin
   with (Sender as TTabControl) do
   begin
-    h := Height + DisplayRect.Top - DisplayRect.Bottom + 29;
-    Constraints.MinHeight := h;
-    Parent.Constraints.MaxHeight := h;
+    H := Height + DisplayRect.Top - DisplayRect.Bottom + 29;
+    Constraints.MinHeight := H;
+    Parent.Constraints.MaxHeight := H;
   end;
 end;
 
@@ -666,7 +666,7 @@ begin
   if Assigned(ComponentPalette) then
   begin
     H := 0;
-    AForm := GetIdeMainForm;
+    AForm := GetIDEMainForm;
     if AForm <> nil then
       H := AForm.Height;
 
@@ -730,7 +730,7 @@ var
   AForm: TCustomForm;
   I, J, MainTop, HeightDelta: Integer;
 begin
-  AForm := GetIdeMainForm;
+  AForm := GetIDEMainForm;
   if AForm = nil then Exit;
   HeightDelta := AForm.Height - OldHeight;
   if HeightDelta = 0 then Exit;
@@ -807,7 +807,7 @@ var
   IndexTab, DivCount: Integer;
 begin
   MenuItem.Visible := TabsMenu;
-  DivCount := (Screen.Height - TForm(GetIdeMainForm).Height) div GetMainMenuItemHeight;
+  DivCount := (Screen.Height - TForm(GetIDEMainForm).Height) div GetMainMenuItemHeight;
   if TabsMenu then
   begin
     List := TStringList.Create;
@@ -834,7 +834,7 @@ begin
         MenuItem.Add(AItem);
       end;
     finally
-    List.Free;
+      List.Free;
     end;
   end;
 end;
@@ -862,9 +862,13 @@ var
 {$ENDIF}
 begin
   if FTabPopupItem = nil then
+  begin
     for I := 0 to Menu.Items.Count - 1 do
+    begin
       if Menu.Items.Items[I].Name = csTabsItem then
         FTabPopupItem := Menu.Items.Items[I];
+    end;
+  end;
 
   if FTabPopupItem = nil then
     Exit;
@@ -878,7 +882,7 @@ begin
     end;
     FTabOnClick(FTabPopupItem);
     // 此步骤后，Tabs 子菜单已创建，注意如果有其他专家也挂接此事件，则冲突
-    DivCount := (Screen.Height - TForm(GetIdeMainForm).Height - 75) div GetMainMenuItemHeight - 1;
+    DivCount := (Screen.Height - TForm(GetIDEMainForm).Height - 75) div GetMainMenuItemHeight - 1;
 
     if FTabPopupItem.Count > DivCount then // 分页
     begin
@@ -973,7 +977,7 @@ var
   AForm: TCustomForm;
   I: Integer;
 begin
-  AForm := GetIdeMainForm;
+  AForm := GetIDEMainForm;
   FMenuBar := nil;
   if AForm <> nil then
   begin
@@ -1012,7 +1016,6 @@ begin
 {$ENDIF}
 end;
 
-
 //------------------------------------------------------------------------------
 // 移动专家菜单项
 //------------------------------------------------------------------------------
@@ -1021,7 +1024,8 @@ procedure TCnPaletteEnhanceWizard.InitWizMenus;
 begin
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('InitWizMenus');
-{$ENDIF DEBUG}
+{$ENDIF}
+
   FEnableWizMenu := False;
   FWizMenuNames := TStringList.Create;
   FWizMenu := TMenuItem.Create(nil);
@@ -1039,9 +1043,10 @@ begin
   FWizOptionMenu.Free;
   FWizMenu.Free;
   FWizMenuNames.Free;
+
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('FinalWizMenus');
-{$ENDIF DEBUG}
+{$ENDIF}
 end;
 
 function TCnPaletteEnhanceWizard.GetMenuInsertIndex: Integer;
@@ -1072,7 +1077,8 @@ begin
   begin
   {$IFDEF DEBUG}
     CnDebugger.LogMsg('RestoreWizMenus');
-  {$ENDIF DEBUG}
+  {$ENDIF}
+
     Idx := GetMenuInsertIndex;
     while FWizMenu.Count > 2 do
     begin
@@ -1097,7 +1103,7 @@ var
 begin
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('AdjustMainMenuBar');
-{$ENDIF DEBUG}
+{$ENDIF}
 
   ViewBar := (BorlandIDEServices as INTAServices).ToolBar[sViewToolBar];
   if Assigned(ViewBar) and (ViewBar.Parent is TControlBar) then
@@ -1105,11 +1111,13 @@ begin
     ControlBar := TControlBar(ViewBar.Parent);
     MenuBar := nil;
     for I := 0 to ControlBar.ControlCount - 1 do
+    begin
       if SameText(ControlBar.Controls[I].Name, sMenuBar) then
       begin
         MenuBar := TToolBar(ControlBar.Controls[I]);
         Break;
       end;
+    end;
 
     if not Assigned(MenuBar) then
       Exit;
@@ -1118,6 +1126,7 @@ begin
     List := TList.Create;
     try
       for I := 0 to ControlBar.ControlCount - 1 do
+      begin
         if (ControlBar.Controls[I] <> MenuBar) and
           (ControlBar.Controls[I].Top = MenuBar.Top) then
         begin
@@ -1127,6 +1136,7 @@ begin
             Inc(J);
           List.Insert(J, ControlBar.Controls[I]);
         end;
+      end;
 
       for I := 0 to List.Count - 1 do
       begin
@@ -1153,6 +1163,7 @@ var
     MenuItem: TMenuItem;
   begin
     for I := MainMenu.Items.Count - 1 downto 0 do
+    begin
       if SameText(MainMenu.Items[I].Name, AName) then
       begin
         MenuItem := MainMenu.Items[I];
@@ -1160,24 +1171,23 @@ var
         AMenu.Insert(0, MenuItem);
         Break;
       end;
+    end;
   end;
 begin
   RestoreWizMenus;
 
 {$IFDEF DEBUG}
   CnDebugger.LogMsg('UpdateWizMenus');
-{$ENDIF DEBUG}
+{$ENDIF}
 
   MainMenu := GetIDEMainMenu;
   if Assigned(MainMenu) and Active and FEnableWizMenu and
     (FWizMenuNames.Count > 0) then
   begin
     for I := FWizMenuNames.Count - 1 downto 0 do    // 把设置中要独立出来的菜单项先挑出来挂 FWizMenu 下
-    begin
       DoInsertMenu(FWizMenu, FWizMenuNames[I]);
-    end;
-    MainMenu.Items.Insert(GetMenuInsertIndex + 1, FWizMenu); // 再把 FWizMenu 挂主菜单下
 
+    MainMenu.Items.Insert(GetMenuInsertIndex + 1, FWizMenu); // 再把 FWizMenu 挂主菜单下
     AdjustMainMenuBar; // 菜单调整后会露空，要把菜单栏同样高度的右边控件往左挤
   end;
 end;
@@ -1594,7 +1604,7 @@ var
   I: Integer;
   Main: TCustomForm;
 begin
-  Main := GetIdeMainForm;
+  Main := GetIDEMainForm;
   if Main <> nil then
   begin
     for I := 0 to Main.ControlCount - 1 do
@@ -1646,7 +1656,7 @@ var
   I: Integer;
   Main: TCustomForm;
 begin
-  Main := GetIdeMainForm;
+  Main := GetIDEMainForm;
   if Main <> nil then
   begin
     for I := 0 to Main.ControlCount - 1 do

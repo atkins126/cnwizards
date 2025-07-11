@@ -31,7 +31,16 @@
     <p class="text"><b>超时秒数</b>：网络通讯的超时秒数设置，0 表示使用系统默认值。</p>
   </li>
   <li>
-    <p class="text"><b>使用代理</b>：如勾选，则代表指定连接该 AI 引擎所需的代理服务器。暂不支持用户名密码。</p>
+    <p class="text"><b>使用代理</b>：如勾选，则代表指定连接该 AI 引擎所需的代理服务器，可以是 HTTP 或 SOCKS5 代理，格式如“192.168.1.1:1080”。暂不支持用户名密码。</p>
+  </li>
+  <li>
+    <p class="text"><b>对话时发送历史消息数</b>：指定每次与 AI 引擎在聊天框内对话时携带最近几条历史记录以记忆上下文。</p>
+  </li>
+  <li>
+    <p class="text"><b>收藏最大条目数</b>：指定 AI 聊天窗口内收藏夹能容纳的最多条目数，0 表示无限制。</p>
+  </li>
+  <li>
+    <p class="text"><b>编辑器中使用快捷键 (Ctrl +) Alt + Enter 续写代码</b>：是否启用两个快捷键在编辑器中调用续写代码的功能，其中 Alt + Enter 是将 AI 撰写的代码直接输入至编辑器当前光标后，Ctr + Alt + Enter 则是将结果输出至 AI 对话窗口中供阅读、复制。</p>
   </li>
   <li>
     <p class="text"><b>请求地址</b>：AI 引擎的 API 在线请求地址，由该 AI 引擎提供。</p>
@@ -40,10 +49,22 @@
     <p class="text"><b>模型名称</b>：选择该 AI 引擎提供的可用的模型名称。</p>
   </li>
   <li>
+    <p class="text"><b>在线获取模型列表</b>：以当前页面参数在线调用该 AI 引擎提供商接口以在线获取最新的模型列表，如成功则更新在下拉列表中。注意部分 AI 引擎提供商不支持该操作。</p>
+  </li>
+  <li>
+    <p class="text"><b>采样温度</b>：即 Temperature 参数，控制 AI 思维的发散程度。</p>
+  </li>
+  <li>
     <p class="text"><b>API 密钥</b>：需填入在该 AI 引擎网站上注册并申请的合法 API 密钥。</p>
   </li>
   <li>
+    <p class="text"><b>流式输出</b>：不勾选则控制让 AI 引擎一次性返回完整应答数据，否则连续多次返回。</p>
+  </li>
+  <li>
     <p class="text"><b>申请</b>：点击申请链接可在线注册并申请该 AI 引擎的 API 密钥。</p>
+  </li>
+  <li>
+    <p class="text"><b>重置</b>：该按钮可将当前 AI 引擎的设置恢复至默认状态，但不清空 API 密钥。</p>
   </li>
 </ul>
 <p class="title" align="left">&nbsp;</p>
@@ -58,7 +79,13 @@
     <p class="text"><b>检视代码</b>：向当前 AI 引擎发送请求，让其针对编辑器中选中的代码块进行检视，也就是常说的 Code Review。返回的检视意见将显示在 AI 对话窗口中。</p>
   </li>
   <li>
-    <p class="text"><b>AI 对话窗口</b>：显示或隐藏 AI 对话窗口。</p>
+    <p class="text"><b>生成测试用例</b>：向当前 AI 引擎发送请求，让其针对编辑器中选中的代码块生成一个无界面交互的测试用例。返回的结果将插入当前编辑器光标所在处，同时也显示在 AI 对话窗口中。</p>
+  </li>
+  <li>
+    <p class="text"><b>续写代码</b>：向当前 AI 引擎发送请求，让其针对编辑器中当前光标处的代码或注释续写一段代码，返回的结果将插入当前编辑器光标所在处。该功能默认热键为 Alt+Enter。</p>
+  </li>
+  <li>
+    <p class="text"><b>AI 对话窗口</b>：显示 AI 对话窗口。</p>
   </li>
   <li>
     <p class="text"><b>设置</b>：显示上文的设置对话框。</p>
@@ -76,6 +103,9 @@
     <p class="text"><b>清空消息</b>：清空消息列表对话框。</p>
   </li>
   <li>
+    <p class="text"><b>提问时附上编辑器内选中的代码</b>：消息区内发送消息时，是否附上编辑器内选中的代码供 AI 分析。</p>
+  </li>
+  <li>
     <p class="text"><b>字体</b>：修改消息框与发送框的字体。</p>
   </li>
   <li>
@@ -83,6 +113,18 @@
   </li>
   <li>
     <p class="text"><b>帮助</b>：显示此帮助。</p>
+  </li>
+  <li>
+    <p class="text"><b>收藏下拉菜单</b>：显示收藏下拉菜单，供快速在本地聊天消息发送区输入收藏的内容。</p>
+  </li>
+  <li>
+    <p class="text"><b>添加至收藏</b>：将本地聊天消息发送区的内容添加至收藏菜单。</p>
+  </li>
+  <li>
+    <p class="text"><b>清空收藏</b>：删除全部收藏菜单。</p>
+  </li>
+  <li>
+    <p class="text"><b>发送</b>：发送本地聊天消息区的内容给当前 AI 引擎。</p>
   </li>
 </ul>
 <p class="title" align="left">&nbsp;</p>
@@ -94,6 +136,9 @@
   <li>
     <p class="text"><b>复制代码</b>：复制选中的消息体中被 ``` 括起来的内容当作代码处理。</p>
   </li>
+  <li>
+    <p class="text"><b>添加到收藏</b>：添加选中的消息体中的文字到收藏。</p>
+  </li>
 </ul>
 
 <p class="title" align="left">&nbsp;</p>
@@ -103,6 +148,6 @@
   <p class="text" align="left"> <a href="../cnpack/index.htm">关于 IDE 专家包</a> 
   <p class="text" align="left">　 
   <hr>
-  <p class="text" align="center"><a href="https://www.cnpack.org">(C)版权所有 2001-2024 CnPack 开发组</a></p>
+  <p class="text" align="center"><a href="https://www.cnpack.org">(C)版权所有 2001-2025 CnPack 开发组</a></p>
 </body>
 </html>

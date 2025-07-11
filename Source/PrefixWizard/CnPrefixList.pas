@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -136,7 +136,7 @@ implementation
 
 {$IFDEF CNWIZARDS_CNPREFIXWIZARD}
 
-{ TPrefixItem }
+{ TCnPrefixItem }
 
 procedure TCnPrefixItem.SetPrefix(const Value: string);
 begin
@@ -148,7 +148,7 @@ begin
     FPrefix := '';
 end;
 
-{ TPrefixList }
+{ TCnPrefixList }
 
 function TCnPrefixList.Add(const ComponentClass, Prefix: string;
   Ignore: Boolean): Integer;
@@ -320,7 +320,7 @@ begin
     Add(ComponentClass, Value);
 end;
 
-{ TCompList }
+{ TCnPrefixCompList }
 
 function TCnPrefixCompList.Add(const AProjectName: string; AFormEditor: IOTAFormEditor;
   AComponent: TComponent; const APrefix, AOldName, ANewName: string): Integer;
@@ -375,13 +375,14 @@ var
   I: Integer;
 begin
   for I := 0 to Count - 1 do
+  begin
     if (Items[I].FFormEditor = AFormEditor) and (Items[I].FComponent = AComponent) then
     begin
       Result := I;
       Exit;
     end;
+  end;
   Result := -1;
-
 end;
 
 function TCnPrefixCompList.IndexOfNewName(AFormEditor: IOTAFormEditor;
@@ -390,12 +391,14 @@ var
   I: Integer;
 begin
   for I := 0 to Count - 1 do
+  begin
     if (Items[I].FFormEditor = AFormEditor) and SameText(Items[I].FNewName,
       ANewName) then
     begin
       Result := I;
       Exit;
     end;
+  end;
   Result := -1;
 end;
 

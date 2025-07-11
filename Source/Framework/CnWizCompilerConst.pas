@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -28,7 +28,9 @@ unit CnWizCompilerConst;
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2013.04.25 by liuxiao
+* 修改记录：20225.06.23 by liuxiao
+*               增加几个 Lazarus 相关变量
+*           2013.04.25 by liuxiao
 *               增加几个特性变量
 *           2012.09.19 by shenloqi
 *               移植到 Delphi XE3
@@ -44,12 +46,12 @@ interface
 {$WRITEABLECONST ON}
 
 type
-  TCnCompilerKind = (ckDelphi, ckBCB);
+  TCnCompilerKind = (ckDelphi, ckBCB, ckLazarus);
   TCnCompiler = (cnDelphi5, cnDelphi6, cnDelphi7, cnDelphi8, cnDelphi2005,
     cnDelphi2006, cnDelphi2007, cnDelphi2009, cnDelphi2010, cnDelphiXE, cnDelphiXE2,
     cnDelphiXE3, cnDelphiXE4, cnDelphiXE5, cnDelphiXE6, cnDelphiXE7, cnDelphiXE8,
     cnDelphi10S, cnDelphi101B, cnDelphi102T, cnDelphi103R, cnDelphi104S, cnDelphi110A,
-    cnDelphi120A, cnBCB5, cnBCB6);
+    cnDelphi120A, cnBCB5, cnBCB6, cnLazarus4);
   TCnCompilers = set of TCnCompiler;
 
 const
@@ -79,7 +81,8 @@ const
     'RAD Studio 11 Alexandria',
     'RAD Studio 12 Athens',
     'C++Builder 5',
-    'C++Builder 6');
+    'C++Builder 6',
+    'Lazarus 4.0');
 
   SCnCompilerShortNames: array[TCnCompiler] of string = (
     'Delphi5',
@@ -107,7 +110,8 @@ const
     'RADStudio110A',
     'RADStudio120A',
     'BCB5',
-    'BCB6');
+    'BCB6',
+    'Lazarus4');
 
   SCnIDERegPaths: array[TCnCompiler] of string = (
     '\Software\Borland\Delphi\5.0',
@@ -135,11 +139,13 @@ const
     '\Software\Embarcadero\BDS\22.0',
     '\Software\Embarcadero\BDS\23.0',
     '\Software\Borland\C++Builder\5.0',
-    '\Software\Borland\C++Builder\6.0');
+    '\Software\Borland\C++Builder\6.0',
+    '');
 
   _DELPHI = {$IFDEF DELPHI}True{$ELSE}False{$ENDIF};
   _BCB = {$IFDEF BCB}True{$ELSE}False{$ENDIF};
   _BDS = {$IFDEF BDS}True{$ELSE}False{$ENDIF};
+  _LAZARUS = {$IFDEF LAZARUS}True{$ELSE}False{$ENDIF};
 
   _DELPHI1 = {$IFDEF DELPHI1}True{$ELSE}False{$ENDIF};
   _DELPHI2 = {$IFDEF DELPHI2}True{$ELSE}False{$ENDIF};
@@ -371,6 +377,7 @@ const
   _UNICODE_STRING = {$IFDEF UNICODE}True{$ELSE}False{$ENDIF};
   _VERSIONINFO_PER_CONFIGURATION = {$IFDEF VERSIONINFO_PER_CONFIGURATION}True{$ELSE}False{$ENDIF};
   _CAPTURE_STACK = {$IFDEF CAPTURE_STACK}True{$ELSE}False{$ENDIF};
+  _IS64BIT = {$IFDEF WIN64}True{$ELSE}False{$ENDIF};
 
 {$IFDEF DELPHI5}
   Compiler: TCnCompiler = cnDelphi5;
@@ -528,7 +535,15 @@ const
                                                     CompilerName = 'C++BUILDER 6';
                                                     CompilerShortName = 'CB6';
                                                   {$ELSE}
-                                                    {$MESSAGE ERROR 'Unknow Compiler!'}
+                                                    {$IFDEF LAZARUS}
+                                                      // 注意 Lazarus 中的 FPC 编译器并非和 IDE 强绑定，未来估计要动态设置这些值
+                                                      Compiler: TCnCompiler = cnLazarus4;
+                                                      CompilerKind: TCnCompilerKind = ckLazarus;
+                                                      CompilerName = 'Lazarus 4.0';
+                                                      CompilerShortName = 'Lazarus4';
+                                                    {$ELSE}
+                                                      {$MESSAGE ERROR 'Unknow Compiler!'}
+                                                    {$ENDIF}
                                                   {$ENDIF}
                                                 {$ENDIF}
                                               {$ENDIF}

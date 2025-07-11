@@ -52,6 +52,8 @@
       ..\Dcu\CnCommentCropper.obj ..\Dcu\CnSourceCropper.obj 
       ..\Dcu\CnCpuWinEnhancements.obj ..\Dcu\CnCpuWinEnhanceFrm.obj 
       ..\Dcu\CnMultiLineEdtToolOptFrm.obj ..\Dcu\CnMultiLineEdtUserFmtFrm.obj 
+      ..\Dcu\CnObjInspectorEnhancements.obj ..\Dcu\CnObjInspectorCommentFrm.obj 
+      ..\Dcu\CnObjectInspectorWrapper.obj 
       ..\Dcu\CnRepositoryMenu.obj ..\Dcu\CnDUnitWizard.obj 
       ..\Dcu\CnDUnitSetFrm.obj ..\Dcu\CnIniFilerFrm.obj 
       ..\Dcu\CnIniFilerWizard.obj ..\Dcu\CnTestWizard.obj ..\Dcu\CnOTACreators.obj 
@@ -82,7 +84,8 @@
       ..\Dcu\CnEditorInsertTime.obj ..\Dcu\CnEditorCollector.obj 
       ..\Dcu\CnGroupReplace.obj ..\Dcu\CnSrcEditorReplaceInBlock.obj ..\Dcu\CnEditorSortLines.obj 
       ..\Dcu\CnEditorToggleUses.obj ..\Dcu\CnEditorJumpMessage.obj 
-      ..\Dcu\CnEditorFontZoom.obj ..\Dcu\CnEditorDuplicateUnit.obj ..\Dcu\CnEditorExtractString.obj 
+      ..\Dcu\CnEditorFontZoom.obj ..\Dcu\CnEditorDuplicateUnit.obj 
+      ..\Dcu\CnEditorExtractString.obj ..\Dcu\CnEditorExtSelect.obj 
       ..\Dcu\CnSrcEditorKey.obj ..\Dcu\CnIdentRenameFrm.obj 
       ..\Dcu\CnIdeEnhanceMenu.obj ..\Dcu\CnSourceHighlight.obj 
       ..\Dcu\CnSourceHighlightFrm.obj ..\Dcu\CnHighlightLineFrm.obj 
@@ -139,6 +142,8 @@
       ProjectExtWizard\CnProjectFramesFrm.dfm 
       ProjectExtWizard\CnProjectListUsedFrm.dfm 
       SimpleWizards\CnCommentCropper.dfm 
+      IdeEnhancements\CnCpuWinEnhanceFrm.dfm IdeEnhancements\CnObjInspectorEnhancements.dfm 
+      IdeEnhancements\CnObjInspectorCommentFrm.dfm 
       DesignEditors\CnMultiLineEdtToolOptFrm.dfm 
       DesignEditors\CnMultiLineEdtUserFmtFrm.dfm RepositoryWiz\CnDUnitSetFrm.dfm 
       RepositoryWiz\CnIniFilerFrm.dfm ProjectExtWizard\CnProjectDelTempFrm.dfm 
@@ -329,6 +334,9 @@
       <FILE FILENAME="IdeEnhancements\CnCpuWinEnhanceFrm.pas" FORMNAME="" UNITNAME="CnCpuWinEnhanceFrm" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="DesignEditors\CnMultiLineEdtToolOptFrm.pas" FORMNAME="CnMultiLineEditorToolsOptionFrm" UNITNAME="Cnmultilineedttooloptfrm" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="DesignEditors\CnMultiLineEdtUserFmtFrm.pas" FORMNAME="CnMultiLineEditorUserFmtFrm" UNITNAME="Cnmultilineedtuserfmtfrm" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="IdeEnhancements\CnObjInspectorEnhancements.pas" FORMNAME="CnObjInspectorConfigForm" UNITNAME="Cnobjinspectorenhancements" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="IdeEnhancements\CnObjInspectorCommentFrm.pas" FORMNAME="CnObjInspectorCommentForm" UNITNAME="Cnobjinspectorcommentfrm" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="Utils\CnObjectInspectorWrapper.pas" FORMNAME="" UNITNAME="Cnobjectinspectorwrapper" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="RepositoryWiz\CnRepositoryMenu.pas" FORMNAME="" UNITNAME="CnRepositoryMenu" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="RepositoryWiz\CnDUnitWizard.pas" FORMNAME="" UNITNAME="CnDUnitWizard" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="RepositoryWiz\CnDUnitSetFrm.pas" FORMNAME="CnDUnitSetForm" UNITNAME="Cndunitsetfrm" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
@@ -346,7 +354,7 @@
       <FILE FILENAME="ReopenWizard\CnFilesSnapshotManageFrm.pas" FORMNAME="CnProjectFilesSnapshotManageForm" UNITNAME="Cnfilessnapshotmanagefrm" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="ReopenWizard\CnRoClasses.pas" FORMNAME="" UNITNAME="CnRoClasses" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="ReopenWizard\CnRoFilesList.pas" FORMNAME="" UNITNAME="CnRoFilesList" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
-      <FILE FILENAME="ReopenWizard\CnRoFrmFileList.pas" FORMNAME="RecentFilesFrame" UNITNAME="Cnrofrmfilelist" CONTAINERID="PascalCompiler" DESIGNCLASS="TFrame" LOCALCOMMAND=""/>
+      <FILE FILENAME="ReopenWizard\CnRoFrmFileList.pas" FORMNAME="CnRecentFilesFrame" UNITNAME="Cnrofrmfilelist" CONTAINERID="PascalCompiler" DESIGNCLASS="TFrame" LOCALCOMMAND=""/>
       <FILE FILENAME="ReopenWizard\CnRoInterfaces.pas" FORMNAME="" UNITNAME="CnRoInterfaces" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="ReopenWizard\CnRoOptions.pas" FORMNAME="" UNITNAME="CnRoOptions" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="ReopenWizard\CnRoWizard.pas" FORMNAME="" UNITNAME="CnRoWizard" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
@@ -396,6 +404,7 @@
       <FILE FILENAME="CodingToolset\CnEditorFontZoom.pas" FORMNAME="" UNITNAME="CnEditorFontZoom" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="CodingToolset\CnEditorDuplicateUnit.pas" FORMNAME="" UNITNAME="CnEditorDuplicateUnit" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="CodingToolset\CnEditorExtractString.pas" FORMNAME="CnExtractStringForm" UNITNAME="CnEditorExtractString" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="CodingToolset\CnEditorExtSelect.pas" FORMNAME="" UNITNAME="CnEditorExtSelect" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="SrcEditorEnhance\CnSrcEditorKey.pas" FORMNAME="" UNITNAME="CnSrcEditorKey" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="SrcEditorEnhance\CnIdentRenameFrm.pas" FORMNAME="CnIdentRenameForm" UNITNAME="CnIdentRenameFrm" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
       <FILE FILENAME="IdeEnhancements\CnIdeEnhanceMenu.pas" FORMNAME="" UNITNAME="CnIdeEnhanceMenu" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
@@ -457,7 +466,7 @@ CompanyName=CnPack Team
 FileDescription=CnWizards For C++Builder 6
 FileVersion=1.0.0.0
 InternalName=CnWizards_CB6
-LegalCopyright=(C)Copyright 2001-2024 CnPack Team
+LegalCopyright=(C)Copyright 2001-2025 CnPack Team
 LegalTrademarks=CnPack
 OriginalFilename=CnWizards_CB6.DLL
 ProductName=CnWizards

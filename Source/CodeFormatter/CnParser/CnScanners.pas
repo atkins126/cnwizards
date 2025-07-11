@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -781,6 +781,8 @@ function TAbstractScanner.IsInOpStatement: Boolean;
 const
   OpTokens = RelOpTokens + AddOPTokens + MulOpTokens + ShiftOpTokens
     + [tokAssign];
+var
+  T: TPascalToken;
 begin
   if FPrevEffectiveToken = tokSemicolon then // 分号说明不在语句内
   begin
@@ -788,13 +790,19 @@ begin
     Exit;
   end;
 
-  Result := FPrevEffectiveToken in OpTokens + [tokLB, tokSLB, tokKeywordVar, tokComma];
+  Result := (FPrevEffectiveToken in OpTokens + [tokLB, tokSLB, tokKeywordVar, tokComma]);
   // 双目运算符后，或左括号后。或 inline var 的 var 后，或 Enum 的逗号后
 
   if not Result and not FIsForwarding then
-    Result := ForwardActualToken() in OpTokens + [tokSemicolon, tokRB, tokSRB,
+  begin
+    T := ForwardActualToken();
+    Result := T in OpTokens + [tokSemicolon, tokRB, tokSRB,
       tokKeywordDo, tokKeywordOf, tokKeywordThen];  // 或者下一个是双目运算符或分号或右括号几个其他语句结束关键字
-  // 可能还有其他判断
+    if not Result then
+      Result := (T = tokDot) and (FPrevEffectiveToken = tokRB); // 级联的调用 ().test 这种
+
+    // 可能还有其他判断
+  end;
 end;
 
 function TAbstractScanner.GetCanLineBreakFromOut: Boolean;
@@ -1035,6 +1043,10 @@ begin
             if P^ = #0 then
               Break;
 
+            // 多行字符串里别忘记了增加 SourceLine 避免对照产生偏差
+            if P^ = #10 then
+              Inc(FSourceLine);
+
             OldP := P;
             if not PrevMulti and (P^ = '''') then
             begin
@@ -1055,7 +1067,6 @@ begin
             PrevMulti := P^ = '''';
             Inc(P);
           end;
-
         end
         else
         begin
@@ -1551,10 +1562,11 @@ begin
 
         S := TokenString;
         // 再写注释本身
-        if FASMMode and (Length(S) >= 1) and (S[Length(S)] = #13) then
+        if FASMMode and (Length(S) >= 1) then
         begin
           // 注意 ASM 下这个注释可能是 #13 结尾，需要砍掉
-          Delete(S, Length(S), 1);
+          if S[Length(S)] = #13 then
+            Delete(S, Length(S), 1);
           FCodeGen.Write(S);
           FCodeGen.WriteCommentEndln;
         end
@@ -1670,10 +1682,11 @@ begin
 
         S := TokenString;
         // 再写注释本身
-        if FASMMode and (Length(S) >= 1) and (S[Length(S)] = #13) then
+        if FASMMode and (Length(S) >= 1) then
         begin
           // 注意 ASM 下这个注释可能是 #13 结尾，需要砍掉
-          Delete(S, Length(S), 1);
+          if S[Length(S)] = #13 then
+            Delete(S, Length(S), 1);
           FCodeGen.Write(S);
           FCodeGen.WriteCommentEndln;
         end

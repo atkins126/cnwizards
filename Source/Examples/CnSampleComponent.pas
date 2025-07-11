@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -145,7 +145,9 @@ type
     property Hint: AnsiString read FHint write FHint;
     property WideHint: WideString read FWideHint write FWideHint;
     property VarValue: Variant read FVarValue write FVarValue;
+{$IFNDEF FPC}
     property Point: TPoint read FPoint write FPoint;
+{$ENDIF}
     property IntfValue: IUnknown read FIntfValue write FIntfValue;
     property Int64Value: Int64 read FInt64Value write FInt64Value;
 {$IFDEF UNICODE}
@@ -168,7 +170,9 @@ type
     property ReadOnlyHint: AnsiString read FReadOnlyHint;
     property ReadOnlyWideHint: WideString read FReadOnlyWideHint;
     property ReadOnlyVarValue: Variant read FReadOnlyVarValue;
+{$IFNDEF FPC}
     property ReadOnlyPoint: TPoint read FReadOnlyPoint;
+{$ENDIF}
     property ReadOnlyIntfValue: IUnknown read FReadOnlyIntfValue;
     property ReadOnlyInt64Value: Int64 read FReadOnlyInt64Value;
     property ReadOnlyFont: TFont read FReadOnlyFont;
@@ -262,4 +266,4 @@ begin
 end;
 
 end.
- 
+

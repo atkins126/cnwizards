@@ -3,8 +3,8 @@ object CnAICoderConfigForm: TCnAICoderConfigForm
   Top = 107
   BorderStyle = bsDialog
   Caption = 'AI Coder Settings'
-  ClientHeight = 481
-  ClientWidth = 786
+  ClientHeight = 541
+  ClientWidth = 900
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -23,16 +23,30 @@ object CnAICoderConfigForm: TCnAICoderConfigForm
     Caption = 'Active AI Engine:'
   end
   object lblTimeout: TLabel
-    Left = 320
+    Left = 376
     Top = 16
     Width = 86
     Height = 13
     Caption = 'Timeout Seconds:'
   end
+  object lblHisCount: TLabel
+    Left = 672
+    Top = 16
+    Width = 130
+    Height = 13
+    Caption = 'Send History Count in Chat:'
+  end
+  object lblMaxFav: TLabel
+    Left = 672
+    Top = 40
+    Width = 95
+    Height = 13
+    Caption = 'Max Favorite Count:'
+  end
   object cbbActiveEngine: TComboBox
-    Left = 128
+    Left = 112
     Top = 14
-    Width = 161
+    Width = 185
     Height = 21
     Style = csDropDownList
     Anchors = [akLeft, akTop, akRight]
@@ -42,63 +56,61 @@ object CnAICoderConfigForm: TCnAICoderConfigForm
   end
   object pgcAI: TPageControl
     Left = 8
-    Top = 56
-    Width = 766
-    Height = 381
+    Top = 72
+    Width = 880
+    Height = 425
     Anchors = [akLeft, akTop, akRight, akBottom]
-    TabOrder = 4
+    TabOrder = 10
   end
   object btnOK: TButton
-    Left = 538
-    Top = 449
+    Left = 652
+    Top = 509
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
     Caption = '&OK'
     Default = True
     ModalResult = 1
-    TabOrder = 5
+    TabOrder = 11
   end
   object btnCancel: TButton
-    Left = 618
-    Top = 449
+    Left = 732
+    Top = 509
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
     Cancel = True
     Caption = '&Cancel'
     ModalResult = 2
-    TabOrder = 6
+    TabOrder = 12
   end
   object btnHelp: TButton
-    Left = 698
-    Top = 449
+    Left = 812
+    Top = 509
     Width = 75
     Height = 21
     Anchors = [akRight, akBottom]
     Caption = '&Help'
-    TabOrder = 7
+    TabOrder = 13
     OnClick = btnHelpClick
   end
   object chkProxy: TCheckBox
-    Left = 501
-    Top = 16
-    Width = 124
+    Left = 358
+    Top = 40
+    Width = 139
     Height = 17
-    Anchors = [akTop, akRight]
     Caption = 'Use Proxy:'
-    TabOrder = 2
+    TabOrder = 8
   end
   object edtProxy: TEdit
-    Left = 632
-    Top = 14
+    Left = 504
+    Top = 38
     Width = 142
     Height = 21
-    Anchors = [akTop, akRight]
-    TabOrder = 3
+    TabOrder = 5
   end
   object edtTimeout: TEdit
-    Left = 424
+    Left = 504
     Top = 14
     Width = 33
     Height = 21
@@ -106,7 +118,7 @@ object CnAICoderConfigForm: TCnAICoderConfigForm
     Text = '0'
   end
   object udTimeout: TUpDown
-    Left = 457
+    Left = 537
     Top = 14
     Width = 15
     Height = 21
@@ -114,7 +126,55 @@ object CnAICoderConfigForm: TCnAICoderConfigForm
     Min = 0
     Max = 60
     Position = 0
-    TabOrder = 8
+    TabOrder = 2
     Wrap = False
+  end
+  object edtHisCount: TEdit
+    Left = 840
+    Top = 14
+    Width = 33
+    Height = 21
+    TabOrder = 3
+    Text = '0'
+  end
+  object udHisCount: TUpDown
+    Left = 873
+    Top = 14
+    Width = 15
+    Height = 21
+    Associate = edtHisCount
+    Min = 0
+    Max = 60
+    Position = 0
+    TabOrder = 4
+    Wrap = False
+  end
+  object edtMaxFav: TEdit
+    Left = 840
+    Top = 38
+    Width = 33
+    Height = 21
+    TabOrder = 6
+    Text = '0'
+  end
+  object udMaxFav: TUpDown
+    Left = 873
+    Top = 38
+    Width = 15
+    Height = 21
+    Associate = edtMaxFav
+    Min = 0
+    Max = 10
+    Position = 0
+    TabOrder = 7
+    Wrap = False
+  end
+  object chkAltEnterContCode: TCheckBox
+    Left = 8
+    Top = 40
+    Width = 329
+    Height = 17
+    Caption = '(Ctrl +) Alt + Enter to Continue Coding in Editor'
+    TabOrder = 9
   end
 end

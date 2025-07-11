@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -65,10 +65,10 @@ const
   SCnWizardFullVersion = SCnWizardVersion + ' Build ' + SCnWizardBuildDate;
 
   SCnWizardCaption = 'CnPack IDE Wizards ' + SCnWizardVersion;
-  SCnWizardDesc = 'CnPack IDE Wizards for Delphi/C++Builder/BDS/Rad Studio' + #13#10 +
+  SCnWizardDesc = 'CnPack IDE Wizards for Delphi/C++Builder/BDS/RAD Studio' + #13#10 +
                   '' + #13#10 +
                   'Version: ' + SCnWizardFullVersion + #13#10 +
-                  'Copyright: 2001-2024 CnPack Team' + #13#10 +
+                  'Copyright: 2001-2025 CnPack Team' + #13#10 +
                   '' + #13#10 +
                   'This is a freeware, you can use it freely without any fee. ' +
                   'You can copy or distribute it in any form, without any fee. ' +
@@ -100,6 +100,7 @@ resourcestring
   SCnFormPositionHeight = '_Height';
 
   SCnCreateSection = 'Create';
+  SCnVersionFirstRun = 'VersionFirstRun';
   SCnBootLoadSection = 'BootLoad';
   SCnSplashBmp = 'CnWizSplash';
   SCnAboutBmp = 'CnWizAbout';
@@ -150,7 +151,11 @@ resourcestring
   SCnWizCommentIniFile = 'Comments.ini';
   SCnWizUpgradeIniFile = 'Upgrade.ini';
   SCnWizTipOfDayIniFile = 'TipOfDay.ini';
+{$IFDEF WIN64}
+  SCnWizResDllName = 'CnWizRes64.dll';
+{$ELSE}
   SCnWizResDllName = 'CnWizRes.dll';
+{$ENDIF}
 
   // RegPath
   SCnPropEditorRegPath = 'CnPropEditor';
@@ -209,8 +214,9 @@ resourcestring
   // CnSrcTemplate
   SCnSrcTemplateConfigName = 'CnSrcTemplateConfig';
   SCnSrcTemplateInsertToProcName = 'CnSrcTemplateInsertToProc';
+  SCnSrcTemplateInsertInitToUnitsName = 'CnSrcTemplateInsertInitToUnits';
   SCnSrcTemplateIconName = 'TCnSrcTemplate';
-  SCnSrcTemplateItem = 'CnEditorItem';
+  SCnSrcTemplateItem = 'CnTemplateItem';
 
   // CnTabOrderWizard
   SCnTabOrderSetCurrControl = 'CnTabOrderSetCurrControl';
@@ -252,6 +258,7 @@ resourcestring
   SCnProjExtPasImpl = 'implementation';
   SCnProjExtCppHead = 'h';
   SCnProjExtCppSource = 'cpp';
+  SCnProjExtNotSaved = 'Not Saved'; // 暂时不翻译
 
   // CnFilesSnapshotWizard
   SCnFilesSnapshotAdd = 'CnFilesSnapshotAdd';
@@ -325,6 +332,7 @@ resourcestring
   SCnMenuCopy30LinesName = 'CnCopy30Lines';
   SCnMenuCopyLinesName = 'CnCopyLines';
   SCnDumpViewCopyName = 'CnDumpViewCopy';
+  SCnDumpViewCopyLinesName = 'CnDumpViewCopyLines';
   SCnDumpViewCopyCaption = '&Copy';   // DO NOT Localize and Translate
 
   // CnWizMultiLang
@@ -340,6 +348,9 @@ resourcestring
 
   // CnRepositoryMenu
   SCnRepositoryMenuCommand = 'CnRepositoryMenu';
+
+  // CnObjInspectorEnhanceWizard
+  SCnObjInspectorCommentWindowMenuName = 'CnObjInspectorCommentWindow';
 
   // CnMsdnWizard
   SCnMsdnWizRunConfig = 'CnMsdnWizRunConfig';
@@ -359,6 +370,7 @@ resourcestring
   SCnUsesToolsCleaner = 'CnUsesToolsCleaner';
   SCnUsesToolsInitTree = 'CnUsesToolsInitTree';
   SCnUsesToolsFromIdent = 'CnUsesToolsFromIdent';
+  SCnUsesToolsProjImplUse = 'CnUsesToolsProjImplUse';
 
   // CnIdeEnhanceMenu
   SCnIdeEnhanceMenuCommand = 'CnIdeEnhanceMenu';
@@ -386,9 +398,12 @@ resourcestring
   // AICoderWizard
   SCnAICoderWizardExplainCode = 'CnAICoderWizardExplainCode';
   SCnAICoderWizardReviewCode = 'CnAICoderWizardReviewCode';
+  SCnAICoderWizardGenTestCase = 'CnAICoderWizardGenTestCase';
+  SCnAICoderWizardContinueCoding = 'CnAICoderWizardContinueCoding';
   SCnAICoderWizardChatWindow = 'CnAICoderWizardChatWindow';
   SCnAICoderWizardConfig = 'CnAICoderWizardConfig';
   SCnAICoderEngineOptionFileFmt = 'AICoderConfig%s.json';
+  SCnAICoderFavoritesFile = 'AICoderFavorites.txt';
 
 //==============================================================================
 // Event Names used around CnEventBus
@@ -790,8 +805,8 @@ var
   SCnEditorJumpImplName: string = 'Jump to Implementation Tool';
 
   // CnEditorJumpMatchedKeyword
-  SCnEditorJumpMatchedKeywordMenuCaption: string = 'Jump to Matched &Keyword';
-  SCnEditorJumpMatchedKeywordMenuHint: string = 'Jump to Matched Keyword under Cursor';
+  SCnEditorJumpMatchedKeywordMenuCaption: string = 'Jump to Matched &Keyword or Bracket';
+  SCnEditorJumpMatchedKeywordMenuHint: string = 'Jump to Matched Keyword or Bracket under Cursor';
   SCnEditorJumpMatchedKeywordName: string = 'Jump to Matched Keyword Tool';
 
   // CnEditorJumpPrevIdent
@@ -840,9 +855,14 @@ var
   SCnSrcTemplateInsertToProcHint: string = 'Insert Code to All Procedures/Functions in Current Unit';
   SCnSrcTemplateInsertToProcPrompt: string = 'Insert Below Code to All Procedures/Functions in Current Unit:';
   SCnSrcTemplateInsertToProcCountFmt: string = '%d Inserted.';
+  SCnSrcTemplateInsertInitToUnitsCaption: string = 'Insert Code to Project &Units Initialization...';
+  SCnSrcTemplateInsertInitToUnitsHint: string = 'Insert Code to Initialization of All Units in Current Project';
+  SCnSrcTemplateInsertInitToUnitsPrompt: string = 'Insert Below Code to Initialization of All Units in Current Project:';
+  SCnSrcTemplateInsertInitToUnitsCountFmt: string = '%d Inserted.';
   SCnSrcTemplateCaptionIsEmpty: string = 'Template''s Menu Caption can''t be Empty!';
   SCnSrcTemplateContentIsEmpty: string = 'Template''s Content can''t be Empty!';
   SCnSrcTemplateSourceTypeNotSupport: string = 'Current Source Type NOT Supported!';
+  SCnSrcTemplateErrorProjectSource: string = 'NO Project or Source Files!';
   SCnSrcTemplateReadDataError: string = 'Error Reading Data Files.';
   SCnSrcTemplateWriteDataError: string = 'Error Saving Data Files.';
   SCnSrcTemplateImportAppend: string = 'Append the Data to Templates?';
@@ -1143,11 +1163,13 @@ var
   SCnSrcBlockSearch: string = '&Web Search';
   SCnWebSearchFileDef: string = 'WebSearch_ENU.xml';
   SCnSrcBlockMisc: string = '&Others';
-  SCnSrcblockAddToCollector: string = 'Add to Co&llector...';
+  SCnSrcBlockAddToCollector: string = 'Add to Co&llector...';
+  SCnSrcBlockCompareToClipboard: string = 'Compare to Cl&ipboard...';
   SCnSrcBlockMoveUp: string = 'Move &Up';
   SCnSrcBlockMoveDown: string = 'Move &Down';
   SCnSrcBlockDeleteLines: string = 'Delete &Lines';
   SCnSrcBlockDisableStructualHighlight: string = 'Disable IDE &Structual Highlight';
+  SCnSrcBlockErrorNoContent: string = 'No Content to Compare';
 
   // CnSrcEditorKey
   SCnRenameVarCaption: string = 'Rename Identifier';
@@ -1491,6 +1513,7 @@ var
   SCnMenuCopyLinesToClipboard: string = 'Copy %d Lines';
   SCnMenuCopyLinesToFile: string = 'Copy %d Lines to File...';
   SCnMenuCopyLinesCaption: string = 'Copy ASM Code...';
+  SCnMenuCopyDataLinesCaption: string = 'Copy %d Lines';
 
   // CnResourceMgrWizard
   SCnResMgrWizardMenuCaption: string = 'Resource Manager';
@@ -1526,6 +1549,7 @@ var
   // CnObjInspectorEnhanceWizard
   SCnObjInspectorEnhanceWizardName: string = 'Object Inspector Enhancements';
   SCnObjInspectorEnhanceWizardComment: string = 'Object Inspector Enhancements';
+  SCnObjInspectorCommentWindowMenuCaption: string = 'Comment &Window';
 
   // CnWizBoot
   SCnWizBootCurrentCount: string = 'Current Wizards: %d';
@@ -1685,10 +1709,18 @@ var
   SCnUsesInitTreeNotFound: string = 'Search Text NOT Found.';
 
   // CnUsesFromIdent
-  SCnUsesUnitFromIdentMenuCaption: string = 'Use Unit from Identifier...';
+  SCnUsesUnitFromIdentMenuCaption: string = 'Use Unit from I&dentifier...';
   SCnUsesUnitFromIdentMenuHint: string = 'Search and Use Unit from Identifier under Cursor';
   SCnUsesUnitAnalyzeWaiting: string = 'Analyzing Library Files...';
-  SCNUsesUnitFromIdentErrorFmt: string = 'Can NOT Find %s in Searching Units';
+  SCnUsesUnitFromIdentErrorFmt: string = 'Can NOT Find %s in Searching Units';
+
+  // CnProjImplUse
+  SCnUsesToolsProjImplUseMenuCaption: string = '&Batch Uses in Project...';
+  SCnUsesToolsProjImplUseMenuHint: string = 'Uses One Unit in Implementation in Project Files';
+  SCnUsesToolsProjImplPrompt: string = 'Enter Unit Name to be Used in All Project Units:';
+  SCnUsesToolsProjImplCountFmt: string = '%d Inserted.';
+  SCnUsesToolsProjImplErrorUnit: string = 'Invalid Unit Name!';
+  SCnUsesToolsProjImplErrorSource: string = 'NO Project or Source Files!';
 
   // CnIdeEnhanceMenu
   SCnIdeEnhanceMenuCaption: string = '&IDE Enhancements Settings';
@@ -1796,14 +1828,31 @@ var
   SCnAICoderWizardExplainCodeHint: string = 'Explain Selected Code';
   SCnAICoderWizardReviewCodeCaption: string = '&Review Code...';
   SCnAICoderWizardReviewCodeHint: string = 'Review Selected Code';
+  SCnAICoderWizardGenTestCaseCaption: string = 'Generate &Test Case...';
+  SCnAICoderWizardGenTestCaseHint: string = 'Generate a Test Case for Selected Code';
+  SCnAICoderWizardContinueCodingCaption: string = 'Continue Co&ding...';
+  SCnAICoderWizardContinueCodingHint: string = 'Continue Coding for Current Code Position';
   SCnAICoderWizardChatWindowCaption: string = 'AI &Chat Window';
   SCnAICoderWizardChatWindowHint: string = 'Show or Hide AI Chat Window';
   SCnAICoderWizardConfigCaption: string = '&Options...';
   SCnAICoderWizardConfigHint: string = 'Options of AI Coder';
   SCnAICoderWizardSystemMessageFmt: string = 'You are an Expert of Delphi/C++Builder/RAD Studio. Now we use %s.';
+  SCnAICoderWizardUserMessageReferSelection: string = 'Below is the Related Code:';
   SCnAICoderWizardUserMessageExplainFmt: string = 'Please Explain the Code using %s: ';
   SCnAICoderWizardUserMessageReviewFmt: string = 'Please Conduct a Code Review for this Segment of Code. ' +
     'There is No Need to Explain its Functionality; instead, Please Analyze and Point out Issues using %s from Aspects such as Structure, Spelling, Performance and Safety etc. If the Code is too Short or has No Obvious Issues, Answer No Problem.';
+  SCnAICoderWizardUserMessageGenTestCaseFmt: string = 'Please Analyze the Functionality of the Following Code and Generate a non-UI Interactive Test Case for this Code using %s. ' +
+    'The Test Case should be Provided as a Single Function, Covering some Typical Scenarios and Boundary Conditions. ' +
+    'Using Assert is Encouraged for Flexibility. If the Code is not a Complete Function, please Answer that it cannot be Generated.';
+  SCnAICoderWizardUserMessageContinueCodingFmt: string = 'Please continue writing the code based on the following content. ' +
+    'The content may be a code snippet, or a mixture of code and comments. The position where code needs to be inserted is marked ' +
+    'by the text ''%s'' along with blank lines before and after it. If there are comments above the marker, please continue writing the ' +
+    'code according to the comment requirements. If there are code snippets above the marker, please analyze the functionality of the ' +
+    'snippet and continue writing accordingly. Note that the content you output should be in pure code format, ' +
+    'which can be legally inserted at the marker to replace it. Do not repeat any content already provided to you, ' +
+    'especially avoid including Markdown formatting markers or unnecessary begin and end tags. ' +
+    'If there are comment instructions, they should be embedded in the outputted code using a valid comment format.';
+  SCnAICoderWizardFlagContinueCoding: string = '<Please Write Code Here.>';
   SCnAICoderWizardErrorNoEngine: string = 'No Active AI Engine or Option Exists.';
   SCnAICoderWizardErrorURLFmt: string = 'URL Error or Empty for AI Engine %s.';
   SCnAICoderWizardErrorAPIKeyFmt: string = 'API Key Error or Empty for AI Engine %s.';

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -43,7 +43,7 @@ uses
   Windows, Messages, Classes, Graphics, SysUtils, Controls, Menus, Forms, CnIni,
   ComCtrls, ToolWin, ToolsAPI, IniFiles, CnEditControlWrapper, CnWizNotifier,
   CnWizManager, CnWizMenuAction, CnWizClasses, CnWizIni, CnWizIdeUtils, CnPopupMenu,
-  CnConsts;
+  CnConsts, CnNative;
 
 type
 
@@ -68,13 +68,15 @@ type
 
   TCnSrcEditorToolButton = class(TToolButton)
   private
-    FMenu: TPopupMenu;
+    FIDEMenu: TPopupMenu;
     FLastTick: Cardinal;
     procedure OnPopup(Sender: TObject);
     procedure DoClick(Sender: TObject);
   public
     procedure InitiateAction; override;
     procedure Click; override;
+
+    property IDEMenu: TPopupMenu read FIDEMenu write FIDEMenu;
   end;
 
 { TCnSrcEditorToolBar }
@@ -401,13 +403,13 @@ begin
   if (Sender <> nil) and (Sender is Menus.TPopupMenu) then
   begin
     Menu := Menus.TPopupMenu((Sender as TComponent).Tag);
-    if Menu <> nil then
+    if (Menu <> nil) and (FIDEMenu <> nil) then
     begin
-      FMenu.Items.Clear;
+      FIDEMenu.Items.Clear;
       if Assigned(Menu.OnPopup) then
         Menu.OnPopup(Menu); // 触发一下原始的 Menu 的弹出
       // 从 Menu 中复制所有 Items 过来
-      CloneMenuItem(Menu.Items, FMenu.Items);
+      CloneMenuItem(Menu.Items, FIDEMenu.Items);
     end;
   end;  
 end;
@@ -565,12 +567,12 @@ begin
           if (MenuObj <> nil) and (MenuObj is Menus.TPopupMenu) then
           begin
             Btn.Style := tbsDropDown;
-            if Btn.FMenu <> nil then
-              FreeAndNil(Btn.FMenu);
-            Btn.FMenu := TPopupMenu.Create(Btn);
-            Btn.FMenu.Tag := Integer(MenuObj);
-            Btn.FMenu.OnPopup := Btn.OnPopup;
-            Btn.DropdownMenu := Btn.FMenu;
+            if Btn.IDEMenu <> nil then
+              FreeAndNil(Btn.FIDEMenu);
+            Btn.IDEMenu := TPopupMenu.Create(Btn);
+            Btn.IDEMenu.Tag := TCnNativeInt(MenuObj);
+            Btn.IDEMenu.OnPopup := Btn.OnPopup;
+            Btn.DropdownMenu := Btn.IDEMenu;
           end;
         end;
         Btn.SetToolBar(Self);
@@ -1051,7 +1053,7 @@ begin
     begin
       ToolBar := TCnExternalSrcEditorToolBar.Create(EditWindow);
       ToolBar.Name := FToolBarTypes[I];
-      ToolBar.Tag := Integer(EditControl); // 用 Tag 记录和其对应的 EditoControl
+      ToolBar.Tag := TCnNativeInt(EditControl); // 用 Tag 记录和其对应的 EditoControl
 
       ToolBar.Parent := EditControl.Parent;
       (ToolBar as TCnExternalSrcEditorToolBar).InitControls;
@@ -1091,8 +1093,7 @@ begin
   else if Operation = opRemove then
   begin
 {$IFDEF DEBUG}
-    CnDebugger.LogFmt('TCnEditorToolBarObj EditControl Removed: %8.8x.',
-      [Integer(EditControl)]);
+    CnDebugger.LogMsg('TCnEditorToolBarObj EditControl Removed.');
 {$ENDIF}
     for I := FToolBarTypes.Count - 1 downto 0 do
     begin
@@ -1283,8 +1284,7 @@ begin
         FToolBars.Delete(I);
         FEditControls.Delete(I);
 {$IFDEF DEBUG}
-        CnDebugger.LogFmt('TCnEditorToolBarObj Notification: ToolBar %d %8.8x Removed.',
-          [I, Integer(AComponent)]);
+        CnDebugger.LogFmt('TCnEditorToolBarObj Notification: ToolBar %d Removed.', [I]);
 {$ENDIF}
       end;
 end;

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -199,8 +199,7 @@ end;
 destructor TCnEditorCollector.Destroy;
 begin
   IdeDockManager.UnRegisterDockableForm(CnEditorCollectorForm, csCnCollectorForm);
-  if CnEditorCollectorForm <> nil then
-    FreeAndNil(CnEditorCollectorForm);
+  FreeAndNil(CnEditorCollectorForm);
 
   Collector := nil;
   inherited;
@@ -215,10 +214,13 @@ begin
 end;
 
 procedure TCnEditorCollector.SetActive(Value: Boolean);
+var
+  Old: Boolean;
 begin
-  if Value <> Active then
+  Old := Active;
+  inherited;
+  if Value <> Old then
   begin
-    inherited;
     if Value then
     begin
       IdeDockManager.RegisterDockableForm(TCnEditorCollectorForm, CnEditorCollectorForm,
@@ -227,11 +229,7 @@ begin
     else
     begin
       IdeDockManager.UnRegisterDockableForm(CnEditorCollectorForm, csCnCollectorForm);
-      if CnEditorCollectorForm <> nil then
-      begin
-        CnEditorCollectorForm.Free;
-        CnEditorCollectorForm := nil;
-      end;
+      FreeAndNil(CnEditorCollectorForm);
     end;
   end;
 end;

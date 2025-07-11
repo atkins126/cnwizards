@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -53,7 +53,8 @@ type
   TCnScanProcDeclEvent = procedure (ProcLeaf: TCnPasAstLeaf; Visibility: TCnDocScope;
     const CurrentTypeName: string) of object;
   {* 扫描 Pascal 源文件时遇到函数过程声明时的回调，其中 ProcLeaf 下的结构类似如下：
-    function
+
+    function ——这个是 ProcLeaf
       <FunctionName>
       FormalParameters
         (
@@ -76,6 +77,8 @@ type
       COMMONTYPE
         TypeID
           Boolean
+
+    和 function 节点同级往下找，越过 directive 等，找到的一批连续的注释节点就是所需注释块
   }
 
   TCnDocBaseItem = class(TObject)
@@ -142,6 +145,7 @@ type
     {* 按常量、类型声明、函数过程、变量排序}
   public
     constructor Create; override;
+    {* 构造函数}
 
     procedure ParseBrief;
     {* 从注释中解析出单元简介，以及用备注字段内容替换 Comment 属性内容}
@@ -203,13 +207,20 @@ procedure CnScanFileProcDecls(const FileName: string; OnScan: TCnScanProcDeclEve
             CLASSBODY
               CLASSHERITAGE
               public
-                procedure/function/constructor/destructor
+                procedure/function/constructor/destructor -- 返回这个
 
 二：
   interface
-    function
-    procedure
+    function                                              -- 返回这个
+    procedure                                             -- 返回这个
 }
+
+function CnGetCommentLeafFromProcedure(ProcLeaf: TCnPasAstLeaf;
+  Last: Boolean = True): TCnPasAstLeaf;
+{* 按文档规范，获取 function/procedure 关键字节点相关的最后一块注释的节点
+  内部实现是找其同级，越过分号、directives、编译指令，到达第一个注释块或最后一个注释块
+  外部可用最后一个注释块是否是单独的右大括号来判断该注释块是否符合规范
+  如果该函数过程无注释，还不确定如何处理。}
 
 implementation
 
@@ -234,8 +245,8 @@ resourcestring
   SCnBrBr = '<br><br>';
 
 const
-  COMMENT_NODE_TYPE = [cntBlockComment];
-  COMMENT_SKIP_NODE_TYPE = [cntBlockComment, cntLineComment];
+  COMMENT_NODE_TYPE = [cntBlockComment, cntCRLFInComment];
+  COMMENT_SKIP_NODE_TYPE = [cntBlockComment, cntLineComment, cntCRLFInComment];
   COMMENT_NONE = '<none>';
 
   SCOPE_STRS: array[TCnDocScope] of string =
@@ -301,8 +312,8 @@ begin
   Inc(Index);
   while Index < ParentLeaf.Count do
   begin
-    if not (ParentLeaf[Index].NodeType in [cntSemiColon, cntDirective, cntDefault]) then
-      Break;    // 可能还有其他不包括在 cntDirective 中的关键字
+    if not (ParentLeaf[Index].NodeType in [cntCompDirective, cntSemiColon, cntDirective, cntDefault]) then
+      Break;    // 可能还有其他不包括在 cntDirective 中的关键字或 IFDEF 等编译指令
 
     Inc(Index);
   end;
@@ -315,6 +326,7 @@ function DocCollectComments(ParentLeaf: TCnPasAstLeaf; var Index: Integer): stri
 var
   S: string;
   SL: TStrings;
+  PrevType: TCnPasNodeType;
 begin
   if (Index < ParentLeaf.Count) and (ParentLeaf[Index].NodeType in COMMENT_NODE_TYPE) then
   begin
@@ -324,8 +336,14 @@ begin
       // 表示有符合要求的注释，批量添加到一起
       SL := TStringList.Create;
       try
+        PrevType := cntInvalid;
         repeat
-          SL.Add(ParentLeaf[Index].Text);
+          if (PrevType = cntCRLFInComment) and (ParentLeaf[Index].NodeType = cntCRLFInComment) then // 本身是块注释后的换行，且上一个也是，就添加一个空行
+            SL.Add('')
+          else if ParentLeaf[Index].NodeType <> cntCRLFInComment then // 单独的 cntCRLFInComment 不增加空行也不增加回车换行本身
+            SL.Add(ParentLeaf[Index].Text);
+
+          PrevType := ParentLeaf[Index].NodeType;
           Inc(Index);
         until (Index >= ParentLeaf.Count) or not (ParentLeaf[Index].NodeType in COMMENT_NODE_TYPE);
         Dec(Index); // 回到最后一个注释处
@@ -417,7 +435,7 @@ begin
 end;
 
 // 与同级节点三个一组：procedure/function（子节点是名称）、分号、单个注释块
-// 注意这里 ParentLeaf 是 procedure/function 节点，Index 是该节点在父节点中的索引
+// 注意这里 ParentLeaf 是 procedure/function 节点，Index 是该节点在父节点中的索引供步进
 procedure DocFindProcedure(ParentLeaf: TCnPasAstLeaf; var Index: Integer;
   OwnerItem: TCnDocBaseItem; AScope: TCnDocScope = dsNone);
 var
@@ -672,7 +690,7 @@ begin
 
         I := 0; // 寻找右括号
         TmpLeaf := DocSkipToChild(Leaf, I, [cntRoundClose], [tkRoundClose]);
-        if TmpLeaf <> nil then // 
+        if TmpLeaf <> nil then //
         begin
           Inc(I);
           Comment := DocCollectComments(Leaf, I);
@@ -1004,11 +1022,17 @@ begin
                   if (TypeLeaf[I1][I2].NodeType = cntRestrictedType) and (TypeLeaf[I1][I2].Count >= 1)
                     and (TypeLeaf[I1][I2][0].NodeType = cntClassType) then
                   begin
-                    ClassLeaf := TypeLeaf[I1][I2][0];
-                    if (ClassLeaf.Count > 0) and (ClassLeaf[0].NodeType = cntClassBody) then
+                    ClassLeaf := TypeLeaf[I1][I2][0]; // 此时 ClassLeaf 是 class，在其子节点中跳过可能的多行注释找 ClassBody
+
+                    I3 := 0;
+                    while (I3 < ClassLeaf.Count) and (ClassLeaf[I3].NodeType <> cntClassBody) do
+                      Inc(I3);
+
+                    if I3 < ClassLeaf.Count then // 说明找到 ClassBody 了
                     begin
-                      ClassLeaf := ClassLeaf[0];
-                      for I3 := 0 to ClassLeaf.Count - 1 do
+                      ClassLeaf := ClassLeaf[I3];
+
+                      for I3 := 0 to ClassLeaf.Count - 1 do // 找 ClassBody 的子节点
                       begin
                         if (ClassLeaf[I3].NodeType = cntVisibility) {and (ClassLeaf[I3].TokenKind = tkPublic)} then
                         begin
@@ -1037,6 +1061,52 @@ begin
     Pars.Free;
     AST.Free;
     SL.Free;
+  end;
+end;
+
+function CnGetCommentLeafFromProcedure(ProcLeaf: TCnPasAstLeaf;
+  Last: Boolean): TCnPasAstLeaf;
+var
+  Prev, Leaf: TCnPasAstLeaf;
+  Comm: Boolean;
+begin
+  Result := nil;
+  Leaf := ProcLeaf;
+  Comm := False;
+
+  while True do
+  begin
+    Prev := Leaf;
+    Leaf := TCnPasAstLeaf(Leaf.GetNextSibling);
+
+    if Leaf = nil then
+    begin
+      if Last and Comm then // 如果上一个是注释，那么这里结束，所以就上一个了
+      begin
+        Result := Prev;
+        Exit;
+      end;
+      Break;
+    end;
+
+    if Leaf.NodeType in COMMENT_NODE_TYPE then
+    begin
+      if not Last then // 第一回碰到时就会跳出
+      begin
+        Result := Leaf;
+        Exit;
+      end;
+      Comm := True;
+    end
+    else // 当前非注释时
+    begin
+      if Last and Comm then // 如果上一个是注释，那么就上一个了
+      begin
+        Result := Prev;
+        Exit;
+      end;
+      Comm := False;
+    end;
   end;
 end;
 

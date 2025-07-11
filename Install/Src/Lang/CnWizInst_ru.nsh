@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                   A Free, Open Source Project from China
-;                     (C)Copyright 2001-2024 CnPack Team
+;                     (C)Copyright 2001-2025 CnPack Team
 ;******************************************************************************
 
 ; Russian Language File for CnWizards Install Script
@@ -34,6 +34,7 @@ LangString SASCIICHART    1049 "ASCII-таблица"
 LangString SUNINSTALL     1049 "Удалить"
 LangString SDFMCONVERTOR  1049 "DFM-конвертер"
 LangString SDEBUGVIEWER   1049 "Отладчик CnPack"
+LangString SDEBUGVIEWER64 1049 "Отладчик CnPack 64"
 LangString SIDEBRTOOL     1049 "Сохр. и восст. настроек IDE"
 LangString SMANAGEWIZ     1049 "Внешнее управление мастерами IDE"
 LangString SRELATIONANALYZER 1049 "Тестер зависимостей"

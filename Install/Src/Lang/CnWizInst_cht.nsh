@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                      中國人自己的開放源碼第三方開發包
-;                    (C)Copyright 2001-2024 CnPack 開發組
+;                    (C)Copyright 2001-2025 CnPack 開發組
 ;******************************************************************************
 
 ; CnWizards 安裝腳本繁體中文語言檔
@@ -34,6 +34,7 @@ LangString SASCIICHART    1028 "ASCII 字元表"
 LangString SUNINSTALL     1028 "卸載"
 LangString SDFMCONVERTOR  1028 "DFM 表單轉換工具"
 LangString SDEBUGVIEWER   1028 "調試信息查看器"
+LangString SDEBUGVIEWER64 1028 "調試信息查看器（64位）"
 LangString SIDEBRTOOL     1028 "IDE 設置備份恢復工具"
 LangString SMANAGEWIZ     1028 "IDE 專家管理工具"
 LangString SRELATIONANALYZER 1028 "源碼模組關係分析"

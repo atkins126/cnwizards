@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -389,6 +389,10 @@ begin
   FHexEditor := TCnHexEditor.Create(Self);
   FHexEditor.Align := alClient;
   FHexEditor.Parent := tsHex;
+{$IFDEF IDE_SUPPORT_HDPI}
+  // IDE 里 Frame 里动态创建时，似乎字号有个动态放大的过程，这里要先缩小
+  FHexEditor.Font.Size := IdeGetOriginPixelsFromScaled(12);
+{$ENDIF}
 end;
 
 destructor TCnWideViewerFrame.Destroy;

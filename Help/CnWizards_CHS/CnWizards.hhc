@@ -27,7 +27,7 @@
 		</OBJECT>
 	<UL>
 		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="CnPack IDE 专家包许可协议">
+			<param name="Name" value="CnPack 发布协议">
 			<param name="Local" value="licenses/license.htm">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
@@ -37,6 +37,10 @@
 			<LI> <OBJECT type="text/sitemap">
 				<param name="Name" value="GExperts 使用许可协议">
 				<param name="Local" value="licenses\gelicense.htm">
+				</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RemObjects Pascal Script 使用许可协议">
+				<param name="Local" value="licenses\ro_ps_lic.txt">
 				</OBJECT>
 			<LI> <OBJECT type="text/sitemap">
 				<param name="Name" value="Mozilla Public License 1.1">
@@ -324,6 +328,10 @@
 			<LI> <OBJECT type="text/sitemap">
 				<param name="Name" value="抽取字符串工具">
 				<param name="Local" value="wizards\toolset\extractstring.htm">
+				</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="扩展式选择工具">
+				<param name="Local" value="wizards\toolset\toolsetextselect.htm">
 				</OBJECT>
 		</UL>
 		<LI> <OBJECT type="text/sitemap">

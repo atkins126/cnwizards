@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -80,11 +80,23 @@ interface
 {$I CnWizards.inc}
 
 uses
-  Windows, Classes, Sysutils, Graphics, Menus, ActnList, IniFiles, ToolsAPI,
-  Registry, ComCtrls, Forms, CnHashMap, CnWizIni,
-  CnWizShortCut, CnWizMenuAction, CnIni, CnWizConsts, CnPopupMenu;
+  Windows, Classes, Sysutils, Graphics, Menus, ActnList, IniFiles, Dialogs,
+  {$IFDEF STAND_ALONE} {$IFDEF LAZARUS} LCLProc, {$ENDIF} {$ELSE}
+  {$IFDEF LAZARUS} LCLProc, IDECommands, {$ELSE} ToolsAPI, CnWizIni, {$ENDIF}
+  {$ENDIF}
+  Registry, ComCtrls, Forms, CnHashMap, CnWizShortCut, CnWizMenuAction,
+  {$IFNDEF LAZARUS} CnPopupMenu, {$ENDIF} CnIni, CnWizConsts;
 
 type
+  ECnWizardException = class(Exception);
+
+{$IFDEF NO_DELPHI_OTA}
+  TWizardState = set of (wsEnabled, wsChecked);
+
+  TOTAFileNotification = (ofnFileOpening, ofnFileOpened, ofnFileClosing,
+    ofnDefaultDesktopLoad, ofnDefaultDesktopSave, ofnProjectDesktopLoad,
+    ofnProjectDesktopSave, ofnPackageInstalled, ofnPackageUninstalled);
+{$ENDIF}
 
 //==============================================================================
 // 专家包专家抽象基类
@@ -94,7 +106,7 @@ type
 
 {$M+}
 
-  TCnBaseWizard = class(TNotifierObject, IOTAWizard)
+  TCnBaseWizard = class{$IFNDEF NO_DELPHI_OTA}(TNotifierObject, IOTAWizard){$ENDIF}
   {* CnWizard 专家抽象基类，定义了专家最基本的公共内容 }
   private
     FActive: Boolean;
@@ -143,8 +155,15 @@ type
     procedure LaterLoaded; virtual;
     {* IDE 启动完成更迟一些后调用该方法，用于高版本 IDE 中处理 IDE 菜单项加载太迟的场合}
 
+    procedure VersionFirstRun; virtual;
+    {* 本版本号的专家第一次创建时被调用，调用时机是在构造函数之后被专家管理器调用，供处理升级。
+      子类可以使用 CnWizardMgr.ProductVersion 拿到当前数字版本号，使用
+      WizOptions.ReadInteger(SCnVersionFirstRun, Self.ClassName, 0) 拿到上一次跑的版本号
+      以进行对比并根据所需内容升级，如更新新版设置等。
+      注意该调用不区分 Delphi 版本，只区分专家包版本。也就是说不同版本的 Delphi 也只最先运行的那个调用一次}
+
     class function IsInternalWizard: Boolean; virtual;
-    {* 该专家是否属于内部专家，不显示、不可配置 }
+    {* 该专家是否属于内部专家，如果是内部则不在列表中显示且不可配置 }
 
     class procedure GetWizardInfo(var Name, Author, Email, Comment: string);
       virtual; {$IFNDEF BCB}abstract;{$ENDIF BCB}
@@ -298,6 +317,7 @@ type
     property Action: TCnWizMenuAction read GetAction;
     {* 专家 Action 属性 }
     property MenuOrder: Integer read FMenuOrder write SetMenuOrder;
+    {* 专家的菜单排序序号 }
   end;
 
 //==============================================================================
@@ -391,7 +411,7 @@ type
 
 { TCnRepositoryWizard }
 
-  TCnRepositoryWizard = class(TCnIconWizard, IOTARepositoryWizard)
+  TCnRepositoryWizard = class(TCnIconWizard {$IFNDEF NO_DELPHI_OTA}, IOTARepositoryWizard {$ENDIF})
   {* CnWizard 模板向导抽象基类 }
   protected
     FIconHandle: HICON;
@@ -405,11 +425,15 @@ type
 
     // IOTARepositoryWizard methods
     function GetPage: string;
-    {$IFDEF COMPILER6_UP}
+{$IFDEF COMPILER6_UP}
+  {$IFDEF WIN64}
+    function GetGlyph: THandle;
+  {$ELSE}
     function GetGlyph: Cardinal;
-    {$ELSE}
+  {$ENDIF}
+{$ELSE}
     function GetGlyph: HICON;
-    {$ENDIF}
+{$ENDIF}
   end;
 
 //==============================================================================
@@ -418,7 +442,8 @@ type
 
 { TCnUnitWizard }
 
-  TCnUnitWizard = class(TCnRepositoryWizard, {$IFDEF DELPHI10_UP}IOTAProjectWizard{$ELSE}IOTAFormWizard{$ENDIF});
+  TCnUnitWizard = class(TCnRepositoryWizard {$IFNDEF NO_DELPHI_OTA},
+    {$IFDEF DELPHI10_UP}IOTAProjectWizard{$ELSE}IOTAFormWizard{$ENDIF} {$ENDIF});
   {* 必须实现 IOTAFormWizard 才能在 New 对话框中出现, BDS2006 则要求 IOTAProjectWizard}
 
 //==============================================================================
@@ -427,7 +452,7 @@ type
 
 { TCnFormWizard }
 
-  TCnFormWizard = class(TCnRepositoryWizard, IOTAFormWizard);
+  TCnFormWizard = class(TCnRepositoryWizard {$IFNDEF NO_DELPHI_OTA}, IOTAFormWizard {$ENDIF});
 
 //==============================================================================
 // 工程模板向导基类
@@ -435,7 +460,7 @@ type
 
 { TCnProjectWizard }
 
-  TCnProjectWizard = class(TCnRepositoryWizard, IOTAProjectWizard);
+  TCnProjectWizard = class(TCnRepositoryWizard {$IFNDEF NO_DELPHI_OTA}, IOTAProjectWizard {$ENDIF});
 
 //==============================================================================
 // 设计器或编辑器右键菜单执行条目的基类，子类可重载相应方法实现功能
@@ -542,11 +567,11 @@ procedure AdjustCnWizardsClassOrder;
 implementation
 
 uses
-  CnWizUtils, CnWizOptions, CnCommon
-{$IFNDEF CNWIZARDS_MINIMUM}
+  {$IFNDEF NO_DELPHI_OTA} CnWizUtils, {$ENDIF} CnWizOptions, CnCommon, CnRegIni
+{$IFNDEF CNWIZARDS_MINIMUM} {$IFNDEF NO_DELPHI_OTA}
   , CnWizCommentFrm, CnWizSubActionShortCutFrm
-{$ENDIF}
-  {$IFDEF DEBUG}, CnDebug{$ENDIF};
+{$ENDIF}{$ENDIF}
+  {$IFDEF DEBUG}, CnDebug {$ENDIF};
 
 //==============================================================================
 // 专家类列表相关过程
@@ -664,7 +689,7 @@ begin
   for I := 0 to CnWizardClassList.Count - 1 do
   begin
     W := TCnWizardClass(CnWizardClassList[I]);
-    if W.ClassNameIs('TCnAlignSizeWizard') then
+    if W.ClassNameIs('TCnDesignWizard') then
     begin
       CnWizardClassList.Delete(I);
       CnWizardClassList.Insert(0, W);
@@ -790,7 +815,12 @@ begin
     Path := MakePath(MakePath(WizOptions.RegPath) + GetIDStr) + WizOptions.CompilerID
   else
     Path := MakePath(WizOptions.RegPath) + GetIDStr;
+
+{$IFDEF NO_DELPHI_OTA}
+  Result := TCnIniFile.Create(Path);
+{$ELSE}
   Result := TCnWizIniFile.Create(Path, KEY_ALL_ACCESS, FDefaultsMap);
+{$ENDIF}
 end;
 
 procedure TCnBaseWizard.DoLoadSettings;
@@ -799,10 +829,23 @@ var
 begin
   Ini := CreateIniFile;
   try
-  {$IFDEF DEBUG}
-    CnDebugger.LogMsg('Loading settings: ' + ClassName);
-  {$ENDIF}
-    LoadSettings(Ini);
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('Loading Settings: ' + ClassName);
+{$ENDIF}
+    try
+      LoadSettings(Ini);
+    except
+      on E: Exception do
+      begin
+{$IFDEF NO_DELPHI_OTA}
+        ShowMessage(Format('WizClasses %s LoadSettings Error. %s - %s',
+          [ClassName, E.ClassName, E.Message]));
+{$ELSE}
+        DoHandleException(Format('WizClasses %s LoadSettings Error. %s - %s',
+          [ClassName, E.ClassName, E.Message]));
+{$ENDIF}
+      end;
+    end;
   finally
     Ini.Free;
   end;
@@ -814,10 +857,23 @@ var
 begin
   Ini := CreateIniFile;
   try
-  {$IFDEF DEBUG}
-    CnDebugger.LogMsg('Saving settings: ' + ClassName);
-  {$ENDIF}
-    SaveSettings(Ini);
+{$IFDEF DEBUG}
+    CnDebugger.LogMsg('Saving Settings: ' + ClassName);
+{$ENDIF}
+    try
+      SaveSettings(Ini);
+    except
+      on E: Exception do
+      begin
+{$IFDEF NO_DELPHI_OTA}
+        ShowMessage(Format('WizClasses %s SaveSettings Error. %s - %s',
+          [ClassName, E.ClassName, E.Message]));
+{$ELSE}
+        DoHandleException(Format('WizClasses %s SaveSettings Error. %s - %s',
+          [ClassName, E.ClassName, E.Message]));
+{$ENDIF}
+      end;
+    end;
   finally
     Ini.Free;
   end;
@@ -833,15 +889,15 @@ begin
   List := TStringList.Create;
   try
   {$IFDEF DEBUG}
-    CnDebugger.LogMsg('Reset settings: ' + ClassName);
+    CnDebugger.LogMsg('Reset Settings: ' + ClassName);
   {$ENDIF}
 
-    if Ini is TRegistryIniFile then
+    if Ini is TCnRegistryIniFile then
     begin
-      with (Ini as TRegistryIniFile).RegIniFile do
+      with (Ini as TCnRegistryIniFile).RegIniFile do
       begin
   {$IFDEF DEBUG}
-        CnDebugger.LogMsg('Remove Registry entry: ' + FileName);
+        CnDebugger.LogMsg('Remove Registry Entry: ' + FileName);
   {$ENDIF}
 
         Reg := TRegistry.Create;
@@ -864,12 +920,12 @@ end;
 
 procedure TCnBaseWizard.Config;
 begin
-  // do nothing
+  // 基类啥也不干
 end;
 
 procedure TCnBaseWizard.LanguageChanged(Sender: TObject);
 begin
-  // do nothing
+  // 基类啥也不干
 end;
 
 procedure TCnBaseWizard.LoadSettings(Ini: TCustomIniFile);
@@ -894,17 +950,22 @@ end;
 
 procedure TCnBaseWizard.ResetSettings(Ini: TCustomIniFile);
 begin
-// do nothing
+// 基类啥也不干
 end;
 
 procedure TCnBaseWizard.Loaded;
 begin
-  // do nothing
+  // 基类啥也不干
 end;
 
 procedure TCnBaseWizard.LaterLoaded;
 begin
-  // do nothing
+  // 基类啥也不干
+end;
+
+procedure TCnBaseWizard.VersionFirstRun;
+begin
+  // 基类啥也不干
 end;
 
 //------------------------------------------------------------------------------
@@ -988,8 +1049,10 @@ end;
 // 根据类名初始化图标，可重载
 procedure TCnIconWizard.InitIcon(AIcon, ASmallIcon: TIcon);
 begin
+{$IFNDEF NO_DELPHI_OTA}
   if AIcon <> nil then
     CnWizLoadIcon(AIcon, ASmallIcon, GetIconName, True);
+{$ENDIF}
 end;
 
 //==============================================================================
@@ -1033,13 +1096,20 @@ end;
 procedure TCnActionWizard.Click(Sender: TObject);
 begin
   try
-    if Active and Action.Enabled and (IsInternalWizard {$IFNDEF CNWIZARDS_MINIMUM} or
-      ShowCnWizCommentForm(Self) {$ENDIF} ) then
+    if Active and Action.Enabled and (IsInternalWizard {$IFNDEF STAND_ALONE}{$IFNDEF LAZARUS} {$IFNDEF CNWIZARDS_MINIMUM} or
+      ShowCnWizCommentForm(Self) {$ENDIF} {$ENDIF} {$ENDIF}) then
       Execute;
   except
     on E: Exception do
-      DoHandleException(Format('%s Click Error. %s - %s',
+    begin
+{$IFDEF NO_DELPHI_OTA}
+      ShowMessage(Format('WizClasses %s Click Error. %s - %s',
         [ClassName, E.ClassName, E.Message]));
+{$ELSE}
+      DoHandleException(Format('WizClasses %s Click Error. %s - %s',
+        [ClassName, E.ClassName, E.Message]));
+{$ENDIF}
+    end;
   end;
 end;
 
@@ -1159,15 +1229,20 @@ end;
 
 // 类构造器
 constructor TCnSubMenuWizard.Create;
+{$IFNDEF NO_DELPHI_OTA}
 var
   Svcs40: INTAServices40;
+{$ENDIF}
 begin
   inherited;
   FList := TList.Create;
   // 当该专家被放到工具栏上时，点击按钮弹出的菜单
   FPopupMenu := TPopupMenu.Create(nil);
+
+{$IFNDEF NO_DELPHI_OTA}
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   FPopupMenu.Images := Svcs40.ImageList;
+{$ENDIF}
 
   // 用于关联到工具栏上按钮的 Action，图标应和主 Action 图标一样，为避免重复创建
   FPopupAction := WizActionMgr.AddAction(GetIDStr + '1', GetCaption, 0, OnPopup,
@@ -1266,7 +1341,7 @@ begin
   if FActive then
   begin
     AcquireSubActions;
-    WizActionMgr.ArrangeMenuItems(Menu);
+    WizActionMgr.ArrangeMenuItems(Menu, 0, True);
   end
   else
     ClearSubActions;
@@ -1444,15 +1519,20 @@ begin
         begin
           try
             // 内部专家不提示
-            if IsInternalWizard {$IFNDEF CNWIZARDS_MINIMUM} or ShowCnWizCommentForm(WizardName + ' - ' +
+            if IsInternalWizard {$IFNDEF STAND_ALONE} {$IFNDEF LAZARUS} {$IFNDEF CNWIZARDS_MINIMUM} or ShowCnWizCommentForm(WizardName + ' - ' +
               GetCaptionOrgStr(SubActions[I].Caption), SubActions[I].Icon,
-              SubActions[I].Command) {$ENDIF} then
+              SubActions[I].Command) {$ENDIF} {$ENDIF} {$ENDIF} then
               SubActionExecute(I);
           except
             on E: Exception do
             begin
-              DoHandleException(Format('%s.SubActions[%d].Execute: %s - %s',
+{$IFDEF NO_DELPHI_OTA}
+              ShowMessage(Format('WizClasses %s.SubActions[%d].Execute: %s - %s',
                 [ClassName, I, E.ClassName, E.Message]));
+{$ELSE}
+              DoHandleException(Format('WizClasses %s.SubActions[%d].Execute: %s - %s',
+                [ClassName, I, E.ClassName, E.Message]));
+{$ENDIF}
             end;
           end;
         end;
@@ -1484,10 +1564,14 @@ end;
 // 显示快捷键设置对话框
 function TCnSubMenuWizard.ShowShortCutDialog(const HelpStr: string): Boolean;
 begin
-{$IFNDEF CNWIZARDS_MINIMUM}
-  Result := SubActionShortCutConfig(Self, HelpStr);
-{$ELSE}
+{$IFDEF NO_DELPHI_OTA}
   Result := False;
+{$ELSE}
+  {$IFNDEF CNWIZARDS_MINIMUM}
+  Result := SubActionShortCutConfig(Self, HelpStr);
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -1626,7 +1710,11 @@ end;
 
 // 返回图标句柄
 {$IFDEF COMPILER6_UP}
+{$IFDEF WIN64}
+function TCnRepositoryWizard.GetGlyph: THandle;
+{$ELSE}
 function TCnRepositoryWizard.GetGlyph: Cardinal;
+{$ENDIF}
 {$ELSE}
 function TCnRepositoryWizard.GetGlyph: HICON;
 {$ENDIF}

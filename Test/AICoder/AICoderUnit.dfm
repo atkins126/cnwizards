@@ -1,10 +1,9 @@
 object FormAITest: TFormAITest
-  Left = 192
-  Top = 109
-  BorderStyle = bsDialog
+  Left = 128
+  Top = 84
+  Width = 1064
+  Height = 680
   Caption = 'AI Coder Test'
-  ClientHeight = 592
-  ClientWidth = 956
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,11 +16,12 @@ object FormAITest: TFormAITest
   PixelsPerInch = 96
   TextHeight = 13
   object pgcAICoder: TPageControl
-    Left = 16
-    Top = 16
-    Width = 921
-    Height = 553
+    Left = 8
+    Top = 8
+    Width = 1034
+    Height = 620
     ActivePage = tsHTTP
+    Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     object tsHTTP: TTabSheet
       Caption = 'HTTP Pool Test'
@@ -35,8 +35,9 @@ object FormAITest: TFormAITest
       object mmoHTTP: TMemo
         Left = 16
         Top = 56
-        Width = 881
-        Height = 449
+        Width = 982
+        Height = 503
+        Anchors = [akLeft, akTop, akRight, akBottom]
         ReadOnly = True
         TabOrder = 0
       end
@@ -81,8 +82,9 @@ object FormAITest: TFormAITest
       object mmoConfig: TMemo
         Left = 16
         Top = 56
-        Width = 881
-        Height = 449
+        Width = 982
+        Height = 503
+        Anchors = [akLeft, akTop, akRight, akBottom]
         ReadOnly = True
         TabOrder = 2
       end
@@ -104,6 +106,13 @@ object FormAITest: TFormAITest
         Height = 13
         Caption = 'Proxy:'
       end
+      object lblMe: TLabel
+        Left = 432
+        Top = 56
+        Width = 18
+        Height = 13
+        Caption = 'Me:'
+      end
       object btnLoadAIConfig: TButton
         Left = 16
         Top = 16
@@ -119,7 +128,7 @@ object FormAITest: TFormAITest
         Width = 145
         Height = 21
         Style = csDropDownList
-        ItemHeight = 13
+        ItemHeight = 0
         TabOrder = 1
         OnChange = cbbAIEnginesChange
       end
@@ -133,9 +142,9 @@ object FormAITest: TFormAITest
         OnClick = btnSaveAIConfigClick
       end
       object btnExplainCode: TButton
-        Left = 704
+        Left = 680
         Top = 16
-        Width = 89
+        Width = 73
         Height = 25
         Caption = 'Explain Code'
         TabOrder = 3
@@ -145,7 +154,8 @@ object FormAITest: TFormAITest
         Left = 16
         Top = 56
         Width = 393
-        Height = 457
+        Height = 503
+        Anchors = [akLeft, akTop, akBottom]
         ReadOnly = True
         TabOrder = 4
       end
@@ -158,20 +168,47 @@ object FormAITest: TFormAITest
       end
       object pnlAIChat: TPanel
         Left = 424
-        Top = 56
-        Width = 473
-        Height = 457
+        Top = 88
+        Width = 574
+        Height = 471
+        Anchors = [akLeft, akTop, akRight, akBottom]
         BevelOuter = bvNone
         TabOrder = 6
       end
       object btnReviewCode: TButton
-        Left = 808
+        Left = 768
         Top = 16
-        Width = 89
+        Width = 73
         Height = 25
         Caption = 'Review Code'
         TabOrder = 7
         OnClick = btnReviewCodeClick
+      end
+      object chkMarkDown: TCheckBox
+        Left = 944
+        Top = 20
+        Width = 81
+        Height = 17
+        Caption = 'MarkDown'
+        TabOrder = 8
+        OnClick = chkMarkDownClick
+      end
+      object btnModelList: TButton
+        Left = 856
+        Top = 16
+        Width = 73
+        Height = 25
+        Caption = 'Model List'
+        TabOrder = 9
+        OnClick = btnModelListClick
+      end
+      object edtChatMessage: TEdit
+        Left = 456
+        Top = 56
+        Width = 545
+        Height = 21
+        TabOrder = 10
+        OnKeyPress = edtChatMessageKeyPress
       end
     end
     object tsChat: TTabSheet
@@ -180,8 +217,9 @@ object FormAITest: TFormAITest
       object pnlChat: TPanel
         Left = 16
         Top = 56
-        Width = 881
-        Height = 457
+        Width = 982
+        Height = 503
+        Anchors = [akLeft, akTop, akRight, akBottom]
         BevelOuter = bvNone
         TabOrder = 0
       end
@@ -230,6 +268,25 @@ object FormAITest: TFormAITest
         TabOrder = 5
         OnClick = btnAddMyLongMsgClick
       end
+      object btnAddYourStream: TButton
+        Left = 496
+        Top = 16
+        Width = 97
+        Height = 25
+        Caption = 'Your Stream Msg'
+        TabOrder = 6
+        OnClick = btnAddYourStreamClick
+      end
+      object btnChatFont: TButton
+        Left = 936
+        Top = 16
+        Width = 75
+        Height = 25
+        Anchors = [akTop, akRight]
+        Caption = 'Font'
+        TabOrder = 7
+        OnClick = btnChatFontClick
+      end
     end
   end
   object dlgSave1: TSaveDialog
@@ -241,17 +298,43 @@ object FormAITest: TFormAITest
     Top = 16
   end
   object pmChat: TPopupMenu
+    OnPopup = pmChatPopup
     Left = 468
     Top = 16
     object Copy1: TMenuItem
       Caption = 'Copy'
+      OnClick = Copy1Click
     end
   end
   object pmAIChat: TPopupMenu
+    OnPopup = pmAIChatPopup
     Left = 512
     Top = 16
     object CopyCode1: TMenuItem
       Caption = 'Copy Code'
+      OnClick = CopyCode1Click
     end
+    object CopyAll1: TMenuItem
+      Caption = 'Copy Text'
+      OnClick = CopyAll1Click
+    end
+  end
+  object tmrSteam: TTimer
+    Enabled = False
+    Interval = 100
+    OnTimer = tmrSteamTimer
+    Left = 420
+    Top = 72
+  end
+  object dlgFont1: TFontDialog
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    MinFontSize = 0
+    MaxFontSize = 0
+    Left = 900
+    Top = 48
   end
 end

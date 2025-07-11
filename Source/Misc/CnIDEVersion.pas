@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -73,6 +73,9 @@ function IsDelphi10Dot4GEDot2: Boolean;
 function IsDelphi11GEDot3: Boolean;
 {* 返回是否 Delphi 11.3 或 11 的更高的子版本，用于某些古怪判断}
 
+function IsDelphi12Dot3GEHotFix: Boolean;
+{* 返回是否 Delphi 12.3 的 HotFix 或更高的子版本，用于某些古怪判断}
+
 var
   CnIdeVersionDetected: Boolean = False;
   CnIdeVersionIsLatest: Boolean = False;
@@ -82,13 +85,14 @@ var
 
   CnIsDelphi11GEDot3: Boolean = False; // 是否 D11 下的 .3，不包括 D12
   CnIsGEDelphi11Dot3: Boolean = False; // 是否大于等于 D11.3，包括 D12
+  CnIsDelphi12Dot3GEHotFix: Boolean = False;
 
 implementation
 
 {$IFDEF DEBUG}
 uses
   CnDebug;
-{$ENDIF DEBUG}
+{$ENDIF}
 
 function CompareVersionNumber(const V1, V2: TVersionNumber): Integer;
 begin
@@ -117,9 +121,9 @@ const
   CoreIdeLatest: TVersionNumber =
     (Major: 5; Minor: 0; Release: 6; Build: 18);
 var
-  ReadFileVersion: TVersionNumber; // Update 1
+  ReadFileVersion: TVersionNumber; // Update 1，注意文件和其他 IDE 不同
 begin
-  ReadFileVersion := GetFileVersionNumber(GetIdeRootDirectory + 'Bin\coride50.bpl');
+  ReadFileVersion := GetFileVersionNumber(GetIdeRootDirectory + 'Bin\dcc32.exe');
   Result := CompareVersionNumber(ReadFileVersion, CoreIdeLatest) >= 0;
   LatestUpdate := 'Update 1';
 end;
@@ -227,7 +231,7 @@ end;
 
 function IsDelphi2009IdeVersionLatest(out LatestUpdate: string): Boolean;
 const
-  CoreIdeLatest: TVersionNumber = // Update 4?
+  CoreIdeLatest: TVersionNumber = // Update 4
     (Major: 12; Minor: 0; Release: 3420; Build: 21218);
 var
   ReadFileVersion: TVersionNumber;
@@ -239,8 +243,8 @@ end;
 
 function IsDelphi2010IdeVersionLatest(out LatestUpdate: string): Boolean;
 const
-  CoreIdeLatest: TVersionNumber = // Update 4
-    (Major: 14; Minor: 0; Release: 3593; Build: 25826);
+  CoreIdeLatest: TVersionNumber = // Update 5
+    (Major: 14; Minor: 0; Release: 3615; Build: 26342);
 var
   ReadFileVersion: TVersionNumber;
 begin
@@ -251,8 +255,8 @@ end;
 
 function IsDelphiXEIdeVersionLatest(out LatestUpdate: string): Boolean;
 const
-  CoreIdeLatest: TVersionNumber = // Update 2
-    (Major: 15; Minor: 0; Release: 3809; Build: 34076);
+  CoreIdeLatest: TVersionNumber = // Update 2?
+    (Major: 15; Minor: 0; Release: 3953; Build: 35171);
 var
   ReadFileVersion: TVersionNumber;
 begin
@@ -276,7 +280,7 @@ end;
 function IsDelphiXE3IdeVersionLatest(out LatestUpdate: string): Boolean;
 const
   CoreIdeLatest: TVersionNumber =
-    (Major: 17; Minor: 0; Release: 4771; Build: 56661); // Update 2
+    (Major: 17; Minor: 0; Release: 4770; Build: 56661); // Update 2
 var
   ReadFileVersion: TVersionNumber;
 begin
@@ -454,13 +458,13 @@ end;
 function IsDelphi120AIdeVersionLatest(out LatestUpdate: string): Boolean;
 const
   CoreIdeLatest: TVersionNumber =
-    (Major: 29; Minor: 0; Release: 53982; Build: 0329); // 12.2 Patch 1，注意文件换了
+    (Major: 29; Minor: 0; Release: 55362; Build: 2017); // 12.3
 var
   ReadFileVersion: TVersionNumber;
 begin
-  ReadFileVersion := GetFileVersionNumber(GetIdeRootDirectory + 'Bin\dcc32.exe');
+  ReadFileVersion := GetFileVersionNumber(GetIdeRootDirectory + 'Bin\coreide290.bpl');
   Result := CompareVersionNumber(ReadFileVersion, CoreIdeLatest) >= 0;
-  LatestUpdate := 'Update 2 (12.2) Patch 1';
+  LatestUpdate := 'Update 3 (12.3)';
 end;
 
 function IsDelphi11GEDot3: Boolean;
@@ -486,6 +490,27 @@ begin
   Result := True;
 {$ELSE}
   Result := IsDelphi11GEDot3;
+{$ENDIF};
+end;
+
+function IsDelphi12Dot3GEHotFix: Boolean;
+{$IFDEF DELPHI120_ATHENS}
+var
+  Year, Month, Day: Word;
+  D: TDateTime;
+{$ENDIF}
+begin
+{$IFDEF DELPHI120_ATHENS}
+  Year := 1970;
+  Month := 1;
+  Day := 1;
+
+  // 12.3 无论有无 HotFix，版本号都一样，只能用文件的日期来判断
+  D := GetFileDateTime(GetIdeRootDirectory + 'Bin\coreide290.bpl');
+  DecodeDate(D, Year, Month, Day);
+  Result := (Year = 2025) and (Month >= 4);
+{$ELSE}
+  Result := False;
 {$ENDIF};
 end;
 
@@ -613,6 +638,8 @@ begin
 
   CnIsDelphi11GEDot3 := IsDelphi11GEDot3;
   CnIsGEDelphi11Dot3 := IsGEDelphi11Dot3;
+
+  CnIsDelphi12Dot3GEHotFix := IsDelphi12Dot3GEHotFix;
 end;
 
 function GetIdeExeVersion: string;

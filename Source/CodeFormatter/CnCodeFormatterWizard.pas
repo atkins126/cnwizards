@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -28,7 +28,9 @@ unit CnCodeFormatterWizard;
 * 开发平台：WinXP + Delphi 5
 * 兼容测试：暂无（PWin9X/2000/XP/7 Delphi 5/6/7 + C++Builder 5/6）
 * 本 地 化：该窗体中的字符串均符合本地化处理方式
-* 修改记录：2015.03.11 V1.0
+* 修改记录：2024.11.02 V1.1
+*               恢复折叠状态需要延时恢复，给 IDE 以重新分析的时间
+*           2015.03.11 V1.0
 *               创建单元，实现功能
 ================================================================================
 |</PRE>}
@@ -41,8 +43,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  ToolsAPI, IniFiles, StdCtrls, ComCtrls, Menus, TypInfo, Contnrs, mPasLex,
-  CnSpin, CnConsts, CnCommon, CnWizConsts, CnWizClasses, CnWizMultiLang,
+  ToolsAPI, IniFiles, StdCtrls, ComCtrls, Menus, TypInfo, Contnrs, ExtCtrls,
+  mPasLex, CnSpin, CnConsts, CnCommon, CnWizConsts, CnWizClasses, CnWizMultiLang,
   CnWizOptions,
 {$IFDEF CNWIZARDS_CNINPUTHELPER}
   CnWizManager, CnInputHelper, CnInputSymbolList, CnInputIdeSymbolList,
@@ -74,9 +76,14 @@ type
     FWrapMode: TCnCodeWrapMode;
     FWrapNewLineWidth: Integer;
     FUseIDESymbols: Boolean;
+
     FBreakpoints: TObjectList;  // 文件的断点信息
     FBookmarks: TObjectList;    // 文件的书签信息
     FElideLines: TList;         // 文件的折叠信息
+{$IFDEF IDE_EDITOR_ELIDE}
+    FElideTimer: TTimer;        // 恢复折叠行的延时
+    FElideMarks: PDWORD;
+{$ENDIF}
 
 {$IFDEF CNWIZARDS_CNINPUTHELPER}
     FInputHelper: TCnInputHelper;
@@ -98,6 +105,7 @@ type
 {$IFDEF IDE_EDITOR_ELIDE}
     // 根据 DWORD 数组以及折叠行数量还原折叠状态
     procedure RestoreElideLines(LineMarks: PDWORD);
+    procedure ElideOnTimer(Sender: TObject);
 {$ENDIF}
 
     function PutPascalFormatRules: Boolean;
@@ -122,6 +130,7 @@ type
     procedure LoadSettings(Ini: TCustomIniFile); override;
     procedure SaveSettings(Ini: TCustomIniFile); override;
     procedure AcquireSubActions; override;
+
     property DirectiveMode: TCnCompDirectiveMode read FDirectiveMode write FDirectiveMode;
     property KeywordStyle: TCnKeywordStyle read FKeywordStyle write FKeywordStyle;
     property BeginStyle: TCnBeginStyle read FBeginStyle write FBeginStyle;
@@ -185,7 +194,7 @@ type
   protected
     function GetHelpTopic: string; override;
   public
-    { Public declarations }
+
   end;
 
 {$ENDIF CNWIZARDS_CNCODEFORMATTERWIZARD}
@@ -203,7 +212,11 @@ uses
 
 const
 {$IFDEF UNICODE}
+  {$IFDEF WIN64}
+  DLLName: string = 'CnFormatLibW64.dll'; // 64 位用 64 位 DLL
+  {$ELSE}
   DLLName: string = 'CnFormatLibW.dll'; // D2009 ~ 最新 用 Unicode 版
+  {$ENDIF}
 {$ELSE}
   {$IFDEF IDE_STRING_ANSI_UTF8}
   DLLName: string = 'CnFormatLibW.dll'; // D2005 ~ 2007 也用 Unicode 版但用 UTF8
@@ -391,6 +404,14 @@ begin
   FBreakpoints := TObjectList.Create(True);
   FBookmarks := TObjectList.Create(True);
   FElideLines := TList.Create;
+
+{$IFDEF IDE_EDITOR_ELIDE}
+  FElideTimer := TTimer.Create(nil);
+  FElideTimer.Interval := 3000;
+  FElideTimer.OnTimer := ElideOnTimer;
+  FElideTimer.Enabled := False;
+{$ENDIF}
+
   FLibHandle := LoadLibrary(PChar(MakePath(WizOptions.DllPath) + DLLName));
   if FLibHandle <> 0 then
     FGetProvider := TCnGetFormatterProvider(GetProcAddress(FLibHandle,
@@ -404,10 +425,15 @@ begin
   SetLength(FPreNamesArray, 0);
 {$ENDIF}
 
+{$IFDEF IDE_EDITOR_ELIDE}
+  FElideTimer.Free;
+{$ENDIF}
+
   FElideLines.Free;
   FBookmarks.Free;
   FBreakpoints.Free;
-  FreeLibrary(FLibHandle);
+  if FLibHandle <> 0 then
+    FreeLibrary(FLibHandle);
   inherited;
 end;
 
@@ -530,10 +556,14 @@ begin
   FWrapWidth := Ini.ReadInteger('', csWrapWidth, CnPascalCodeForVCLRule.WrapWidth);
   FWrapNewLineWidth := Ini.ReadInteger('', csWrapNewLineWidth,
     CnPascalCodeForVCLRule.WrapNewLineWidth);
-  FWrapMode := TCnCodeWrapMode(Ini.ReadInteger('', csWrapMode, Ord(CnPascalCodeForVCLRule.CodeWrapMode)));
-  FBeginStyle := TCnBeginStyle(Ini.ReadInteger('', csBeginStyle, Ord(CnPascalCodeForVCLRule.BeginStyle)));
-  FKeywordStyle := TCnKeywordStyle(Ini.ReadInteger('', csKeywordStyle, Ord(CnPascalCodeForVCLRule.KeywordStyle)));
-  FDirectiveMode := TCnCompDirectiveMode(Ini.ReadInteger('', csDirectiveMode, Ord(CnPascalCodeForVCLRule.CompDirectiveMode)));
+  FWrapMode := TCnCodeWrapMode(Ini.ReadInteger('', csWrapMode,
+    Ord(CnPascalCodeForVCLRule.CodeWrapMode)));
+  FBeginStyle := TCnBeginStyle(Ini.ReadInteger('', csBeginStyle,
+    Ord(CnPascalCodeForVCLRule.BeginStyle)));
+  FKeywordStyle := TCnKeywordStyle(Ini.ReadInteger('', csKeywordStyle,
+    Ord(CnPascalCodeForVCLRule.KeywordStyle)));
+  FDirectiveMode := TCnCompDirectiveMode(Ini.ReadInteger('', csDirectiveMode,
+    Ord(CnPascalCodeForVCLRule.CompDirectiveMode)));
   FKeepUserLineBreak := Ini.ReadBool('', csKeepUserLineBreak,
     CnPascalCodeForVCLRule.KeepUserLineBreak);
 {$IFDEF CNWIZARDS_CNINPUTHELPER}
@@ -828,13 +858,16 @@ begin
     if not Assigned(View) then
       Exit;
 
+{$IFDEF IDE_EDITOR_ELIDE}
+    FElideTimer.Enabled := False;
+    FElideMarks := nil;
+{$ENDIF}
+
     // 记录断点、书签、折叠行、光标信息
     ObtainBreakpointsByFile(CnOtaGetCurrentSourceFileName);
     SaveBookMarksToObjectList(View, FBookmarks);
     ObtainLineElideInfo(FElideLines);
 
-//    if (FBreakpoints.Count = 0) and (FBookmarks.Count = 0) then
-//      Formatter.SetInputLineMarks(nil);
 {$IFDEF CNWIZARDS_CNINPUTHELPER}
     CheckObtainIDESymbols;
     if Length(FPreNamesArray) > 0 then
@@ -894,7 +927,7 @@ begin
         Formatter.SetInputLineMarks(@(BpBmLineMarks[0]));
 {$IFDEF DEBUG}
         CnDebugger.LogFmt('Before Format. All Line Marks: %d', [Length(BpBmLineMarks)]);
-        CnDebugger.LogCardinalArray(BpBmLineMarks, 'In Line Makrs:');
+        CnDebugger.LogCardinalArray(BpBmLineMarks, 'In Line Marks:');
 {$ENDIF}
 
 {$IFDEF UNICODE}
@@ -1367,29 +1400,39 @@ begin
   CnOtaGetLinesElideInfo(List);
 
   if List.Count > 0 then
+  begin
     for I := List.Count - 1 downto 0 do
+    begin
       if (I and 1) <> 0 then // 奇项要删除，只留折叠块开始的行号
         List.Delete(I);
+    end;
+  end;
 end;
 
 {$IFDEF IDE_EDITOR_ELIDE}
 
-procedure TCnCodeFormatterWizard.RestoreElideLines(LineMarks: PDWORD);
+procedure TCnCodeFormatterWizard.ElideOnTimer(Sender: TObject);
 var
   Control: TControl;
 begin
   Control := CnOtaGetCurrentEditControl;
-  if (LineMarks = nil) or (Control = nil) then
+  if (FElideMarks = nil) or (Control = nil) then
     Exit;
 
-  while LineMarks^ <> 0 do
+  while FElideMarks^ <> 0 do
   begin
-    EditControlWrapper.ElideLine(Control, LineMarks^);
+    EditControlWrapper.ElideLine(Control, FElideMarks^);
 {$IFDEF DEBUG}
-    CnDebugger.LogFmt('RestoreElideLines Line: %d', [LineMarks^]);
+    CnDebugger.LogFmt('In Timer to Restore Elide Lines Line: %d', [FElideMarks^]);
 {$ENDIF}
-    Inc(LineMarks);
+    Inc(FElideMarks);
   end;
+end;
+
+procedure TCnCodeFormatterWizard.RestoreElideLines(LineMarks: PDWORD);
+begin
+  FElideMarks := LineMarks;
+  FElideTimer.Enabled := True;
 end;
 
 {$ENDIF}

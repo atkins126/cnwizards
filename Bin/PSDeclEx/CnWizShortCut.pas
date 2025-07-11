@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -13,7 +13,7 @@
 {            您应该已经和开发包一起收到一份 CnPack 发布协议的副本。如果        }
 {        还没有，可访问我们的网站：                                            }
 {                                                                              }
-{            网站地址：http://www.cnpack.org                                   }
+{            网站地址：https://www.cnpack.org                                  }
 {            电子邮件：master@cnpack.org                                       }
 {                                                                              }
 {******************************************************************************}
@@ -88,38 +88,6 @@ type
     {* 与快捷键关联的 IDE 菜单项的名字}
     property Tag: Integer read FTag write FTag;
     {* 快捷键标签}
-  end;
-
-//==============================================================================
-// IDE 快捷键绑定接口实现类
-//==============================================================================
-
-{ TCnKeyBinding }
-
-  TCnKeyBinding = class(TNotifierObject, IOTAKeyboardBinding)
-  {* IDE 快捷键绑定接口实现类，在 CnWizards 中内部使用。
-     该类实现了 IOTAKeyboardBinding 接口，可被 IDE 调用以定义 IDE 的快捷键绑定。
-     该类仅在 IDE 快捷键管理器类 TCnWizShortCutMgr 内部使用，请不要直接使用。}
-  private
-    FOwner: TCnWizShortCutMgr;
-  protected
-    procedure KeyProc(const Context: IOTAKeyContext; KeyCode: TShortcut;
-      var BindingResult: TKeyBindingResult);
-    property Owner: TCnWizShortCutMgr read FOwner;
-  public
-    constructor Create(AOwner: TCnWizShortCutMgr);
-    {* 类构造器，传递 IDE 快捷键管理器作为参数}
-    destructor Destroy; override;
-
-    // IOTAKeyboardBinding methods
-    function GetBindingType: TBindingType;
-    {* 取绑定类型，必须实现的 IOTAKeyboardBinding 方法}
-    function GetDisplayName: string;
-    {* 取快捷键绑定显示名称，必须实现的 IOTAKeyboardBinding 方法}
-    function GetName: string;
-    {* 取快捷键绑定名称，必须实现的 IOTAKeyboardBinding 方法}
-    procedure BindKeyboard(const BindingServices: IOTAKeyBindingServices);
-    {* 快捷键绑定过程，必须实现的 IOTAKeyboardBinding 方法}
   end;
 
 //==============================================================================

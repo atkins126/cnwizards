@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -25,7 +25,7 @@ unit CnZipWrapper;
 * 单元名称：项目备份功能对 CnZip 功能的封装
 * 单元作者：CnPack 开发组 (master@cnpack.org)
 * 备    注：
-* 开发平台：PWin2000Pro + Delphi 5.01
+* 开发平台：PWin7 + Delphi XE2/D10.4
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
 * 修改记录：2018.08.26 V1.0 by liuxiao

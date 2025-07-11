@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -108,7 +108,7 @@ var
 
   function ListToStr(Lines: string): string;
   var
-    i: Integer;
+    I: Integer;
     AList: TStringList;
     S: string;
   begin
@@ -118,9 +118,9 @@ var
       if AList.Count > 0 then
       begin
         Result := '\';
-        for i := 0 to AList.Count - 1 do
+        for I := 0 to AList.Count - 1 do
         begin
-          S := LowerCase(AList[i]);
+          S := LowerCase(AList[I]);
           if ExtractFileExt(S) = '' then
             S := S + '.exe';
           Result := Result + S + '\';
@@ -132,6 +132,7 @@ var
       AList.Free;
     end;
   end;
+
 begin
   if (CnViewerOptions <> nil) and (CnViewerOptions.ChangeCount <> FChangeCountCache) then
   begin
@@ -217,6 +218,7 @@ begin
     if AStore = nil then
     begin
       if Application.MainForm <> nil then
+      begin
         if not (csDestroying in Application.MainForm.ComponentState) then
         begin
           AStore := CnMsgManager.AddStore(0, SCnNoneProcName);
@@ -228,6 +230,7 @@ begin
           PostMessage(Application.MainForm.Handle, WM_USER_NEW_FORM, Integer(AStore), 0);
 {$ENDIF}
         end;
+      end;
     end;
 
     if not StoreInited and (AStore <> nil) then
@@ -471,7 +474,7 @@ begin
     // 无发送端时间戳，近似采用接收端时间戳
     ADesc.Annex.TimeStampType := Ord(ttDateTime);
     ADesc.Annex.MsgDateTime := Date + Time;
-    Len := StrLen(PStr);
+    Len := StrLen(PStr) * SizeOf(Char);
     if Len >= DbWinBufferSize - SizeOf(DWORD) then
       Len := DbWinBufferSize - SizeOf(DWORD);
     Move(PStr^, ADesc.Msg[0], Len);

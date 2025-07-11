@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -24,7 +24,7 @@ unit CnSrcEditorKey;
 * 软件名称：CnPack IDE 专家包
 * 单元名称：代码编辑器按键扩展工具单元
 * 单元作者：周劲羽 (zjy@cnpack.org)
-* 备    注：
+* 备    注：当前编辑器的 IOTAEditPosition 的 SearchAgain 方法经常返回 False
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串支持本地化处理方式
@@ -52,7 +52,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, ToolsAPI, IniFiles,
   Forms, Menus, Clipbrd, ActnList, StdCtrls, ComCtrls, Imm, Math, TypInfo,
   CnPasCodeParser, CnCommon, CnConsts, CnWizUtils, CnWizConsts, CnWizOptions,
-  CnWizIdeUtils, CnEditControlWrapper, CnWizNotifier, CnWizMethodHook,
+  CnWizIdeUtils, CnEditControlWrapper, CnWizNotifier, CnWizMethodHook, CnNative,
   CnWizCompilerConst,
   {$IFDEF IDE_WIDECONTROL}
   CnWidePasParser, CnWideCppParser,
@@ -79,8 +79,7 @@ type
     FOnEnhConfig: TNotifyEvent;
     FAutoMatchEntered: Boolean;
     FAutoMatchType: TCnAutoMatchType;
-    FRepaintView: Cardinal; // 供传递重画参数用
-
+    FRepaintView: TCnNativeUInt; // 供传递重画参数用
     FSmartCopy: Boolean;
     FSmartPaste: Boolean;
     FPasteReplace: Boolean;
@@ -119,7 +118,6 @@ type
     procedure SetRenameShortCut(const Value: TShortCut);
   protected
     procedure SetActive(Value: Boolean);
-    function IsValidRenameIdent(const Ident: string): Boolean;
     procedure DoEnhConfig;
     function DoAutoMatchEnter(View: IOTAEditView; Key, ScanCode: Word; Shift: TShiftState;
       var Handled: Boolean): Boolean;
@@ -168,6 +166,7 @@ type
     procedure ResetSettings(Ini: TCustomIniFile);
     procedure LanguageChanged(Sender: TObject);
 
+    function IsValidRenameIdent(const Ident: string): Boolean;
   published
     property Active: Boolean read FActive write SetActive;
     property SmartCopy: Boolean read FSmartCopy write FSmartCopy;
@@ -214,8 +213,11 @@ type
 
 const
   SCnAutoIndentFile = 'AutoIndent.dat';
-
+  {$IFDEF WIN64}
+  SCnSrchDialogOKButtonClick = '_ZN7Srchdlg11TSrchDialog13OKButtonClickEPN6System7TObjectE';
+  {$ELSE}
   SCnSrchDialogOKButtonClick = '@Srchdlg@TSrchDialog@OKButtonClick$qqrp14System@TObject';
+  {$ENDIF}
   SCnSrchDialogComboName = 'SearchText';
   SCnHistoryPropComboBoxClassName = 'THistoryPropComboBox';
   SCnCaseSenseCheckBoxName = 'CaseSense';
@@ -229,13 +231,22 @@ const
   SCnSearchPanelRegExBoxName = 'RegExBox';
 
 {$IFDEF DELPHI120_ATHENS_UP}
+  {$IFDEF WIN64}
+  SCnEditWindowDoSearch = '_ZN10Editorform11TEditWindow8DoSearchEN6System13UnicodeStringE';
+  {$ELSE}
   SCnEditWindowDoSearch = '@Editorform@TEditWindow@DoSearch$qqrx20System@UnicodeString';
+  {$ENDIF}
 {$ELSE}
   SCnEditWindowDoSearch = '@Editorform@TEditWindow@DoSearch$qqr20System@UnicodeString';
 {$ENDIF}
 
+  {$IFDEF WIN64}
+  SCnEditWindowSearchUpClick = '_ZN10Editorform11TEditWindow13SearchUpClickEPN6System7TObjectE';
+  SCnEditWindowSearchDnClick = '_ZN10Editorform11TEditWindow13SearchDnClickEPN6System7TObjectE';
+  {$ELSE}
   SCnEditWindowSearchUpClick = '@Editorform@TEditWindow@SearchUpClick$qqrp14System@TObject';
   SCnEditWindowSearchDnClick = '@Editorform@TEditWindow@SearchDnClick$qqrp14System@TObject';
+  {$ENDIF}
 {$ENDIF}
 
 var
@@ -286,7 +297,11 @@ begin
         if Len > 0 then
         begin
           SetLength(WideText, Len);
+{$IFDEF WIN64}
+          TControl(AComp).Perform(WM_GETTEXT, (Len + 1) * SizeOf(Char), NativeUInt(WideText));
+{$ELSE}
           TControl(AComp).Perform(WM_GETTEXT, (Len + 1) * SizeOf(Char), Longint(WideText));
+{$ENDIF}
 
           FOldSearchText := string(WideText);
         end;
@@ -336,7 +351,7 @@ var
   I: Integer;
   F1, F2, F3: Boolean;
 begin
-  if (AOwner = nil) or not AOwner.ClassNameIs(EditorFormClassName) then
+  if (AOwner = nil) or not AOwner.ClassNameIs(SCnEditorFormClassName) then
     Exit;
 
   F1 := False;
@@ -660,7 +675,8 @@ begin
         end;
 
         FAutoMatchEntered := True;
-        FRepaintView := Cardinal(View);
+
+        FRepaintView := TCnNativeUInt(View);
         CnWizNotifierServices.ExecuteOnApplicationIdle(ExecuteInsertCharOnIdle);
       end;
     end
@@ -1947,7 +1963,7 @@ begin
             Assigned(Parser.InnerBlockCloseToken);
 
           FrmModalResult := ShowModal = mrOk;
-          NewName := edtRename.Text;
+          NewName := Trim(edtRename.Text);
 
           if rbCurrentProc.Checked then
             Rit := ritCurrentProc
@@ -2208,7 +2224,7 @@ begin
             or (IsH(F) and CnOtaIsFileOpen(_CnChangeFileExt(F, '.cpp')));
 
           FrmModalResult := ShowModal = mrOk;
-          NewName := edtRename.Text;
+          NewName := Trim(edtRename.Text);
 
           if rbCurrentProc.Checked then
             Rit := ritCurrentProc
@@ -2651,7 +2667,7 @@ begin
             Assigned(Parser.InnerBlockCloseToken);
 
           FrmModalResult := ShowModal = mrOk;
-          NewName := edtRename.Text;
+          NewName := Trim(edtRename.Text);
 
           if rbCurrentProc.Checked then
             Rit := ritCurrentProc
@@ -2927,7 +2943,7 @@ begin
             or (IsH(F) and CnOtaIsFileOpen(_CnChangeFileExt(F, '.cpp')));
 
           FrmModalResult := ShowModal = mrOk;
-          NewName := edtRename.Text;
+          NewName := Trim(edtRename.Text);
 
           if rbCurrentProc.Checked then
             Rit := ritCurrentProc
@@ -3295,15 +3311,14 @@ begin
   Position.SearchOptions.CaseSensitive := FCaseSense;
   Position.SearchOptions.WordBoundary := FWholeWords;
   Position.SearchOptions.RegularExpression := FRegExp;
-  Position.SearchOptions.FromCursor := True; // 补上这一句以弥补 SearchAgain 失败的问题
+  Position.SearchOptions.WholeFile := True;
+  Position.SearchOptions.FromCursor := True; // 补上这两句以弥补 SearchAgain 失败的问题
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('F3 Search: Set Options: Case %d, Word %d, Reg %d.',
     [Integer(FCaseSense), Integer(FWholeWords), Integer(FRegExp)]);
-{$ENDIF}
-
-{$IFDEF DEBUG}
   CnDebugger.LogMsg('F3 Search: ' + SearchString);
 {$ENDIF}
+
   Found := False;
   FOldSearchText := Position.SearchOptions.SearchText;
 
@@ -3317,7 +3332,7 @@ begin
 
     if not Found and FSearchWrap then // 是否回绕查找
     begin
-      Found := Position.Move(1, 1);
+      Found := Position.Move(1, 1); // 复用 Found 变量
       if not Found then
       begin
 {$IFDEF DEBUG}
@@ -3663,11 +3678,18 @@ begin
   if (Length(Ident) = 0) or not (CharInSet(Ident[1], Alpha) or (Ord(Ident[1]) > 127)) then
     Exit;
   for I := 2 to Length(Ident) do
+  begin
     if not (CharInSet(Ident[I], AlphaNumeric) or (Ord(Ident[I]) > 127)) then
       Exit;
+  end;
 {$ELSE}
-  if (Length(Ident) = 0) or not CharInSet(Ident[1], Alpha) then Exit;
-  for I := 2 to Length(Ident) do if not CharInSet(Ident[I], AlphaNumeric) then Exit;
+  if (Length(Ident) = 0) or not CharInSet(Ident[1], Alpha) then
+    Exit;
+  for I := 2 to Length(Ident) do
+  begin
+    if not CharInSet(Ident[I], AlphaNumeric) then
+      Exit;
+  end;
 {$ENDIF}
   Result := True;
 end;

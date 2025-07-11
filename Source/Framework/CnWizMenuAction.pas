@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -31,9 +31,11 @@ unit CnWizMenuAction;
 *             - 当不再需要 Action 时，调用 WizActionMgr.Delete(...) 来删除，绝对
 *               不要自己去释放 Action 对象。
 * 开发平台：PWin2000Pro + Delphi 5.01
-* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
+* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6 + Lazarus 4.0
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2012.09.19 by shenloqi
+* 修改记录：2025.06.24
+*               移植到 Lazarus 4.0
+*           2012.09.19 by shenloqi
 *               移植到 Delphi XE3
 *           2002.09.17 V1.0
 *               创建单元，实现功能
@@ -45,12 +47,15 @@ interface
 {$I CnWizards.inc}
 
 uses
-  Windows, Messages, Classes, SysUtils, Graphics, Menus, Forms, ActnList, ToolsAPI, 
-  {$IFDEF DELPHIXE3_UP} Actions,{$ENDIF}
+  Windows, Messages, Classes, SysUtils, Graphics, Menus, Forms, ActnList,
+  {$IFDEF DELPHIXE3_UP} Actions, {$ENDIF}
+  {$IFNDEF NO_DELPHI_OTA} ToolsAPI, {$ENDIF}
   {$IFDEF IDE_SUPPORT_HDPI} Vcl.VirtualImageList, {$ENDIF}
   CnCommon, CnWizConsts, CnWizShortCut;
 
 type
+  ECnDuplicateCommandException = class(Exception);
+
 //==============================================================================
 // CnWizards IDE Action 封装类
 //==============================================================================
@@ -70,7 +75,7 @@ type
     FLastUpdateTick: Cardinal;
     procedure SetInheritedShortCut;
     function GetShortCut: TShortCut;
-    procedure {$IFDEF DelphiXE3_UP}_CnSetShortCut{$ELSE}SetShortCut{$ENDIF}(const Value: TShortCut);
+    procedure {$IFDEF DELPHIXE3_UP}_CnSetShortCut{$ELSE}SetShortCut{$ENDIF}(const Value: TShortCut);
     {* Delphi XE3 引入了 SetShortCut 基方法，为避免同名带入的问题，故将此方法改名}
     procedure OnShortCut(Sender: TObject);
   protected
@@ -89,7 +94,7 @@ type
     {* Action 命令字符串，用来唯一标识一个 Action，同时也是快捷键对象的名字}
     property Icon: TIcon read FIcon;
     {* Action 关联的图标，加载时 16x16，可在其它地方使用，但请不要更改图标内容}
-    property ShortCut: TShortCut read GetShortCut write {$IFDEF DelphiXE3_UP}_CnSetShortCut{$ELSE}SetShortCut{$ENDIF};
+    property ShortCut: TShortCut read GetShortCut write {$IFDEF DELPHIXE3_UP}_CnSetShortCut{$ELSE}SetShortCut{$ENDIF};
     {* Action 关联的快捷键}
   end;
 
@@ -129,12 +134,14 @@ type
     FWizMenuActions: TList;
     FMoreAction: TAction;
     FDeleting: Boolean;
-    function GetIdeActions(Index: Integer): TContainedAction;
-    function GetWizActions(Index: Integer): TCnWizAction;
-    function GetWizMenuActions(Index: Integer): TCnWizMenuAction;
+{$IFNDEF STAND_ALONE}
     function GetIdeActionCount: Integer;
+    function GetIdeActions(Index: Integer): TContainedAction;
+{$ENDIF}
     function GetWizActionCount: Integer;
+    function GetWizActions(Index: Integer): TCnWizAction;
     function GetWizMenuActionCount: Integer;
+    function GetWizMenuActions(Index: Integer): TCnWizMenuAction;
     procedure MoreActionExecute(Sender: TObject);
   protected
     procedure InitAction(AWizAction: TCnWizAction; const ACommand,
@@ -193,24 +200,30 @@ type
     {* 根据 Action 命令名查找索引号，返回的索引号只能在 WizActions 数组对象中使用。}
     function IndexOfShortCut(AShortCut: TShortCut): Integer; 
     {* 根据快捷键键值查找索引号，返回的索引号只能在 WizActions 数组对象中使用。}
-    procedure ArrangeMenuItems(RootItem: TMenuItem; MaxItems: Integer = 0);
-    {* 为过长的菜单增加分隔菜单项 }
+    procedure ArrangeMenuItems(RootItem: TMenuItem; MaxItems: Integer = 0; IsSub: Boolean = False);
+    {* 为过长的菜单增加分隔菜单项，MaxItems 为 0 表示根据屏幕高度自动计算。
+      注意子菜单和主菜单的高度在自动计算时要分开处理，因此需要 IsSub 参数进行区分 }
 
+{$IFNDEF STAND_ALONE}
     property IdeActionCount: Integer read GetIdeActionCount;
     {* 整个 IDE 的主 ActionList 包含的项目数}
-    property WizActionCount: Integer read GetWizActionCount;
-    {* 管理器列表中 TCnWizAction 对象和 TCnWizMenuAction 对象的总数}
-    property WizMenuActionCount: Integer read GetWizMenuActionCount;
-    {* 管理器列表中 TCnWizMenuAction 对象的项目数}
     property IdeActions[Index: Integer]: TContainedAction read GetIdeActions;
     {* 整个 IDE 的主 ActionList 包含的 Action 数组，包含了 WizActions 和
        WizMenuActions 所包含的对象}
+{$ENDIF}
+
+    property WizActionCount: Integer read GetWizActionCount;
+    {* 管理器列表中 TCnWizAction 对象和 TCnWizMenuAction 对象的总数}
     property WizActions[Index: Integer]: TCnWizAction read GetWizActions;
     {* 管理器列表中 TCnWizAction 及子类对象数组，也包含了 TCnWizMenuAction 对象}
+
+    property WizMenuActionCount: Integer read GetWizMenuActionCount;
+    {* 管理器列表中 TCnWizMenuAction 对象的项目数}
     property WizMenuActions[Index: Integer]: TCnWizMenuAction read GetWizMenuActions;
     {* 管理器列表中 TCnWizMenuAction 对象数组}
+
     property MoreAction: TAction read FMoreAction;
-    {* 用于解决菜单过长而设置的分隔菜单 Action }
+    {* 用于解决菜单过长而设置的分隔菜单 Action}
   end;
 
 function WizActionMgr: TCnWizActionMgr;
@@ -218,18 +231,23 @@ function WizActionMgr: TCnWizActionMgr;
    创建 TCnWizActionMgr 的实例，而应该用该函数来访问。}
 
 procedure FreeWizActionMgr;
-{* 释放管理器实例}
+{* 释放 Action 管理器实例}
 
 implementation
 
 uses
-{$IFDEF DEBUG}
-  CnDebug,
-{$ENDIF}
-  CnWizUtils, CnWizIdeUtils;
+  {$IFDEF DEBUG} CnDebug, {$ENDIF}
+  {$IFNDEF STAND_ALONE} CnWizUtils, CnWizIdeUtils, {$ENDIF}
+  CnWizCompilerConst;
 
 const
   csUpdateInterval = 100;
+
+var
+  FWizActionMgr: TCnWizActionMgr = nil;
+{$IFDEF NO_DELPHI_OTA}
+  FCnWizardsActionList: TActionList = nil; // 独立运行时及 Lazarus 里没有 IDE ActionList
+{$ENDIF}
 
 //==============================================================================
 // CnWizards IDE Action 封装类
@@ -318,7 +336,7 @@ begin
 end;
 
 // ShortCut 属性写方法
-procedure TCnWizAction.{$IFDEF DelphiXE3_UP}_CnSetShortCut{$ELSE}SetShortCut{$ENDIF}(const Value: TShortCut);
+procedure TCnWizAction.{$IFDEF DELPHIXE3_UP}_CnSetShortCut{$ELSE}SetShortCut{$ENDIF}(const Value: TShortCut);
 begin
   Assert(Assigned(FWizShortCut));
   if FWizShortCut.ShortCut <> Value then
@@ -393,7 +411,7 @@ end;
 procedure TCnWizActionMgr.Notification(AComponent: TComponent;
   Operation: TOperation);
 var
-  i: Integer;
+  I: Integer;
 begin
   inherited;
   if FDeleting then Exit;
@@ -402,30 +420,34 @@ begin
   CnDebugger.LogFmt('TCnWizActionMgr.Notification: (%s: %s)',
     [AComponent.Name, AComponent.ClassName]);
 {$ENDIF}
-  for i := 0 to FWizActions.Count - 1 do
-    if FWizActions[i] = AComponent then
+  for I := 0 to FWizActions.Count - 1 do
+  begin
+    if FWizActions[I] = AComponent then
     begin
-      FWizActions.Delete(i);
+      FWizActions.Delete(I);
       {$IFDEF DEBUG}
         CnDebugger.LogMsg('TCnWizActionMgr FWizActions.Delete.');
       {$ENDIF}
       Exit;
     end;
+  end;
 
-  for i := 0 to FWizMenuActions.Count - 1 do
-    if FWizMenuActions[i] = AComponent then
+  for I := 0 to FWizMenuActions.Count - 1 do
+  begin
+    if FWizMenuActions[I] = AComponent then
     begin
-      FWizMenuActions.Delete(i);
+      FWizMenuActions.Delete(I);
       {$IFDEF DEBUG}
         CnDebugger.LogMsg('TCnWizActionMgr FWizMenuActions.Delete.');
       {$ENDIF}
       Exit;
     end
-    else if TCnWizMenuAction(FWizMenuActions[i]).FMenu = AComponent then
+    else if TCnWizMenuAction(FWizMenuActions[I]).FMenu = AComponent then
     begin
-      TCnWizMenuAction(FWizMenuActions[i]).FMenu := nil;
+      TCnWizMenuAction(FWizMenuActions[I]).FMenu := nil;
       Exit;
     end;
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -436,10 +458,17 @@ end;
 procedure TCnWizActionMgr.InitAction(AWizAction: TCnWizAction;
   const ACommand, ACaption: string; OnExecute: TNotifyEvent; OnUpdate: TNotifyEvent;
   const IcoName, AHint: string; UseDefaultIcon: Boolean);
+{$IFNDEF NO_DELPHI_OTA}
 var
   Svcs40: INTAServices40;
   NewName: string;
+{$ENDIF}
 begin
+{$IFNDEF STAND_ALONE}
+{$IFDEF LAZARUS}
+  // TODO:
+{$ELSE}
+  // IDE 内部要名称判重
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   if Trim(ACommand) <> '' then
   begin
@@ -450,22 +479,31 @@ begin
         AWizAction.Name := NewName;
       except
       {$IFDEF DEBUG}
-        CnDebugger.LogMsgWithType('Rename action error: ' + NewName, cmtError);
+        CnDebugger.LogMsgWithType('Rename Action Error: ' + NewName, cmtError);
       {$ENDIF}
       end;
     end
     else
     {$IFDEF DEBUG}
-      CnDebugger.LogMsgWithType('Component is already exists: ' + NewName, cmtError);
+      CnDebugger.LogMsgWithType('Component Already Exists: ' + NewName, cmtError);
     {$ENDIF}
   end;
+{$ENDIF}
+{$ENDIF}
+
   AWizAction.Caption := ACaption;
   AWizAction.Hint := AHint;
   AWizAction.Category := SCnWizardsActionCategory;
   AWizAction.OnExecute := OnExecute;
   AWizAction.OnUpdate := OnUpdate;
-  
+
+{$IFDEF NO_DELPHI_OTA}
+  AWizAction.ActionList := FCnWizardsActionList;
+{$ELSE}
   AWizAction.ActionList := Svcs40.ActionList;
+{$ENDIF}
+
+{$IFNDEF STAND_ALONE}
   if CnWizLoadIcon(nil, AWizAction.FIcon, IcoName, UseDefaultIcon) then
   begin
 {$IFDEF DEBUG}
@@ -473,14 +511,22 @@ begin
       AWizAction.FIcon.Height]);
 {$ENDIF}
 
+{$IFNDEF STAND_ALONE}
 {$IFDEF IDE_SUPPORT_HDPI}
-    AWizAction.ImageIndex := AddGraphicToVirtualImageList(AWizAction.FIcon, Svcs40.ImageList as TVirtualImageList)
+    AWizAction.ImageIndex := AddGraphicToVirtualImageList(AWizAction.FIcon, Svcs40.ImageList as TVirtualImageList);
 {$ELSE}
-    AWizAction.ImageIndex := AddIconToImageList(AWizAction.FIcon, Svcs40.ImageList, False)
+  {$IFDEF LAZARUS}
+    AWizAction.ImageIndex := AddIconToImageList(AWizAction.FIcon, GetIDEImageList, False);
+  {$ELSE}
+    AWizAction.ImageIndex := AddIconToImageList(AWizAction.FIcon, Svcs40.ImageList, False);
+  {$ENDIF}
+{$ENDIF}
 {$ENDIF}
   end
   else
+{$ENDIF}
     AWizAction.ImageIndex := -1;
+
   AWizAction.FCommand := ACommand;
 end;
 
@@ -488,17 +534,25 @@ end;
 function TCnWizActionMgr.AddMenuAction(const ACommand, ACaption, AMenuName: string;
   AShortCut: TShortCut; OnExecute: TNotifyEvent; const IcoName,
   AHint: string; UseDefaultIcon: Boolean): TCnWizMenuAction;
+{$IFNDEF NO_DELPHI_OTA}
 var
   Svcs40: INTAServices40;
+{$ENDIF}
 begin
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('TCnWizActionMgr.Add WizMenuAction: %s', [ACommand]);
 {$ENDIF}
+
   if IndexOfCommand(ACommand) >= 0 then
-    raise ECnDuplicateCommand.CreateFmt(SCnDuplicateCommand, [ACommand]);
-    
+    raise ECnDuplicateCommandException.CreateFmt(SCnDuplicateCommand, [ACommand]);
+
+{$IFDEF NO_DELPHI_OTA}
+  Result := TCnWizMenuAction.Create(FCnWizardsActionList);
+{$ELSE}
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   Result := TCnWizMenuAction.Create(Svcs40.ActionList);
+{$ENDIF}
+
   Result.FreeNotification(Self);
 
   Result.FUpdating := True;         // 开始更新
@@ -508,7 +562,9 @@ begin
     Result.FMenu.FreeNotification(Self);
     Result.FMenu.Name := AMenuName;
     Result.FMenu.Action := Result;
+{$IFNDEF LAZARUS}
     Result.FMenu.AutoHotkeys := maManual;
+{$ENDIF}
     Result.FWizShortCut := WizShortCutMgr.Add(ACommand, AShortCut, Result.OnShortCut,
       AMenuName, 0, Result);
 
@@ -526,17 +582,30 @@ end;
 function TCnWizActionMgr.AddAction(const ACommand, ACaption: string;
   AShortCut: TShortCut; OnExecute: TNotifyEvent; const IcoName,
   AHint: string; UseDefaultIcon: Boolean): TCnWizAction;
+{$IFNDEF STAND_ALONE}
+{$IFNDEF LAZARUS}
 var
   Svcs40: INTAServices40;
+{$ENDIF}
+{$ENDIF}
 begin
 {$IFDEF DEBUG}
   CnDebugger.LogFmt('TCnWizActionMgr.Add WizAction: %s', [ACommand]);
 {$ENDIF}
+
   if IndexOfCommand(ACommand) >= 0 then
-    raise ECnDuplicateCommand.CreateFmt(SCnDuplicateCommand, [ACommand]);
-    
+    raise ECnDuplicateCommandException.CreateFmt(SCnDuplicateCommand, [ACommand]);
+
+{$IFDEF STAND_ALONE}
+  Result := TCnWizAction.Create(FCnWizardsActionList);
+{$ELSE}
+  {$IFDEF LAZARUS}
+  Result := TCnWizAction.Create(FCnWizardsActionList);
+  {$ELSE}
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   Result := TCnWizAction.Create(Svcs40.ActionList);
+  {$ENDIF}
+{$ENDIF}
   Result.FreeNotification(Self);
 
   Result.FUpdating := True;         // 开始更新
@@ -628,11 +697,13 @@ begin
   Result := -1;
   if ACommand = '' then Exit;
   for I := 0 to WizActionCount - 1 do
+  begin
     if WizActions[I].FCommand = ACommand then
     begin
       Result := I;
       Exit;
     end;
+  end;
 end;
 
 // 根据快捷键键值查找索引号
@@ -643,11 +714,13 @@ begin
   Result := -1;
   if AShortCut = 0 then Exit;
   for I := 0 to WizActionCount - 1 do
+  begin
     if WizActions[I].ShortCut = AShortCut then
     begin
       Result := I;
       Exit;
     end;
+  end;
 end;
 
 procedure TCnWizActionMgr.MoreActionExecute(Sender: TObject);
@@ -656,7 +729,8 @@ begin
 end;
 
 procedure TCnWizActionMgr.ArrangeMenuItems(RootItem: TMenuItem;
-  MaxItems: Integer);
+  MaxItems: Integer; IsSub: Boolean);
+
 {$IFDEF COMPILER7_UP}
   function NewMoreItem: TMenuItem;
   begin
@@ -665,7 +739,7 @@ procedure TCnWizActionMgr.ArrangeMenuItems(RootItem: TMenuItem;
   end;
 
 var
-  I: Integer;
+  I, Offset: Integer;
   ScreenRect: TRect;
   ScreenHeight: Integer;
   MoreMenuItem: TMenuItem;
@@ -678,10 +752,25 @@ begin
 {$IFDEF COMPILER7_UP}
   if MaxItems < 8 then
   begin
-    ScreenRect := GetWorkRect(GetIdeMainForm);
-    ScreenHeight := ScreenRect.Bottom - ScreenRect.Top - 75;
+    if IsSub then       // 子菜单多给点空间
+      Offset := 250
+    else
+      Offset := 75;
+
+{$IFDEF STAND_ALONE}
+    ScreenRect := GetWorkRect(Application.MainForm);
+{$ELSE}
+    ScreenRect := GetWorkRect(GetIDEMainForm);
+{$ENDIF}
+    ScreenHeight := ScreenRect.Bottom - ScreenRect.Top - Offset;
+
+{$IFDEF STAND_ALONE}
+    MaxItems := ScreenHeight div 24;  // 独立运行模式下先写死
+{$ELSE}
     MaxItems := ScreenHeight div GetMainMenuItemHeight;
-    if MaxItems < 8 then MaxItems := 8;
+{$ENDIF}
+    if MaxItems < 8 then
+      MaxItems := 8;
   end;
 
 {$IFDEF DEBUG}
@@ -727,23 +816,39 @@ end;
 // 属性读写方法
 //------------------------------------------------------------------------------
 
+{$IFNDEF STAND_ALONE}
+
 // IdeActionCount 属性读方法
 function TCnWizActionMgr.GetIdeActionCount: Integer;
+{$IFNDEF LAZARUS}
 var
   Svcs40: INTAServices40;
+{$ENDIF}
 begin
+{$IFDEF LAZARUS}
+  Result := 0;
+{$ELSE}
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   Result := Svcs40.ActionList.ActionCount;
+{$ENDIF}
 end;
 
 // IdeActions 属性读方法
 function TCnWizActionMgr.GetIdeActions(Index: Integer): TContainedAction;
+{$IFNDEF LAZARUS}
 var
   Svcs40: INTAServices40;
+{$ENDIF}
 begin
+{$IFDEF LAZARUS}
+  Result := nil;
+{$ELSE}
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   Result := Svcs40.ActionList.Actions[Index];
+{$ENDIF}
 end;
+
+{$ENDIF}
 
 // WizActionCount 属性读方法
 function TCnWizActionMgr.GetWizActionCount: Integer;
@@ -778,9 +883,6 @@ begin
     Result := TCnWizMenuAction(FWizMenuActions[Index]);
 end;
 
-var
-  FWizActionMgr: TCnWizActionMgr = nil;
-
 // 返回当前的 IDE Action 管理器实例
 function WizActionMgr: TCnWizActionMgr;
 begin
@@ -796,6 +898,15 @@ begin
     FreeAndNil(FWizActionMgr);
 end;
 
+{$IFDEF STAND_ALONE}
+
+initialization
+  FCnWizardsActionList := TActionList.Create(nil);
+
+finalization
+  FCnWizardsActionList.Free;
+
+{$ENDIF}
 end.
 
 

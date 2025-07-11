@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -231,15 +231,19 @@ type
     // === New Routines for refactor ===
     // 提前准备调用参数
     procedure PrepareSearchRange; virtual;
+
     // 实现根据匹配规则从 DataList 更新至 DisplayList的功能，一般无须重载
     procedure CommonUpdateListView; virtual;
+
     // 子类重载以返回在指定匹配字符、指定匹配模式下，DataList 中的指定项是否匹配
     // 调用此方法前 ProjectInfo 指定了下拉框所标识的工程范围
     function CanMatchDataByIndex(const AMatchStr: string; AMatchMode: TCnMatchMode;
       DataListIndex: Integer; var StartOffset: Integer; MatchedIndexes: TList): Boolean; virtual;
+
     // 子类重载以返回此项是否可以作为优先选中的项，一般无须重载
     function CanSelectDataByIndex(const AMatchStr: string; AMatchMode: TCnMatchMode;
       DataListIndex: Integer): Boolean; virtual;
+
     // 排序比较器，子类重载以实现根据 Object 比较的功能
     function SortItemCompare(ASortIndex: Integer; const AMatchStr: string;
       const S1, S2: string; Obj1, Obj2: TObject; SortDown: Boolean): Integer; virtual;
@@ -248,11 +252,14 @@ type
     function DefaultMatchHandler(const AMatchStr: string; AMatchMode: TCnMatchMode;
       DataListIndex: Integer; var StartOffset: Integer; MatchedIndexes: TList;
       CaseSensitive: Boolean = False): Boolean;
+
     // 默认允许优先选择最头上匹配的项
     function DefaultSelectHandler(const AMatchStr: string; AMatchMode: TCnMatchMode;
       DataListIndex: Integer): Boolean;
+
     // 释放 DataList 供重新初始化的场合
     procedure ClearDataList;
+
     // 供子类决定绘制 Item 时可以修改部分绘制参数如颜色等
     procedure DrawListPreParam(Item: TListItem; ListCanvas: TCanvas); virtual;
     // === New Routines for refactor ===
@@ -695,7 +702,10 @@ begin
 end;
 
 procedure TCnProjectViewBaseForm.LoadSettings(Ini: TCustomIniFile; aSection: string);
+const
+  MIN_WH = 200;
 var
+  TW, TH: Integer;
   sFont: string;
 begin
   with TCnIniFile.Create(Ini) do
@@ -707,7 +717,7 @@ begin
 {$IFDEF DEBUG}
     CnDebugger.LogMsg('TCnProjectViewBaseForm ReadFont: ' + sFont);
     CnDebugger.LogMsg('TCnProjectViewBaseForm SelfFont: ' + FontToString(Self.Font));
-{$ENDIF DEBUG}
+{$ENDIF}
     if (sFont <> '') and (sFont <> FontToString(Self.Font)) then
     begin
       // 只有保存的字体不等于窗体字体的时候，也即用户设置过字体后，才载入
@@ -722,8 +732,24 @@ begin
     lvList.CustomSort(nil, 0); // 按保存的设置排序
     ChangeColumnArrow;
 
-    Width := ReadInteger(aSection, csWidth, Width);
-    Height := ReadInteger(aSection, csHeight, Height);
+    TW := ReadInteger(aSection, csWidth, 0);
+    TH := ReadInteger(aSection, csHeight, 0);
+{$IFDEF IDE_SUPPORT_HDPI}
+    TW := Round(TW * IdeGetScaledFactor(Self));
+    TH := Round(TH * IdeGetScaledFactor(Self));
+{$ENDIF}
+    if TW > Screen.Width - 150 then   // 限制不能比屏幕大
+      TW := Screen.Width - 150;
+    if TH > Screen.Height - 120 then
+      TH := Screen.Height - 120;
+
+    if TW > MIN_WH then Width := TW;
+    if TH > MIN_WH then Height := TH;
+
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('TCnProjectViewBaseForm.LoadSettings Load Width %d Height %d after Scale', [Width, Height]);
+{$ENDIF}
+
 {$IFNDEF STAND_ALONE}
     CenterForm(Self);
     if FListViewWidthOldStr = '' then // 保留旧宽度供判断是否改变过
@@ -747,6 +773,7 @@ procedure TCnProjectViewBaseForm.SaveSettings(Ini: TCustomIniFile; aSection: str
 {$IFNDEF STAND_ALONE}
 var
   S: string;
+  TW, TH: Integer;
 
   function CheckWidthValid: Boolean;
   var
@@ -776,8 +803,19 @@ begin
     else
       WriteString(aSection, csFont, '');
 
-    WriteInteger(aSection, csWidth, Width);
-    WriteInteger(aSection, csHeight, Height);
+    TW := Width;
+    TH := Height;
+{$IFDEF IDE_SUPPORT_HDPI}
+    TW := Round(TW / IdeGetScaledFactor(Self));
+    TH := Round(TH / IdeGetScaledFactor(Self));
+{$ENDIF}
+    WriteInteger(aSection, csWidth, TW);
+    WriteInteger(aSection, csHeight, TH);
+
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('TCnProjectViewBaseForm.LoadSettings Save Width %d Height %d before Scale.', [TW, TH]);
+{$ENDIF}
+
 {$IFNDEF STAND_ALONE}
     if CnIsGEDelphi11Dot3 then
     begin
@@ -1279,8 +1317,10 @@ var
   I: Integer;
 begin
   if FOutDataListRef = nil then // 有外部的 List 存在时则不能释放 Object
+  begin
     for I := 0 to DataList.Count - 1 do
       DataList.Objects[I].Free;
+  end;
   DataList.Clear;
 end;
 

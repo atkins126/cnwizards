@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -52,9 +52,9 @@ type
 { TCnEditorItem }
 
   TCnSrcTemplate = class;
-  TCnEditorCollection = class;
-  
-  TCnEditorItem = class(TCollectionItem)
+  TCnTemplateCollection = class;
+
+  TCnTemplateItem = class(TCollectionItem)
   private
     FEnabled: Boolean;
     FCaption: string;
@@ -65,13 +65,13 @@ type
     FShortCut: TShortCut;
     FActionIndex: Integer;
     FSavePos: Boolean;
-    FCollection: TCnEditorCollection;
+    FCollection: TCnTemplateCollection;
     FForDelphi: Boolean;
     FForBcb: Boolean;
   public
     constructor Create(Collection: TCollection); override;
     procedure Assign(Source: TPersistent); override;
-    property Collection: TCnEditorCollection read FCollection;
+    property Collection: TCnTemplateCollection read FCollection;
   published
     property Enabled: Boolean read FEnabled write FEnabled;
     property ShortCut: TShortCut read FShortCut write FShortCut;
@@ -86,21 +86,21 @@ type
     property ForBcb: Boolean read FForBcb write FForBcb default {$IFDEF BDS} True {$ELSE} {$IFDEF DELPHI} False {$ELSE} True {$ENDIF} {$ENDIF};
   end;
 
-{ TCnEditorCollection }
+{ TCnTemplateCollection }
 
-  TCnEditorCollection = class(TCollection)
+  TCnTemplateCollection = class(TCollection)
   private
     FWizard: TCnSrcTemplate;
-    function GetItems(Index: Integer): TCnEditorItem;
-    procedure SetItems(Index: Integer; const Value: TCnEditorItem);
+    function GetItems(Index: Integer): TCnTemplateItem;
+    procedure SetItems(Index: Integer; const Value: TCnTemplateItem);
   protected
     property Wizard: TCnSrcTemplate read FWizard;
   public
     constructor Create(AWizard: TCnSrcTemplate);
     function LoadFromFile(const FileName: string): Boolean;
     function SaveToFile(const FileName: string): Boolean;
-    function Add: TCnEditorItem;
-    property Items[Index: Integer]: TCnEditorItem read GetItems write SetItems; default;
+    function Add: TCnTemplateItem;
+    property Items[Index: Integer]: TCnTemplateItem read GetItems write SetItems; default;
   end;
 
 { TCnSrcTemplate }
@@ -109,13 +109,15 @@ type
   private
     FConfigIndex: Integer;
     FInsertToProcIndex: Integer;
+    FInsertInitIndex: Integer;
     FLastIndexRef: Integer;
-    FBatchCode: string;
-    FCollection: TCnEditorCollection;
+    FProcBatchCode: string;
+    FInitBatchCode: string;
+    FCollection: TCnTemplateCollection;
     FExecuting: Boolean;
 
     procedure UpdateActions;
-    procedure DoExecute(Editor: TCnEditorItem);
+    procedure DoExecute(Editor: TCnTemplateItem);
   protected
     function GetHasConfig: Boolean; override;
     procedure SubActionExecute(Index: Integer); override;
@@ -124,6 +126,7 @@ type
     procedure SaveCollection;
 
     procedure InsertCodeToProc;
+    procedure InsertInitToUnits;
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -139,7 +142,7 @@ type
     function GetSearchContent: string; override;
     function GetCaption: string; override;
     function GetHint: string; override;
-    property Collection: TCnEditorCollection read FCollection;
+    property Collection: TCnTemplateCollection read FCollection;
   end;
 
 { TCnSrcTemplateForm }
@@ -199,34 +202,34 @@ uses
   CnDebug,
 {$ENDIF}
   mPasLex, CnSrcTemplateEditFrm, CnWizOptions, CnWizShortCut, CnCommon,
-  CnWizMacroFrm, CnWizMacroText, CnWizCommentFrm;
+  CnWizMacroFrm, CnWizMacroText, CnWizCommentFrm, CnIDEStrings;
 
 {$R *.DFM}
 
 { TCnEditorItem }
 
-procedure TCnEditorItem.Assign(Source: TPersistent);
+procedure TCnTemplateItem.Assign(Source: TPersistent);
 begin
-  if Source is TCnEditorItem then
+  if Source is TCnTemplateItem then
   begin
-    FEnabled := TCnEditorItem(Source).FEnabled;
-    FIconName := TCnEditorItem(Source).FIconName;
-    FContent := TCnEditorItem(Source).FContent;
-    FShortCut := TCnEditorItem(Source).FShortCut;
-    FCaption := TCnEditorItem(Source).FCaption;
-    FSavePos := TCnEditorItem(Source).FSavePos;
-    FHint := TCnEditorItem(Source).FHint;
-    FInsertPos := TCnEditorItem(Source).FInsertPos;
+    FEnabled := TCnTemplateItem(Source).FEnabled;
+    FIconName := TCnTemplateItem(Source).FIconName;
+    FContent := TCnTemplateItem(Source).FContent;
+    FShortCut := TCnTemplateItem(Source).FShortCut;
+    FCaption := TCnTemplateItem(Source).FCaption;
+    FSavePos := TCnTemplateItem(Source).FSavePos;
+    FHint := TCnTemplateItem(Source).FHint;
+    FInsertPos := TCnTemplateItem(Source).FInsertPos;
   end
   else
     inherited Assign(Source);
 end;
 
-constructor TCnEditorItem.Create(Collection: TCollection);
+constructor TCnTemplateItem.Create(Collection: TCollection);
 begin
-  Assert(Collection is TCnEditorCollection);
+  Assert(Collection is TCnTemplateCollection);
   inherited Create(Collection);
-  FCollection := TCnEditorCollection(Collection);
+  FCollection := TCnTemplateCollection(Collection);
   FEnabled := True;
   FInsertPos := ipCurrPos;
   FSavePos := False;
@@ -251,29 +254,29 @@ end;
 
 { TCnEditorCollection }
 
-function TCnEditorCollection.Add: TCnEditorItem;
+function TCnTemplateCollection.Add: TCnTemplateItem;
 begin
-  Result := TCnEditorItem(inherited Add);
+  Result := TCnTemplateItem(inherited Add);
 end;
 
-constructor TCnEditorCollection.Create(AWizard: TCnSrcTemplate);
+constructor TCnTemplateCollection.Create(AWizard: TCnSrcTemplate);
 begin
-  inherited Create(TCnEditorItem);
+  inherited Create(TCnTemplateItem);
   FWizard := AWizard;
 end;
 
-function TCnEditorCollection.GetItems(Index: Integer): TCnEditorItem;
+function TCnTemplateCollection.GetItems(Index: Integer): TCnTemplateItem;
 begin
-  Result := TCnEditorItem(inherited Items[Index]);
+  Result := TCnTemplateItem(inherited Items[Index]);
 end;
 
-procedure TCnEditorCollection.SetItems(Index: Integer;
-  const Value: TCnEditorItem);
+procedure TCnTemplateCollection.SetItems(Index: Integer;
+  const Value: TCnTemplateItem);
 begin
   inherited Items[Index] := Value;
 end;
 
-function TCnEditorCollection.LoadFromFile(const FileName: string): Boolean;
+function TCnTemplateCollection.LoadFromFile(const FileName: string): Boolean;
 var
   I: Integer;
 begin
@@ -295,7 +298,7 @@ begin
   end;
 end;
 
-function TCnEditorCollection.SaveToFile(const FileName: string): Boolean;
+function TCnTemplateCollection.SaveToFile(const FileName: string): Boolean;
 begin
   try
     TOmniXMLWriter.SaveToFile(Self, FileName, pfAuto, ofIndent);
@@ -326,7 +329,7 @@ end;
 constructor TCnSrcTemplate.Create;
 begin
   inherited;
-  FCollection := TCnEditorCollection.Create(Self);
+  FCollection := TCnTemplateCollection.Create(Self);
 end;
 
 destructor TCnSrcTemplate.Destroy;
@@ -335,7 +338,7 @@ begin
   inherited;
 end;
 
-procedure TCnSrcTemplate.DoExecute(Editor: TCnEditorItem);
+procedure TCnSrcTemplate.DoExecute(Editor: TCnTemplateItem);
 var
   MacroText: TCnWizMacroText;
   Content: string;
@@ -468,15 +471,20 @@ begin
   begin
     InsertCodeToProc;
   end
+  else if Index = FInsertInitIndex then
+  begin
+    InsertInitToUnits;
+  end
   else
   begin
     for I := 0 to FCollection.Count - 1 do
-      if FCollection[I].FEnabled and (FCollection[I].FActionIndex
-        = Index) then
+    begin
+      if FCollection[I].FEnabled and (FCollection[I].FActionIndex = Index) then
       begin
         DoExecute(FCollection[I]);
         Exit;
       end;
+    end;
   end;
 end;
 
@@ -500,7 +508,10 @@ begin
   FInsertToProcIndex := RegisterASubAction(SCnSrcTemplateInsertToProcName,
     SCnSrcTemplateInsertToProcCaption, 0, SCnSrcTemplateInsertToProcHint);
 
-  FLastIndexRef := FInsertToProcIndex;
+  FInsertInitIndex := RegisterASubAction(SCnSrcTemplateInsertInitToUnitsName,
+    SCnSrcTemplateInsertInitToUnitsCaption, 0, SCnSrcTemplateInsertInitToUnitsHint);
+
+  FLastIndexRef := FInsertInitIndex;
 
   AddSepMenu;
   UpdateActions;
@@ -510,7 +521,7 @@ procedure TCnSrcTemplate.UpdateActions;
 var
   I: Integer;
 
-  function ItemCanShow(Item: TCnEditorItem): Boolean;
+  function ItemCanShow(Item: TCnTemplateItem): Boolean;
   begin
     Result := False;
     if Item = nil then
@@ -568,7 +579,7 @@ end;
 procedure TCnSrcTemplate.InsertCodeToProc;
 const
   PROC_NAME = '%ProcName%';
-  DEF_CODE = '  CnDebugger.LogMsg(''%ProcName%'');';
+  DEF_PROC_CODE = '  CnDebugger.LogMsg(''%ProcName%'');';
 var
   I, J: Integer;
   S, T, ProcName: string;
@@ -590,13 +601,13 @@ begin
     Exit;
   end;
 
-  if FBatchCode = '' then
-    FBatchCode := DEF_CODE;
-  S := CnWizInputMultiLineBox(SCnInformation, SCnSrcTemplateInsertToProcPrompt, FBatchCode);
+  if FProcBatchCode = '' then
+    FProcBatchCode := DEF_PROC_CODE;
+  S := CnWizInputMultiLineBox(SCnInformation, SCnSrcTemplateInsertToProcPrompt, FProcBatchCode);
   if S = '' then
     Exit;
 
-  FBatchCode := S;
+  FProcBatchCode := S;
 
   PasParser := nil;
   Stream := nil;
@@ -693,6 +704,147 @@ begin
     ProcNames.Free;
     Stream.Free;
     PasParser.Free;
+  end;
+end;
+
+procedure TCnSrcTemplate.InsertInitToUnits;
+const
+  UNIT_NAME = '%UnitName%';
+  DEF_INIT_CODE = '  CnDebugger.LogMsg(''%UnitName%'');';
+var
+  S, F: string;
+  FS: TStringList;
+  I, C: Integer;
+
+  procedure ProcessFile(const FileName: string; const Code: string);
+  const
+    CRLF = #13#10;
+  var
+    Stream, Dest: TMemoryStream;
+    Lex: TCnGeneralWidePasLex;
+    PosInit, PosFinal, PosEnd, LenInit, L: Integer;
+    Str: TCnIdeTokenString;
+  begin
+    Stream := nil;
+    Dest := nil;
+    Lex := nil;
+
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('SrcTemplate ProcessFile %s', [FileName]);
+{$ENDIF}
+
+    try
+      Stream := TMemoryStream.Create;
+      CnGeneralFilerSaveFileToStream(FileName, Stream);
+
+      Lex := TCnGeneralWidePasLex.Create;
+      Lex.Origin := Stream.Memory;
+
+      PosInit := 0;
+      PosFinal := 0;
+      PosEnd := 0;
+      LenInit := 0;
+
+      while Lex.TokenID <> tkNull do
+      begin
+        case Lex.TokenID of
+          tkInitialization:
+            begin
+              PosInit := Lex.TokenPos;  // 最后一个 initialization
+              LenInit := Length(Lex.Token);
+            end;
+          tkFinalization:
+            begin
+              PosFinal := Lex.TokenPos;  // 最后一个 finalization
+            end;
+          tkEnd:
+            begin
+              PosEnd := Lex.TokenPos;    // 最后一个 end
+            end;
+        end;
+        Lex.NextNoJunk;
+      end;
+
+      // 确定插入位置，分好几种情况。L 变成最终插入位置
+      if PosInit > 0 then
+      begin
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('PosInit %d. InitLen %d', [PosInit, LenInit]);
+{$ENDIF}
+
+        // 有 initialization，直接在其后插入回车及代码及空行
+        Str := TCnIdeTokenString(CRLF + Code + CRLF);
+        L := PosInit + LenInit;
+      end
+      else if PosFinal > 0 then
+      begin
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('PosFinal %d.', [PosFinal]);
+{$ENDIF}
+
+        // 没有 initialization，只有 finalization，在其前面插入 initialization 回车和代码及空行
+        Str := TCnIdeTokenString('initialization' + CRLF + Code + CRLF);
+        L := PosFinal;
+      end
+      else if PosEnd > 0 then
+      begin
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('PosEnd %d.', [PosEnd]);
+{$ENDIF}
+
+        // initialization 和 finalization 都没有，插最后一个 end 前插入 initialization 回车和代码及空行
+        Str := TCnIdeTokenString('initialization' + CRLF + Code + CRLF + CRLF);
+        L := PosEnd;
+      end
+      else
+        Exit;
+
+      Dest := TMemoryStream.Create;
+      Stream.Position := 0;
+      Dest.CopyFrom(Stream, L * SizeOf(TCnIdeTokenChar));
+      Dest.Write(Str[1], Length(Str) * SizeOf(TCnIdeTokenChar));
+      Dest.CopyFrom(Stream, Stream.Size - (L + 1) * SizeOf(TCnIdeTokenChar));
+      // +1 是去除末尾的 #0，因为下面不需要
+
+      CnGeneralFilerLoadFileFromStream(FileName, Dest);
+    finally
+      Dest.Free;
+      Stream.Free;
+      Lex.Free;
+    end;
+  end;
+
+begin
+  FS := TStringList.Create;
+  if not CnOtaGetProjectSourceFiles(FS, False) then
+  begin
+    ErrorDlg(SCnSrcTemplateErrorProjectSource);
+    Exit;
+  end;
+
+  try
+    if FInitBatchCode = '' then
+      FInitBatchCode := DEF_INIT_CODE;
+    S := CnWizInputMultiLineBox(SCnInformation, SCnSrcTemplateInsertInitToUnitsPrompt, FInitBatchCode);
+    if S = '' then
+      Exit;
+
+    FInitBatchCode := S;
+
+    // 循环处理文件
+    C := 0;
+    for I := 0 to FS.Count - 1 do
+    begin
+      F := _CnChangeFileExt(_CnExtractFileName(FS[I]), '');
+      S := StringReplace(FInitBatchCode, UNIT_NAME, F, [rfReplaceAll]); // 本文件名替换后代码 S 准备插入
+
+      ProcessFile(FS[I], S);
+      Inc(C);
+    end;
+
+    InfoDlg(Format(SCnSrcTemplateInsertInitToUnitsCountFmt, [C]));
+  finally
+    FS.Free;
   end;
 end;
 
@@ -879,14 +1031,14 @@ end;
 
 procedure TCnSrcTemplateForm.btnImportClick(Sender: TObject);
 var
-  EditorCollection: TCnEditorCollection;
+  EditorCollection: TCnTemplateCollection;
 begin
   if OpenDialog.FileName = '' then
     OpenDialog.FileName := WizOptions.GetUserFileName(SCnSrcTemplateDataName,
       True, SCnSrcTemplateDataDefName);
   if OpenDialog.Execute then
   begin
-    EditorCollection := TCnEditorCollection.Create(nil);
+    EditorCollection := TCnTemplateCollection.Create(nil);
     try
       if EditorCollection.LoadFromFile(OpenDialog.FileName) then
       begin

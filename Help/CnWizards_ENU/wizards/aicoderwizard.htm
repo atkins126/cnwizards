@@ -34,7 +34,16 @@ Before using it, please first run the configuration of this wizard, enter the ap
     <p class="text"><b>Timeout Seconds</b>: Timeout for network communication with the unit seconds.</p>
   </li>
   <li>
-    <p class="text"><b>Use Proxy</b>: If checked, it represents that a proxy server is required for the specified connection to the AI Engine. Currently username and password are not supported.</p>
+    <p class="text"><b>Use Proxy</b>: If checked, it represents that a HTTP or SOCKS5 proxy server is required for the specified connection to the AI Engine, such as "192.168.1.1:1080". Currently username and password are not supported.</p>
+  </li>
+  <li>
+    <p class="text"><b>Send History Count in Chat</b>: Attach chat history message count for context when talking to AI in Chat Window.</p>
+  </li>
+  <li>
+    <p class="text"><b>Max Favorite Count</b>: The max number of favorite item count in Chat Window. 0 means no limitation.</p>
+  </li>
+<li>
+    <p class="text"><b>(Ctrl +) Alt + Enter to Continue Coding in Editor</b>: Whether to enable the two shortcuts in the editor to invoke the code continuation feature, where Alt + Enter directly inserts the AI-generated code into the editor at the current cursor position, and Ctrl + Alt + Enter outputs the result to the AI chat window for reading and copying.</p>
   </li>
   <li>
     <p class="text"><b>URL</b>: The AI Engine API URL provided by this AI Engine.</p>
@@ -43,10 +52,22 @@ Before using it, please first run the configuration of this wizard, enter the ap
     <p class="text"><b>Model Name</b>: Select the model name provided by this AI Engine.</p>
   </li>
   <li>
+    <p class="text"><b>Fetch Model List</b>: Call the AI engine provider's interface online using the current page parameters to retrieve the latest model list. If successful, update the dropdown list. Note that some AI engine providers do not support this operation.</p>
+  </li>
+  <li>
+    <p class="text"><b>Temperature</b>: Set the Temperature for this AI Engine.</p>
+  </li>
+  <li>
     <p class="text"><b>API Key</b>: Must be a valid API Key applied from this AI Engine website.</p>
   </li>
   <li>
+    <p class="text"><b>Stream Mode</b>: By default, when we make a request to any AI Engine, it generates the model's entire output before sending it back in a single HTTP response. When generating long outputs, waiting for a response can take time. Streaming mode lets us start printing or processing the beginning of the AI Engine's output while it continues generating the full response.</p>
+  </li>
+  <li>
     <p class="text"><b>Apply</b>: Click to Apply the API Key for this AI Engine.</p>
+  </li>
+  <li>
+    <p class="text"><b>Reset</b></b>: Reset selected AI Engine settings to default without clearing API Key.</p>
   </li>
 </ul>
 <p class="title" align="left">&nbsp;</p>
@@ -61,7 +82,13 @@ Before using it, please first run the configuration of this wizard, enter the ap
     <p class="text"><b>Review Code</b>: Send request to current AI engine to make a code review to the code which is selected in Editor. The review result will be shown in AI Chat Window.</p>
   </li>
   <li>
-    <p class="text"><b>AI Chat Window</b>: Show or hide AI Chat Window.</p>
+    <p class="text"><b>Generate Test Case</b>: Send request to current AI engine to generate a Test Case for the code which is selected in Editor. The test case code will be insert to cursor and also shown in AI Chat Window.</p>
+  </li>
+  <li>
+    <p class="text"><b>Continue Coding</b>: Send request to current AI engine to continue conding for the code or comments under cursor. The generated code will be insert to editor cursor. Default shortcut is Alt+Enter.</p>
+  </li>
+  <li>
+    <p class="text"><b>AI Chat Window</b>: Show AI Chat Window.</p>
   </li>
   <li>
     <p class="text"><b>Options</b>: Show AI Coder setting dialog.</p>
@@ -79,6 +106,9 @@ Before using it, please first run the configuration of this wizard, enter the ap
     <p class="text"><b>Clear</b>: Clear the messages in this dialog.</p>
   </li>
   <li>
+    <p class="text"><b>Attach Selected Code in Editor when Asking</b>: Whether attach selected code in editor for AI analysis when sending message in chat window.</p>
+  </li>
+  <li>
     <p class="text"><b>Font</b>: Change the font of message area and sending area.</p>
   </li>
   <li>
@@ -86,6 +116,18 @@ Before using it, please first run the configuration of this wizard, enter the ap
   </li>
   <li>
     <p class="text"><b>Help</b>: Show this Help.</p>
+  </li>
+  <li>
+    <p class="text"><b>Favorite Menu</b>: Display favorite menu to enter favorite text quickly.</p>
+  </li>
+  <li>
+    <p class="text"><b>Add to Favorite</b>: Add text in message sending area to favorite.</p>
+  </li>
+  <li>
+    <p class="text"><b>Clear Favorite</b>: Delete all favorite items.</p>
+  </li>
+  <li>
+    <p class="text"><b>Send</b>: Send current messages to current AI engine.</p>
   </li>
 </ul>
 <p class="title" align="left">&nbsp;</p>
@@ -97,6 +139,9 @@ Before using it, please first run the configuration of this wizard, enter the ap
   <li>
     <p class="text"><b>Copy Code</b>: Copy the content between ``` in selected message body.</p>
   </li>
+  <li>
+    <p class="text"><b>Add to Favorite</b>: Add text in selected message body to favorite.</p>
+  </li>
 </ul>
 
 <p class="title" align="left">&nbsp;
@@ -107,6 +152,6 @@ Before using it, please first run the configuration of this wizard, enter the ap
 <a href="../cnpack/index.htm">About CnWizards</a>
 <p class="text" align="left">&nbsp; 
 <hr>
-<p class="text" align="center"><a href="https://www.cnpack.org">Copyrights 2001-2024 CnPack Team</a></p>
+<p class="text" align="center"><a href="https://www.cnpack.org">Copyrights 2001-2025 CnPack Team</a></p>
 </body>
 </html>

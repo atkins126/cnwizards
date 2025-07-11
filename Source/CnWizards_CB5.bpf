@@ -100,10 +100,12 @@ USEFORMNS("ProjectExtWizard\CnProjectListUsedFrm.pas", Cnprojectlistusedfrm, CnP
 USEFORMNS("SimpleWizards\CnCommentCropper.pas", Cncommentcropper, CnCommentCropFrm);
 USEUNIT("Utils\CnSourceCropper.pas");
 USEUNIT("IdeEnhancements\CnCpuWinEnhancements.pas");
-USEUNIT("IdeEnhancements\CnCpuWinEnhanceFrm.pas");
+USEFORMNS("IdeEnhancements\CnCpuWinEnhanceFrm.pas", Cncpuwinenhancefrm, CnCpuWinEnhanceForm);
 USEFORMNS("DesignEditors\CnMultiLineEdtToolOptFrm.pas", Cnmultilineedttooloptfrm, CnMultiLineEditorToolsOptionFrm);
 USEFORMNS("DesignEditors\CnMultiLineEdtUserFmtFrm.pas", Cnmultilineedtuserfmtfrm, CnMultiLineEditorUserFmtFrm);
-USEUNIT("IdeEnhancements\CnObjInspectorEnhancements.pas");
+USEFORMNS("IdeEnhancements\CnObjInspectorEnhancements.pas", Cnobjinspectorenhancements, CnObjInspectorConfigForm);
+USEFORMNS("IdeEnhancements\CnObjInspectorCommentFrm.pas", Cnobjinspectorcommentfrm, CnObjInspectorCommentForm);
+USEUNIT("Utils\CnObjectInspectorWrapper.pas");
 USEUNIT("RepositoryWiz\CnRepositoryMenu.pas");
 USEUNIT("RepositoryWiz\CnDUnitWizard.pas");
 USEFORMNS("RepositoryWiz\CnDUnitSetFrm.pas", Cndunitsetfrm, CnDUnitSetForm);
@@ -122,7 +124,7 @@ USEUNIT("ReopenWizard\CnFilesSnapshot.pas");
 USEFORMNS("ReopenWizard\CnFilesSnapshotManageFrm.pas", Cnfilessnapshotmanagefrm, CnProjectFilesSnapshotManageForm);
 USEUNIT("ReopenWizard\CnRoClasses.pas");
 USEUNIT("ReopenWizard\CnRoFilesList.pas");
-USEFORMNS("ReopenWizard\CnRoFrmFileList.pas", Cnrofrmfilelist, RecentFilesFrame); /* TFrame: File Type */
+USEFORMNS("ReopenWizard\CnRoFrmFileList.pas", Cnrofrmfilelist, CnRecentFilesFrame); /* TFrame: File Type */
 USEUNIT("ReopenWizard\CnRoInterfaces.pas");
 USEUNIT("ReopenWizard\CnRoOptions.pas");
 USEUNIT("ReopenWizard\CnRoWizard.pas");
@@ -172,6 +174,7 @@ USEUNIT("CodingToolset\CnEditorJumpMessage.pas");
 USEUNIT("CodingToolset\CnEditorFontZoom.pas");
 USEUNIT("CodingToolset\CnEditorDuplicateUnit.pas");
 USEFORMNS("CodingToolset\CnEditorExtractString.pas", Cnextractstringform, CnExtractStringForm);
+USEUNIT("CodingToolset\CnEditorExtSelect.pas");
 USEUNIT("SrcEditorEnhance\CnSrcEditorKey.pas");
 USEFORMNS("SrcEditorEnhance\CnIdentRenameFrm.pas", Cnidentrenamefrm, CnIdentRenameForm);
 USEUNIT("IdeEnhancements\CnIdeEnhanceMenu.pas");

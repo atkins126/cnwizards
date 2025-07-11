@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -34,10 +34,19 @@ unit CnWizShortCut;
 *               更新，仅在最后调用 EndUpdate 时更新一次。
 *             - 当不再需要快捷键时，调用 WizShortCutMgr.Delete(...) 来删除，绝对
 *               不要自己去释放快捷键对象。
+*
+*           注：这套键盘绑定方法似乎在 64 位下不稳定，考虑到我们和 IDE 自身用 Action
+*           已能满足大部分需要，当时干脆决定在 64 位下不用 ToolsAPI 进行键盘绑定。
+*           后 D12.3 的四月补丁修了这个问题于是在四月版本后又绑定了。
+*
 * 开发平台：PWin2000Pro + Delphi 5.01
-* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
+* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6 + Lazarus 4.0
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2007.05.21 V1.4
+* 修改记录：2025.06.23 V1.6
+*               移植到 Lazarus，同样禁用 KeyBinding，待观察效果。
+*           2025.02.07 V1.5
+*               64 位下禁用 KeyBinding，待观察副作用。
+*           2007.05.21 V1.4
 *               去掉 PushKeyboard 调用，改为修改 AddKeyBinding 参数，解决某些快
 *               捷键无效的问题。
 *           2007.05.10 V1.3
@@ -57,10 +66,15 @@ interface
 {$I CnWizards.inc}
 
 uses
-  Windows, Messages, Classes, SysUtils, Menus, ExtCtrls, ToolsAPI, ActnList,
+  Windows, Messages, Classes, SysUtils, Menus, ExtCtrls, ActnList,
+  {$IFNDEF STAND_ALONE}
+  {$IFDEF LAZARUS} LCLProc, IDECommands, {$ELSE} ToolsAPI, {$ENDIF}
+  {$ELSE} {$IFDEF LAZARUS} LCLProc, {$ENDIF} {$ENDIF}
   CnWizConsts, CnCommon;
 
 type
+  ECnDuplicateShortCutNameException = class(Exception);
+
 //==============================================================================
 // IDE 快捷键定义类
 //==============================================================================
@@ -83,6 +97,12 @@ type
     FAction: TAction;
     FName: string;
     FTag: Integer;
+{$IFNDEF STAND_ALONE}
+{$IFDEF LAZARUS}
+    FLazShortCut: TIDEShortCut; // 结构，无需释放
+    FLazCommand: TIDECommand;   // 注册的对象，如何释放？
+{$ENDIF}
+{$ENDIF}
     procedure SetKeyProc(const Value: TNotifyEvent);
     procedure SetShortCut(const Value: TShortCut);
     procedure SetMenuName(const Value: string);
@@ -113,38 +133,6 @@ type
     {* 与快捷键关联的 Action 引用}
     property Tag: Integer read FTag write FTag;
     {* 快捷键标签}
-  end;
-
-//==============================================================================
-// IDE 快捷键绑定接口实现类
-//==============================================================================
-
-{ TCnKeyBinding }
-
-  TCnKeyBinding = class(TNotifierObject, IOTAKeyboardBinding)
-  {* IDE 快捷键绑定接口实现类，在 CnWizards 中内部使用。
-     该类实现了 IOTAKeyboardBinding 接口，可被 IDE 调用以定义 IDE 的快捷键绑定。
-     该类仅在 IDE 快捷键管理器类 TCnWizShortCutMgr 内部使用，请不要直接使用。}
-  private
-    FOwner: TCnWizShortCutMgr;
-  protected
-    procedure KeyProc(const Context: IOTAKeyContext; KeyCode: TShortcut;
-      var BindingResult: TKeyBindingResult);
-    property Owner: TCnWizShortCutMgr read FOwner;
-  public
-    constructor Create(AOwner: TCnWizShortCutMgr);
-    {* 类构造器，传递 IDE 快捷键管理器作为参数}
-    destructor Destroy; override;
-
-    // IOTAKeyboardBinding methods
-    function GetBindingType: TBindingType;
-    {* 取绑定类型，必须实现的 IOTAKeyboardBinding 方法}
-    function GetDisplayName: string;
-    {* 取快捷键绑定显示名称，必须实现的 IOTAKeyboardBinding 方法}
-    function GetName: string;
-    {* 取快捷键绑定名称，必须实现的 IOTAKeyboardBinding 方法}
-    procedure BindKeyboard(const BindingServices: IOTAKeyBindingServices);
-    {* 快捷键绑定过程，必须实现的 IOTAKeyboardBinding 方法}
   end;
 
 //==============================================================================
@@ -229,13 +217,55 @@ procedure FreeWizShortCutMgr;
 implementation
 
 uses
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebug,
-{$ENDIF Debug}
-  IniFiles, Registry, CnWizUtils, CnWizOptions;
+{$ENDIF}
+  IniFiles, Registry,
+  {$IFNDEF LAZARUS} {$IFNDEF STAND_ALONE} CnWizUtils,
+  {$IFNDEF CNWIZARDS_MINIMUM} CnIDEVersion, {$ENDIF} {$ENDIF} {$ENDIF}
+  CnWizOptions, CnWizCompilerConst;
 
 const
   csInvalidIndex = -1;
+
+{$IFNDEF NO_DELPHI_OTA}
+
+type
+
+//==============================================================================
+// IDE 快捷键绑定接口实现类
+//==============================================================================
+
+{ TCnKeyBinding }
+
+  TCnKeyBinding = class(TNotifierObject, IOTAKeyboardBinding)
+  {* IDE 快捷键绑定接口实现类，在 CnWizards 中内部使用。
+     该类实现了 IOTAKeyboardBinding 接口，可被 IDE 调用以定义 IDE 的快捷键绑定。
+     该类仅在 IDE 快捷键管理器类 TCnWizShortCutMgr 内部使用，请不要直接使用。}
+  private
+    FOwner: TCnWizShortCutMgr;
+  protected
+    procedure KeyProc(const Context: IOTAKeyContext; KeyCode: TShortcut;
+      var BindingResult: TKeyBindingResult);
+    property Owner: TCnWizShortCutMgr read FOwner;
+  public
+    constructor Create(AOwner: TCnWizShortCutMgr);
+    {* 类构造器，传递 IDE 快捷键管理器作为参数}
+    destructor Destroy; override;
+    {* 类析构器}
+
+    // IOTAKeyboardBinding methods
+    function GetBindingType: TBindingType;
+    {* 取绑定类型，必须实现的 IOTAKeyboardBinding 方法}
+    function GetDisplayName: string;
+    {* 取快捷键绑定显示名称，必须实现的 IOTAKeyboardBinding 方法}
+    function GetName: string;
+    {* 取快捷键绑定名称，必须实现的 IOTAKeyboardBinding 方法}
+    procedure BindKeyboard(const BindingServices: IOTAKeyBindingServices);
+    {* 快捷键绑定过程，必须实现的 IOTAKeyboardBinding 方法}
+  end;
+
+{$ENDIF}
 
 //==============================================================================
 // IDE 快捷键定义类
@@ -245,12 +275,26 @@ const
 
 // 快捷键属性已变更，通知管理器重新绑定
 procedure TCnWizShortCut.Changed;
+{$IFDEF LAZARUS}
+var
+  Key: Word;
+  Shift: TShiftState;
+{$ENDIF}
 begin
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogFmt('TCnWizShortCut.Changed: %s', [Name]);
-{$ENDIF Debug}
+{$ENDIF}
+
+{$IFNDEF STAND_ALONE}
+{$IFDEF LAZARUS}
+  // Lazarus 下先行同步快捷键保存，暂时不塞给 IDE
+  ShortCutToKey(FShortCut, Key, Shift);
+  FLazShortCut := IDEShortCut(Key, Shift);
+{$ELSE}
   if FOwner <> nil then
     FOwner.UpdateBinding;
+{$ENDIF}
+{$ENDIF}
 end;
 
 // 类构造器
@@ -349,6 +393,8 @@ begin
   end;
 end;
 
+{$IFNDEF NO_DELPHI_OTA}
+
 //==============================================================================
 // IDE 快捷键绑定接口实现类
 //==============================================================================
@@ -373,18 +419,18 @@ end;
 procedure TCnKeyBinding.KeyProc(const Context: IOTAKeyContext;
   KeyCode: TShortcut; var BindingResult: TKeyBindingResult);
 begin
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogFmt('TCnKeyBinding.KeyProc, KeyCode: %s', [ShortCutToText(KeyCode)]);
   CnDebugger.LogMsg('Call: ' + TCnWizShortCut(Context.GetContext).Name);
-{$ENDIF Debug}
+{$ENDIF}
   // 注册快捷键时已将快捷键对象传递给上下文
   if Assigned(TCnWizShortCut(Context.GetContext).KeyProc) then
     TCnWizShortCut(Context.GetContext).KeyProc(TObject(Context.GetContext))
   else
   begin
-  {$IFDEF Debug}
+  {$IFDEF DEBUG}
     CnDebugger.LogMsgWithType('KeyProc is nil', cmtWarning);
-  {$ENDIF Debug}
+  {$ENDIF}
   end;
   BindingResult := krHandled; // 声明该事件已被处理过了
 end;
@@ -405,7 +451,7 @@ end;
 procedure TCnKeyBinding.BindKeyboard(
   const BindingServices: IOTAKeyBindingServices);
 var
-  i: Integer;
+  I: Integer;
   KeyboardName: string;
 begin
 {$IFDEF COMPILER7_UP}
@@ -413,15 +459,23 @@ begin
 {$ELSE}
   KeyboardName := SCnKeyBindingName;
 {$ENDIF}
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogFmt('TCnKeyBinding.BindKeyboard, Count: %d', [Owner.Count]);
-{$ENDIF Debug}
+{$ENDIF}
   // 注册快捷键时将快捷键对象传递给上下文
-  for i := 0 to Owner.Count - 1 do
-    if Owner.ShortCuts[i].ShortCut <> 0 then
-      BindingServices.AddKeyBinding([Owner.ShortCuts[i].ShortCut], KeyProc,
-        Owner.ShortCuts[i], kfImplicitShift or kfImplicitModifier or
-        kfImplicitKeypad, KeyboardName, Owner.ShortCuts[i].MenuName);
+  for I := 0 to Owner.Count - 1 do
+  begin
+    if Owner.ShortCuts[I].ShortCut <> 0 then
+    begin
+{$IFDEF DEBUG}
+//      CnDebugger.LogFmt('TCnKeyBinding.BindKeyboard AddKeyBinding: %d, MenuName %s',
+//        [I, Owner.ShortCuts[I].MenuName]);
+{$ENDIF}
+      BindingServices.AddKeyBinding([Owner.ShortCuts[I].ShortCut], KeyProc,
+        Owner.ShortCuts[I], kfImplicitShift or kfImplicitModifier or
+        kfImplicitKeypad, KeyboardName, Owner.ShortCuts[I].MenuName);
+    end;
+  end;
 end;
 
 // 取快捷键绑定显示名称
@@ -436,6 +490,8 @@ begin
   Result := SCnKeyBindingName;
 end;
 
+{$ENDIF}
+
 //==============================================================================
 // IDE 快捷键管理器类
 //==============================================================================
@@ -445,9 +501,9 @@ end;
 // 类构造器
 constructor TCnWizShortCutMgr.Create;
 begin
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogEnter('TCnWizShortCutMgr.Create');
-{$ENDIF Debug}
+{$ENDIF}
 
   inherited;
   FShortCuts := TList.Create;
@@ -460,17 +516,17 @@ begin
 
 {$IFDEF Debug}
   CnDebugger.LogLeave('TCnWizShortCutMgr.Create');
-{$ENDIF Debug}
+{$ENDIF}
 end;
 
 // 类析构器
 destructor TCnWizShortCutMgr.Destroy;
 begin
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogEnter('TCnWizShortCutMgr.Destroy');
   if Count > 0 then
     CnDebugger.LogFmtWithType('WizShortCutMgr.Count = %d', [Count], cmtWarning);
-{$ENDIF Debug}
+{$ENDIF}
 
   Clear;
   FSaveMenus.Free;
@@ -478,10 +534,10 @@ begin
   FShortCuts.Free;
   if Assigned(FMenuTimer) then FMenuTimer.Free;
   inherited;
-  
-{$IFDEF Debug}
+
+{$IFDEF DEBUG}
   CnDebugger.LogLeave('TCnWizShortCutMgr.Destroy');
-{$ENDIF Debug}
+{$ENDIF}
 end;
 
 //------------------------------------------------------------------------------
@@ -523,12 +579,12 @@ function TCnWizShortCutMgr.Add(const AName: string; AShortCut: TShortCut;
   AnAction: TAction): TCnWizShortCut;
 begin
 {$IFDEF DEBUG}
-  CnDebugger.LogFmt('TCnWizShortCutMgr.Add: %s (%s)', [AName,
+  CnDebugger.LogFmt('TCnWizShortCutMgr.Add: %s %d (%s)', [AName, AShortCut,
     ShortCutToText(AShortCut)]);
 {$ENDIF}
 
   if IndexOfName(AName) >= 0 then // 重名，如果为空则忽略
-    raise ECnDuplicateShortCutName.CreateFmt(SCnDuplicateShortCutName, [AName]);
+    raise ECnDuplicateShortCutNameException.CreateFmt(SCnDuplicateShortCutName, [AName]);
 
   Result := TCnWizShortCut.Create(Self, AName, AShortCut, AKeyProc, AMenuName, ATag);
   Result.Action := AnAction;
@@ -545,10 +601,10 @@ var
 begin
   if (Index >= 0) and (Index <= Count - 1) then
   begin
-  {$IFDEF Debug}
+  {$IFDEF DEBUG}
     CnDebugger.LogFmt('TCnWizShortCutMgr.Delete(%d): %s', [Index,
       ShortCuts[Index].Name]);
-  {$ENDIF Debug}
+  {$ENDIF}
     NeedUpdate := ShortCuts[Index].FShortCut <> 0;
     ShortCuts[Index].Free;
     FShortCuts.Delete(Index);
@@ -585,13 +641,17 @@ var
   I: Integer;
 begin
   Result := -1;
-  if AName = '' then Exit;
+  if AName = '' then
+    Exit;
+
   for I := 0 to Count - 1 do
+  begin
     if ShortCuts[I].Name = AName then
     begin
       Result := I;
       Exit;
     end;
+  end;
 end;
 
 // 取快捷键对应的索引号
@@ -643,10 +703,10 @@ begin
   for I := 0 to FSaveMenus.Count - 1 do
   begin
     TMenuItem(FSaveMenus[I]).ShortCut := TShortCut(FSaveShortCuts[I]);
-  {$IFDEF Debug}
+  {$IFDEF DEBUG}
     CnDebugger.LogMsg(Format('MenuItem ShortCut Restored: %s (%s)',
       [TMenuItem(FSaveMenus[I]).Caption, ShortCutToText(TShortCut(FSaveShortCuts[I]))]));
-  {$ENDIF Debug}
+  {$ENDIF}
   end;
 
   FSaveMenus.Clear;
@@ -666,85 +726,112 @@ begin
 end;
 
 procedure TCnWizShortCutMgr.SaveMainMenuShortCuts;
+{$IFNDEF NO_DELPHI_OTA}
 var
   Svcs40: INTAServices40;
   MainMenu: TMainMenu;
+{$ENDIF}
 
   procedure DoSaveMenu(MenuItem: TMenuItem);
   var
-    i: Integer;
+    I: Integer;
   begin
     if (MenuItem.Action = nil) and (MenuItem.ShortCut <> 0) then
     begin
       FSaveMenus.Add(MenuItem);
       FSaveShortCuts.Add(Pointer(MenuItem.ShortCut));
-    {$IFDEF Debug}
+    {$IFDEF DEBUG}
       //CnDebugger.LogMsg(Format('MenuItem ShortCut Saved: %s (%s)',
       //  [MenuItem.Caption, ShortCutToText(MenuItem.ShortCut)]));
-    {$ENDIF Debug}
+    {$ENDIF}
     end;
     
-    for i := 0 to MenuItem.Count - 1 do
-      DoSaveMenu(MenuItem.Items[i]);
+    for I := 0 to MenuItem.Count - 1 do
+      DoSaveMenu(MenuItem.Items[I]);
   end;
+
 begin
   FSaveMenus.Clear;
   FSaveShortCuts.Clear;
+{$IFNDEF NO_DELPHI_OTA}
   QuerySvcs(BorlandIDEServices, INTAServices40, Svcs40);
   MainMenu := Svcs40.MainMenu;
   DoSaveMenu(MainMenu.Items);
+{$ENDIF}
 end;
 
 // 安装键盘绑定
 procedure TCnWizShortCutMgr.InstallKeyBinding;
 var
+{$IFNDEF NO_DELPHI_OTA}
   KeySvcs: IOTAKeyboardServices;
-  i: Integer;
+{$ENDIF}
+  I: Integer;
   IsEmpty: Boolean;
 begin
   Assert(FKeyBindingIndex = csInvalidIndex);
   IsEmpty := True;
-  for i := 0 to Count - 1 do    // 判断是否存在快捷键
-    if ShortCuts[i].FShortCut <> 0 then
+  for I := 0 to Count - 1 do    // 判断是否存在快捷键
+  begin
+    if ShortCuts[I].FShortCut <> 0 then
     begin
       IsEmpty := False;
       Break;
     end;
+  end;
+
   if not IsEmpty then
   begin
+{$IFNDEF NO_DELPHI_OTA}
     QuerySvcs(BorlandIDEServices, IOTAKeyboardServices, KeySvcs);
     SaveMainMenuShortCuts;
     try
-      try
-        FKeyBindingIndex := KeySvcs.AddKeyboardBinding(TCnKeyBinding.Create(Self));
-      {$IFNDEF COMPILER7_UP}
-        // todo: Delphi 5/6 下不调用 PushKeyboard 会导致某些快捷键失效
-        // 调用又会导致按 Alt+G 后键盘失效，暂时先调用
-        KeySvcs.PushKeyboard(SCnKeyBindingName);
-      {$ENDIF}
-      except
-        ;
+      // 12.3 非 HotFix 版的 64 位下注册会出异常，必须先屏蔽
+      // 之后还要加上 13 及更高版本的判断
+      if not _IS64BIT {$IFNDEF CNWIZARDS_MINIMUM} or IsDelphi12Dot3GEHotFix {$ENDIF} then
+      begin
+        try
+          FKeyBindingIndex := KeySvcs.AddKeyboardBinding(TCnKeyBinding.Create(Self));
+        {$IFNDEF COMPILER7_UP}
+          // todo: Delphi 5/6 下不调用 PushKeyboard 会导致某些快捷键失效
+          // 调用又会导致按 Alt+G 后键盘失效，暂时先调用
+          KeySvcs.PushKeyboard(SCnKeyBindingName);
+        {$ENDIF}
+        except
+          ;
+        end;
+      end
+      else
+      begin
+{$IFDEF DEBUG}
+        CnDebugger.LogMsgWarning('Do NOT AddKeyboardBinding for IDE Bug.');
+{$ENDIF}
       end;
     finally
       RestoreMainMenuShortCuts;
     end;
+{$ENDIF}
   end;
 end;
 
 // 反安装键盘绑定
 procedure TCnWizShortCutMgr.RemoveKeyBinding;
+{$IFNDEF NO_DELPHI_OTA}
 var
   KeySvcs: IOTAKeyboardServices;
+{$ENDIF}
 begin
   if FKeyBindingIndex <> csInvalidIndex then
   begin
     SaveMainMenuShortCuts;
     try
+{$IFNDEF NO_DELPHI_OTA}
       QuerySvcs(BorlandIDEServices, IOTAKeyboardServices, KeySvcs);
     {$IFNDEF COMPILER7_UP}
       KeySvcs.PopKeyboard(SCnKeyBindingName);
     {$ENDIF}
       KeySvcs.RemoveKeyboardBinding(FKeyBindingIndex);
+{$ENDIF}
       FKeyBindingIndex := csInvalidIndex;
     finally
       RestoreMainMenuShortCuts;
@@ -760,21 +847,23 @@ begin
     FUpdated := True;
     Exit;
   end;
-  
+
+{$IFNDEF NO_DELPHI_OTA}
   if IdeClosing then
     Exit;
+{$ENDIF}
 
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogMsg('TCnWizShortCutMgr.UpdateBinding');
-{$ENDIF Debug}
+{$ENDIF}
   RemoveKeyBinding;
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogMsg('RemoveKeyBinding succeed');
-{$ENDIF Debug}
+{$ENDIF}
   InstallKeyBinding;
-{$IFDEF Debug}
+{$IFDEF DEBUG}
   CnDebugger.LogMsg('InstallKeyBinding succeed');
-{$ENDIF Debug}
+{$ENDIF}
 end;
 
 //------------------------------------------------------------------------------

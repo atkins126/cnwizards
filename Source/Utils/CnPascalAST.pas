@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -25,10 +25,16 @@ unit CnPascalAST;
 * 单元名称：Pascal 代码抽象语法树生成单元
 * 单元作者：CnPack 开发组 master@cnpack.org
 * 备    注：同时支持 Unicode 和非 Unicode 编译器
-*           不支持 Attribute，不支持匿名函数，不支持 class 内的 var/const/type 等
+*           不支持匿名函数，不支持 class 内的 var/const/type 等
 *           不支持泛型、不支持内联 var
 *           不支持 asm（仅跳过），注释还原度较低
-* 开发平台：2024.09.07 V1.4
+*           如果碰到关键字做标识符导致解析失败的情况，可以搜 TODO，改三处
+* 开发平台：PWin7Pro + Delphi 7
+* 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
+* 本 地 化：该单元中的字符串均符合本地化处理方式
+* 修改记录：2025.06.19 V1.5
+*               修正部分关键字做标识符的与 Directives 有无分号的支持
+*           2024.09.07 V1.4
 *               加入对 Attribute 的支持
 *           2023.07.29 V1.3
 *               加入对多行字符串的支持
@@ -66,6 +72,7 @@ type
     cntLineComment,
     cntBlockComment,
     cntCompDirective,
+    cntCRLFInComment,
 
     cntAsm,
 
@@ -247,6 +254,7 @@ type
     FReturn: Boolean;
     FNoSpaceBehind: Boolean;
     FNoSpaceBefore: Boolean;
+    FLinearPos: Cardinal;
     function GetItems(AIndex: Integer): TCnPasAstLeaf;
     procedure SetItems(AIndex: Integer; const Value: TCnPasAstLeaf);
     function GetParent: TCnPasAstLeaf;
@@ -266,6 +274,8 @@ type
     {* 语法树节点类型}
     property TokenKind: TTokenKind read FTokenKind write FTokenKind;
     {* Pascal Token 类型，注意有的节点本身没有实际对应的 Token，用 tkNone 代替}
+    property LinearPos: Cardinal read FLinearPos write FLinearPos;
+    {* 该节点对应的文件也就是解析器里的线性位置，注意只能处理 Ansi 编码}
     property Return: Boolean read FReturn write FReturn;
     {* 该 Token 后是否应换行，默认不换}
     property NoSpaceBehind: Boolean read FNoSpaceBehind write FNoSpaceBehind;
@@ -603,7 +613,7 @@ const
 
   StatementTokens = [tkLabel] + SimpleStatementTokens + StructStatementTokens;
 
-  CanBeIdentifierTokens = DirectiveTokens + [tkIdentifier]; // 部分关键字可以做变量名，待补充
+  CanBeIdentifierTokens = DirectiveTokens + [tkIdentifier, tkContains]; // TODO: 部分关键字可以做变量名，待补充
 
 function PascalAstNodeTypeToString(AType: TCnPasNodeType): string;
 begin
@@ -670,6 +680,7 @@ begin
     tkBorComment, tkAnsiComment: Result := cntBlockComment;
     tkSlashesComment: Result := cntLineComment;
     tkCompDirect: Result := cntCompDirective;
+    tkCRLFCo: Result := cntCRLFInComment;
 
     // 元素：标识符和数字、字符串等
     tkIdentifier, tkNil: Result := cntIdent;
@@ -1013,7 +1024,7 @@ begin
             PopLeaf;
           end;
         end;
-      tkIdentifier, tkNil, tkKeyString, tkIndex: // TODO: 还有部分关键字可以做变量名
+      tkIdentifier, tkNil, tkKeyString, tkIndex, tkContains: // TODO: 还有部分关键字可以做变量名
         begin
           BuildDesignator;
           if FLex.TokenID = tkRoundOpen then
@@ -1202,7 +1213,14 @@ begin
       MatchCreateLeafAndStep(tkObject);
     end;
 
-    BuildDirectives;
+    // 可能有分号，要判断分号后是否是 Directives
+    if (FLex.TokenID = tkSemicolon) and (ForwardToken in DirectiveTokens) then
+    begin
+      MatchCreateLeafAndStep(tkSemicolon);
+      BuildDirectives(False);
+    end
+    else
+      BuildDirectives(False); // 不能吃掉分号，要留下来作为每个声明的分界
   finally
     PopLeaf;
   end;
@@ -1217,7 +1235,7 @@ begin
     case FLex.TokenID of
       tkKeyString:
         MatchCreateLeafAndStep(FLex.TokenID); // TODO: 还有一些关键字可以做强制类型转换或函数调用名
-      tkNil, tkIdentifier, tkIndex, tkAmpersand:           // TODO: 还有一些关键字可以做变量名
+      tkNil, tkIdentifier, tkIndex, tkContains, tkAmpersand:           // TODO: 还有一些关键字可以做变量名
         BuildIdent;
       tkRoundOpen:
         begin
@@ -1816,6 +1834,7 @@ begin
 
   if FLocked = 0 then // 未锁才创建节点
   begin
+    // 该处是所有节点的创建处
     if (FCurrentRef <> nil) and (FTree.Root <> FCurrentRef) then
       Result := FTree.AddChild(FCurrentRef) as TCnPasAstLeaf
     else
@@ -1823,6 +1842,7 @@ begin
 
     Result.TokenKind := AToken;
     Result.NodeType := NodeType;
+    Result.LinearPos := FLex.RunPos;
 
     if AToken <> tkNone then      // 未锁才赋值
       Result.Text := FLex.Token;
@@ -1852,8 +1872,8 @@ begin
   repeat
     FLex.Next;
 
-    if FLex.TokenID in CommentTokens + [tkCompDirect] then
-      MatchCreateLeaf(FLex.TokenID); // 不步进，由本循环步进
+    if FLex.TokenID in CommentTokens + [tkCompDirect, tkCRLFCo] then
+      MatchCreateLeaf(FLex.TokenID); // 不步进，由本循环步进，加入 tkCRLFCo 是为了让节点中的注释内部不丢失回车换行
 
   until not (FLex.TokenID in SpaceTokens + CommentTokens + [tkCompDirect]);
 end;
@@ -3526,7 +3546,14 @@ begin
       BuildTypedConstant;
     end;
 
-    BuildDirectives(False);
+    // 可能有分号，要判断分号后是否是 Directives，是则也进去
+    if (FLex.TokenID = tkSemicolon) and (ForwardToken in DirectiveTokens) then
+    begin
+      MatchCreateLeafAndStep(tkSemicolon);
+      BuildDirectives(False);
+    end
+    else // 没分号直接进去
+      BuildDirectives(False);
   finally
     PopLeaf;
   end;
@@ -3807,6 +3834,8 @@ begin
     tkExcept, tkExports, tkFinally, tkInitialization, tkFinalization, tkAsm,
     tkImplementation, tkRecord, tkPrivate, tkProtected, tkPublic, tkPublished]) then
     Result := Text + #13#10
+//  else if FTokenKind = tkCRLFCo then
+//    Result := ''
   else
     Result := Text;
 

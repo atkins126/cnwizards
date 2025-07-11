@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -39,7 +39,7 @@ interface
 {$I CnWizards.inc}
 
 uses
-  SysUtils, Classes, Windows, Registry, CnCommon, CnConsts;
+  SysUtils, Classes, Windows, Registry, CnCommon, CnConsts, CnRegIni;
 
 function GetWizardsLanguageID: DWORD;
 {* 从注册表中读取当前 CnWizards 的语言 ID }
@@ -57,7 +57,7 @@ const
 // 从注册表中读取当前 CnWizards 的语言 ID
 function GetWizardsLanguageID: DWORD;
 begin
-  with TRegistryIniFile.Create(MakePath(MakePath(SCnPackRegPath) + csWizardRegPath)) do
+  with TCnRegistryIniFile.Create(MakePath(MakePath(SCnPackRegPath) + csWizardRegPath)) do
   begin
     Result := ReadInteger(csOptionSection, csLangID, GetSystemDefaultLCID);
     Free;
@@ -67,7 +67,7 @@ end;
 // 设置注册表中的当前 CnWizards 的语言 ID
 procedure SetWizardsLanguageID(LangID: DWORD);
 begin
-  with TRegistryIniFile.Create(MakePath(MakePath(SCnPackRegPath) + csWizardRegPath)) do
+  with TCnRegistryIniFile.Create(MakePath(MakePath(SCnPackRegPath) + csWizardRegPath)) do
   begin
     WriteInteger(csOptionSection, csLangID, LangID);
     Free;

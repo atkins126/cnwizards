@@ -1,7 +1,7 @@
 ;******************************************************************************
 ;                        CnPack For Delphi/C++Builder
 ;                      中国人自己的开放源码第三方开发包
-;                    (C)Copyright 2001-2024 CnPack 开发组
+;                    (C)Copyright 2001-2025 CnPack 开发组
 ;******************************************************************************
 
 ; 以下脚本用以生成 CnPack IDE 专家包安装程序
@@ -117,46 +117,33 @@ RequestExecutionLevel admin
 !ifndef IDE_VERSION_CB5
 !ifndef IDE_VERSION_CB6
 
-!ifdef  LITE
-  !define LITE_VERSION    "1"
-
-  !define IDE_VERSION_D6  "1"
-  !define IDE_VERSION_D7  "1"
-  !define IDE_VERSION_D2006 "1"
-  !define IDE_VERSION_D2007 "1"
-  !define IDE_VERSION_CB6 "1"
+!define FULL_VERSION    "1"
   
-  !define NO_HELP         "1"
-  !define NO_LANG_FILE    "1"
-!else
-  !define FULL_VERSION    "1"
-  
-  !define IDE_VERSION_D5  "1"
-  !define IDE_VERSION_D6  "1"
-  !define IDE_VERSION_D7  "1"
-  !define IDE_VERSION_D2005  "1"
-  !define IDE_VERSION_D2006 "1"
-  !define IDE_VERSION_D2007 "1"
-  !define IDE_VERSION_D2009 "1"
-  !define IDE_VERSION_D2010 "1"
-  !define IDE_VERSION_DXE "1"
-  !define IDE_VERSION_DXE2 "1"
-  !define IDE_VERSION_DXE3 "1"
-  !define IDE_VERSION_DXE4 "1"
-  !define IDE_VERSION_DXE5 "1"
-  !define IDE_VERSION_DXE6 "1"
-  !define IDE_VERSION_DXE7 "1"
-  !define IDE_VERSION_DXE8 "1"
-  !define IDE_VERSION_D10S "1"
-  !define IDE_VERSION_D101B "1"
-  !define IDE_VERSION_D102T "1"
-  !define IDE_VERSION_D103R "1"
-  !define IDE_VERSION_D104S "1"
-  !define IDE_VERSION_D110A "1"
-  !define IDE_VERSION_D120A "1"
-  !define IDE_VERSION_CB5 "1"
-  !define IDE_VERSION_CB6 "1"
-!endif
+!define IDE_VERSION_D5  "1"
+!define IDE_VERSION_D6  "1"
+!define IDE_VERSION_D7  "1"
+!define IDE_VERSION_D2005  "1"
+!define IDE_VERSION_D2006 "1"
+!define IDE_VERSION_D2007 "1"
+!define IDE_VERSION_D2009 "1"
+!define IDE_VERSION_D2010 "1"
+!define IDE_VERSION_DXE "1"
+!define IDE_VERSION_DXE2 "1"
+!define IDE_VERSION_DXE3 "1"
+!define IDE_VERSION_DXE4 "1"
+!define IDE_VERSION_DXE5 "1"
+!define IDE_VERSION_DXE6 "1"
+!define IDE_VERSION_DXE7 "1"
+!define IDE_VERSION_DXE8 "1"
+!define IDE_VERSION_D10S "1"
+!define IDE_VERSION_D101B "1"
+!define IDE_VERSION_D102T "1"
+!define IDE_VERSION_D103R "1"
+!define IDE_VERSION_D104S "1"
+!define IDE_VERSION_D110A "1"
+!define IDE_VERSION_D120A "1"
+!define IDE_VERSION_CB5 "1"
+!define IDE_VERSION_CB6 "1"
 
 !endif
 !endif
@@ -185,109 +172,107 @@ RequestExecutionLevel admin
 !endif
 
 !ifndef FULL_VERSION
-!ifndef LITE_VERSION
-  !define IDE_VERSION
+!define IDE_VERSION
 
-  !ifdef IDE_VERSION_D5
-    !define IDE_SHORT_NAME "D5"
-    !define IDE_LONG_NAME "Delphi 5"
-  !endif
-  !ifdef IDE_VERSION_D6
-    !define IDE_SHORT_NAME "D6"
-    !define IDE_LONG_NAME "Delphi 6"
-  !endif
-  !ifdef IDE_VERSION_D7
-    !define IDE_SHORT_NAME "D7"
-    !define IDE_LONG_NAME "Delphi 7"
-  !endif
-  !ifdef IDE_VERSION_D2005
-    !define IDE_SHORT_NAME "D2005"
-    !define IDE_LONG_NAME "BDS 2005"
-  !endif
-  !ifdef IDE_VERSION_D2006
-    !define IDE_SHORT_NAME "D2006"
-    !define IDE_LONG_NAME "BDS 2006"
-  !endif
-  !ifdef IDE_VERSION_D2007
-    !define IDE_SHORT_NAME "D2007"
-    !define IDE_LONG_NAME "RAD Studio 2007"
-  !endif
-  !ifdef IDE_VERSION_D2009
-    !define IDE_SHORT_NAME "D2009"
-    !define IDE_LONG_NAME "RAD Studio 2009"
-  !endif
-  !ifdef IDE_VERSION_D2010
-    !define IDE_SHORT_NAME "D2010"
-    !define IDE_LONG_NAME "RAD Studio 2010"
-  !endif
-  !ifdef IDE_VERSION_DXE
-    !define IDE_SHORT_NAME "D2011"
-    !define IDE_LONG_NAME "RAD Studio XE"
-  !endif
-  !ifdef IDE_VERSION_DXE2
-    !define IDE_SHORT_NAME "D2012"
-    !define IDE_LONG_NAME "RAD Studio XE2"
-  !endif
-  !ifdef IDE_VERSION_DXE3
-    !define IDE_SHORT_NAME "D2013"
-    !define IDE_LONG_NAME "RAD Studio XE3"
-  !endif
-  !ifdef IDE_VERSION_DXE4
-    !define IDE_SHORT_NAME "DXE4"
-    !define IDE_LONG_NAME "RAD Studio XE4"
-  !endif
-  !ifdef IDE_VERSION_DXE5
-    !define IDE_SHORT_NAME "DXE5"
-    !define IDE_LONG_NAME "RAD Studio XE5"
-  !endif
-  !ifdef IDE_VERSION_DXE6
-    !define IDE_SHORT_NAME "DXE6"
-    !define IDE_LONG_NAME "RAD Studio XE6"
-  !endif
-  !ifdef IDE_VERSION_DXE7
-    !define IDE_SHORT_NAME "DXE7"
-    !define IDE_LONG_NAME "RAD Studio XE7"
-  !endif
-  !ifdef IDE_VERSION_DXE8
-    !define IDE_SHORT_NAME "DXE8"
-    !define IDE_LONG_NAME "RAD Studio XE8"
-  !endif
-  !ifdef IDE_VERSION_D10S
-    !define IDE_SHORT_NAME "D10S"
-    !define IDE_LONG_NAME "RAD Studio 10 Seattle"
-  !endif
-  !ifdef IDE_VERSION_D101B
-    !define IDE_SHORT_NAME "D101B"
-    !define IDE_LONG_NAME "RAD Studio 10.1 Berlin"
-  !endif
-  !ifdef IDE_VERSION_D102T
-    !define IDE_SHORT_NAME "D102T"
-    !define IDE_LONG_NAME "RAD Studio 10.2 Tokyo"
-  !endif
-  !ifdef IDE_VERSION_D103R
-    !define IDE_SHORT_NAME "D103R"
-    !define IDE_LONG_NAME "RAD Studio 10.3 Rio"
-  !endif
-  !ifdef IDE_VERSION_D104S
-    !define IDE_SHORT_NAME "D104S"
-    !define IDE_LONG_NAME "RAD Studio 10.4 Sydney"
-  !endif
-  !ifdef IDE_VERSION_D110A
-    !define IDE_SHORT_NAME "D110A"
-    !define IDE_LONG_NAME "RAD Studio 11 Alexandria"
-  !endif
-  !ifdef IDE_VERSION_D120A
-    !define IDE_SHORT_NAME "D120A"
-    !define IDE_LONG_NAME "RAD Studio 12 Athens"
-  !endif
-  !ifdef IDE_VERSION_CB5
-    !define IDE_SHORT_NAME "CB5"
-    !define IDE_LONG_NAME "C++Builder 5"
-  !endif
-  !ifdef IDE_VERSION_CB6
-    !define IDE_SHORT_NAME "CB6"
-    !define IDE_LONG_NAME "C++Builder 6"
-  !endif
+!ifdef IDE_VERSION_D5
+  !define IDE_SHORT_NAME "D5"
+  !define IDE_LONG_NAME "Delphi 5"
+!endif
+!ifdef IDE_VERSION_D6
+  !define IDE_SHORT_NAME "D6"
+  !define IDE_LONG_NAME "Delphi 6"
+!endif
+!ifdef IDE_VERSION_D7
+  !define IDE_SHORT_NAME "D7"
+  !define IDE_LONG_NAME "Delphi 7"
+!endif
+!ifdef IDE_VERSION_D2005
+  !define IDE_SHORT_NAME "D2005"
+  !define IDE_LONG_NAME "BDS 2005"
+!endif
+!ifdef IDE_VERSION_D2006
+  !define IDE_SHORT_NAME "D2006"
+  !define IDE_LONG_NAME "BDS 2006"
+!endif
+!ifdef IDE_VERSION_D2007
+  !define IDE_SHORT_NAME "D2007"
+  !define IDE_LONG_NAME "RAD Studio 2007"
+!endif
+!ifdef IDE_VERSION_D2009
+  !define IDE_SHORT_NAME "D2009"
+  !define IDE_LONG_NAME "RAD Studio 2009"
+!endif
+!ifdef IDE_VERSION_D2010
+  !define IDE_SHORT_NAME "D2010"
+  !define IDE_LONG_NAME "RAD Studio 2010"
+!endif
+!ifdef IDE_VERSION_DXE
+  !define IDE_SHORT_NAME "D2011"
+  !define IDE_LONG_NAME "RAD Studio XE"
+!endif
+!ifdef IDE_VERSION_DXE2
+  !define IDE_SHORT_NAME "D2012"
+  !define IDE_LONG_NAME "RAD Studio XE2"
+!endif
+!ifdef IDE_VERSION_DXE3
+  !define IDE_SHORT_NAME "D2013"
+  !define IDE_LONG_NAME "RAD Studio XE3"
+!endif
+!ifdef IDE_VERSION_DXE4
+  !define IDE_SHORT_NAME "DXE4"
+  !define IDE_LONG_NAME "RAD Studio XE4"
+!endif
+!ifdef IDE_VERSION_DXE5
+  !define IDE_SHORT_NAME "DXE5"
+  !define IDE_LONG_NAME "RAD Studio XE5"
+!endif
+!ifdef IDE_VERSION_DXE6
+  !define IDE_SHORT_NAME "DXE6"
+  !define IDE_LONG_NAME "RAD Studio XE6"
+!endif
+!ifdef IDE_VERSION_DXE7
+  !define IDE_SHORT_NAME "DXE7"
+  !define IDE_LONG_NAME "RAD Studio XE7"
+!endif
+!ifdef IDE_VERSION_DXE8
+  !define IDE_SHORT_NAME "DXE8"
+  !define IDE_LONG_NAME "RAD Studio XE8"
+!endif
+!ifdef IDE_VERSION_D10S
+  !define IDE_SHORT_NAME "D10S"
+  !define IDE_LONG_NAME "RAD Studio 10 Seattle"
+!endif
+!ifdef IDE_VERSION_D101B
+  !define IDE_SHORT_NAME "D101B"
+  !define IDE_LONG_NAME "RAD Studio 10.1 Berlin"
+!endif
+!ifdef IDE_VERSION_D102T
+  !define IDE_SHORT_NAME "D102T"
+  !define IDE_LONG_NAME "RAD Studio 10.2 Tokyo"
+!endif
+!ifdef IDE_VERSION_D103R
+  !define IDE_SHORT_NAME "D103R"
+  !define IDE_LONG_NAME "RAD Studio 10.3 Rio"
+!endif
+!ifdef IDE_VERSION_D104S
+  !define IDE_SHORT_NAME "D104S"
+  !define IDE_LONG_NAME "RAD Studio 10.4 Sydney"
+!endif
+!ifdef IDE_VERSION_D110A
+  !define IDE_SHORT_NAME "D110A"
+  !define IDE_LONG_NAME "RAD Studio 11 Alexandria"
+!endif
+!ifdef IDE_VERSION_D120A
+  !define IDE_SHORT_NAME "D120A"
+  !define IDE_LONG_NAME "RAD Studio 12 Athens"
+!endif
+!ifdef IDE_VERSION_CB5
+  !define IDE_SHORT_NAME "CB5"
+  !define IDE_LONG_NAME "C++Builder 5"
+!endif
+!ifdef IDE_VERSION_CB6
+  !define IDE_SHORT_NAME "CB6"
+  !define IDE_LONG_NAME "C++Builder 6"
 !endif
 !endif
 
@@ -618,6 +603,10 @@ FileLoop:
   FileOpen $0 "$INSTDIR\CnWizards_D120A2.dll" a
   IfErrors FileInUse
   FileClose $0
+  IfFileExists "$INSTDIR\CnWizards_D120A64.dll" 0 +4
+  FileOpen $0 "$INSTDIR\CnWizards_D120A64.dll" a
+  IfErrors FileInUse
+  FileClose $0
 !endif
 
 !endif
@@ -656,10 +645,17 @@ InitOk:
   File "..\..\Bin\CnFormatLib.dll"
   File "..\..\Bin\CnFormatLibW.dll"
   File "..\..\Bin\CnVclToFmx.dll"
-!ifndef LITE_VERSION
   File "..\..\Bin\CnWizHelper.dll"
   File "..\..\Bin\CnZipUtils.dll"
-!endif
+
+  File "..\..\Bin\CnWizLoader64.dll"
+  File "..\..\Bin\CnWizRes64.dll"
+  File "..\..\Bin\CnPngLib64.dll"
+  File "..\..\Bin\CnFormatLibW64.dll"
+  File "..\..\Bin\CnVclToFmx64.dll"
+  File "..\..\Bin\CnWizHelper64.dll"
+  File "..\..\Bin\CnZipUtils64.dll"
+
   File "..\..\License.*.txt"
 
   SetOutPath $INSTDIR\Data
@@ -685,19 +681,15 @@ InitOk:
   File "..\..\Bin\Lang\1046\*.*"
 !endif
 
-!ifndef LITE_VERSION
   SetOutPath $INSTDIR\Data\Templates
   File "..\..\Bin\Data\Templates\*.*"
-!endif
 
-!ifndef LITE_VERSION
   SetOutPath $INSTDIR\PSDecl
   File "..\..\Bin\PSDecl\*.*"
   SetOutPath $INSTDIR\PSDeclEx
   File "..\..\Bin\PSDeclEx\*.*"
   SetOutPath $INSTDIR\PSDemo
   File "..\..\Bin\PSDemo\*.*"
-!endif
 
   ; 删除 0.8.0 以前版本安装的图标文件，将于后续版本内去掉
   Delete "$INSTDIR\Icons\*.*"
@@ -713,6 +705,7 @@ InitOk:
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CnWizards" "URLUpdateInfo" "https://www.cnpack.org"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CnWizards" "UninstallString" '"$INSTDIR\uninst.exe"'
 
+  WriteRegStr HKCU "Software\CnPack\CnWizards" "InstallDir" $INSTDIR
   WriteRegDWORD HKCU "Software\CnPack\CnWizards\Option" "CurrentLangID" $LANGUAGE
 
   ; 删除以前的开始菜单项
@@ -1006,9 +999,11 @@ Section "RAD Studio 12 Athens" SecD120A
   File "..\..\Bin\CnWizards_D120A2.dll"
   File "..\..\Bin\CnWizards_D120A1.dll"
   File "..\..\Bin\CnWizards_D120A.dll"
+  File "..\..\Bin\CnWizards_D120A64.dll"
   ; 写入专家注册键值
   DeleteRegValue HKCU "Software\Embarcadero\BDS\23.0\Experts" "CnWizards_D120A"
   WriteRegStr HKCU "Software\Embarcadero\BDS\23.0\Experts" "CnWizards_Loader" "$INSTDIR\CnWizLoader.dll"
+  WriteRegStr HKCU "Software\Embarcadero\BDS\23.0\Experts x64" "CnWizards_Loader" "$INSTDIR\CnWizLoader64.dll"
 SectionEnd
 !endif
 
@@ -1060,28 +1055,28 @@ SectionEnd
 Section "$(OTHERTOOLS)" SecTools
   SectionIn 1
   SetOutPath $INSTDIR
-!ifndef LITE_VERSION
+
   File "..\..\Bin\CnDfm6To5.exe"
   File "..\..\Bin\AsciiChart.exe"
   File "..\..\Bin\CnIdeBRTool.exe"
   File "..\..\Bin\CnManageWiz.exe"
   File "..\..\Bin\CnSelectLang.exe"
   File "..\..\Bin\CnSMR.exe"
-!endif
+
   File "..\..\Bin\CnConfigIO.exe"
   File "..\..\Bin\CnDebugViewer.exe"
   File "..\..\Bin\CnDebugViewer64.exe"
 
-!ifndef LITE_VERSION
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SASCIICHART).lnk" "$INSTDIR\AsciiChart.exe"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SDFMCONVERTOR).lnk" "$INSTDIR\CnDfm6To5.exe"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SIDEBRTOOL).lnk" "$INSTDIR\CnIdeBRTool.exe"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SMANAGEWIZ).lnk" "$INSTDIR\CnManageWiz.exe"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\${SSELECTLANG}.lnk" "$INSTDIR\CnSelectLang.exe"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SRELATIONANALYZER).lnk" "$INSTDIR\CnSMR.exe"
-!endif
+
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SCONFIGIO).lnk" "$INSTDIR\CnConfigIO.exe"
   CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SDEBUGVIEWER).lnk" "$INSTDIR\CnDebugViewer.exe"
+  CreateShortCut "$SMPROGRAMS\${APPNAMEDIR}\$(SDEBUGVIEWER64).lnk" "$INSTDIR\CnDebugViewer64.exe"
 
   ; 写入CnDebugViewer路径键值
   WriteRegStr HKCU "Software\CnPack\CnDebug" "CnDebugViewer" "$INSTDIR\CnDebugViewer.exe"
@@ -1448,6 +1443,7 @@ Section "Uninstall"
 !ifdef IDE_VERSION_D120A
   DeleteRegValue HKCU "Software\Embarcadero\BDS\23.0\Experts" "CnWizards_D120A"
   DeleteRegValue HKCU "Software\Embarcadero\BDS\23.0\Experts" "CnWizards_Loader"
+  DeleteRegValue HKCU "Software\Embarcadero\BDS\23.0\Experts x64" "CnWizards_Loader"
 !endif
 !ifdef IDE_VERSION_CB5
   DeleteRegValue HKCU "Software\Borland\C++Builder\5.0\Experts" "CnWizards_CB5"
@@ -1486,7 +1482,7 @@ Function ShowReleaseNotes
 
   OpenWeb:
 !endif
-    ExecShell "open" "http://www.cnpack.org/"
+    ExecShell "open" "https://www.cnpack.org/"
 !ifndef NO_HELP
   FuncEnd:
 !endif

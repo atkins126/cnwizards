@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }    
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }    
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -116,6 +116,8 @@ type
     procedure btnParseCompDirectiveClick(Sender: TObject);
     procedure tvCompDirectiveCustomDrawItem(Sender: TCustomTreeView; Node:
       TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
+    procedure SrcMemoKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
   private
 
   public
@@ -156,7 +158,7 @@ begin
   CnPascalCodeForRule.TabSpaceCount := UpDown1.Position;
   CnPascalCodeForRule.KeywordStyle := TCnKeywordStyle(ComboBox1.ItemIndex);
   CnPascalCodeForRule.KeepUserLineBreak := chkKeepUserBreakLine.Checked;
-  CnPascalCodeForRule.SingleStatementToBlock := True;
+  // CnPascalCodeForRule.SingleStatementToBlock := True;
 
   if chkAutoWrap.Checked then
     CnPascalCodeForRule.CodeWrapMode := cwmAdvanced
@@ -504,6 +506,16 @@ begin
   end
   else
     tvCompDirective.Canvas.Font.Color := clBlack;
+end;
+
+procedure TMainForm.SrcMemoKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if (Key = Ord('A')) and (ssCtrl in Shift) then
+  begin
+    (Sender as TMemo).SelectAll;
+    Key := 0;
+  end;
 end;
 
 end.

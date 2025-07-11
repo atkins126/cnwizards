@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -62,11 +62,10 @@ type
     procedure tbnReverseSelectClick(Sender: TObject);
     procedure lvWizardsListClick(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: Char);
+    procedure FormCreate(Sender: TObject);
   private
-    { Private declarations }
     procedure UpdateStatusBar;
   public
-    { Public declarations }
     procedure GetBootList(var ABoots: array of boolean);
   end;
 
@@ -177,6 +176,13 @@ procedure TCnWizBootForm.FormKeyPress(Sender: TObject; var Key: Char);
 begin
   if Key = #27 then
     tbtnCancelClick(nil);
+end;
+
+procedure TCnWizBootForm.FormCreate(Sender: TObject);
+begin
+{$IFNDEF LAZARUS}
+  WizOptions.ResetToolbarWithLargeIcons(ToolBar1);
+{$ENDIF}
 end;
 
 end.

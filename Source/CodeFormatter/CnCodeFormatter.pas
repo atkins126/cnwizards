@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -27,13 +27,18 @@ unit CnCodeFormatter;
 * 备    注：该单元实现了代码格式化的核心类
 *
 *           保留换行时如果某些语句没有注释但换行后顶格了没正确缩进，八成是少了一句
-*           FCurrentTab := PreSpaceCount; 得加上以让换行时缩进正确的格数
+*           FCurrentTab := PreSpaceCount 或 IndentForAnonymous; 得加上以让换行时缩进正确的格数。
+*           另外一种情况是格式化的过程没把 PreSpaceCount 或 IndentForAnonymous 传下去，
+*           需要在过程中加上。
 *
 *           保留换行时如果某些语句内部因为注释会多出空行来，八成是 IsInStatement
 *           或 IsInOpStatement 对注释前的符号判断是否在语句内有误导致没删除回车换行
 *
 *           如果语句间不因注释等，单纯多出现了空行，跟到 DoBlankLinesWhenSkip 多输出了空行
 *           则八成是外部应设 KeepOneBlankLine 为 False，而被嵌套的给盖掉了
+*
+*           如果语句内因为双斜杆注释导致下一行缩进错误，不保留换行时八成是 NeedPadding
+*           的位置计算时漏了该处，或 NeedPaddingAndUnIndent 结尾处需要反缩进时漏了
 *
 * 开发平台：Win2003 + Delphi 5.0
 * 兼容测试：not test yet
@@ -98,6 +103,7 @@ type
     FTrimAfterSemicolon: Boolean;   // 用来控制本行分号后仍有其他内容的情形
     FNamesMap: TCnStrToStrHashMap;
     FDisableCorrectName: Boolean;
+    FDotMakeLineBreak: Boolean;
     FInputLineMarks: TList;         // 源与结果的行映射关系中的源行
     FOutputLineMarks: TList;        // 源与结果的行映射关系中的结果行
     FNeedKeepLineBreak: Boolean;    // 控制当前区域是否属于可保留换行的区域，为 True 时表示遇到换行事件时会照例写入换行，一般在分号后会切回 False
@@ -252,10 +258,10 @@ type
     procedure FormatQualID(PreSpaceCount: Byte = 0);
     procedure FormatTypeID(PreSpaceCount: Byte = 0);
     procedure FormatIdent(PreSpaceCount: Byte = 0; const CanHaveUnitQual: Boolean = True);
-    procedure FormatIdentList(PreSpaceCount: Byte = 0; const CanHaveUnitQual: Boolean = True);
+    procedure FormatIdentList(PreSpaceCount: Byte = 0; const CanHaveUnitQual: Boolean = True; NeedGeneric: Boolean = False);
     procedure FormatConstExpr(PreSpaceCount: Byte = 0; IndentForAnonymous: Byte = 0);
     procedure FormatConstExprInType(PreSpaceCount: Byte = 0);
-    procedure FormatSetConstructor(PreSpaceCount: Byte = 0);
+    procedure FormatSetConstructor(PreSpaceCount: Byte = 0; IndentForAnonymous: Byte = 0);
 
     // 泛型支持
     procedure FormatFormalTypeParamList(PreSpaceCount: Byte = 0);
@@ -322,7 +328,8 @@ type
     procedure FormatInlineVarDecl(PreSpaceCount: Byte = 0; IndentForAnonymous: Byte = 0);
     procedure FormatProcedureDeclSection(PreSpaceCount: Byte = 0);
     procedure FormatSingleAttribute(PreSpaceCount: Byte = 0; LineEndSpaceCount: Byte = 0);
-    procedure FormatType(PreSpaceCount: Byte = 0; IgnoreDirective: Boolean = False);
+    function FormatType(PreSpaceCount: Byte = 0; IgnoreDirective: Boolean = False): Boolean;
+    // 返回是否泛型 >= 结尾
     procedure FormatSetType(PreSpaceCount: Byte = 0);
     procedure FormatFileType(PreSpaceCount: Byte = 0);
     procedure FormatPointerType(PreSpaceCount: Byte = 0);
@@ -483,17 +490,23 @@ begin
   FKeywordsValidArray[tokDirectiveMESSAGE] := [pfetDirective];
   FKeywordsValidArray[tokDirectiveREGISTER] := [pfetDirective];
   FKeywordsValidArray[tokDirectiveEXPORT] := [pfetDirective];
+  FKeywordsValidArray[tokDirectiveWINAPI] := [pfetDirective];
   // TODO: 加入其他 Directive
 
   FKeywordsValidArray[tokComplexName] := [pfetDirective];
   FKeywordsValidArray[tokKeywordAlign] := [pfetRecordEnd];
 
-  // requires/contains 只在 dpk 里算关键字
+  // requires/contains 等只在 dpk 里算关键字
   FKeywordsValidArray[tokKeywordRequires] := [pfetPackageBlock];
   FKeywordsValidArray[tokKeywordContains] := [pfetPackageBlock];
+  FKeywordsValidArray[tokKeywordPackage] := [pfetPackageKeyword];
 
   // at 只在 raise 后面才算关键字
   FKeywordsValidArray[tokKeywordAt] := [pfetRaiseAt];
+
+  // final 只在 Directive 中才算关键字
+  FKeywordsValidArray[tokKeywordFinal] := [pfetDirective];
+
   // 未列出的关键字，表示在哪都是关键字
 end;
 
@@ -712,7 +725,6 @@ end;
 
 function TCnAbstractCodeFormatter.Space(Count: Word): string;
 begin
-  Result := 'a'#10'a'#13'sd'; // ???
   if SmallInt(Count) > 0 then
     Result := StringOfChar(' ', Count)
   else
@@ -1014,17 +1026,34 @@ begin
     FLineBreakKeepStack.Push(Pointer(FNeedKeepLineBreak));
     FNeedKeepLineBreak := True;
     try
+      if Scanner.Token = tokKeywordIf then
+      begin
+        // 新语法 IF expression THEN expression ELSE expression
+        Match(tokKeywordIf);
+        FormatExpression(PreSpaceCount, IndentForAnonymous);
+        Match(tokKeywordThen);
+        FormatExpression(PreSpaceCount, IndentForAnonymous);
+        Match(tokKeywordElse);
+        FormatExpression(PreSpaceCount, IndentForAnonymous);
+        Exit;
+      end;
+
       // 从 FormatExpression 复制而来，为了区分来源
       FormatSimpleExpression(PreSpaceCount, IndentForAnonymous);
     finally
       FNeedKeepLineBreak := Boolean(FLineBreakKeepStack.Pop);
     end;
 
-    while Scanner.Token in RelOpTokens + [tokHat, tokSLB, tokDot] do
+    while Scanner.Token in RelOpTokens + [tokHat, tokSLB, tokDot, tokKeywordNot] do
     begin
       // 这块对泛型的处理已移动到内部以处理 function call 的情形
-
-      if Scanner.Token in RelOpTokens then
+      if Scanner.Token = tokKeywordNot then // not in 是新语法
+      begin
+        Match(tokKeywordNot, 0, 1);
+        Match(tokKeywordIn, 0, 1);
+        FormatSimpleExpression;
+      end
+      else if Scanner.Token in RelOpTokens then
       begin
         MatchOperator(Scanner.Token);
         FormatSimpleExpression;
@@ -1084,7 +1113,7 @@ procedure TCnBasePascalFormatter.FormatDesignator(PreSpaceCount: Byte;
 var
   IsB, IsGeneric: Boolean;
   GenericBookmark: TScannerBookmark;
-  LessCount: Integer;
+  LessCount, OldTab: Integer;
 begin
   if Scanner.Token = tokAtSign then // 如果是 @ Designator 的形式则再次递归
   begin
@@ -1143,14 +1172,41 @@ begin
         begin
           { DONE: deal with index visit and function/procedure call}
           IsB := (Scanner.Token = tokLB);
-          Match(Scanner.Token);
-          // Str 这种函数调用，参数列表要支持冒号分割，不知道副作用是否大不大
-          FormatExprList(PreSpaceCount, IndentForAnonymous, IsB);
+
+          OldTab := FCurrentTab;
+          try
+            // 加入这几句是为了在调用里的参数间回车换行时缩进，类似于
+            // Call(
+            //   a,
+            //   b);
+            // 注意这里一般情况给 FCurrentTab 赋值无需 Tab，回调中写回车时会进行一次 Tab
+
+            if IsB then
+            begin
+              // 但级联函数调用的情况下没地方记录级联的进一步 Tab，只能根据点号的记录加上
+              if CnPascalCodeForRule.KeepUserLineBreak and FDotMakeLineBreak then
+                FCurrentTab := Tab(IndentForAnonymous)
+              else
+                FCurrentTab := IndentForAnonymous;
+            end;
+
+            Match(Scanner.Token);
+
+            // Str 这种函数调用，参数列表要支持冒号分割，不知道副作用是否大不大
+            FormatExprList(PreSpaceCount, IndentForAnonymous, IsB);
+          finally
+            if IsB then
+              FCurrentTab := OldTab;
+          end;
 
           IsB := Scanner.Token = tokRB;
           if IsB then
             SpecifyElementType(pfetExprListRightBracket);
           try
+            // 注意这句删俩空格，只有保留换行的情况下，函数调用最后一个参数后的右括号前换行时才有效
+            if CnPascalCodeForRule.KeepUserLineBreak then
+              FCodeGen.BackSpaceSpaceLineIndent(CnPascalCodeForRule.TabSpaceCount);
+
             Match(Scanner.Token);
           finally
             if IsB then
@@ -1163,9 +1219,9 @@ begin
           Match(tokHat);
         end;
       tokPlus, tokMinus: // 这里的加减号是啥目的？照理应该算 Term 之间的二元运算符才对
-        begin
+        begin            // 不管怎样先做上，并传入 IndentForAnonymous 供保留换行时正确缩进
           MatchOperator(Scanner.Token);
-          FormatExpression(0, PreSpaceCount);
+          FormatExpression(0, IndentForAnonymous);
         end;
     end; // case
   end; // while
@@ -1183,19 +1239,38 @@ begin
   end;
 end;
 
-{ Expression -> SimpleExpression [RelOp SimpleExpression]... }
+{ Expression -> SimpleExpression [RelOp SimpleExpression]...
+             -> IF Expression THEN Expression ELSE Expression}
 procedure TCnBasePascalFormatter.FormatExpression(PreSpaceCount: Byte;
   IndentForAnonymous: Byte);
 begin
   SpecifyElementType(pfetExpression);
   try
+    if Scanner.Token = tokKeywordIf then
+    begin
+      // 新语法 IF expression THEN expression ELSE expression
+      Match(tokKeywordIf);
+      FormatExpression(PreSpaceCount, IndentForAnonymous);
+      Match(tokKeywordThen);
+      FormatExpression(PreSpaceCount, IndentForAnonymous);
+      Match(tokKeywordElse);
+      FormatExpression(PreSpaceCount, IndentForAnonymous);
+      Exit;
+    end;
+
     FormatSimpleExpression(PreSpaceCount, IndentForAnonymous);
 
-    while Scanner.Token in RelOpTokens + [tokHat, tokSLB, tokDot] do
+    while Scanner.Token in RelOpTokens + [tokHat, tokSLB, tokDot, tokKeywordNot] do
     begin
       // 这块对泛型的处理已移动到内部以处理 function call 的情形
 
-      if Scanner.Token in RelOpTokens then
+      if Scanner.Token = tokKeywordNot then // not in 是新语法
+      begin
+        Match(tokKeywordNot, 0, 1);
+        Match(tokKeywordIn, 0, 1);
+        FormatSimpleExpression;
+      end
+      else if Scanner.Token in RelOpTokens then
       begin
         MatchOperator(Scanner.Token);
         FormatSimpleExpression;
@@ -1346,14 +1421,14 @@ begin
           Match(tokKeywordNot, 0, 1)
         else
           Match(tokKeywordNot);
-        FormatFactor;
+        FormatFactor(PreSpaceCount, IndentForAnonymous);
       end;
 
     tokLB: // (  需要判断是带括号嵌套的 Designator 还是 Expression.
       begin
         // 暂且修改了 Expression 内部，使其支持^和[]了。
         Match(tokLB, PreSpaceCount);
-        FormatExpression;
+        FormatExpression(PreSpaceCount, IndentForAnonymous);
         Match(tokRB);
 
         // 修补处理 (Expression)^^ 这种语法
@@ -1363,7 +1438,7 @@ begin
 
     tokSLB: // [
       begin
-        FormatSetConstructor(PreSpaceCount);
+        FormatSetConstructor(PreSpaceCount, IndentForAnonymous);
       end;
   else
     { Doesn't do anything to implemenation rule: '' Designator }
@@ -1399,7 +1474,17 @@ begin
 
   while CanHaveUnitQual and (Scanner.Token = tokDot) do
   begin
+    // 输出点前后，如果换行缩进了，先记录下来，语句结束时清除该标记，以下俩情况都要正确记录
+    // MyFunc().         或   MyFunc()
+    //  Test(                  .Test(
+    //    A,                     A,
+    //    B);                    B);
+
+    FDotMakeLineBreak := FCodeGen.KeepLineBreakIndentWritten;
     Match(tokDot);
+    if not FDotMakeLineBreak then
+      FDotMakeLineBreak := FCodeGen.KeepLineBreakIndentWritten;
+
     FDisableCorrectName := True;        // 点号后的标识符暂时无法与同名的独立变量区分，只能先禁用大小写纠正
     try
       if Scanner.Token = tokAmpersand then // & 表示后面的声明使用的关键字是转义的
@@ -1418,14 +1503,18 @@ end;
 
 { IdentList -> Ident/','... }
 procedure TCnBasePascalFormatter.FormatIdentList(PreSpaceCount: Byte;
-  const CanHaveUnitQual: Boolean);
+  const CanHaveUnitQual: Boolean; NeedGeneric: Boolean);
 begin
   FormatIdent(PreSpaceCount, CanHaveUnitQual);
+  if NeedGeneric and (Scanner.Token = tokLess) then
+    FormatTypeParams(PreSpaceCount);
 
   while Scanner.Token = tokComma do
   begin
     Match(tokComma);
     FormatIdent(0, CanHaveUnitQual);
+    if NeedGeneric and (Scanner.Token = tokLess) then
+      FormatTypeParams(PreSpaceCount);
   end;
 end;
 
@@ -1519,16 +1608,17 @@ end;
   SetConstructor -> '[' [SetElement/','...] ']'
   SetElement -> Expression ['..' Expression]
 }
-procedure TCnBasePascalFormatter.FormatSetConstructor(PreSpaceCount: Byte);
+procedure TCnBasePascalFormatter.FormatSetConstructor(PreSpaceCount: Byte;
+ IndentForAnonymous: Byte);
 
   procedure FormatSetElement;
   begin
-    FormatExpression;
+    FormatExpression(PreSpaceCount, IndentForAnonymous);
 
     if Scanner.Token = tokRange then
     begin
       Match(tokRange);
-      FormatExpression;
+      FormatExpression(PreSpaceCount, IndentForAnonymous);
     end;
   end;
   
@@ -1556,8 +1646,6 @@ end;
 { SimpleExpression -> ['+' | '-' | '^'] Term [AddOp Term]... }
 procedure TCnBasePascalFormatter.FormatSimpleExpression(
   PreSpaceCount: Byte; IndentForAnonymous: Byte);
-var
-  OldTab: Integer;
 begin
   if Scanner.Token in [tokPlus, tokMinus, tokHat] then // ^H also support
   begin
@@ -1573,7 +1661,6 @@ begin
 
     // 匿名函数内部改为不保留换行
     FLineBreakKeepStack.Push(Pointer(FNeedKeepLineBreak));
-    OldTab := FCurrentTab;
     FNeedKeepLineBreak := False;
     try
       // Anonymous function/procedure. 匿名函数的缩进使用 IndentForAnonymous 参数
@@ -1583,7 +1670,6 @@ begin
         FormatFunctionDecl(Tab(IndentForAnonymous), True);
     finally
       FNeedKeepLineBreak := Boolean(FLineBreakKeepStack.Pop);   // 恢复不保留换行的选项
-      FCurrentTab := OldTab;
     end;
   end
   else
@@ -1622,7 +1708,7 @@ begin
   if Scanner.Token = tokColon then // ConstraintList
   begin
     Match(tokColon);
-    FormatIdentList(PreSpaceCount, True);
+    FormatIdentList(PreSpaceCount, True, True); // 可能有泛型
   end;
 end;
 
@@ -2116,7 +2202,7 @@ begin
     case Scanner.Token of
       tokSymbol, tokAmpersand, tokAtSign, tokKeywordFinal, tokKeywordIn, tokKeywordOut,
       tokKeywordString, tokKeywordAlign, tokKeywordAt, tokInteger, tokFloat,
-      tokKeywordContains, tokKeywordRequires, tokKeywordOperator,
+      tokKeywordContains, tokKeywordRequires, tokKeywordOperator, tokKeywordPackage,
       tokDirective_BEGIN..tokDirective_END, // 允许语句以部分关键字以及数字开头，其余和 CanBeSymbol 函数内部实现类似
       tokComplex_BEGIN..tokComplex_END:
         begin
@@ -2261,7 +2347,7 @@ begin
   begin
     FormatStructStmt(PreSpaceCount);
   end;
-  { Do not raise error here, Statement maybe empty }
+  FDotMakeLineBreak := False; // 清除点号换行的标记
 end;
 
 { StmtList -> Statement/';'... }
@@ -2291,7 +2377,11 @@ begin
         Match(tokSemicolon, Tab(PreSpaceCount), 0, False, True);
       end
       else
+      begin
+        FTrimAfterSemicolon := True;  // 语句后的分号无需加尾部空格
         Match(tokSemicolon);
+        FTrimAfterSemicolon := False;
+      end;
       // 输出语句间的分割分号用，但如果前一句的子语句为空，如if True then ;
       // 则本句就可能顶行首去了，需要在 FormatStructStmt 里头标记并控制
 
@@ -2594,7 +2684,7 @@ begin
       OldLastToken := FLastToken;
       CodeGen.LockOutput;
 
-      if NewLine then // 行首，要检测label
+      if NewLine then // 行首，要检测 label
       begin
         LabelLen := 0;
         ALabel := '';
@@ -2739,7 +2829,7 @@ begin
   Match(tokLB);
   OldKeepOneBlankLine := Scanner.KeepOneBlankLine;
   Scanner.KeepOneBlankLine := False; // 嵌套数组声明中无需保留原有内部的至少一行换行的模式
-                                    // 不等于保留换行的选项
+                                     // 不等于保留换行的选项
   SpecifyElementType(pfetArrayConstant);
 
   try
@@ -3148,7 +3238,13 @@ begin
   try
     Match(tokLB, PreSpaceCount);
     FormatEnumeratedList;
-    Match(tokRB);
+
+    SpecifyElementType(pfetExprListRightBracket);
+    try
+      Match(tokRB);
+    finally
+      RestoreElementType;
+    end;
   finally
     FNeedKeepLineBreak := Boolean(FLineBreakKeepStack.Pop);
   end;
@@ -4069,6 +4165,10 @@ begin
           Match(Scanner.Token);
           ProcessBlank;
           FormatTypeID;
+
+          // 加入对 <> 泛型的支持
+          if Scanner.Token = tokLess then
+            FormatTypeParams(0, True);
         end;
 
         tokComplexDefault:
@@ -4321,12 +4421,13 @@ end;
 
        -> reference to ProcedureType
 }
-procedure TCnBasePascalFormatter.FormatType(PreSpaceCount: Byte;
-  IgnoreDirective: Boolean);
+function TCnBasePascalFormatter.FormatType(PreSpaceCount: Byte;
+  IgnoreDirective: Boolean): Boolean;
 var
   Bookmark: TScannerBookmark;
   AToken, OldLastToken: TPascalToken;
 begin
+  Result := False;
   if (Scanner.Token = tokSymbol) and (Scanner.ForwardToken = tokKeywordTo) and
     (LowerCase(Scanner.TokenString) = 'reference') then
   begin
@@ -4406,7 +4507,8 @@ begin
       else if AToken = tokLess then // 加入对<>泛型的支持
       begin
         FormatIdent;
-        FormatTypeParams;
+        Result := FormatTypeParams(0, True);
+
         if Scanner.Token = tokDot then
         begin
           Match(tokDot);
@@ -4423,7 +4525,7 @@ begin
   // 加入对 <> 泛型的支持
   if Scanner.Token = tokLess then
   begin
-    FormatTypeParams;
+    Result := FormatTypeParams(0, True);
     if Scanner.Token = tokDot then
     begin
       Match(tokDot);
@@ -4607,9 +4709,7 @@ begin
   // 加入对 <> 泛型的支持
   GreatEqual := False;
   if Scanner.Token = tokLess then
-  begin
     GreatEqual := FormatTypeParams(0, True);
-  end;
 
   if not GreatEqual then
     MatchOperator(tokEQUAL);
@@ -4755,6 +4855,7 @@ end;
 procedure TCnBasePascalFormatter.FormatConstantDecl(PreSpaceCount: Byte);
 var
   OldKeepOneBlankLine: Boolean;
+  GreatEqual: Boolean;
 begin
   FormatIdent(PreSpaceCount);
 
@@ -4779,14 +4880,17 @@ begin
       tokColon: // 无法直接区分 record/array/普通常量方式的初始化，需要内部解析
         begin
           Match(Scanner.Token);
-          FormatType;
+
+          GreatEqual := FormatType;
 
           // 类型表达式从冒号起就允许保持内部换行
           FLineBreakKeepStack.Push(Pointer(FNeedKeepLineBreak));
           FNeedKeepLineBreak := True;
           try
             FCurrentTab := PreSpaceCount;
-            Match(tokEQUAL, 1, 1); // 等号前后空一格
+            if not GreatEqual then // 可能内部碰到泛型已经输出了等号，这里就不输出了
+              Match(tokEQUAL, 1, 1); // 等号前后空一格
+
             FormatTypedConstant; // 等号后空一格
           finally
             FNeedKeepLineBreak := Boolean(FLineBreakKeepStack.Pop);
@@ -5435,6 +5539,8 @@ end;
                   -> FunctionHeading ';' [(DIRECTIVE ';')...]
 }
 procedure TCnGoalCodeFormatter.FormatExportedHeading(PreSpaceCount: Byte);
+var
+  SemiAfterDirective: Boolean;
 begin
   case Scanner.Token of
     tokKeywordProcedure: FormatProcedureHeading(PreSpaceCount);
@@ -5446,17 +5552,29 @@ begin
   if Scanner.Token = tokSemicolon then
     Match(tokSemicolon, 0, 0, True); // 不让分号后写空格，免得影响 Directive 的空格
 
+  SemiAfterDirective := True;
   while Scanner.Token in DirectiveTokens do
   begin
+    SemiAfterDirective := False;
     FormatDirective;
     {
-      FIXME: 以下句末没有分号的声明也是合法的，会导致行尾没正确判断语句结束，从而在语句内保留换行时多输出回车
+      以下句末没有分号的声明也是合法的，会导致行尾没正确判断语句结束，
+      从而在语句内保留换行时多输出回车，需要在循环外补救
 
       procedure Foo; external 'foo.dll' name '__foo'
       procedure Bar; external 'bar.dll' name '__bar'
     }
     if Scanner.Token = tokSemicolon then
+    begin
+      SemiAfterDirective := True;
       Match(tokSemicolon, 0, 0, True);
+    end;
+  end;
+
+  if not SemiAfterDirective and CnPascalCodeForRule.KeepUserLineBreak then
+  begin
+    // 所以在此补上一个硬动作，删除最新的所有空行
+    CodeGen.BackSpaceEmptyLines;
   end;
 end;
 
@@ -5642,12 +5760,18 @@ begin
 end;
 
 {
-  Program -> [PROGRAM Ident ['(' IdentList ')'] ';']
-             ProgramBlock '.'
+  Program -> [PACKAGE Ident ['(' IdentList ')'] ';']
+             PackageBlock '.'
 }
 procedure TCnGoalCodeFormatter.FormatPackage(PreSpaceCount: Byte);
 begin
-  Match(tokKeywordPackage, PreSpaceCount);
+  try
+    SpecifyElementType(pfetPackageKeyword);
+    Match(tokKeywordPackage, PreSpaceCount);
+  finally
+    RestoreElementType;
+  end;
+
   SpecifyElementType(pfetUnitName);
   try
     FormatIdent;

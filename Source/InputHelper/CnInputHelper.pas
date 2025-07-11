@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -1478,7 +1478,10 @@ begin
     // 提前获得是否是点号
     Key := Msg.wParam;
     if not CheckImmRun and (Key = VK_PROCESSKEY) then
+    begin
+      ScanCode := (Msg.lParam and $00FF0000) shr 16;
       Key := MapVirtualKey(ScanCode, 1);
+    end;
 
     if (Key = VK_DECIMAL) or (Key = MY_VK_DOT_KEY) then
     begin
@@ -2486,7 +2489,7 @@ begin
       FSymbolReloading := False; // 也恢复标记
     end;
 {$IFDEF DEBUG}
-    CnDebugger.LogFmt('UpdateSymbolList. Get Symbols %d.', [FSymbols.Count]);
+    CnDebugger.LogFmt('UpdateSymbolList. Get All Symbols %d.', [FSymbols.Count]);
 {$ENDIF}
   finally
     if HashList <> nil then

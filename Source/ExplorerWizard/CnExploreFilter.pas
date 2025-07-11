@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -70,13 +70,11 @@ type
     procedure ValueListEditor1DblClick(Sender: TObject);
     procedure lvFilterDblClick(Sender: TObject);
   private
-    { Private declarations }
     function GetSelected: Integer;
     procedure SetSelected(const Row: Integer);
     procedure LoadFilterSetting(const FileName: String);
     procedure SaveFilterSetting(const FileName: String);
   public
-    { Public declarations }
     function FindFilter(const FilterKey: String; var Row: Integer): Boolean;
     procedure GetFilter(const Row: Integer; var FilterKey, Value: String);
     property Selected: Integer read GetSelected write SetSelected;

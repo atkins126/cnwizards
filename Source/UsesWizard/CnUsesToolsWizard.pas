@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -101,6 +101,7 @@ type
     FIdCleaner: Integer;
     FIdInitTree: Integer;
     FIdFromIdent: Integer;
+    FIdProjImplUse: Integer;
     FIgnoreInit: Boolean;
     FIgnoreReg: Boolean;
     FIgnoreNoSrc: Boolean;
@@ -118,6 +119,7 @@ type
 {$IFDEF SUPPORT_CROSS_PLATFORM}
     FCurrPlatform: string;    // 工程的 Platform 发生变化时 lib 库会变，需要重新解析
 {$ENDIF}
+    FProjImplUnit: string;
     function MatchInListWithExpr(List: TStrings; const Str: string): Boolean;
     function GetProjectFromModule(AModule: IOTAModule): IOTAProject;
     function ShowKindForm(var AKind: TCnUsesCleanKind): Boolean;
@@ -143,6 +145,7 @@ type
     procedure CleanExecute;
     procedure InitTreeExecute;
     procedure FromIdentExecute;
+    procedure ProjImplExecute;
   protected
     function GetHasConfig: Boolean; override;
     procedure SubActionExecute(Index: Integer); override;
@@ -162,6 +165,8 @@ type
 
     procedure Execute; override;
     procedure AcquireSubActions; override;
+
+    function IsValidUnitName(const AUnitName: string): Boolean;
   end;
 
 {$ENDIF CNWIZARDS_CNUSESTOOLS}
@@ -174,8 +179,8 @@ uses
 {$IFDEF DEBUG}
   CnDebug,
 {$ENDIF}
-  CnUsesCleanResultFrm, CnUsesInitTreeFrm, DCURecs, CnUsesIdentFrm,
-  CnWideStrings, CnProgressFrm, CnIDEStrings;
+  CnUsesCleanResultFrm, CnUsesInitTreeFrm, DCURecs, CnUsesIdentFrm, CnNative,
+  CnWideStrings, CnProgressFrm, CnIDEStrings, CnPasCodeParser, CnWidePasParser;
 
 {$R *.DFM}
 
@@ -450,7 +455,7 @@ begin
     end;
   except
     on E: Exception do
-      DoHandleException(E.Message);
+      DoHandleException('Compile Units ' + E.Message);
   end;
 end;
 
@@ -733,7 +738,7 @@ begin
     end;
   except
     on E: Exception do
-      DoHandleException(E.Message);
+      DoHandleException('Process Units ' + E.Message);
   end;
 end;
 
@@ -845,6 +850,7 @@ var
               begin
                 FormName := TComponent(Obj).Owner.Name;
                 for J := 0 to AProject.GetModuleCount - 1 do
+                begin
                   if SameText(AProject.GetModule(J).FormName, FormName) then
                   begin
                     UnitName := _CnChangeFileExt(_CnExtractFileName(
@@ -852,6 +858,7 @@ var
                     if Units.IndexOf(UnitName) < 0 then
                       Units.Add(UnitName);
                   end;
+                end;
               end;
             end
             else if Obj is TCollection then
@@ -888,7 +895,7 @@ begin
     end;
   except
     on E: Exception do
-      DoHandleException(E.Message);
+      DoHandleException('Get CompRef Units ' + E.Message);
   end;   
 end;
 
@@ -1163,7 +1170,7 @@ var
       if Lex.TokenID <> tkNull then
         Lex.Next;
       SetLength(Result, Lex.TokenPos - CPos);
-      Move((Pointer(Integer(Lex.Origin) + CPos * SizeOf(Char)))^, Result[1],
+      Move((Pointer(TCnNativeInt(Lex.Origin) + CPos * SizeOf(Char)))^, Result[1],
         (Lex.TokenPos - CPos) * SizeOf(Char));
 
 {$IFDEF DEBUG}
@@ -1541,6 +1548,8 @@ begin
     0, SCnUsesInitTreeMenuHint);
   FIdFromIdent := RegisterASubAction(ScnUsesToolsFromIdent, SCnUsesUnitFromIdentMenuCaption,
     0, SCnUsesUnitFromIdentMenuHint);
+  FIdProjImplUse := RegisterASubAction(SCnUsesToolsProjImplUse, SCnUsesToolsProjImplUseMenuCaption,
+    0, SCnUsesToolsProjImplUseMenuHint);
 end;
 
 procedure TCnUsesToolsWizard.SubActionExecute(Index: Integer);
@@ -1550,13 +1559,17 @@ begin
   else if Index = FIdInitTree then
     InitTreeExecute
   else if Index = FIdFromIdent then
-    FromIdentExecute;
+    FromIdentExecute
+  else if Index = FIdProjImplUse then
+    ProjImplExecute;
 end;
 
 procedure TCnUsesToolsWizard.SubActionUpdate(Index: Integer);
 begin
   if (Index = FIdCleaner) or (Index = FIdInitTree) then
-    SubActions[Index].Enabled := CnOtaGetProjectGroup <> nil;
+    SubActions[Index].Enabled := CnOtaGetProjectGroup <> nil
+  else if Index = FIdProjImplUse then
+    SubActions[Index].Enabled := CnOtaGetCurrentProject <> nil
 end;
 
 procedure TCnUsesToolsWizard.InitTreeExecute;
@@ -1945,6 +1958,122 @@ begin
   end;
 end;
 
+procedure TCnUsesToolsWizard.ProjImplExecute;
+const
+  DEF_UNIT = 'CnDebug';
+var
+  I, C: Integer;
+  U: string;
+  F: TStringList;
+
+  function ProcessFile(const FileName: string; const AUnit: string): Boolean;
+  var
+    Stream, Dest: TMemoryStream;
+    NameList: TStringList;
+    HasUses: Boolean;
+    LinearPos: Integer;
+    Ins: TCnIdeTokenString;
+  begin
+    Result := False;
+    // 打开单个源文件，解析 intf 和 impl 里是否引用了 AUnit，如无则引用上
+    Stream := nil;
+    Dest := nil;
+    NameList := nil;
+
+{$IFDEF DEBUG}
+    CnDebugger.LogFmt('UsesTools Project uses ProcessFile %s', [FileName]);
+{$ENDIF}
+
+    try
+      Stream := TMemoryStream.Create;
+      CnGeneralFilerSaveFileToStream(FileName, Stream); // Stream 得到 Ansi/*/Utf16
+
+      NameList := TStringList.Create;
+{$IFDEF UNICODE}
+      ParseUnitUsesW(PChar(Stream.Memory), NameList);
+{$ELSE}
+      ParseUnitUses(PAnsiChar(Stream.Memory), NameList);
+{$ENDIF}
+
+      if NameList.IndexOf(AUnit) >= 0 then
+      begin
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('UsesTools Project File Already uses %s', [AUnit]);
+{$ENDIF}
+        Exit;
+      end;
+
+      // 要加上 uses，先查找插入位置
+      if SearchUsesInsertPosInPasFile(FileName, False, HasUses, LinearPos) then
+      begin
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('UsesTools Project File Search Uses. Impl Has uses %d. Can Insert to %d', [Ord(HasUses), LinearPos]);
+{$ENDIF}
+
+        // 根据 HasUses 和 Linear 位置拼凑内容插入
+        NameList.Clear;
+        NameList.Add(AUnit);
+
+        Ins := TCnIdeTokenString(JoinUsesOrInclude(False, HasUses, False, NameList));
+
+{$IFDEF DEBUG}
+        CnDebugger.LogFmt('UsesTools Project File Insert Content %s', [Ins]);
+{$ENDIF}
+
+        Dest := TMemoryStream.Create;
+        Stream.Position := 0;
+        Dest.CopyFrom(Stream, LinearPos * SizeOf(TCnIdeTokenChar));
+        Dest.Write(Ins[1], Length(Ins) * SizeOf(TCnIdeTokenChar));
+        Dest.CopyFrom(Stream, Stream.Size - (LinearPos + 1) * SizeOf(TCnIdeTokenChar));
+
+        CnGeneralFilerLoadFileFromStream(FileName, Dest);
+        Result := True;
+      end;
+    finally
+      Dest.Free;
+      Stream.Free;
+      NameList.Free;
+    end;
+  end;
+
+begin
+  // 拿到单元名，在工程内的非 dpr 文件里，全盘判断并 impl 部分加入 uses
+  if FProjImplUnit = '' then
+    FProjImplUnit := DEF_UNIT;
+
+  U := FProjImplUnit;
+  if CnWizInputQuery(SCnInformation, SCnUsesToolsProjImplPrompt, U) then
+  begin
+    // 判断 U 是否合法，不合法则退出
+    if not IsValidUnitName(U) then
+    begin
+      ErrorDlg(SCnUsesToolsProjImplErrorUnit);
+      Exit;
+    end;
+
+    FProjImplUnit := U;
+    F := TStringList.Create;
+    try
+      if not CnOtaGetProjectSourceFiles(F, False) then
+      begin
+        ErrorDlg(SCnUsesToolsProjImplErrorSource);
+        Exit;
+      end;
+
+      C := 0;
+      for I := 0 to F.Count - 1 do
+      begin
+        if ProcessFile(F[I], FProjImplUnit) then
+          Inc(C);
+      end;
+
+      InfoDlg(Format(SCnUsesToolsProjImplCountFmt, [C]));
+    finally
+      F.Free;
+    end;
+  end;
+end;
+
 { TCnUsesCleanerForm }
 
 function TCnUsesCleanerForm.GetHelpTopic: string;
@@ -1960,6 +2089,34 @@ end;
 procedure TCnUsesCleanerForm.rbCurrUnitClick(Sender: TObject);
 begin
   chkProcessDependencies.Enabled := not rbCurrUnit.Checked;
+end;
+
+function TCnUsesToolsWizard.IsValidUnitName(const AUnitName: string): Boolean;
+const
+  Alpha = ['A'..'Z', 'a'..'z', '_'];
+  AlphaNumeric = Alpha + ['0'..'9', '.'];
+var
+  I: Integer;
+begin
+  Result := False;
+{$IFDEF UNICODE} // Unicode Identifier Supports
+  if (Length(AUnitName) = 0) or not (CharInSet(AUnitName[1], Alpha) or (Ord(AUnitName[1]) > 127)) then
+    Exit;
+  for I := 2 to Length(AUnitName) do
+  begin
+    if not (CharInSet(AUnitName[I], AlphaNumeric) or (Ord(AUnitName[I]) > 127)) then
+      Exit;
+  end;
+{$ELSE}
+  if (Length(AUnitName) = 0) or not CharInSet(AUnitName[1], Alpha) then
+    Exit;
+  for I := 2 to Length(AUnitName) do
+  begin
+    if not CharInSet(AUnitName[I], AlphaNumeric) then
+      Exit;
+  end;
+{$ENDIF}
+  Result := True;
 end;
 
 initialization

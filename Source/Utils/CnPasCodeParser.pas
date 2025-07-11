@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -197,14 +197,18 @@ type
     procedure Clear;
 
     procedure ParseSource(ASource: PAnsiChar; AIsDpr, AKeyOnly: Boolean);
-    {* 对代码进行常规解析，不生成关键字与标识符之外的内容}
-    function FindCurrentDeclaration(LineNumber, CharIndex: Integer): AnsiString;
+    {* 对代码进行常规解析，AKeyOnly 为 True 表示只生成关键字内容，否则还加上标识符及运算符、括号等内容}
+
+    function FindCurrentDeclaration(LineNumber, CharIndex: Integer;
+      out Visibility: TTokenKind): AnsiString;
     {* 查找指定光标位置所在的声明，LineNumber 1 开始，CharIndex 0 开始，类似于 CharPos
-       要求是 Ansi 的偏移量。D567 下可以用 ConvertPos 得到的 CharPos 传入}
-    procedure FindCurrentBlock(LineNumber, CharIndex: Integer);
-    {* 根据当前光标位置查找当前块与当前嵌套/外层函数等。
+       要求是 Ansi 的偏移量。D567 下可以用 ConvertPos 得到的 CharPos 传入
+       Visibility 参数返回为光标所在是 private/protected/public/published 还是 none}
+    function FindCurrentBlock(LineNumber, CharIndex: Integer): TTokenKind;
+    {* 根据当前光标位置查找当前块与当前嵌套/外层函数等，被 FindCurrentDeclaration 调用。
        LineNumber 1 开始，CharIndex 0 开始，类似于 CharPos
-       要求是 Ansi 的偏移量。D567 下可以用 ConvertPos 得到的 CharPos 传入}
+       要求是 Ansi 的偏移量。D567 下可以用 ConvertPos 得到的 CharPos 传入
+       返回值为当前光标上部最近的是 private/protected/public/published 还是 none}
 
     procedure ParseString(ASource: PAnsiChar);
     {* 对代码进行针对字符串的解析，只生成字符串内容}
@@ -330,7 +334,8 @@ function ParsePasCodePosInfo(const Source: AnsiString; CurrPos: Integer;
   另外注意 D567/BCB56 下 SourceIsUtf8 参数不起作用}
 
 procedure ParseUnitUses(const Source: AnsiString; UsesList: TStrings);
-{* 分析源代码中引用的单元，Source 是文件内容}
+{* 分析源代码中引用的单元，将已引用单元放入 UsesList，Source 是文件的 Ansi 内容。
+  目前 Unicode 环境大部分情况下也是用的该方法，只有 Ansi 出问题时才需要换}
 
 implementation
 
@@ -671,11 +676,12 @@ begin
         or ((not (PrevTokenID in [tkAmpersand, tkAddressOp])) and (Lex.TokenID in
         [tkProcedure, tkFunction, tkConstructor, tkDestructor, tkOperator,
         tkInitialization, tkFinalization,
-        tkBegin, tkAsm,
+        tkBegin, tkAsm, tkVar, tkConst,
         tkCase, tkTry, tkRepeat, tkIf, tkFor, tkWith, tkOn, tkWhile,
         tkRecord, tkObject, tkOf, tkEqual,
         tkClass, tkInterface, tkDispinterface,
         tkExcept, tkFinally, tkElse,
+        tkPrivate, tkProtected, tkPublic, tkPublished,
         tkEnd, tkUntil, tkThen, tkDo])) then
       begin
         Token := NewToken(Lex, ASource, CurrBlock, CurrMethod, CurrBracketLevel);
@@ -969,6 +975,17 @@ begin
           tkExcept, tkFinally:
             begin
               if (CurrBlock = nil) or (CurrBlock.TokenID <> tkTry) then
+                DiscardToken
+              else if CurrMidBlock = nil then
+              begin
+                CurrMidBlock := Token;
+              end
+              else
+                DiscardToken;
+            end;
+          tkPrivate, tkProtected, tkPublic, tkPublished:
+            begin
+              if (CurrBlock = nil) or not (CurrBlock.TokenID in [tkClass, tkRecord, tkInterface, tkDispinterface]) then
                 DiscardToken
               else if CurrMidBlock = nil then
               begin
@@ -1278,11 +1295,12 @@ begin
   end;
 end;
 
-procedure TCnPasStructureParser.FindCurrentBlock(LineNumber, CharIndex:
-  Integer);
+function TCnPasStructureParser.FindCurrentBlock(LineNumber, CharIndex:
+  Integer): TTokenKind;
 var
   Token: TCnPasToken;
   CurrIndex: Integer;
+  Res: TTokenKind;
 
   procedure _BackwardFindDeclarePos;
   var
@@ -1296,6 +1314,12 @@ var
     for I := CurrIndex - 1 downto 0 do
     begin
       Token := Tokens[I];
+
+      // 回溯过程中碰到第一个范围，记录
+      if (Res = tkNone) and (Token.TokenID in
+        [tkPrivate, tkProtected, tkPublic, tkPublished]) then
+        Res := Token.TokenID;
+
       if Token.IsBlockStart then
       begin
         if StartInner and (Level = 0) then
@@ -1466,7 +1490,8 @@ begin
   FInnerBlockStartToken := nil;
   FCurrentMethod := '';
   FCurrentChildMethod := '';
-  
+  Res := tkNone;
+
   CurrIndex := 0;
   while CurrIndex < Count do
   begin
@@ -1502,6 +1527,8 @@ begin
       FCurrentChildMethod := _GetMethodName(FChildMethodStartToken, FChildMethodCloseToken);
     end;
   end;
+
+  Result := Res;
 end;
 
 function TCnPasStructureParser.IndexOfToken(Token: TCnPasToken): Integer;
@@ -1509,12 +1536,13 @@ begin
   Result := FList.IndexOf(Token);
 end;
 
-function TCnPasStructureParser.FindCurrentDeclaration(LineNumber, CharIndex: Integer): AnsiString;
+function TCnPasStructureParser.FindCurrentDeclaration(LineNumber, CharIndex: Integer;
+  out Visibility: TTokenKind): AnsiString;
 var
   Idx: Integer;
 begin
   Result := '';
-  FindCurrentBlock(LineNumber, CharIndex);
+  Visibility := FindCurrentBlock(LineNumber, CharIndex);
   
   if InnerBlockStartToken <> nil then
   begin
@@ -1591,7 +1619,31 @@ var
     Result.Token := Lex.Token;
     Result.TokenID := Lex.TokenID;
     if NoJunk then
-      Lex.NextNoJunk
+    begin
+      // 不能直接调用 Lex.NextNoJunk，会错误地越过注释而忽略了光标判断
+      repeat
+        Lex.Next;
+        if (Lex.TokenID in [tkSlashesComment, tkAnsiComment, tkBorComment]) and (Lex.TokenPos < CurrPos) then
+        begin
+          // 重复上面的
+          Result.LastIdentPos := Lex.LastIdentPos;
+          Result.LastNoSpace := Lex.LastNoSpace;
+          Result.LastNoSpacePos := Lex.LastNoSpacePos;
+          Result.LineNumber := Lex.LineNumber;
+          Result.LinePos := Lex.LinePos;
+          Result.TokenPos := Lex.TokenPos;
+          Result.Token := Lex.Token;
+          Result.TokenID := Lex.TokenID;
+
+          // 设置注释区域
+          if Result.PosKind <> pkComment then
+          begin
+            SavePos := Result.PosKind;
+            Result.PosKind := pkComment;
+          end;
+        end;
+      until not (Lex.TokenID in [tkSlashesComment, tkAnsiComment, tkBorComment, tkCRLF, tkCRLFCo, tkSpace]);
+    end
     else
       Lex.Next;
   end;
@@ -1639,6 +1691,9 @@ begin
 
     while (Lex.TokenPos < CurrPos) and (Lex.TokenID <> tkNull) do
     begin
+      // 注意：循环里调用 DoNext(True) 时，原来的实现是直接 Lex.NextNoJunk 容易越过注释
+      // 导致光标在注释中时位置判断错误落在前一个了，现在 DoNext 里改成模拟调用并判断
+
       // CnDebugger.LogFmt('Token ID %d, Pos %d, %s',[Integer(Lex.TokenID), Lex.TokenPos, Lex.Token]);
       MyTokenID := Lex.TokenID;
 
@@ -1670,7 +1725,7 @@ begin
               Result.AreaKind := akInterface;
               Result.PosKind := pkFlat;
             end
-            else if Lex.IsInterface then
+            else if Lex.IsInterface then  // 和 class/record 判断类似
             begin
               Result.PosKind := pkInterface;
               DoNext(True);
@@ -1707,7 +1762,17 @@ begin
             if Result.AreaKind in [akIntfUses, akImplUses] then
             begin
               while (Lex.TokenPos < CurrPos) and not (Lex.TokenID in [tkNull, tkSemiColon]) do
+              begin
+                if IsProgram and (Lex.TokenID = tkString) then
+                begin
+                  if Result.PosKind <> pkString then
+                  begin
+                    SavePos := Result.PosKind;
+                    Result.PosKind := pkString;
+                  end;
+                end;
                 DoNext;
+              end;
               if (Lex.TokenPos < CurrPos) and (Lex.TokenID = tkSemiColon) then
               begin
                 if Result.AreaKind = akIntfUses then

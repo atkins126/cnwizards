@@ -94,6 +94,7 @@ type
     btnExternalFunction: TButton;
     btnGeneric: TButton;
     btnAttribute: TButton;
+    btnVarDeclDirective: TButton;
     procedure FormDestroy(Sender: TObject);
     procedure btnUsesClauseClick(Sender: TObject);
     procedure btnUsesDeclClick(Sender: TObject);
@@ -160,6 +161,7 @@ type
     procedure btnExternalFunctionClick(Sender: TObject);
     procedure btnGenericClick(Sender: TObject);
     procedure btnAttributeClick(Sender: TObject);
+    procedure btnVarDeclDirectiveClick(Sender: TObject);
   private
     FAST: TCnPasAstGenerator;
     procedure SaveANode(ALeaf: TCnLeaf; ATreeNode: TTreeNode; var Valid: Boolean);
@@ -762,7 +764,7 @@ begin
 '{******************************************************************************}' + #13#10 +
 '{                       CnPack For Delphi/C++Builder                           }' + #13#10 + 
 '{                     中国人自己的开放源码第三方开发包                         }' + #13#10 + 
-'{                   (C)Copyright 2001-2024 CnPack 开发组                       }' + #13#10 + 
+'{                   (C)Copyright 2001-2025 CnPack 开发组                       }' + #13#10 + 
 '{                   ------------------------------------                       }' + #13#10 + 
 '{******************************************************************************}' + #13#10 + 
 'unit CnCodeFormaterTest;' + #13#10 + 
@@ -984,6 +986,14 @@ begin
     '[ComponentPlatformsAttribute(pidWin32 or pidWin64), ComponentType: Unknown]'
   );
   FAST.BuildSingleAttribute;
+  SynTree;
+end;
+
+procedure TFormAST.btnVarDeclDirectiveClick(Sender: TObject);
+begin
+  ReInitAst('var IsWow64Process: function(Handle: THandle; var Res: BOOL): BOOL; stdcall;'
+    + 'GetNativeSystemInfo: procedure(var lpSystemInfo: TSystemInfo) stdcall;');
+  FAST.BuildVarSection;
   SynTree;
 end;
 

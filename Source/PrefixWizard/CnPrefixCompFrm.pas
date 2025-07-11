@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -101,7 +101,7 @@ uses
   CnWizManager, CnPrefixWizard, CnWizOptions;
 
 const
-  aSection = 'CnPrefixCompForm';
+  csSection = 'CnPrefixCompForm';
   csWidth = 'Width';
   csHeight = 'Height';
   csListViewWidth = 'ListViewWidth';
@@ -115,17 +115,17 @@ begin
   with Frm, IniFile do
   try
     FList := List;
-    Width := ReadInteger(aSection, csWidth, Width);
-    Height := ReadInteger(aSection, csHeight, Height);
+    Width := ReadInteger(csSection, csWidth, Width);
+    Height := ReadInteger(csSection, csHeight, Height);
     CenterForm(Frm);
-    SetListViewWidthString(ListView, ReadString(aSection, csListViewWidth, ''),
+    SetListViewWidthString(ListView, ReadString(csSection, csListViewWidth, ''),
       GetFactorFromSizeEnlarge(Enlarge));
     UpdateTrigger := UpdateListToListView;
     Result := ShowModal = mrOk;
-    
-    WriteInteger(aSection, csWidth, Width);
-    WriteInteger(aSection, csHeight, Height);
-    WriteString(aSection, csListViewWidth,
+
+    WriteInteger(csSection, csWidth, Width);
+    WriteInteger(csSection, csHeight, Height);
+    WriteString(csSection, csListViewWidth,
       GetListViewWidthString(ListView, GetFactorFromSizeEnlarge(Enlarge)));
   finally
     Frm.Free;

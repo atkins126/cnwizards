@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -25,10 +25,19 @@ unit CnEditControlWrapper;
 * 单元名称：IDE 相关公共单元
 * 单元作者：周劲羽 (zjy@cnpack.org)
 * 备    注：该单元封装了对 IDE 的 EditControl 的操作
+*           注意：10.4 新增了编辑器自定义 Gutter 注册，但 11.3 才开放相应 ToolsAPI
+*           的 Editors 接口，且编译条件无法区分 11.3 与之前的 11.0/1/2，我们只能 12
+*           及以后才能直接用新接口来处理自定义 Gutter 注册导致的编辑器横向偏移问题。
+*           11.* 则用动态 Mirror 的方式。
+*           注意凡是返回 string 或 IInterface 的系统方法，在 64 位下都不能直接转
+*           带 Self 的函数，会因为隐藏参数的位置混乱导致出错，需要用 TMethod 替换。
 * 开发平台：PWin2000Pro + Delphi 5.01
 * 兼容测试：PWin9X/2000/XP + Delphi 5/6/7 + C++Builder 5/6
 * 本 地 化：该单元中的字符串均符合本地化处理方式
-* 修改记录：2021.05.03 V1.8
+* 修改记录：2025.02.15 V1.9
+*               适配 64 位，绘制通知改用 ToolsAPI.Editors 接口，部分函数调用因
+*               64 位汇编的隐含参数问题失败，改为转换成事件方式调用
+*           2021.05.03 V1.8
 *               用新 RTTI 办法更精准地获取编辑器字符长宽
 *           2021.02.28 V1.7
 *               适应 10.4.2 下 ErroInsight 导致行距与字符高度改变以及通知
@@ -53,13 +62,18 @@ interface
 
 {$I CnWizards.inc}
 
+{$IFDEF DELPHI10_SEATTLE_UP}
+  {$DEFINE PAINT_LINE_HAS_V3}
+{$ENDIF}
+
 uses
-  Windows, Messages, Classes, Controls, SysUtils, Graphics, ToolsAPI, ExtCtrls,
-  ComCtrls, TypInfo, Forms, Tabs, Registry, Contnrs,
+  Windows, Messages, Classes, Controls, SysUtils, Graphics, ExtCtrls,
+  ComCtrls, TypInfo, Forms, {$IFNDEF LAZARUS} Tabs, {$ENDIF} Registry, Contnrs,
   {$IFDEF COMPILER6_UP} Variants, {$ENDIF}
   {$IFDEF SUPPORT_ENHANCED_RTTI} Rtti, {$ENDIF}
-  CnCommon, CnWizMethodHook, CnWizUtils, CnWizCompilerConst, CnWizNotifier,
-  CnWizIdeUtils, CnWizOptions;
+  {$IFNDEF STAND_ALONE} ToolsAPI,  CnWizUtils, CnWizIdeUtils, CnWizMethodHook,
+  {$IFDEF OTA_CODEEDITOR_SERVICE} ToolsAPI.Editor, {$ENDIF} CnIDEMirrorIntf, {$ENDIF}
+  CnCommon, CnWizCompilerConst, CnWizNotifier, CnWizOptions;
   
 type
 
@@ -100,6 +114,7 @@ type
     ctElided,                 // 编辑器行折叠，有限支持
     ctUnElided,               // 编辑器行展开，有限支持
 {$ENDIF}
+    ctGutterWidthChanged,     // 编辑器左侧 Gutter 宽度改变，目前仅 D12 或以上有效
     ctOptionChanged           // 编辑器设置对话框曾经打开过
     );
 
@@ -109,7 +124,9 @@ type
     TopRow: Integer;               // 视觉上第一行的行号
     BottomRow: Integer;            // 视觉上最下面一行的行号
     LeftColumn: Integer;
+{$IFNDEF STAND_ALONE}
     CurPos: TOTAEditPos;
+{$ENDIF}
     LineCount: Integer;            // 记录编辑器里的文字总行数
     LineText: string;
     ModTime: TDateTime;
@@ -135,18 +152,22 @@ type
     FContext: TCnEditorContext;
     FEditControl: TControl;
     FEditWindow: TCustomForm;
+{$IFNDEF STAND_ALONE}
     FEditView: IOTAEditView;
+{$ENDIF}
     FGutterWidth: Integer;
     FGutterChanged: Boolean;
     FLastValid: Boolean;
+{$IFNDEF STAND_ALONE}
     procedure SetEditView(AEditView: IOTAEditView);
+{$ENDIF}
     function GetGutterWidth: Integer;
     function GetViewLineNumber(Index: Integer): Integer;
     function GetViewLineCount: Integer;
     function GetViewBottomLine: Integer;
     function GetTopEditor: TControl;
   public
-    constructor Create(AEditControl: TControl; AEditView: IOTAEditView);
+    constructor Create(AEditControl: TControl {$IFNDEF STAND_ALONE}; AEditView: IOTAEditView {$ENDIF});
     destructor Destroy; override;
     function EditorIsOnTop: Boolean;
     procedure NotifyIDEGutterChanged;
@@ -154,7 +175,9 @@ type
     property Context: TCnEditorContext read FContext;
     property EditControl: TControl read FEditControl;
     property EditWindow: TCustomForm read FEditWindow;
+{$IFNDEF STAND_ALONE}
     property EditView: IOTAEditView read FEditView;
+{$ENDIF}
     property GutterWidth: Integer read GetGutterWidth;
 
     // 当前显示在最前面的编辑控件
@@ -187,9 +210,12 @@ type
     LineNum, LogicLineNum: Integer) of object;
   {* EditControl 控件单行绘制通知事件，用户可以此进行自定义绘制}
 
+{$IFNDEF STAND_ALONE}
+
   TCnEditorPaintNotifier = procedure (EditControl: TControl; EditView: IOTAEditView)
     of object;
   {* EditControl 控件完整绘制通知事件，用户可以此进行自定义绘制}
+{$ENDIF}
 
   TCnEditorNotifier = procedure (EditControl: TControl; EditWindow: TCustomForm;
     Operation: TOperation) of object;
@@ -230,11 +256,15 @@ type
   private
     FBpPosY: Integer;
     FBpDeltaLine: Integer;
+{$IFNDEF STAND_ALONE}
     FBpEditView: IOTAEditView;
+{$ENDIF}
     FBpEditControl: TControl;
   public
     property BpEditControl: TControl read FBpEditControl write FBpEditControl;
+{$IFNDEF STAND_ALONE}
     property BpEditView: IOTAEditView read FBpEditView write FBpEditView;
+{$ENDIF}
     property BpPosY: Integer read FBpPosY write FBpPosY;
     property BpDeltaLine: Integer read FBpDeltaLine write FBpDeltaLine;
   end;
@@ -248,12 +278,23 @@ type
     FEditorChangeNotifiers: TList;
     FKeyDownNotifiers: TList;
     FKeyUpNotifiers: TList;
+    FSysKeyDownNotifiers: TList;
+    FSysKeyUpNotifiers: TList;
     FCharSize: TSize;
     FHighlights: TStringList;
     FPaintNotifyAvailable: Boolean;
     FMouseNotifyAvailable: Boolean;
+{$IFNDEF STAND_ALONE}
+{$IFDEF USE_CODEEDITOR_SERVICE}
+    FEvents: INTACodeEditorEvents;
+    FEventsIndex: Integer;
+{$ELSE}
     FPaintLineHook: TCnMethodHook;
+{$ENDIF}
     FSetEditViewHook: TCnMethodHook;
+    FRequestGutterHook: TCnMethodHook;  // 这俩 Hook 只在 11、12 以上分别使用
+    FRemoveGutterHook: TCnMethodHook;
+{$ENDIF}
     FCmpLines: TList;
     FMouseUpNotifiers: TList;
     FMouseDownNotifiers: TList;
@@ -261,7 +302,17 @@ type
     FMouseLeaveNotifiers: TList;
     FNcPaintNotifiers: TList;
     FVScrollNotifiers: TList;
+
+{$IFDEF USE_CODEEDITOR_SERVICE}
+    FEditor2BeginPaintNotifiers: TList;
+    FEditor2EndPaintNotifiers: TList;
+    FEditor2PaintLineNotifiers: TList;
+    FEditor2PaintGutterNotifiers: TList;
+    FEditor2PaintTextNotifiers: TList;
+{$ENDIF}
+
     FBackgroundColor: TColor;
+    FForegroundColor: TColor;
     FEditorList: TObjectList;
     FEditControlList: TList;
     FOptionChanged: Boolean;
@@ -277,44 +328,54 @@ type
     FEditorBaseFont: TFont;
     procedure ScrollAndClickEditControl(Sender: TObject);
 
-    procedure AddNotifier(List: TList; Notifier: TMethod);
+{$IFNDEF STAND_ALONE}
     function CalcCharSize: Boolean;
     // 计算字符串尺寸，核心思想是从注册表里拿各种高亮设置计算，取其大者
+
     procedure GetHighlightFromReg;
-    procedure ClearAndFreeList(var List: TList);
-    function IndexOf(List: TList; Notifier: TMethod): Integer;
     procedure InitEditControlHook;
-    procedure CheckAndSetEditControlMouseHookFlag;
-    procedure RemoveNotifier(List: TList; Notifier: TMethod);
+
     function UpdateCharSize: Boolean;
+{$ENDIF}
+    procedure CheckAndSetEditControlMouseHookFlag;
+
     procedure EditControlProc(EditWindow: TCustomForm; EditControl:
       TControl; Context: Pointer);
+{$IFNDEF STAND_ALONE}
     procedure UpdateEditControlList;
     procedure CheckOptionDlg;
     function GetEditorContext(Editor: TCnEditorObject): TCnEditorContext;
+
     function CheckViewLinesChange(Editor: TCnEditorObject; Context: TCnEditorContext): Boolean;
     // 检查某个 View 中的具体行号分布有无改变，包括纵向滚动、纵向伸缩、折叠等，不包括单行内改动
 
     function CheckEditorChanges(Editor: TCnEditorObject): TCnEditorChangeTypes;
+{$ENDIF}
     procedure OnActiveFormChange(Sender: TObject);
     procedure AfterThemeChange(Sender: TObject);
+{$IFNDEF STAND_ALONE}
     procedure OnSourceEditorNotify(SourceEditor: IOTASourceEditor;
       NotifyType: TCnWizSourceEditorNotifyType; EditView: IOTAEditView);
+    procedure OnIdle(Sender: TObject);
+{$ENDIF}
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
     procedure OnCallWndProcRet(Handle: HWND; Control: TWinControl; Msg: TMessage);
-    procedure OnGetMsgProc(Handle: HWND; Control: TWinControl; Msg: TMessage);
-    procedure OnIdle(Sender: TObject);
+    function OnGetMsgProc(Handle: HWND; Control: TWinControl; Msg: TMessage): Boolean;
+
     function GetEditorCount: Integer;
     function GetEditors(Index: Integer): TCnEditorObject;
     function GetHighlight(Index: Integer): TCnHighlightItem;
     function GetHighlightCount: Integer;
     function GetHighlightName(Index: Integer): string;
     procedure ClearHighlights;
+{$IFNDEF STAND_ALONE}
     procedure LoadFontFromRegistry;
+{$ENDIF}
     procedure ResetFontsFromBasic(ABasicFont: TFont);
     function GetFonts(Index: Integer): TFont;
     procedure SetFonts(const Index: Integer; const Value: TFont);
     function GetBackgroundColor: TColor;
+    function GetForegroundColor: TColor;
   protected
     procedure DoAfterPaintLine(Editor: TCnEditorObject; LineNum, LogicLineNum: Integer);
     procedure DoBeforePaintLine(Editor: TCnEditorObject; LineNum, LogicLineNum: Integer);
@@ -337,15 +398,37 @@ type
 
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
 
-    procedure CheckNewEditor(EditControl: TControl; View: IOTAEditView);
+    procedure CheckNewEditor(EditControl: TControl {$IFNDEF STAND_ALONE}
+      {$IFNDEF USE_CODEEDITOR_SERVICE}; View: IOTAEditView {$ENDIF} {$ENDIF});
+{$IFNDEF STAND_ALONE}
     function AddEditor(EditControl: TControl; View: IOTAEditView): Integer;
+{$ENDIF}
     procedure DeleteEditor(EditControl: TControl);
+
+{$IFNDEF STAND_ALONE}
+{$IFDEF USE_CODEEDITOR_SERVICE}
+    procedure Editor2BeginPaint(const Editor: TWinControl;
+      const ForceFullRepaint: Boolean);
+    procedure Editor2EndPaint(const Editor: TWinControl);
+    procedure Editor2PaintLine(const Rect: TRect; const Stage: TPaintLineStage;
+      const BeforeEvent: Boolean; var AllowDefaultPainting: Boolean;
+      const Context: INTACodeEditorPaintContext);
+    procedure Editor2PaintGutter(const Rect: TRect; const Stage: TPaintGutterStage;
+      const BeforeEvent: Boolean; var AllowDefaultPainting: Boolean;
+      const Context: INTACodeEditorPaintContext);
+    procedure Editor2PaintText(const Rect: TRect; const ColNum: SmallInt; const Text: string;
+      const SyntaxCode: TOTASyntaxCode; const Hilight, BeforeEvent: Boolean;
+      var AllowDefaultPainting: Boolean; const Context: INTACodeEditorPaintContext);
+{$ENDIF}
+{$ENDIF}
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    function IndexOfEditor(EditControl: TControl): Integer; overload;
+    function IndexOfEditor(EditControl: TControl): Integer; {$IFNDEF STAND_ALONE} overload; {$ENDIF}
+{$IFNDEF STAND_ALONE}
     function IndexOfEditor(EditView: IOTAEditView): Integer; overload;
+{$ENDIF}
     function GetEditorObject(EditControl: TControl): TCnEditorObject;
     property Editors[Index: Integer]: TCnEditorObject read GetEditors;
     property EditorCount: Integer read GetEditorCount;
@@ -364,18 +447,22 @@ type
     {* 返回编辑器行高和字宽 }
     function GetEditControlInfo(EditControl: TControl): TCnEditControlInfo;
     {* 返回编辑器当前信息 }
+{$IFNDEF STAND_ALONE}
     function GetEditControlCharHeight(EditControl: TControl): Integer;
     {* 返回编辑器内的字符高度也就是行高}
     function GetEditControlSupportsSyntaxHighlight(EditControl: TControl): Boolean;
     {* 返回编辑器是否支持语法高亮 }
+{$ENDIF}
     function GetEditControlCanvas(EditControl: TControl): TCanvas;
     {* 返回编辑器的画布属性}
-    function GetEditView(EditControl: TControl): IOTAEditView;
-    {* 返回指定编辑器当前关联的 EditView }
-    function GetEditControl(EditView: IOTAEditView): TControl;
-    {* 返回指定 EditView 当前关联的编辑器 }
+
+{$IFNDEF STAND_ALONE}
     function GetTopMostEditControl: TControl;
     {* 返回当前最前端的 EditControl}
+    function GetEditView(EditControl: TControl): IOTAEditView;
+    {* 返回指定编辑器当前关联的 EditView，EditControl 为 nil 则返回最前端 EditView}
+    function GetEditControl(EditView: IOTAEditView): TControl;
+    {* 返回指定 EditView 当前关联的编辑器，View 为 nil 则返回最前端编辑器}
     function GetEditViewFromTabs(TabControl: TXTabControl; Index: Integer):
       IOTAEditView;
     {* 返回 TabControl 指定页关联的 EditView }
@@ -389,6 +476,7 @@ type
     function GetLineIsElided(EditControl: TControl; LineNum: Integer): Boolean;
     {* 返回指定行是否折叠，不包括折叠的头尾，也就是返回是否隐藏。
        只对 BDS 有效，其余情况返回 False}
+{$ENDIF}
 
 {$IFDEF IDE_EDITOR_ELIDE}
     procedure ElideLine(EditControl: TControl; LineNum: Integer);
@@ -396,6 +484,8 @@ type
     procedure UnElideLine(EditControl: TControl; LineNum: Integer);
     {* 展开某行，行号必须是可折叠区的首行}
 {$ENDIF}
+
+{$IFNDEF STAND_ALONE}
 
 {$IFDEF BDS}
     function GetPointFromEdPos(EditControl: TControl; APos: TOTAEditPos): TPoint;
@@ -405,6 +495,7 @@ type
     function GetLineFromPoint(Point: TPoint; EditControl: TControl;
       EditView: IOTAEditView = nil): Integer;
     {* 返回编辑器控件内鼠标座标对应的行，行结果从一开始，返回 -1 表示失败}
+{$ENDIF}
 
     procedure MarkLinesDirty(EditControl: TControl; Line: Integer; Count: Integer);
     {* 标记编辑器指定行需要重绘，屏幕可见第一行为 0 }
@@ -435,14 +526,24 @@ type
     {* 点击编辑器控件左侧指定行的断点栏以增加/删除断点}
 
     procedure AddKeyDownNotifier(Notifier: TCnKeyMessageNotifier);
-    {* 增加编辑器按键通知 }
+    {* 增加编辑器按键按下通知}
     procedure RemoveKeyDownNotifier(Notifier: TCnKeyMessageNotifier);
-    {* 删除编辑器按键通知 }
+    {* 删除编辑器按键按下通知}
+
+    procedure AddSysKeyDownNotifier(Notifier: TCnKeyMessageNotifier);
+    {* 增加编辑器系统按键按下通知}
+    procedure RemoveSysKeyDownNotifier(Notifier: TCnKeyMessageNotifier);
+    {* 删除编辑器系统按键按下通知}
 
     procedure AddKeyUpNotifier(Notifier: TCnKeyMessageNotifier);
-    {* 增加编辑器按键后通知 }
+    {* 增加编辑器按键弹起通知 }
     procedure RemoveKeyUpNotifier(Notifier: TCnKeyMessageNotifier);
-    {* 删除编辑器按键后通知 }
+    {* 删除编辑器按键弹起通知 }
+
+    procedure AddSysKeyUpNotifier(Notifier: TCnKeyMessageNotifier);
+    {* 增加编辑器系统按键弹起通知}
+    procedure RemoveSysKeyUpNotifier(Notifier: TCnKeyMessageNotifier);
+    {* 删除编辑器系统按键弹起通知}
 
     procedure AddBeforePaintLineNotifier(Notifier: TCnEditorPaintLineNotifier);
     {* 增加编辑器单行重绘前通知 }
@@ -502,6 +603,36 @@ type
     property EditorBaseFont: TFont read FEditorBaseFont;
     {* 一个 TFont 对象，持有编辑器的基础字体供外界使用}
 
+{$IFDEF USE_CODEEDITOR_SERVICE}
+
+    // 根据新版 ToolsAPI.Editor 提供的新服务，为了区分，都加上了 2
+    procedure AddEditor2BeginPaintNotifier(Notifier: TEditorBeginPaintEvent);
+    {* 增加编辑器开始重画的事件}
+    procedure RemoveEditor2BeginPaintNotifier(Notifier: TEditorBeginPaintEvent);
+    {* 删除编辑器开始重画的事件}
+
+    procedure AddEditor2EndPaintNotifier(Notifier: TEditorEndPaintEvent);
+    {* 增加编辑器结束重画的事件}
+    procedure RemoveEditor2EndPaintNotifier(Notifier: TEditorEndPaintEvent);
+    {* 删除编辑器开始重画的事件}
+
+    procedure AddEditor2PaintLineNotifier(Notifier: TEditorPaintLineEvent);
+    {* 增加编辑器重画行的事件，同一行会分区域分阶段多次调用}
+    procedure RemoveEditor2PaintLineNotifier(Notifier: TEditorPaintLineEvent);
+    {* 删除编辑器重画行的事件}
+
+    procedure AddEditor2PaintGutterNotifier(Notifier: TEditorPaintGutterEvent);
+    {* 增加编辑器重画侧边栏的事件，同一行会分区域分阶段多次调用}
+    procedure RemoveEditor2PaintGutterNotifier(Notifier: TEditorPaintGutterEvent);
+    {* 增加编辑器重画侧边栏的事件}
+
+    procedure AddEditor2PaintTextNotifier(Notifier: TEditorPaintTextEvent);
+    {* 增加编辑器重画行内文本块的事件，同一行会分区域分阶段多次调用}
+    procedure RemoveEditor2PaintTextNotifier(Notifier: TEditorPaintTextEvent);
+    {* 增加编辑器重画行内文本块的事件}
+
+{$ENDIF}
+
     // 以下是维护的注册表中的编辑器各类元素的字体，和 Highlights 有一定重叠，但无背景色属性
     property FontBasic: TFont index 0 read GetFonts write SetFonts; // 基本字体无前景色
     property FontAssembler: TFont index 1 read GetFonts write SetFonts;
@@ -514,9 +645,30 @@ type
     property FontString: TFont index 8 read GetFonts write SetFonts;
     property FontSymbol: TFont index 9 read GetFonts write SetFonts;
 
+    property ForegroundColor: TColor read GetForegroundColor;
+    {* 由于 FontBaic 不包括文字的前景色，这里单独把普通标识符的颜色拿出来做前景色}
     property BackgroundColor: TColor read GetBackgroundColor;
     {* 编辑器的文字背景色，实际上是 WhiteSpace 字体的背景色}
   end;
+
+{$IFDEF USE_CODEEDITOR_SERVICE}
+
+  TCnEditorEvents = class(TNTACodeEditorNotifier, INTACodeEditorEvents)
+  protected
+    function AllowedEvents: TCodeEditorEvents; override;
+    function AllowedLineStages: TPaintLineStages; override;
+  public
+    constructor Create(Wrapper: TCnEditControlWrapper);
+    destructor Destroy; override;
+  end;
+
+function PaintLineStageToStr(Stage: TPaintLineStage): string;
+
+function PaintGutterStageToStr(Stage: TPaintGutterStage): string;
+
+function CodeEditorEventToStr(Event: TCodeEditorEvent): string;
+
+{$ENDIF}
 
 function EditControlWrapper: TCnEditControlWrapper;
 {* 获取全局编辑器封装对象}
@@ -529,12 +681,7 @@ uses
 {$ENDIF}
 
 type
-  PCnWizNotifierRecord = ^TCnWizNotifierRecord;
-  TCnWizNotifierRecord = record
-    Notifier: TMethod;
-  end;
-
-  NoRef = Pointer;
+  //NoRef = Pointer;
 
   TCustomControlHack = class(TCustomControl);
 
@@ -568,27 +715,83 @@ begin
   Result := Length(IntToStr(LineCount));
 end;
 
+{$IFDEF STAND_ALONE}
+
+// 为了独立运行时不引用，自己写个本地的
+function IsEditControl(AControl: TComponent): Boolean;
+begin
+  Result := (AControl <> nil) and AControl.ClassNameIs('TEditControl')
+    and SameText(AControl.Name, 'Editor');
+end;
+
+// 为了独立运行时不引用，自己写个本地的
+procedure DoHandleException(const ErrorMsg: string; E: Exception = nil);
+begin
+{$IFDEF DEBUG}
+  if E = nil then
+    CnDebugger.LogMsgWithType('Error: ' + ErrorMsg, cmtError)
+  else
+  begin
+    CnDebugger.LogMsgWithType('Error ' + ErrorMsg + ' : ' + E.Message, cmtError);
+    CnDebugger.LogStackFromAddress(ExceptAddr, 'Call Stack');
+  end;
+{$ENDIF}
+end;
+
+{$ENDIF}
+
+{$IFDEF SUPPORT_ENHANCED_RTTI}
+
+function GetMethodAddress(const Instance: TObject; const MethodName: string): Pointer;
+var
+  RttiContext: TRttiContext;
+  RttiType: TRttiType;
+  RttiMethod: TRttiMethod;
+begin
+  Result := nil;
+
+  RttiContext := TRttiContext.Create;
+  try
+    RttiType := RttiContext.GetType(Instance.ClassType);
+    if RttiType = nil then
+      Exit;
+
+    RttiMethod := RttiType.GetMethod(MethodName);
+    if RttiMethod <> nil then
+      Result := RttiMethod.CodeAddress;
+  finally
+    RttiContext.Free;
+  end;
+end;
+
+{$ENDIF}
+
 { TCnEditorObject }
 
-constructor TCnEditorObject.Create(AEditControl: TControl;
-  AEditView: IOTAEditView);
+constructor TCnEditorObject.Create(AEditControl: TControl {$IFNDEF STAND_ALONE};
+  AEditView: IOTAEditView {$ENDIF});
 begin
   inherited Create;
   FLines := TList.Create;
   FEditControl := AEditControl;
   FEditWindow := TCustomForm(AEditControl.Owner);
+{$IFNDEF STAND_ALONE}
   SetEditView(AEditView);
+{$ENDIF}
 end;
 
 destructor TCnEditorObject.Destroy;
 begin
+{$IFNDEF STAND_ALONE}
   SetEditView(nil);
+{$ENDIF}
   FLines.Free;
   inherited;
 end;
 
 function TCnEditorObject.GetGutterWidth: Integer;
 begin
+{$IFNDEF STAND_ALONE}
   if FGutterChanged and Assigned(FEditView) then
   begin
 {$IFDEF BDS}
@@ -606,6 +809,7 @@ begin
 {$ENDIF}
     FGutterChanged := False;
   end;
+{$ENDIF}
   Result := FGutterWidth;
 end;
 
@@ -627,10 +831,14 @@ begin
   Result := FLines.Count;
 end;
 
+{$IFNDEF STAND_ALONE}
+
 procedure TCnEditorObject.SetEditView(AEditView: IOTAEditView);
 begin
-  NoRef(FEditView) := NoRef(AEditView);
+  NoRefCount(FEditView) := NoRefCount(AEditView);
 end;
+
+{$ENDIF}
 
 function TCnEditorObject.GetTopEditor: TControl;
 var
@@ -662,19 +870,32 @@ begin
   Result := (EditControl <> nil) and (GetTopEditor = EditControl);
 end;
 
-//==============================================================================
-// 代码编辑器控件封装类
-//==============================================================================
-
-{ TCnEditControlWrapper }
-
 const
   STEditViewClass = 'TEditView';
 {$IFDEF DELPHI10_SEATTLE_UP}
+  {$IFDEF WIN64}
+  SGetCanvas = '_ZN13Editorcontrol18TCustomEditControl9GetCanvasEv';
+  {$ELSE}
   SGetCanvas = '@Editorcontrol@TCustomEditControl@GetCanvas$qqrv';
+  {$ENDIF}
 {$ENDIF}
 
 {$IFDEF COMPILER8_UP}
+  {$IFDEF WIN64}
+  SPaintLineName = '_ZN13Editorcontrol18TCustomEditControl9PaintLineERN2Ek13TPaintContextEiii';
+  SMarkLinesDirtyName = '_ZN13Editorcontrol18TCustomEditControl14MarkLinesDirtyEiti';
+  SEdRefreshName = '_ZN13Editorcontrol18TCustomEditControl9EdRefreshEb';
+  SGetTextAtLineName = '_ZN13Editorcontrol18TCustomEditControl13GetTextAtLineEi';
+  SGetOTAEditViewName = '_ZN12Editorbuffer9TEditView14GetOTAEditViewEv';
+  SSetEditViewName = '_ZN13Editorcontrol18TCustomEditControl11SetEditViewEPN12Editorbuffer9TEditViewE';
+  SGetAttributeAtPosName = '_ZN13Editorcontrol18TCustomEditControl17GetAttributeAtPosERKN2Ek6TEdPosERiS5_bb';
+
+  SLineIsElidedName = '_ZN13Editorcontrol18TCustomEditControl12LineIsElidedEi';
+  SPointFromEdPosName = '_ZN13Editorcontrol18TCustomEditControl14PointFromEdPosERKN2Ek6TEdPosEbb';
+  STabsChangedName = '_ZN10Editorform11TEditWindow11TabsChangedEPN6System7TObjectE';
+
+  SViewBarChangedName = '_ZN10Editorform11TEditWindow13ViewBarChangeEPN6System7TObjectEiRb';
+  {$ELSE}
   SPaintLineName = '@Editorcontrol@TCustomEditControl@PaintLine$qqrr16Ek@TPaintContextiii';
   SMarkLinesDirtyName = '@Editorcontrol@TCustomEditControl@MarkLinesDirty$qqriusi';
   SEdRefreshName = '@Editorcontrol@TCustomEditControl@EdRefresh$qqro';
@@ -688,9 +909,14 @@ const
   STabsChangedName = '@Editorform@TEditWindow@TabsChanged$qqrp14System@TObject';
 
   SViewBarChangedName = '@Editorform@TEditWindow@ViewBarChange$qqrp14System@TObjectiro';
+  {$ENDIF}
 
 {$IFDEF COMPILER10_UP}
+  {$IFDEF WIN64}
+  SIndexPosToCurPosName = '_ZN13Editorcontrol18TCustomEditControl16IndexPosToCurPosEsi';
+  {$ELSE}
   SIndexPosToCurPosName = '@Editorcontrol@TCustomEditControl@IndexPosToCurPos$qqrsi';
+  {$ENDIF}
 {$ELSE}
   SIndexPosToCurPosName = '@Editorcontrol@TCustomEditControl@IndexPosToCurPos$qqrss';
 {$ENDIF}
@@ -710,8 +936,13 @@ const
 {$ENDIF}
 
 {$IFDEF IDE_EDITOR_ELIDE}
+  {$IFDEF WIN64}
+  SEditControlElideName = '_ZN13Editorcontrol18TCustomEditControl5ElideEi';
+  SEditControlUnElideName = '_ZN13Editorcontrol18TCustomEditControl7unElideEi';
+  {$ELSE}
   SEditControlElideName = '@Editorcontrol@TCustomEditControl@Elide$qqri';
   SEditControlUnElideName = '@Editorcontrol@TCustomEditControl@unElide$qqri';
+  {$ENDIF}
 {$ENDIF}
 
 type
@@ -720,14 +951,28 @@ type
   TGetCanvasProc = function (Self: TObject): TCanvas;
 {$ENDIF}
   TPaintLineProc = function (Self: TObject; Ek: Pointer;
-    LineNum, V1, V2{$IFDEF DELPHI10_SEATTLE_UP}, V3 {$ENDIF}: Integer): Integer; register;
+    LineNum, V1, V2{$IFDEF PAINT_LINE_HAS_V3}, V3 {$ENDIF}: Integer): Integer; register;
   TMarkLinesDirtyProc = procedure(Self: TObject; LineNum: Integer; Count: Word;
     Flag: Integer); register;
   TEdRefreshProc = procedure(Self: TObject; DirtyOnly: Boolean); register;
+{$IFDEF WIN64}
+  TGetTextAtLineProc = function(LineNum: Integer): string of object;
+{$ELSE}
   TGetTextAtLineProc = function(Self: TObject; LineNum: Integer): string; register;
+{$ENDIF}
+
+{$IFNDEF STAND_ALONE}
+{$IFDEF WIN64}
+  TGetOTAEditViewProc = function: IOTAEditView of object;
+{$ELSE}
   TGetOTAEditViewProc = function(Self: TObject): IOTAEditView; register;
+{$ENDIF}
+{$ENDIF}
+
   TSetEditViewProc = function(Self: TObject; EditView: TObject): Integer;
   TLineIsElidedProc = function(Self: TObject; LineNum: Integer): Boolean;
+
+{$IFNDEF STAND_ALONE}
 
 {$IFDEF BDS}
   TPointFromEdPosProc = function(Self: TObject; const EdPos: TOTAEditPos;
@@ -743,31 +988,47 @@ type
     var Element, LineFlag: Integer; B1: Boolean);
 {$ENDIF}
 
+{$ENDIF}
+
 {$IFDEF IDE_EDITOR_ELIDE}
   TEditControlElideProc = procedure(Self: TObject; Line: Integer);
   TEditControlUnElideProc = procedure(Self: TObject; Line: Integer);
 {$ENDIF}
+
+  TRequestGutterColumnProc = function (Self: TObject; const NotifierIndex: Integer;
+    const Size: Integer; Position: Integer): Integer;
+  TRemoveGutterColumnProc = procedure (Self: TObject; const ColumnIndex: Integer);
 
 var
   PaintLine: TPaintLineProc = nil;
 {$IFDEF DELPHI10_SEATTLE_UP}
   GetCanvas: TGetCanvasProc = nil;
 {$ENDIF}
+
+{$IFNDEF STAND_ALONE}
   GetOTAEditView: TGetOTAEditViewProc = nil;
   DoGetAttributeAtPos: TGetAttributeAtPosProc = nil;
+{$ENDIF}
+
   DoMarkLinesDirty: TMarkLinesDirtyProc = nil;
   EdRefresh: TEdRefreshProc = nil;
   DoGetTextAtLine: TGetTextAtLineProc = nil;
   SetEditView: TSetEditViewProc = nil;
   LineIsElided: TLineIsElidedProc = nil;
+{$IFNDEF STAND_ALONE}
 {$IFDEF BDS}
   PointFromEdPos: TPointFromEdPosProc = nil;
   IndexPosToCurPosProc: TIndexPosToCurPosProc = nil;
 {$ENDIF}
+{$ENDIF}
+
 {$IFDEF IDE_EDITOR_ELIDE}
   EditControlElide: TEditControlElideProc = nil;
   EditControlUnElide: TEditControlUnElideProc = nil;
 {$ENDIF}
+
+  RequestGutterColumn: TRequestGutterColumnProc = nil;
+  RemoveGutterColumn: TRemoveGutterColumnProc = nil;
 
   PaintLineLock: TRTLCriticalSection;
 
@@ -777,13 +1038,21 @@ var
 begin
   Result := '';
   for AType := Low(AType) to High(AType) do
+  begin
     if AType in ChangeType then
+    begin
       if Result = '' then
         Result := GetEnumName(TypeInfo(TCnEditorChangeType), Ord(AType))
       else
         Result := Result + ', ' + GetEnumName(TypeInfo(TCnEditorChangeType), Ord(AType));
+    end;
+  end;
   Result := '[' + Result + ']';
 end;
+
+{$IFNDEF STAND_ALONE}
+
+{$IFNDEF USE_CODEEDITOR_SERVICE}
 
 // 替换掉的 TCustomEditControl.PaintLine 函数
 function MyPaintLine(Self: TObject; Ek: Pointer; LineNum, LogicLineNum, V2: Integer
@@ -800,9 +1069,7 @@ begin
     begin
       Idx := FEditControlWrapper.IndexOfEditor(TControl(Self));
       if Idx >= 0 then
-      begin
         Editor := FEditControlWrapper.GetEditors(Idx);
-      end;
     end;
 
     if Editor <> nil then
@@ -817,7 +1084,8 @@ begin
     if FEditControlWrapper.FPaintLineHook.UseDDteours then
     begin
       try
-        Result := TPaintLineProc(FEditControlWrapper.FPaintLineHook.Trampoline)(Self, Ek, LineNum, LogicLineNum, V2{$IFDEF DELPHI10_SEATTLE_UP}, V3 {$ENDIF});
+        Result := TPaintLineProc(FEditControlWrapper.FPaintLineHook.Trampoline)(Self,
+          Ek, LineNum, LogicLineNum, V2{$IFDEF PAINT_LINE_HAS_V3}, V3 {$ENDIF});
       except
         on E: Exception do
           DoHandleException(E.Message);
@@ -828,7 +1096,8 @@ begin
       FEditControlWrapper.FPaintLineHook.UnhookMethod;
       try
         try
-          Result := PaintLine(Self, Ek, LineNum, LogicLineNum, V2{$IFDEF DELPHI10_SEATTLE_UP}, V3 {$ENDIF});
+          Result := PaintLine(Self, Ek, LineNum, LogicLineNum,
+            V2{$IFDEF PAINT_LINE_HAS_V3}, V3 {$ENDIF});
         except
           on E: Exception do
             DoHandleException(E.Message);
@@ -851,13 +1120,26 @@ begin
   end;
 end;
 
+{$ENDIF}
+
 function MySetEditView(Self: TObject; EditView: TObject): Integer;
+{$IFNDEF USE_CODEEDITOR_SERVICE}
+var
+  View: IOTAEditView;
+{$ENDIF}
 begin
-  if Assigned(EditView) and (Self is TControl) and
+  // 64 位下调用 GetOTAEditView 传 EditView 参数结果出异常，不能使用
+  // 故此用新服务处理，后面虽然 GetOTAEditView 可能修复了但也不改了
+  if {$IFNDEF USE_CODEEDITOR_SERVICE} Assigned(EditView) and {$ENDIF} (Self is TControl) and
     (TControl(Self).Owner is TCustomForm) and
     IsIdeEditorForm(TCustomForm(TControl(Self).Owner)) then
   begin
-    FEditControlWrapper.CheckNewEditor(TControl(Self), GetOTAEditView(EditView));
+{$IFDEF USE_CODEEDITOR_SERVICE}
+    FEditControlWrapper.CheckNewEditor(TControl(Self));
+{$ELSE}
+    View := GetOTAEditView(EditView);
+    FEditControlWrapper.CheckNewEditor(TControl(Self), View);
+{$ENDIF}
   end;
 
   if FEditControlWrapper.FSetEditViewHook.UseDDteours then
@@ -873,6 +1155,111 @@ begin
   end;
 end;
 
+function MyRequestGutterColumn(Self: TObject; const NotifierIndex: Integer;
+  const Size: Integer; Position: Integer): Integer;
+var
+  I: Integer;
+begin
+  if FEditControlWrapper.FRequestGutterHook.UseDDteours then
+    Result := TRequestGutterColumnProc(FEditControlWrapper.FRequestGutterHook.Trampoline)(Self, NotifierIndex, Size, Position)
+  else
+  begin
+    FEditControlWrapper.FRequestGutterHook.UnhookMethod;
+    try
+      Result := RequestGutterColumn(Self, NotifierIndex, Size, Position);
+    finally
+      FEditControlWrapper.FRequestGutterHook.HookMethod;
+    end;
+  end;
+
+  for I := 0 to FEditControlWrapper.EditorCount - 1 do
+    FEditControlWrapper.DoEditorChange(FEditControlWrapper.Editors[I], [ctGutterWidthChanged]);
+end;
+
+procedure MyRemoveGutterColumn(Self: TObject; const ColumnIndex: Integer);
+var
+  I: Integer;
+begin
+  if FEditControlWrapper.FRemoveGutterHook.UseDDteours then
+    TRemoveGutterColumnProc(FEditControlWrapper.FSetEditViewHook.Trampoline)(Self, ColumnIndex)
+  else
+  begin
+    FEditControlWrapper.FRemoveGutterHook.UnhookMethod;
+    try
+      RemoveGutterColumn(Self, ColumnIndex);
+    finally
+      FEditControlWrapper.FRemoveGutterHook.HookMethod;
+    end;
+  end;
+
+  for I := 0 to FEditControlWrapper.EditorCount - 1 do
+    FEditControlWrapper.DoEditorChange(FEditControlWrapper.Editors[I], [ctGutterWidthChanged]);
+end;
+
+{$IFDEF USE_CODEEDITOR_SERVICE}
+
+//==============================================================================
+// 代码编辑器控件通知类
+//==============================================================================
+
+{ TCnEditorEvents }
+
+constructor TCnEditorEvents.Create(Wrapper: TCnEditControlWrapper);
+begin
+  OnEditorBeginPaint := Wrapper.Editor2BeginPaint;
+  OnEditorEndPaint := Wrapper.Editor2EndPaint;
+  OnEditorPaintLine := Wrapper.Editor2PaintLine;
+  OnEditorPaintGutter := Wrapper.Editor2PaintGutter;
+  OnEditorPaintText := Wrapper.Editor2PaintText;
+end;
+
+destructor TCnEditorEvents.Destroy;
+begin
+
+  inherited;
+end;
+
+function TCnEditorEvents.AllowedEvents: TCodeEditorEvents;
+begin
+  Result := [cevBeginEndPaintEvents, cevPaintLineEvents, cevPaintGutterEvents, cevPaintTextEvents];
+end;
+
+function TCnEditorEvents.AllowedLineStages: TPaintLineStages;
+begin
+  Result := [plsBeginPaint, plsEndPaint, plsBackground]; // 先整这么几个
+end;
+
+function PaintLineStageToStr(Stage: TPaintLineStage): string;
+begin
+  Result := GetEnumName(TypeInfo(TPaintLineStage), Ord(Stage));
+  if Length(Result) > 3 then
+    Delete(Result ,1, 3);
+end;
+
+function PaintGutterStageToStr(Stage: TPaintGutterStage): string;
+begin
+  Result := GetEnumName(TypeInfo(TPaintGutterStage), Ord(Stage));
+  if Length(Result) > 3 then
+    Delete(Result ,1, 3);
+end;
+
+function CodeEditorEventToStr(Event: TCodeEditorEvent): string;
+begin
+  Result := GetEnumName(TypeInfo(TCodeEditorEvent), Ord(Event));
+  if Length(Result) > 3 then
+    Delete(Result ,1, 3);
+end;
+
+{$ENDIF}
+
+{$ENDIF}
+
+//==============================================================================
+// 代码编辑器控件封装类
+//==============================================================================
+
+{ TCnEditControlWrapper }
+
 constructor TCnEditControlWrapper.Create(AOwner: TComponent);
 var
   I: Integer;
@@ -887,6 +1274,8 @@ begin
   FEditorChangeNotifiers := TList.Create;
   FKeyDownNotifiers := TList.Create;
   FKeyUpNotifiers := TList.Create;
+  FSysKeyDownNotifiers := TList.Create;
+  FSysKeyUpNotifiers := TList.Create;
   FMouseUpNotifiers := TList.Create;
   FMouseDownNotifiers := TList.Create;
   FMouseMoveNotifiers := TList.Create;
@@ -895,8 +1284,18 @@ begin
   FNcPaintNotifiers := TList.Create;
   FVScrollNotifiers := TList.Create;
 
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  FEditor2BeginPaintNotifiers := TList.Create;
+  FEditor2EndPaintNotifiers := TList.Create;
+  FEditor2PaintLineNotifiers := TList.Create;
+  FEditor2PaintGutterNotifiers := TList.Create;
+  FEditor2PaintTextNotifiers := TList.Create;
+{$ENDIF}
+
   FEditorList := TObjectList.Create;
+{$IFNDEF STAND_ALONE}
   InitEditControlHook;
+{$ENDIF}
 
   FHighlights := TStringList.Create;
   FBpClickQueue := TQueue.Create;
@@ -905,8 +1304,11 @@ begin
   for I := Low(Self.FFontArray) to High(FFontArray) do
     FFontArray[I] := TFont.Create;
   FBackgroundColor := clWhite;
+  FForegroundColor := clBlack;
 
+{$IFNDEF STAND_ALONE}
   CnWizNotifierServices.AddSourceEditorNotifier(OnSourceEditorNotify);
+{$ENDIF}
   CnWizNotifierServices.AddActiveFormNotifier(OnActiveFormChange);
   CnWizNotifierServices.AddAfterThemeChangeNotifier(AfterThemeChange);
   CnWizNotifierServices.AddGetMsgNotifier(OnGetMsgProc, [WM_MOUSEMOVE, WM_NCMOUSEMOVE,
@@ -915,39 +1317,65 @@ begin
     WM_NCRBUTTONUP, WM_NCMBUTTONDOWN, WM_NCMBUTTONUP, WM_MOUSELEAVE, WM_NCMOUSELEAVE]);
   CnWizNotifierServices.AddCallWndProcRetNotifier(OnCallWndProcRet,
     [WM_VSCROLL, WM_HSCROLL, WM_NCPAINT, WM_NCACTIVATE {$IFDEF IDE_SUPPORT_HDPI}, WM_DPICHANGED {$ENDIF}]);
+{$IFNDEF STAND_ALONE}
   CnWizNotifierServices.AddApplicationMessageNotifier(ApplicationMessage);
   CnWizNotifierServices.AddApplicationIdleNotifier(OnIdle);
 
   UpdateEditControlList;
   GetHighlightFromReg;
   LoadFontFromRegistry;
+{$ENDIF}
 end;
 
 destructor TCnEditControlWrapper.Destroy;
 var
   I: Integer;
+{$IFNDEF STAND_ALONE}
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  CES: INTACodeEditorServices;
+{$ENDIF}
+{$ENDIF}
 begin
   for I := Low(Self.FFontArray) to High(FFontArray) do
     FFontArray[I].Free;
 
+{$IFNDEF STAND_ALONE}
   CnWizNotifierServices.RemoveSourceEditorNotifier(OnSourceEditorNotify);
+{$ENDIF}
   CnWizNotifierServices.RemoveActiveFormNotifier(OnActiveFormChange);
   CnWizNotifierServices.RemoveCallWndProcRetNotifier(OnCallWndProcRet);
   CnWizNotifierServices.RemoveGetMsgNotifier(OnGetMsgProc);
+{$IFNDEF STAND_ALONE}
   CnWizNotifierServices.RemoveApplicationMessageNotifier(ApplicationMessage);
   CnWizNotifierServices.RemoveApplicationIdleNotifier(OnIdle);
-
+{$ENDIF}
   FEditorBaseFont.Free;
   while FBpClickQueue.Count > 0 do
     TObject(FBpClickQueue.Pop).Free;
   FBpClickQueue.Free;
 
-  if FCorIdeModule <> 0 then
-    FreeLibrary(FCorIdeModule);
+{$IFNDEF STAND_ALONE}
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  if (FEventsIndex >= 0) and Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+  begin
+    CES.RemoveEditorEventsNotifier(FEventsIndex);
+    FEventsIndex := -1;
+    FEvents := nil;
+  end;
+{$ELSE}
   if FPaintLineHook <> nil then
     FPaintLineHook.Free;
+{$ENDIF}
   if FSetEditViewHook <> nil then
     FSetEditViewHook.Free;
+  if FCorIdeModule <> 0 then
+    FreeLibrary(FCorIdeModule);
+
+  if FRequestGutterHook <> nil then
+    FRequestGutterHook.Free;
+  if FRemoveGutterHook <> nil then
+    FRemoveGutterHook.Free;
+{$ENDIF}
 
   FEditControlList.Free;
   FEditorList.Free;
@@ -955,30 +1383,56 @@ begin
   ClearHighlights;
   FHighlights.Free;
 
-  ClearAndFreeList(FVScrollNotifiers);
-  ClearAndFreeList(FNcPaintNotifiers);
-  ClearAndFreeList(FMouseUpNotifiers);
-  ClearAndFreeList(FMouseDownNotifiers);
-  ClearAndFreeList(FMouseMoveNotifiers);
-  ClearAndFreeList(FMouseLeaveNotifiers);
-  ClearAndFreeList(FBeforePaintLineNotifiers);
-  ClearAndFreeList(FAfterPaintLineNotifiers);
-  ClearAndFreeList(FEditControlNotifiers);
-  ClearAndFreeList(FEditorChangeNotifiers);
-  ClearAndFreeList(FKeyDownNotifiers);
-  ClearAndFreeList(FKeyUpNotifiers);
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  CnWizClearAndFreeList(FEditor2BeginPaintNotifiers);
+  CnWizClearAndFreeList(FEditor2EndPaintNotifiers);
+  CnWizClearAndFreeList(FEditor2PaintLineNotifiers);
+  CnWizClearAndFreeList(FEditor2PaintGutterNotifiers);
+  CnWizClearAndFreeList(FEditor2PaintTextNotifiers);
+{$ENDIF}
+
+  CnWizClearAndFreeList(FVScrollNotifiers);
+  CnWizClearAndFreeList(FNcPaintNotifiers);
+  CnWizClearAndFreeList(FMouseUpNotifiers);
+  CnWizClearAndFreeList(FMouseDownNotifiers);
+  CnWizClearAndFreeList(FMouseMoveNotifiers);
+  CnWizClearAndFreeList(FMouseLeaveNotifiers);
+  CnWizClearAndFreeList(FBeforePaintLineNotifiers);
+  CnWizClearAndFreeList(FAfterPaintLineNotifiers);
+  CnWizClearAndFreeList(FEditControlNotifiers);
+  CnWizClearAndFreeList(FEditorChangeNotifiers);
+  CnWizClearAndFreeList(FKeyDownNotifiers);
+  CnWizClearAndFreeList(FKeyUpNotifiers);
+  CnWizClearAndFreeList(FSysKeyDownNotifiers);
+  CnWizClearAndFreeList(FSysKeyUpNotifiers);
 
   FCmpLines.Free;
   inherited;
 end;
 
+{$IFNDEF STAND_ALONE}
+
 procedure TCnEditControlWrapper.InitEditControlHook;
+{$IFDEF OTA_CODEEDITOR_SERVICE}
+var
+  CES: INTACodeEditorServices;
+  Obj: TObject;
+{$ENDIF}
+{$IFDEF DELPHI110_ALEXANDRIA}
+var
+  CES: ICnNTACodeEditorServices;
+  Obj: TObject;
+{$ENDIF}
 begin
   try
     FCorIdeModule := LoadLibrary(CorIdeLibName);
     CnWizAssert(FCorIdeModule <> 0, 'Load FCorIdeModule');
 
+{$IFDEF WIN64}
+    TMethod(GetOTAEditView).Code := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetOTAEditViewName));
+{$ELSE}
     GetOTAEditView := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetOTAEditViewName));
+{$ENDIF}
     CnWizAssert(Assigned(GetOTAEditView), 'Load GetOTAEditView from FCorIdeModule');
 
     DoGetAttributeAtPos := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetAttributeAtPosName));
@@ -998,7 +1452,11 @@ begin
     EdRefresh := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SEdRefreshName));
     CnWizAssert(Assigned(EdRefresh), 'Load EdRefresh from FCorIdeModule');
 
+{$IFDEF WIN64}
+    TMethod(DoGetTextAtLine).Code := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetTextAtLineName));
+{$ELSE}
     DoGetTextAtLine := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SGetTextAtLineName));
+{$ENDIF}
     CnWizAssert(Assigned(DoGetTextAtLine), 'Load GetTextAtLine from FCorIdeModule');
 
 {$IFDEF IDE_EDITOR_ELIDE}
@@ -1021,14 +1479,62 @@ begin
     CnWizAssert(Assigned(IndexPosToCurPosProc), 'Load IndexPosToCurPos from FCorIdeModule');
 {$ENDIF}
 
-
     SetEditView := GetBplMethodAddress(GetProcAddress(FCorIdeModule, SSetEditViewName));
     CnWizAssert(Assigned(SetEditView), 'Load SetEditView from FCorIdeModule');
 
-    FPaintLineHook := TCnMethodHook.Create(@PaintLine, @MyPaintLine);
+    // 针对 12 或以上
+{$IFDEF OTA_CODEEDITOR_SERVICE}
+    if Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+    begin
+      Obj := CES as TObject;
+      RequestGutterColumn := GetMethodAddress(Obj, 'RequestGutterColumn');
+      if Assigned(RequestGutterColumn) then
+        FRequestGutterHook := TCnMethodHook.Create(@RequestGutterColumn, @MyRequestGutterColumn);
+
+      RemoveGutterColumn := GetMethodAddress(Obj, 'RemoveGutterColumn');
+      if Assigned(RemoveGutterColumn) then
+        FRemoveGutterHook := TCnMethodHook.Create(@RemoveGutterColumn, @MyRemoveGutterColumn);
 
 {$IFDEF DEBUG}
+      if (FRequestGutterHook <> nil) and (FRemoveGutterHook <> nil) then
+        CnDebugger.LogMsg('EditControl Gutter Column Functions Hooked');
+{$ENDIF}
+    end;
+{$ENDIF}
+
+    // 针对 11，判断能否拿到 11.3 的接口
+{$IFDEF DELPHI110_ALEXANDRIA}
+    if Supports(BorlandIDEServices, StringToGUID(GUID_INTACODEEDITORSERVICES), CES) then
+    begin
+      Obj := CES as TObject;
+      RequestGutterColumn := GetMethodAddress(Obj, 'RequestGutterColumn');
+      if Assigned(RequestGutterColumn) then
+        FRequestGutterHook := TCnMethodHook.Create(@RequestGutterColumn, @MyRequestGutterColumn);
+
+      RemoveGutterColumn := GetMethodAddress(Obj, 'RemoveGutterColumn');
+      if Assigned(RemoveGutterColumn) then
+        FRemoveGutterHook := TCnMethodHook.Create(@RemoveGutterColumn, @MyRemoveGutterColumn);
+
+{$IFDEF DEBUG}
+      if (FRequestGutterHook <> nil) and (FRemoveGutterHook <> nil) then
+        CnDebugger.LogMsg('EditControl Gutter Column Functions Hooked using Mirror');
+{$ENDIF}
+    end;
+{$ENDIF}
+
+{$IFDEF USE_CODEEDITOR_SERVICE}
+    // 使用 CodeEditorService 注册 PaintLine 的通知器
+    FEvents := TCnEditorEvents.Create(Self);
+    FEventsIndex := -1;
+    if Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+    begin
+      FEventsIndex := CES.AddEditorEventsNotifier(FEvents);
+    end;
+{$ELSE}
+    FPaintLineHook := TCnMethodHook.Create(@PaintLine, @MyPaintLine);
+{$IFDEF DEBUG}
     CnDebugger.LogMsg('EditControl.PaintLine Hooked');
+{$ENDIF}
 {$ENDIF}
 
     FSetEditViewHook := TCnMethodHook.Create(@SetEditView, @MySetEditView);
@@ -1042,35 +1548,68 @@ begin
   end;
 end;
 
+{$ENDIF}
+
 //------------------------------------------------------------------------------
 // 编辑器控件列表处理
 //------------------------------------------------------------------------------
 
-procedure TCnEditControlWrapper.CheckNewEditor(EditControl: TControl;
-  View: IOTAEditView);
+procedure TCnEditControlWrapper.CheckNewEditor(EditControl: TControl
+  {$IFNDEF STAND_ALONE} {$IFNDEF USE_CODEEDITOR_SERVICE}; View: IOTAEditView {$ENDIF} {$ENDIF});
 var
   Idx: Integer;
+{$IFNDEF STAND_ALONE}
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  CES: INTACodeEditorServices;
+  View: IOTAEditView;
+{$ENDIF}
+{$ENDIF}
 begin
   Idx := IndexOfEditor(EditControl);
   if Idx >= 0 then
   begin
+{$IFNDEF STAND_ALONE}
+{$IFDEF USE_CODEEDITOR_SERVICE}
+    if Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+    begin
+      View := CES.GetViewForEditor(TWinControl(EditControl));
+      Editors[Idx].SetEditView(View);
+      DoEditorChange(Editors[Idx], [ctView]);
+    end;
+{$ELSE}
     Editors[Idx].SetEditView(View);
     DoEditorChange(Editors[Idx], [ctView]);
+{$ENDIF}
+{$ENDIF}
   end
   else
   begin
+{$IFNDEF STAND_ALONE}
+{$IFDEF USE_CODEEDITOR_SERVICE}
+    if Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+    begin
+      View := CES.GetViewForEditor(TWinControl(EditControl));
+      AddEditor(EditControl, View);
+    end;
+{$ELSE}
     AddEditor(EditControl, View);
+{$ENDIF}
+{$ENDIF}
   {$IFDEF DEBUG}
     CnDebugger.LogMsg('TCnEditControlWrapper: New EditControl.');
   {$ENDIF}
   end;
 end;
 
+{$IFNDEF STAND_ALONE}
+
 function TCnEditControlWrapper.AddEditor(EditControl: TControl;
   View: IOTAEditView): Integer;
 begin
   Result := FEditorList.Add(TCnEditorObject.Create(EditControl, View));
 end;
+
+{$ENDIF}
 
 procedure TCnEditControlWrapper.DeleteEditor(EditControl: TControl);
 var
@@ -1086,6 +1625,8 @@ begin
   {$ENDIF}
   end;
 end;
+
+{$IFNDEF STAND_ALONE}
 
 function TCnEditControlWrapper.GetEditorContext(Editor: TCnEditorObject):
   TCnEditorContext;
@@ -1112,6 +1653,8 @@ begin
 {$ENDIF}
   end;
 end;
+
+{$ENDIF}
 
 function TCnEditControlWrapper.GetEditorCount: Integer;
 begin
@@ -1149,6 +1692,8 @@ begin
   end;
   Result := -1;
 end;
+
+{$IFNDEF STAND_ALONE}
 
 function TCnEditControlWrapper.IndexOfEditor(EditView: IOTAEditView): Integer;
 var
@@ -1379,6 +1924,117 @@ begin
     end;
   end;
 end;
+
+{$IFDEF USE_CODEEDITOR_SERVICE}
+
+procedure TCnEditControlWrapper.Editor2BeginPaint(const Editor: TWinControl;
+  const ForceFullRepaint: Boolean);
+var
+  I: Integer;
+begin
+  for I := 0 to FEditor2BeginPaintNotifiers.Count - 1 do
+  begin
+    try
+      with PCnWizNotifierRecord(FEditor2BeginPaintNotifiers[I])^ do
+        TEditorBeginPaintEvent(Notifier)(Editor, ForceFullRepaint);
+    except
+      on E: Exception do
+        DoHandleException('TCnEditControlWrapper.Editor2BeginPaint[' + IntToStr(I) + ']', E);
+    end;
+  end;
+end;
+
+procedure TCnEditControlWrapper.Editor2EndPaint(const Editor: TWinControl);
+var
+  I: Integer;
+begin
+  for I := 0 to FEditor2EndPaintNotifiers.Count - 1 do
+  begin
+    try
+      with PCnWizNotifierRecord(FEditor2EndPaintNotifiers[I])^ do
+        TEditorEndPaintEvent(Notifier)(Editor);
+    except
+      on E: Exception do
+        DoHandleException('TCnEditControlWrapper.Editor2EndPaint[' + IntToStr(I) + ']', E);
+    end;
+  end;
+end;
+
+procedure TCnEditControlWrapper.Editor2PaintLine(const Rect: TRect;
+  const Stage: TPaintLineStage; const BeforeEvent: Boolean; var AllowDefaultPainting: Boolean;
+  const Context: INTACodeEditorPaintContext);
+var
+  I, Idx: Integer;
+  Editor: TCnEditorObject;
+begin
+  Editor := nil;
+  Idx := FEditControlWrapper.IndexOfEditor(Context.EditControl);
+  if Idx >= 0 then
+  begin
+    Editor := FEditControlWrapper.GetEditors(Idx);
+  end;
+
+  // 模拟实现旧版的绘制事件前后通知
+  if Editor <> nil then
+  begin
+    if BeforeEvent then
+      FEditControlWrapper.DoBeforePaintLine(Editor, Context.EditorLineNum, Context.LogicalLineNum)
+    else
+      FEditControlWrapper.DoAfterPaintLine(Editor, Context.EditorLineNum, Context.LogicalLineNum);
+  end;
+
+  // 再分发新版的行绘制通知
+  for I := 0 to FEditor2PaintLineNotifiers.Count - 1 do
+  begin
+    try
+      with PCnWizNotifierRecord(FEditor2PaintLineNotifiers[I])^ do
+        TEditorPaintLineEvent(Notifier)(Rect, Stage, BeforeEvent, AllowDefaultPainting, Context);
+    except
+      on E: Exception do
+        DoHandleException('TCnEditControlWrapper.Editor2PaintLine[' + IntToStr(I) + ']', E);
+    end;
+  end;
+end;
+
+procedure TCnEditControlWrapper.Editor2PaintGutter(const Rect: TRect;
+  const Stage: TPaintGutterStage; const BeforeEvent: Boolean;
+  var AllowDefaultPainting: Boolean; const Context: INTACodeEditorPaintContext);
+var
+  I: Integer;
+begin
+  for I := 0 to FEditor2PaintGutterNotifiers.Count - 1 do
+  begin
+    try
+      with PCnWizNotifierRecord(FEditor2PaintGutterNotifiers[I])^ do
+        TEditorPaintGutterEvent(Notifier)(Rect, Stage, BeforeEvent, AllowDefaultPainting, Context);
+    except
+      on E: Exception do
+        DoHandleException('TCnEditControlWrapper.Editor2PaintGutter[' + IntToStr(I) + ']', E);
+    end;
+  end;
+end;
+
+procedure TCnEditControlWrapper.Editor2PaintText(const Rect: TRect;
+  const ColNum: SmallInt; const Text: string; const SyntaxCode: TOTASyntaxCode;
+  const Hilight, BeforeEvent: Boolean; var AllowDefaultPainting: Boolean;
+  const Context: INTACodeEditorPaintContext);
+var
+  I: Integer;
+begin
+  for I := 0 to FEditor2PaintTextNotifiers.Count - 1 do
+  begin
+    try
+      with PCnWizNotifierRecord(FEditor2PaintTextNotifiers[I])^ do
+        TEditorPaintTextEvent(Notifier)(Rect, ColNum, Text, SyntaxCode, Hilight,
+          BeforeEvent, AllowDefaultPainting, Context);
+    except
+      on E: Exception do
+        DoHandleException('TCnEditControlWrapper.Editor2PaintText[' + IntToStr(I) + ']', E);
+    end;
+  end;
+end;
+
+{$ENDIF}
 
 //------------------------------------------------------------------------------
 // 字体及高亮计算
@@ -1707,14 +2363,40 @@ begin
   end;
 end;
 
+{$ENDIF}
+
 function TCnEditControlWrapper.GetCharHeight: Integer;
 begin
   Result := GetCharSize.cy;
 end;
 
 function TCnEditControlWrapper.GetCharSize: TSize;
+{$IFDEF USE_CODEEDITOR_SERVICE}
+var
+  CES: INTACodeEditorServices;
+  Edit: TWinControl;
+  State: INTACodeEditorState;
+{$ENDIF}
 begin
+{$IFNDEF STAND_ALONE}
+  {$IFDEF USE_CODEEDITOR_SERVICE}
+  if Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+  begin
+    Edit := CES.TopEditor;
+    if Edit <> nil then
+    begin
+      State := CES.GetEditorState(Edit);
+      if State <> nil then
+      begin
+        FCharSize.cx := State.CharWidth;
+        FCharSize.cy := State.CharHeight;
+      end;
+    end;
+  end;
+  {$ELSE}
   UpdateCharSize;
+  {$ENDIF}
+{$ENDIF}
   Result := FCharSize;
 end;
 
@@ -1737,10 +2419,14 @@ begin
     Result.LineDigit := GetLineDigit(Result.LineCount);
 {$ENDIF}
   except
+{$IFNDEF STAND_ALONE}
     on E: Exception do
       DoHandleException(E.Message);
+{$ENDIF}
   end;
 end;
+
+{$IFNDEF STAND_ALONE}
 
 function TCnEditControlWrapper.GetEditControlCharHeight(
   EditControl: TControl): Integer;
@@ -1856,8 +2542,9 @@ begin
     Result := False;
 end;
 
-function TCnEditControlWrapper.GetEditControlCanvas(
-  EditControl: TControl): TCanvas;
+{$ENDIF}
+
+function TCnEditControlWrapper.GetEditControlCanvas(EditControl: TControl): TCanvas;
 begin
   Result := nil;
   if EditControl = nil then Exit;
@@ -1870,7 +2557,8 @@ begin
       // BDS 2009 的 TControl 已经 Unicode 化了，直接用
       Result := TCustomControlHack(EditControl).Canvas;
     {$ELSE}
-      // BDS 2009 以下的 EditControl 不再继承自 TCustomControl，因此得用硬办法来获得画布
+      // BDS 2005、2006、2007 的 EditControl 支持宽字符，
+      // 并非继承自 Ansi 版的 TCustomControl，因此得用硬办法来获得画布
       Result := TCanvas((PInteger(Integer(EditControl) + CnWideControlCanvasOffset))^);
     {$ENDIF}
   {$ENDIF}
@@ -1941,6 +2629,8 @@ begin
   end;
 end;
 
+{$IFNDEF STAND_ALONE}
+
 procedure TCnEditControlWrapper.UpdateEditControlList;
 begin
   EnumEditControl(EditControlProc, nil);
@@ -1965,7 +2655,7 @@ begin
     begin
       if Editors[I].EditView = EditView then
       begin
-        NoRef(Editors[I].FEditView) := nil;
+        NoRefCount(Editors[I].FEditView) := nil;
         Break;
       end;
     end;
@@ -1981,8 +2671,8 @@ procedure TCnEditControlWrapper.CheckOptionDlg;
   begin
     for I := 0 to Screen.CustomFormCount - 1 do
     begin
-      if Screen.CustomForms[I].ClassNameIs(SEditorOptionDlgClassName) and
-        SameText(Screen.CustomForms[I].Name, SEditorOptionDlgName) and
+      if Screen.CustomForms[I].ClassNameIs(SCnEditorOptionDlgClassName) and
+        SameText(Screen.CustomForms[I].Name, SCnEditorOptionDlgName) and
         Screen.CustomForms[I].Visible then
       begin
         Result := True;
@@ -1990,6 +2680,13 @@ procedure TCnEditControlWrapper.CheckOptionDlg;
       end;
     end;
     Result := False;
+
+{$IFDEF DELPHI104_SYDNEY_UP}
+    // 10.4 或以上，该对话框弹出并触发 ActiveFormChanged 事件时，可能 Visible 为 False，增加一个 ActiveCustomForm 的判断
+    if (Screen.ActiveCustomForm <> nil) and Screen.ActiveCustomForm.ClassNameIs(SCnEditorOptionDlgClassName)
+      and SameText(Screen.ActiveCustomForm.Name, SCnEditorOptionDlgName) then
+      Result := True;
+{$ENDIF}
   end;
 
 begin
@@ -2005,6 +2702,8 @@ begin
   end;
 end;
 
+{$ENDIF}
+
 procedure TCnEditControlWrapper.AfterThemeChange(Sender: TObject);
 begin
 {$IFDEF DEBUG}
@@ -2015,14 +2714,30 @@ end;
 
 procedure TCnEditControlWrapper.OnActiveFormChange(Sender: TObject);
 begin
+{$IFNDEF STAND_ALONE}
   UpdateEditControlList;
   CheckOptionDlg;
+{$ENDIF}
 end;
+
+{$IFNDEF STAND_ALONE}
 
 function TCnEditControlWrapper.GetEditView(EditControl: TControl): IOTAEditView;
 var
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  CES: INTACodeEditorServices;
+{$ELSE}
   Idx: Integer;
+{$ENDIF}
 begin
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  if (EditControl <> nil) and Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+  begin
+    Result := CES.GetViewForEditor(TWinControl(EditControl));
+  end
+  else
+    Result := CnOtaGetTopMostEditView;
+{$ELSE}
   Idx := IndexOfEditor(EditControl);
   if Idx >= 0 then
     Result := Editors[Idx].EditView
@@ -2033,12 +2748,25 @@ begin
 {$ENDIF}
     Result := CnOtaGetTopMostEditView;
   end;
+{$ENDIF}
 end;
 
 function TCnEditControlWrapper.GetEditControl(EditView: IOTAEditView): TControl;
 var
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  CES: INTACodeEditorServices;
+{$ELSE}
   Idx: Integer;
+{$ENDIF}
 begin
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  if Assigned(EditView) and Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+  begin
+    Result := CES.GetEditorForView(EditView);
+  end
+  else
+    Result := CnOtaGetCurrentEditControl;
+{$ELSE}
   Idx := IndexOfEditor(EditView);
   if Idx >= 0 then
     Result := Editors[Idx].EditControl
@@ -2049,14 +2777,23 @@ begin
 {$ENDIF}
     Result := CnOtaGetCurrentEditControl;
   end;
+{$ENDIF}
 end;
 
 function TCnEditControlWrapper.GetTopMostEditControl: TControl;
 var
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  CES: INTACodeEditorServices;
+{$ELSE}
   Idx: Integer;
   EditView: IOTAEditView;
+{$ENDIF}
 begin
   Result := nil;
+{$IFDEF USE_CODEEDITOR_SERVICE}
+  if Supports(BorlandIDEServices, INTACodeEditorServices, CES) then
+    Result := CES.GetTopEditor;
+{$ELSE}
   EditView := CnOtaGetTopMostEditView;
   for Idx := 0 to EditorCount - 1 do
   begin
@@ -2067,7 +2804,8 @@ begin
     end;
   end;
 {$IFDEF DEBUG}
-  CnDebugger.LogMsgWarning('GetTopMostEditControl: not found in list.');
+  CnDebugger.LogMsgWarning('GetTopMostEditControl: Not Found in List.');
+{$ENDIF}
 {$ENDIF}
 end;
 
@@ -2086,7 +2824,12 @@ begin
     begin
       if Tabs.Objects[Index].ClassNameIs(STEditViewClass) then
       begin
+{$IFDEF WIN64}
+        TMethod(GetOTAEditView).Data := Tabs.Objects[Index];
+        Result := GetOTAEditView();
+{$ELSE}
         Result := GetOTAEditView(Tabs.Objects[Index]);
+{$ENDIF}
         Exit;
       end;
     end;
@@ -2138,6 +2881,8 @@ end;
 
 {$ENDIF}
 
+{$ENDIF}
+
 procedure TCnEditControlWrapper.MarkLinesDirty(EditControl: TControl; Line:
   Integer; Count: Integer);
 begin
@@ -2156,12 +2901,20 @@ function TCnEditControlWrapper.GetTextAtLine(EditControl: TControl;
   LineNum: Integer): string;
 begin
   if Assigned(DoGetTextAtLine) then
+  begin
+{$IFDEF WIN64}
+    TMethod(DoGetTextAtLine).Data := EditControl;
+    Result := DoGetTextAtLine(LineNum);
+{$ELSE}
     Result := DoGetTextAtLine(EditControl, LineNum);
+{$ENDIF}
+  end;
 end;
 
 function TCnEditControlWrapper.IndexPosToCurPos(EditControl: TControl;
   Col, Line: Integer): Integer;
 begin
+{$IFNDEF STAND_ALONE}
 {$IFDEF BDS}
   if Assigned(IndexPosToCurPosProc) then
   begin
@@ -2171,6 +2924,7 @@ begin
   {$ENDIF}
   end
   else
+{$ENDIF}
 {$ENDIF}
   begin
     Result := Col;
@@ -2206,8 +2960,10 @@ begin
   if ActualLineNum <= 0 then
     Exit;
 
+{$IFNDEF STAND_ALONE}
   if EditControl = nil then
     EditControl := CnOtaGetCurrentEditControl;
+{$ENDIF}
 
   if EditControl = nil then
     Exit;
@@ -2249,7 +3005,9 @@ begin
     Item.BpDeltaLine := ActualLineNum - Obj.ViewLineNumber[0];
 
     Item.BpEditControl := EditControl;
+{$IFNDEF STAND_ALONE}
     Item.BpEditView := Obj.EditView;
+{$ENDIF}
     Item.BpPosY := GetCharHeight div 2;
 
     FBpClickQueue.Push(Item);
@@ -2260,89 +3018,31 @@ begin
 end;
 
 //------------------------------------------------------------------------------
-// 通知器列表操作
-//------------------------------------------------------------------------------
-
-procedure TCnEditControlWrapper.AddNotifier(List: TList; Notifier: TMethod);
-var
-  Rec: PCnWizNotifierRecord;
-begin
-  if IndexOf(List, Notifier) < 0 then
-  begin
-    New(Rec);
-    Rec^.Notifier := TMethod(Notifier);
-    List.Add(Rec);
-  end;
-end;
-
-procedure TCnEditControlWrapper.RemoveNotifier(List: TList; Notifier: TMethod);
-var
-  Rec: PCnWizNotifierRecord;
-  Idx: Integer;
-begin
-  Idx := IndexOf(List, Notifier);
-  if Idx >= 0 then
-  begin
-    Rec := List[Idx];
-    Dispose(Rec);
-    List.Delete(Idx);
-  end;
-end;
-
-procedure TCnEditControlWrapper.ClearAndFreeList(var List: TList);
-var
-  Rec: PCnWizNotifierRecord;
-begin
-  while List.Count > 0 do
-  begin
-    Rec := List[0];
-    Dispose(Rec);
-    List.Delete(0);
-  end;
-  FreeAndNil(List);
-end;
-
-function TCnEditControlWrapper.IndexOf(List: TList; Notifier: TMethod): Integer;
-var
-  I: Integer;
-begin
-  Result := -1;
-  for I := 0 to List.Count - 1 do
-  begin
-    if CompareMem(List[I], @Notifier, SizeOf(TMethod)) then
-    begin
-      Result := I;
-      Exit;
-    end;
-  end;
-end;
-
-//------------------------------------------------------------------------------
 // 编辑器绘制 Hook 通知
 //------------------------------------------------------------------------------
 
 procedure TCnEditControlWrapper.AddAfterPaintLineNotifier(
   Notifier: TCnEditorPaintLineNotifier);
 begin
-  AddNotifier(FAfterPaintLineNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FAfterPaintLineNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.AddBeforePaintLineNotifier(
   Notifier: TCnEditorPaintLineNotifier);
 begin
-  AddNotifier(FBeforePaintLineNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FBeforePaintLineNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveAfterPaintLineNotifier(
   Notifier: TCnEditorPaintLineNotifier);
 begin
-  RemoveNotifier(FAfterPaintLineNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FAfterPaintLineNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveBeforePaintLineNotifier(
   Notifier: TCnEditorPaintLineNotifier);
 begin
-  RemoveNotifier(FBeforePaintLineNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FBeforePaintLineNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.DoAfterPaintLine(Editor: TCnEditorObject;
@@ -2416,13 +3116,13 @@ end;
 procedure TCnEditControlWrapper.AddEditControlNotifier(
   Notifier: TCnEditorNotifier);
 begin
-  AddNotifier(FEditControlNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FEditControlNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveEditControlNotifier(
   Notifier: TCnEditorNotifier);
 begin
-  RemoveNotifier(FEditControlNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FEditControlNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.DoEditControlNotify(EditControl: TControl;
@@ -2449,13 +3149,13 @@ end;
 procedure TCnEditControlWrapper.AddEditorChangeNotifier(
   Notifier: TCnEditorChangeNotifier);
 begin
-  AddNotifier(FEditorChangeNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FEditorChangeNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveEditorChangeNotifier(
   Notifier: TCnEditorChangeNotifier);
 begin
-  RemoveNotifier(FEditorChangeNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FEditorChangeNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.DoEditorChange(Editor: TCnEditorObject;
@@ -2470,7 +3170,8 @@ begin
   if Editor = nil then // 某些古怪情况下 Editor 为 nil？
     Exit;
 
-  if ChangeType * [ctView, ctWindow{$IFDEF BDS}, ctLineDigit{$ENDIF}] <> [] then
+  if ChangeType * [ctView, ctWindow {$IFDEF BDS}, ctLineDigit {$ENDIF}
+    {$IFDEF OTA_CODEEDITOR_SERVICE}, ctGutterWidthChanged {$ENDIF}] <> [] then
   begin
     Editor.FGutterChanged := True;  // 行位数发生变化时，会触发 Gutter 宽度变化
   end;
@@ -2494,31 +3195,58 @@ end;
 procedure TCnEditControlWrapper.AddKeyDownNotifier(
   Notifier: TCnKeyMessageNotifier);
 begin
-  AddNotifier(FKeyDownNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FKeyDownNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.AddSysKeyDownNotifier(
+  Notifier: TCnKeyMessageNotifier);
+begin
+  CnWizAddNotifier(FSysKeyDownNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.AddKeyUpNotifier(
   Notifier: TCnKeyMessageNotifier);
 begin
-  AddNotifier(FKeyUpNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FKeyUpNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.AddSysKeyUpNotifier(
+  Notifier: TCnKeyMessageNotifier);
+begin
+  CnWizAddNotifier(FSysKeyUpNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveKeyDownNotifier(
   Notifier: TCnKeyMessageNotifier);
 begin
-  RemoveNotifier(FKeyDownNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FKeyDownNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.RemoveSysKeyDownNotifier(
+  Notifier: TCnKeyMessageNotifier);
+begin
+  CnWizRemoveNotifier(FSysKeyDownNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveKeyUpNotifier(
   Notifier: TCnKeyMessageNotifier);
 begin
-  RemoveNotifier(FKeyUpNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FKeyUpNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.RemoveSysKeyUpNotifier(
+  Notifier: TCnKeyMessageNotifier);
+begin
+  CnWizRemoveNotifier(FSysKeyUpNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.OnCallWndProcRet(Handle: HWND;
   Control: TWinControl; Msg: TMessage);
 var
-  I, Idx: Integer;
+{$IFNDEF STAND_ALONE}
+  I: Integer;
+{$ENDIF}
+  Idx: Integer;
   Editor: TCnEditorObject;
   ChangeType: TCnEditorChangeTypes;
 begin
@@ -2538,11 +3266,12 @@ begin
     else
       ChangeType := [ctHScroll];
 
+{$IFNDEF STAND_ALONE}
     for I := 0 to EditorCount - 1 do
-    begin
       DoEditorChange(Editors[I], ChangeType + CheckEditorChanges(Editors[I]));
-    end;
+{$ENDIF}
   end
+{$IFNDEF STAND_ALONE}
 {$IFDEF IDE_SUPPORT_HDPI}
   else if (Msg.Msg = WM_DPICHANGED) and (Control = Application.MainForm) then
   begin
@@ -2550,8 +3279,9 @@ begin
     // 将系统 DPI 改变的通知转化为字体大小选项变化，并且为了避免多次调用，只判断主窗体
     FOptionChanged := True;
     for I := 0 to EditorCount - 1 do
-      DoEditorChange(Editor, ChangeType + CheckEditorChanges(Editors[I]));
+      DoEditorChange(Editors[I], ChangeType + CheckEditorChanges(Editors[I]));
   end
+{$ENDIF}
 {$ENDIF}
   else if (Msg.Msg = WM_NCPAINT) and IsEditControl(Control) then
   begin
@@ -2564,13 +3294,14 @@ begin
   end;
 end;
 
-procedure TCnEditControlWrapper.OnGetMsgProc(Handle: HWND;
-  Control: TWinControl; Msg: TMessage);
+function TCnEditControlWrapper.OnGetMsgProc(Handle: HWND;
+  Control: TWinControl; Msg: TMessage): Boolean;
 var
   Idx: Integer;
   Editor: TCnEditorObject;
   P: TPoint;
 begin
+  Result := False; // 表示不改动消息，继续处理
   if FMouseNotifyAvailable and IsEditControl(Control) then
   begin
     Editor := nil;
@@ -2669,7 +3400,8 @@ var
   Shift: TShiftState;
   List: TList;
 begin
-  if ((Msg.message = WM_KEYDOWN) or (Msg.message = WM_KEYUP)) and
+  if ((Msg.message = WM_KEYDOWN) or (Msg.message = WM_KEYUP) or
+    (Msg.message = WM_SYSKEYDOWN) or (Msg.message = WM_SYSKEYUP)) and
     IsEditControl(Screen.ActiveControl) then
   begin
     Key := Msg.wParam;
@@ -2682,10 +3414,20 @@ begin
       Key := MapVirtualKey(ScanCode, 1);
     end;
 
-    if Msg.message = WM_KEYDOWN then
-      List := FKeyDownNotifiers
-    else
-      List := FKeyUpNotifiers;
+    List := nil;
+    case Msg.message of
+      WM_KEYDOWN:
+        List := FKeyDownNotifiers;
+      WM_KEYUP:
+        List := FKeyUpNotifiers;
+      WM_SYSKEYDOWN:
+        List := FSysKeyDownNotifiers;
+      WM_SYSKEYUP:
+        List := FSysKeyUpNotifiers;
+    end;
+
+    if List = nil then
+      Exit;
 
     for I := 0 to List.Count - 1 do
     begin
@@ -2708,7 +3450,7 @@ begin
   while FBpClickQueue.Count > 0 do
   begin
     Item := TCnBreakPointClickItem(FBpClickQueue.Pop);
-    if (Item = nil) or (Item.BpEditControl = nil) or (Item.BpEditView = nil)
+    if (Item = nil) or (Item.BpEditControl = nil) {$IFNDEF STAND_ALONE} or (Item.BpEditView = nil) {$ENDIF}
        or (Item.BpDeltaLine = 0) then
        Continue;
 
@@ -2717,14 +3459,18 @@ begin
       CN_BP_CLICK_POS_X, Item.BpPosY]);
 {$ENDIF}
 
+{$IFNDEF STAND_ALONE}
     Item.BpEditView.Scroll(Item.BpDeltaLine, 0);
+{$ENDIF}
 
     // EditControl 上做点击
     Item.BpEditControl.Perform(WM_LBUTTONDOWN, 0, MakeLParam(CN_BP_CLICK_POS_X, Item.BpPosY));
     Item.BpEditControl.Perform(WM_LBUTTONUP, 0, MakeLParam(CN_BP_CLICK_POS_X, Item.BpPosY));
 
+{$IFNDEF STAND_ALONE}
     // 滚回去
     Item.BpEditView.Scroll(-Item.BpDeltaLine, 0);
+{$ENDIF}
     Item.Free;
   end;
 end;
@@ -2741,39 +3487,39 @@ procedure TCnEditControlWrapper.AddEditorMouseDownNotifier(
   Notifier: TCnEditorMouseDownNotifier);
 begin
   CheckAndSetEditControlMouseHookFlag;
-  AddNotifier(FMouseDownNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FMouseDownNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.AddEditorMouseMoveNotifier(
   Notifier: TCnEditorMouseMoveNotifier);
 begin
   CheckAndSetEditControlMouseHookFlag;
-  AddNotifier(FMouseMoveNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FMouseMoveNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.AddEditorMouseUpNotifier(
   Notifier: TCnEditorMouseUpNotifier);
 begin
   CheckAndSetEditControlMouseHookFlag;
-  AddNotifier(FMouseUpNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FMouseUpNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveEditorMouseDownNotifier(
   Notifier: TCnEditorMouseDownNotifier);
 begin
-  RemoveNotifier(FMouseDownNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FMouseDownNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveEditorMouseMoveNotifier(
   Notifier: TCnEditorMouseMoveNotifier);
 begin
-  RemoveNotifier(FMouseMoveNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FMouseMoveNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveEditorMouseUpNotifier(
   Notifier: TCnEditorMouseUpNotifier);
 begin
-  RemoveNotifier(FMouseUpNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FMouseUpNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.DoMouseDown(Editor: TCnEditorObject;
@@ -2847,26 +3593,26 @@ procedure TCnEditControlWrapper.AddEditorMouseLeaveNotifier(
   Notifier: TCnEditorMouseLeaveNotifier);
 begin
   CheckAndSetEditControlMouseHookFlag;
-  AddNotifier(FMouseLeaveNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FMouseLeaveNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveEditorMouseLeaveNotifier(
   Notifier: TCnEditorMouseLeaveNotifier);
 begin
-  RemoveNotifier(FMouseLeaveNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FMouseLeaveNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.AddEditorNcPaintNotifier(
   Notifier: TCnEditorNcPaintNotifier);
 begin
   CheckAndSetEditControlMouseHookFlag;
-  AddNotifier(FNcPaintNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FNcPaintNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveEditorNcPaintNotifier(
   Notifier: TCnEditorNcPaintNotifier);
 begin
-  RemoveNotifier(FNcPaintNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FNcPaintNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.DoNcPaint(Editor: TCnEditorObject);
@@ -2888,13 +3634,13 @@ end;
 procedure TCnEditControlWrapper.AddEditorVScrollNotifier(
   Notifier: TCnEditorVScrollNotifier);
 begin
-  AddNotifier(FVScrollNotifiers, TMethod(Notifier));
+  CnWizAddNotifier(FVScrollNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.RemoveEditorVScrollNotifier(
   Notifier: TCnEditorVScrollNotifier);
 begin
-  RemoveNotifier(FVScrollNotifiers, TMethod(Notifier));
+  CnWizRemoveNotifier(FVScrollNotifiers, TMethod(Notifier));
 end;
 
 procedure TCnEditControlWrapper.DoVScroll(Editor: TCnEditorObject);
@@ -2912,6 +3658,62 @@ begin
     end;
   end;
 end;
+
+{$IFDEF USE_CODEEDITOR_SERVICE}
+
+procedure TCnEditControlWrapper.AddEditor2BeginPaintNotifier(Notifier: TEditorBeginPaintEvent);
+begin
+  CnWizAddNotifier(FEditor2BeginPaintNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.RemoveEditor2BeginPaintNotifier(Notifier: TEditorBeginPaintEvent);
+begin
+  CnWizRemoveNotifier(FEditor2BeginPaintNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.AddEditor2EndPaintNotifier(Notifier: TEditorEndPaintEvent);
+begin
+  CnWizAddNotifier(FEditor2EndPaintNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.RemoveEditor2EndPaintNotifier(Notifier: TEditorEndPaintEvent);
+begin
+  CnWizRemoveNotifier(FEditor2EndPaintNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.AddEditor2PaintLineNotifier(Notifier: TEditorPaintLineEvent);
+begin
+  CnWizAddNotifier(FEditor2PaintLineNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.RemoveEditor2PaintLineNotifier(Notifier: TEditorPaintLineEvent);
+begin
+  CnWizRemoveNotifier(FEditor2PaintLineNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.AddEditor2PaintGutterNotifier(Notifier: TEditorPaintGutterEvent);
+begin
+  CnWizAddNotifier(FEditor2PaintGutterNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.RemoveEditor2PaintGutterNotifier(Notifier: TEditorPaintGutterEvent);
+begin
+  CnWizRemoveNotifier(FEditor2PaintGutterNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.AddEditor2PaintTextNotifier(Notifier: TEditorPaintTextEvent);
+begin
+  CnWizAddNotifier(FEditor2PaintTextNotifiers, TMethod(Notifier));
+end;
+
+procedure TCnEditControlWrapper.RemoveEditor2PaintTextNotifier(Notifier: TEditorPaintTextEvent);
+begin
+  CnWizRemoveNotifier(FEditor2PaintTextNotifiers, TMethod(Notifier));
+end;
+
+{$ENDIF}
+
+{$IFNDEF STAND_ALONE}
 
 function TCnEditControlWrapper.GetLineFromPoint(Point: TPoint;
   EditControl: TControl; EditView: IOTAEditView): Integer;
@@ -2935,9 +3737,13 @@ begin
     Result := EditView.TopRow + Result;
 end;
 
+{$ENDIF}
+
 function TCnEditControlWrapper.GetTabWidth: Integer;
+{$IFNDEF STAND_ALONE}
 var
   Options: IOTAEnvironmentOptions;
+{$ENDIF}
 
 {$IFDEF BDS}
 
@@ -2974,6 +3780,7 @@ var
 
 begin
   Result := 2;
+{$IFNDEF STAND_ALONE}
   Options := CnOtaGetEnvironmentOptions;
   if Options <> nil then
   begin
@@ -2987,13 +3794,17 @@ begin
       ;
     end;
   end;
+{$ENDIF}
 end;
 
 function TCnEditControlWrapper.GetBlockIndent: Integer;
+{$IFNDEF STAND_ALONE}
 var
   Options: IOTAEnvironmentOptions;
+{$ENDIF}
 begin
   Result := 2;
+{$IFNDEF STAND_ALONE}
   Options := CnOtaGetEnvironmentOptions;
   if Options <> nil then
   begin
@@ -3003,13 +3814,17 @@ begin
       ;
     end;
   end;
+{$ENDIF}
 end;
 
 function TCnEditControlWrapper.GetUseTabKey: Boolean;
+{$IFNDEF STAND_ALONE}
 var
   Options: IOTAEnvironmentOptions;
   S: string;
+{$ENDIF}
 begin
+{$IFNDEF STAND_ALONE}
   Options := CnOtaGetEnvironmentOptions;
   if Options <> nil then
   begin
@@ -3017,6 +3832,7 @@ begin
     Result := (S = 'True') or (S = '-1'); // D567 is -1
   end
   else
+{$ENDIF}
     Result := False;
 end;
 
@@ -3030,6 +3846,13 @@ begin
   Result := FBackgroundColor;
 end;
 
+function TCnEditControlWrapper.GetForegroundColor: TColor;
+begin
+  Result := FForegroundColor;
+end;
+
+{$IFNDEF STAND_ALONE}
+
 procedure TCnEditControlWrapper.LoadFontFromRegistry;
 const
   ArrRegItems: array [0..9] of string = ('', 'Assembler', 'Comment', 'Preprocessor',
@@ -3037,7 +3860,7 @@ const
 var
   I: Integer;
   AFont: TFont;
-  BColor: TColor;
+  BColor, SysBColor: TColor;
 begin
   // 从注册表中载入 IDE 的字体供外界使用
   AFont := TFont.Create;
@@ -3049,11 +3872,12 @@ begin
     if GetIDERegistryFont(ArrRegItems[0], AFont, BColor) then
       ResetFontsFromBasic(AFont);
 
+    SysBColor := GetSysColor(COLOR_WINDOW);
     for I := Low(FFontArray) + 1 to High(FFontArray) do
     begin
       try
-        BColor := clWhite;
-        if GetIDERegistryFont(ArrRegItems[I], AFont, BColor) then
+        BColor := SysBColor;
+        if GetIDERegistryFont(ArrRegItems[I], AFont, BColor, True) then
         begin
           FFontArray[I].Assign(AFont);
           if I = 7 then // WhiteSpace 的背景色
@@ -3062,6 +3886,10 @@ begin
 {$IFDEF DEBUG} // 没有 EditControl 实例时可能会因为拿不到信息被 Idle 频繁调用，不打
 //          CnDebugger.LogColor(FBackgroundColor, 'LoadFontFromRegistry Get Background');
 {$ENDIF}
+          end
+          else if I = 4 then // Identifier 的前景色
+          begin
+            FForegroundColor := AFont.Color;
           end;
         end;
       except
@@ -3072,6 +3900,8 @@ begin
     AFont.Free;
   end;
 end;
+
+{$ENDIF}
 
 procedure TCnEditControlWrapper.ResetFontsFromBasic(ABasicFont: TFont);
 var

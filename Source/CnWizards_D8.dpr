@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -95,6 +95,7 @@ uses
   CnEditorFontZoom in 'CodingToolset\CnEditorFontZoom.pas',
   CnEditorDuplicateUnit in 'CodingToolset\CnEditorDuplicateUnit.pas',
   CnEditorExtractString in 'CodingToolset\CnEditorExtractString.pas' {CnExtractStringForm},
+  CnEditorExtSelect in 'CodingToolset\CnEditorExtSelect.pas',
   CnMsdnWizard in 'SimpleWizards\CnMsdnWizard.pas' {CnMsdnConfigForm},
   CnPas2HtmlWizard in 'SimpleWizards\CnPas2HtmlWizard.pas' {CnPas2HtmlForm},
   CnPasConvertTypeFrm in 'SimpleWizards\CnPasConvertTypeFrm.pas' {CnPasConvertTypeForm},
@@ -139,6 +140,9 @@ uses
   CnSourceCropper in 'Utils\CnSourceCropper.pas',
   CnCpuWinEnhancements in 'IdeEnhancements\CnCpuWinEnhancements.pas',
   CnCpuWinEnhanceFrm in 'IdeEnhancements\CnCpuWinEnhanceFrm.pas' {CnCpuWinEnhanceForm},
+  CnObjInspectorEnhancements in 'IdeEnhancements\CnObjInspectorEnhancements.pas' {CnObjInspectorConfigForm},
+  CnObjInspectorCommentFrm in 'IdeEnhancements\CnObjInspectorCommentFrm.pas' {CnObjInspectorCommentForm},
+  CnObjectInspectorWrapper in 'Utils\CnObjectInspectorWrapper.pas',
   CnRepositoryMenu in 'RepositoryWiz\CnRepositoryMenu.pas',
   CnDUnitWizard in 'RepositoryWiz\CnDUnitWizard.pas',
   CnDUnitSetFrm in 'RepositoryWiz\CnDUnitSetFrm.pas' {CnDUnitSetForm},
@@ -154,7 +158,7 @@ uses
   CnExploreFilterEditor in 'ExplorerWizard\CnExploreFilterEditor.pas' {CnExploreFilterEditorForm},
   CnProjectDelTempFrm in 'ProjectExtWizard\CnProjectDelTempFrm.pas' {CnProjectDelTempForm},
   CnRoClasses in 'ReopenWizard\CnRoClasses.pas',
-  CnRoFrmFileList in 'ReopenWizard\CnRoFrmFileList.pas' {RecentFilesFrame: TFrame},
+  CnRoFrmFileList in 'ReopenWizard\CnRoFrmFileList.pas' {CnRecentFilesFrame: TFrame},
   CnRoInterfaces in 'ReopenWizard\CnRoInterfaces.pas',
   CnRoWizard in 'ReopenWizard\CnRoWizard.pas',
   CnRoFilesList in 'ReopenWizard\CnRoFilesList.pas' {CnFilesListForm},

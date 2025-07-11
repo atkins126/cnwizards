@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -43,6 +43,11 @@ interface
 {$I CnWizards.inc}
 
 {$IFDEF CNWIZARDS_CNSTATWIZARD}
+
+{$IFDEF DELPHIXE_UP}
+  // XE 起 FormReadError 加了个字符串参数
+  {$DEFINE FORM_READ_ERROR_V2}
+{$ENDIF}
 
 uses
   SysUtils, Classes, IniFiles, ToolsAPI, FileCtrl, Controls, ComCtrls, Windows,
@@ -116,12 +121,17 @@ uses
 
 const
 {$IFDEF UNICODE}
+  {$IFDEF FORM_READ_ERROR_V2}
+  SCnFormReadErrorName = '@Formread@FormReadError$qqrx20System@UnicodeStringt1';
+  {$ELSE}
   SCnFormReadErrorName = '@Formread@FormReadError$qqrx20System@UnicodeString';
+  {$ENDIF}
 {$ELSE}
   SCnFormReadErrorName = '@Formread@FormReadError$qqrx17System@AnsiString';
 {$ENDIF}
 
-function HookedFormReadError(const Str: string): Integer;
+function HookedFormReadError(const Str: string
+  {$IFDEF FORM_READ_ERROR_V2}; const Str2: string {$ENDIF}): Integer;
 begin
   Result := $2A; // 表示 IgnoreAll;
 end;
@@ -184,7 +194,11 @@ begin
 
     MethodHook := nil;
 {$IFDEF BDS}
+  {$IFDEF DELPHIXE2_UP} // 这个函数在仨包内横跳
+    ACorIdeModule := LoadLibrary(DesignIdeLibName);
+  {$ELSE}
     ACorIdeModule := LoadLibrary(DphIdeLibName);
+  {$ENDIF}
 {$ELSE}
     ACorIdeModule := LoadLibrary(CorIdeLibName);
 {$ENDIF}
@@ -193,12 +207,14 @@ begin
       // 挂接 Formread::FormReadError，返回 $2A 表示强行 IgnoreAll
       if ACorIdeModule <> 0 then
       begin
-        OldFormReadError := GetProcAddress(ACorIdeModule, SCnFormReadErrorName);
+        OldFormReadError := GetBplMethodAddress(GetProcAddress(ACorIdeModule, SCnFormReadErrorName));
         if OldFormReadError <> nil then
+          MethodHook := TCnMethodHook.Create(OldFormReadError, @HookedFormReadError)
+        else
         begin
-          OldFormReadError := GetBplMethodAddress(OldFormReadError);
-          if OldFormReadError <> nil then
-            MethodHook := TCnMethodHook.Create(OldFormReadError, @HookedFormReadError);
+{$IFDEF DEBUG}
+          CnDebugger.LogMsgWarning('StatWizard: No FormReadError Found.');
+{$ENDIF}
         end;
       end;
 

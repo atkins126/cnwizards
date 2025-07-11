@@ -57,7 +57,7 @@
 		<param name="Local" value="wizards\repository\cnmemprof.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
-		<param name="Name" value="CnPack IDE Wizards License">
+		<param name="Name" value="CnPack Agreement License">
 		<param name="Local" value="licenses\license.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
@@ -177,6 +177,10 @@
 		<param name="Local" value="wizards\explorer.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Extending Select Tool">
+		<param name="Local" value="wizards\toolset\toolsetextselect.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Extract String Tool">
 		<param name="Local" value="wizards\toolset\extractstring.htm">
 		</OBJECT>
@@ -246,11 +250,11 @@
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Insert Color Tool">
-		<param name="Local" value="wizards\projext\editorinsertcolor.htm">
+		<param name="Local" value="wizards\toolset\toolsetinsertcolor.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Insert Date Time Tool">
-		<param name="Local" value="wizards\projext\editorinserttime.htm">
+		<param name="Local" value="wizards\toolset\toolsetinserttime.htm">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Jump to Interface Tool">
@@ -363,6 +367,10 @@
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Relation Analyzer">
 		<param name="Local" value="cnsmr\cnsmr.htm">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="RemObjects Pascal Script License">
+		<param name="Local" value="licenses\ro_ps_lic.txt">
 		</OBJECT>
 	<LI> <OBJECT type="text/sitemap">
 		<param name="Name" value="Repository List">

@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -39,8 +39,31 @@ uses
   Windows, SysUtils, CnCommon;
 
 const
+{$IFDEF WIN64}
+  SCnWizHelperDllName = 'CnWizHelper64.Dll';
+  SCnWizZipDllName = 'CnZipUtils64.Dll';
+{$ELSE}
   SCnWizHelperDllName = 'CnWizHelper.Dll';
   SCnWizZipDllName = 'CnZipUtils.Dll';
+{$ENDIF}
+
+type
+  TProcCnWizStartZip = procedure(const SaveFileName: PAnsiChar; const Password: PAnsiChar;
+    RemovePath: Boolean); stdcall;
+  {* 开始一个 Zip，创建内部对象，指明文件名、密码等}
+
+  TProcCnWizZipAddFile = procedure(FileName, ArchiveFileName: PAnsiChar); stdcall;
+  {* 添加文件到 Zip，参数为真实文件名以及要写入 Zip 文件的文件名
+    如果 ArchiveFileName 传 nil，则使用 FileName 并受 RemovePath 选项控制}
+
+  TProcCnWizZipSetComment = procedure(Comment: PAnsiChar); stdcall;
+  {* 设置 Zip 文件注释}
+
+  TFuncCnWizZipSaveAndClose = function: Boolean; stdcall;
+  {* 压缩保存 Zip 文件并释放内部对象}
+
+  TFuncCnWizInetGetFile = function(AURL, FileName: PAnsiChar): Boolean; stdcall;
+  {* 通过网络请求获取 URL 内容并保存到文件}
 
 function CnWizHelperLoaded: Boolean;
 
@@ -80,23 +103,6 @@ implementation
 uses
   CnDebug;
 {$ENDIF}
-
-type
-  TProcCnWizStartZip = procedure(const SaveFileName: PAnsiChar; const Password: PAnsiChar;
-    RemovePath: Boolean); stdcall;
-  {* 开始一个 Zip，创建内部对象，指明文件名、密码等}
-
-  TProcCnWizZipAddFile = procedure(FileName, ArchiveFileName: PAnsiChar); stdcall;
-  {* 添加文件到 Zip，参数为真实文件名以及要写入 Zip 文件的文件名
-    如果 ArchiveFileName 传 nil，则使用 FileName 并受 RemovePath 选项控制}
-
-  TProcCnWizZipSetComment = procedure(Comment: PAnsiChar); stdcall;
-  {* 设置 Zip 文件注释}
-
-  TFuncCnWizZipSaveAndClose = function: Boolean; stdcall;
-  {* 压缩保存 Zip 文件并释放内部对象}
-
-  TFuncCnWizInetGetFile = function(AURL, FileName: PAnsiChar): Boolean; stdcall;
 
 var
   HelperDllHandle: HMODULE = 0;

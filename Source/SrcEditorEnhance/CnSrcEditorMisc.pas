@@ -1,7 +1,7 @@
 {******************************************************************************}
 {                       CnPack For Delphi/C++Builder                           }
 {                     中国人自己的开放源码第三方开发包                         }
-{                   (C)Copyright 2001-2024 CnPack 开发组                       }
+{                   (C)Copyright 2001-2025 CnPack 开发组                       }
 {                   ------------------------------------                       }
 {                                                                              }
 {            本开发包是开源的自由软件，您可以遵照 CnPack 的发布协议来修        }
@@ -324,13 +324,13 @@ begin
   end;
 
   TabControl := TControl(FindComponentByClassName(EditWindow,
-    XTabControlClassName, XTabControlName));
+    SCnXTabControlClassName, SCnXTabControlName));
   if Assigned(TabControl) then
   begin
     if TabCtrlHeight = 0 then
     begin
       // 想法获得 TabCtrl 的原始高度
-      TabCtrlPanelComp := EditWindow.FindComponent(TabControlPanelName);
+      TabCtrlPanelComp := EditWindow.FindComponent(SCnTabControlPanelName);
       if (TabCtrlPanelComp <> nil) and (TabCtrlPanelComp is TPanel) then
       begin
         TabCtrlPanel := TabCtrlPanelComp as TPanel;
@@ -342,7 +342,7 @@ begin
 {$IFDEF COMPILER6}
       // D6/BCB6 下，这个下方的Panel的Align不是alClient，只Anchors是四方，
       // 会导致TabControl为MultiLine时容器高度不会改变，从而下面的显示效果被挡住
-      CodePanel := TPanel(EditWindow.FindComponent('CodePanel'));
+      CodePanel := TPanel(EditWindow.FindComponent(SCnCodePanelName));
       if CodePanel <> nil then
       begin
         if CodePanel.Align <> alClient then
@@ -471,8 +471,8 @@ begin
       if Msg.message = WM_LBUTTONDBLCLK then
       begin
         // 关闭当前最前面的页面
-        if (Idx >= 0) and TabControl.ClassNameIs(XTabControlClassName) and
-          ((TabControl.Owner = nil) or (TabControl.Owner.Name <> PropertyInspectorName)) then
+        if (Idx >= 0) and TabControl.ClassNameIs(SCnXTabControlClassName) and
+          ((TabControl.Owner = nil) or (TabControl.Owner.Name <> SCnPropertyInspectorName)) then
           CnWizNotifierServices.ExecuteOnApplicationIdle(DoClosePage);
       end;
     {$ENDIF}
@@ -480,7 +480,7 @@ begin
 
   {$IFDEF BDS4_UP}
     if (Msg.message = WM_LBUTTONDBLCLK) and (Control <> nil) and
-      Control.ClassNameIs(XTabControlClassName) then
+      Control.ClassNameIs(SCnXTabControlClassName) then
     begin
       PostMessage(Control.Handle, WM_MBUTTONUP, 16, Msg.lParam);
       {$IFDEF DELPHIXE2_UP}
@@ -498,7 +498,7 @@ end;
 procedure TCnSrcEditorMisc.RegisterUserMenuItems;
 begin
   FCloseOtherPagesMenu := TCnMenuItemDef.Create(SCnMenuCloseOtherPagesName,
-    SCnMenuCloseOtherPagesCaption, OnCloseOtherPages, ipAfter, SMenuClosePageName);
+    SCnMenuCloseOtherPagesCaption, OnCloseOtherPages, ipAfter, SCnMenuClosePageName);
   FMenuHook.AddMenuItemDef(FCloseOtherPagesMenu);
 
   FShellMenu := TCnMenuItemDef.Create(SCnShellMenuName,
@@ -506,38 +506,38 @@ begin
   FMenuHook.AddMenuItemDef(FShellMenu);
 
   FBlockToolsMenu := TCnMenuItemDef.Create(SCnMenuBlockToolsName, SCnMenuBlockToolsCaption,
-    nil, ipAfter, SMenuEditPasteItemName);
+    nil, ipAfter, SCnMenuEditPasteItemName);
   FBlockToolsMenu.OnCreated := OnBlockToolsMenuCreated;
   FMenuHook.AddMenuItemDef(FBlockToolsMenu);
 
   FThumbnailMenu := TCnMenuItemDef.Create(SCnMenuEnableThumbnailName, SCnMenuEnableThumbnailCaption,
-    OnThumbnailClick, ipAfter, SMenuEditPasteItemName);
+    OnThumbnailClick, ipAfter, SCnMenuEditPasteItemName);
   FThumbnailMenu.OnCreated := OnThumbnailMenuCreated;
   FMenuHook.AddMenuItemDef(FThumbnailMenu);
 
   FSelAllMenu := TCnMenuItemDef.Create(SCnMenuSelAllName, SCnMenuSelAllCaption,
-    OnSelectAll, ipAfter, SMenuEditPasteItemName);
+    OnSelectAll, ipAfter, SCnMenuEditPasteItemName);
   FMenuHook.AddMenuItemDef(FSelAllMenu);
 
   FCopyFileNameMenu := TCnMenuItemDef.Create(SCnCopyFileNameMenuName,
-    SCnMenuCopyFileNameMenuCaption, OnCopyFileName, ipAfter, SMenuOpenFileAtCursorName);
+    SCnMenuCopyFileNameMenuCaption, OnCopyFileName, ipAfter, SCnMenuOpenFileAtCursorName);
   FMenuHook.AddMenuItemDef(FCopyFileNameMenu);
 
   FExploreMenu := TCnMenuItemDef.Create(SCnMenuExploreName, SCnMenuExploreCaption,
-    OnExplore, ipAfter, SMenuOpenFileAtCursorName);
+    OnExplore, ipAfter, SCnMenuOpenFileAtCursorName);
   FExploreMenu.OnCreated := OnExploreMenuCreated;
   FMenuHook.AddMenuItemDef(FExploreMenu);
 
 {$IFDEF COMPILER6_UP}
   {$IFNDEF BDS4_UP}
   FCloseOtherPagesMenu1 := TCnMenuItemDef.Create(SCnMenuCloseOtherPagesName + '1',
-    SCnMenuCloseOtherPagesCaption, OnCloseOtherPages, ipAfter, SMenuClosePageIIName);
+    SCnMenuCloseOtherPagesCaption, OnCloseOtherPages, ipAfter, SCnMenuClosePageIIName);
   FMenuHookTabPopup.AddMenuItemDef(FCloseOtherPagesMenu1);
   FShellMenu1 := TCnMenuItemDef.Create(SCnShellMenuName + '1',
     SCnMenuShellMenuCaption, OnShellMenu, ipAfter, SCnMenuCloseOtherPagesName + '1');
   {$ELSE}
   FShellMenu1 := TCnMenuItemDef.Create(SCnShellMenuName + '1',
-    SCnMenuShellMenuCaption, OnShellMenu, ipAfter, SMenuClosePageIIName);
+    SCnMenuShellMenuCaption, OnShellMenu, ipAfter, SCnMenuClosePageIIName);
   {$ENDIF}
   FMenuHookTabPopup.AddMenuItemDef(FShellMenu1);
 
@@ -681,7 +681,7 @@ end;
 
 procedure TCnSrcEditorMisc.OnSelectAll(Sender: TObject);
 begin
-  ExecuteIDEAction(SEditSelectAllCommand);
+  ExecuteIDEAction(SCnEditSelectAllCommand);
 end;
 
 procedure TCnSrcEditorMisc.OnExploreMenuCreated(Sender: TObject;
@@ -981,6 +981,7 @@ var
 begin
   try
     for I := 0 to FTabControlList.Count - 1 do
+    begin
       if FTabControlList[I] is TXTabControl then
       begin
         TabControl := TXTabControl(FTabControlList[I]);
@@ -1007,9 +1008,10 @@ begin
           end;
         end;
       end;
+    end;
   except
     on E: Exception do
-      DoHandleException(E.Message);
+      DoHandleException('UpdateTabControlCaption ' + E.Message);
   end;
 end;
 
@@ -1321,7 +1323,7 @@ begin
     if IsIdeEditorForm(Screen.CustomForms[I]) then
     begin
       Tab := TTabControl(FindComponentByClassName(Screen.CustomForms[I],
-        XTabControlClassName, XTabControlName));
+        SCnXTabControlClassName, SCnXTabControlName));
       if Tab <> nil then
         UpdateTab(Tab);
     end;
@@ -1373,7 +1375,7 @@ begin
     if (AOwner = nil) or (TabCtrlHeight = 0) then
       Exit;
 
-    TabCtrlPanel := AOwner.FindComponent(TabControlPanelName) as TPanel;
+    TabCtrlPanel := AOwner.FindComponent(SCnTabControlPanelName) as TPanel;
 
     if TabCtrlPanel = nil then
       Exit;
